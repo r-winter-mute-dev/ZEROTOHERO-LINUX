@@ -1,0 +1,105 @@
+---
+// Der Server als Rack. Akt 0 ist der Rahmen, Akt 1 bis 9 sind Einschübe, von unten nach oben gestapelt.
+// Jeder Einschub hat vier Zustände, genau wie die Teile der Klingel im Elektronik-Kurs:
+// gesperrt (gestrichelt), aktiv (Akzentumriss), simuliert (grau gefüllt), real (Akzent gefüllt, LEDs an).
+import { SERVER } from '../data/kampagne';
+interface Props { legende?: boolean; }
+const { legende = true } = Astro.props;
+const BEFEHL: Record<string, string> = {
+  festplatte: 'ls -la', werkzeug: 'grep | sort', schloss: 'chmod 600', prozessor: 'top',
+  lager: 'pacman -Syu', netz: 'ssh', steuerung: '#!/bin/bash', wachturm: 'systemctl', schild: 'ufw enable',
+};
+const H = 46, GAP = 6, OBEN = 60;
+const einschuebe = SERVER.filter((a) => a.nr > 0)
+  .map((a, i, alle) => ({ a, y: OBEN + (alle.length - 1 - i) * (H + GAP) }));
+const unten = OBEN + einschuebe.length * (H + GAP);
+---
+<figure class="rack" data-kw-rack>
+  <svg viewBox="0 0 420 560" role="img" aria-labelledby="rack-titel">
+    <title id="rack-titel">Dein Server als Rack. Jeder Einschub füllt sich, wenn du den passenden Akt abschließt.</title>
+
+    <g class="teil" data-teil="rack">
+      <rect class="form" x="28" y="20" width="364" height={unten - 4} rx="10" />
+      <rect class="form" x="38" y="30" width="18" height={unten - 24} rx="3" />
+      <rect class="form" x="364" y="30" width="18" height={unten - 24} rx="3" />
+      <text class="aufdruck" x="210" y="44" text-anchor="middle">archbox</text>
+      <rect class="form" x="120" y={unten + 16} width="180" height="10" rx="3" />
+    </g>
+
+    {einschuebe.map(({ a, y }) => (
+      <g class="teil" data-teil={a.teil}>
+        <rect class="form" x="64" y={y} width="292" height={H} rx="5" />
+        <text class="aufdruck" x="78" y={y + 20}>{a.nr} {a.teilName.replace(/ \(.*\)/, '')}</text>
+        <text class="befehl" x="78" y={y + 37}>$ {BEFEHL[a.teil]}</text>
+        <text class="stand" x="300" y={y + 20} text-anchor="end" data-stand={a.teil}></text>
+        <circle class="led" cx="326" cy={y + 16} r="4.5" />
+        <circle class="led led2" cx="342" cy={y + 16} r="4.5" />
+        <rect class="schlitz" x="316" y={y + 28} width="32" height="6" rx="2" />
+      </g>
+    ))}
+  </svg>
+  {legende && (
+    <figcaption class="legende">
+      <span><i class="l gesperrt"></i>noch gesperrt</span>
+      <span><i class="l aktiv"></i>in Arbeit</span>
+      <span><i class="l simuliert"></i>im Simulator geschafft</span>
+      <span><i class="l real"></i>im echten Linux geschafft</span>
+    </figcaption>
+  )}
+</figure>
+
+<script>
+  import { SERVER } from '../data/kampagne';
+  import { beiAenderung, teilZustand } from '../scripts/engine';
+  function zeigen(erstes = false) {
+    document.querySelectorAll<HTMLElement>('[data-kw-rack]').forEach((fig) => {
+      let reihe = 0;
+      SERVER.forEach((a) => {
+        const g = fig.querySelector<SVGGElement>(`[data-teil="${a.teil}"]`);
+        if (!g) return;
+        const t = teilZustand(a.teil);
+        g.classList.remove('gesperrt', 'aktiv', 'simuliert', 'real');
+        g.classList.add(t.zustand);
+        if (erstes && (t.zustand === 'real' || t.zustand === 'simuliert')) {
+          g.style.setProperty('--verz', `${reihe++ * 140}ms`);
+          g.classList.add('auftritt');
+        }
+        const stand = fig.querySelector(`[data-stand="${a.teil}"]`);
+        if (stand) stand.textContent = t.zustand === 'real' ? 'online' : t.zustand === 'simuliert' ? 'simuliert' : t.fertig > 0 ? `${t.fertig}/${t.gesamt}` : '';
+      });
+    });
+  }
+  zeigen(true);
+  beiAenderung(() => zeigen());
+</script>
+
+<style>
+  .rack { margin: 0; }
+  svg { width: 100%; max-width: 26rem; height: auto; display: block; margin: 0 auto; overflow: visible; }
+  .teil .form { fill: none; stroke: var(--leise-dunkel); stroke-width: 2; stroke-dasharray: 5 6; transition: fill 0.4s, stroke 0.4s; }
+  .teil .aufdruck { fill: var(--leise-dunkel); font-size: 14px; font-weight: 700; }
+  .teil .befehl { fill: var(--leise-dunkel); font-size: 11.5px; font-family: var(--mono); }
+  .teil .stand { fill: var(--akzent-hell); font-size: 12px; }
+  .teil .led { fill: none; stroke: var(--leise-dunkel); stroke-width: 1.5; }
+  .teil .schlitz { fill: none; stroke: var(--leise-dunkel); stroke-width: 1.2; }
+  .teil.aktiv .form { stroke: var(--akzent); stroke-width: 2.5; }
+  .teil.aktiv .aufdruck { fill: var(--text); }
+  .teil.simuliert .form { stroke: var(--leise); stroke-dasharray: none; fill: rgba(163, 163, 163, 0.22); }
+  .teil.simuliert .led { fill: var(--leise); stroke: var(--leise); }
+  .teil.real .form { stroke: var(--akzent-hell); stroke-dasharray: none; stroke-width: 2.5; fill: color-mix(in srgb, var(--akzent) 38%, transparent); }
+  .teil.real .led { fill: var(--gut); stroke: var(--gut); }
+  .teil.real .led2 { fill: var(--akzent-hell); stroke: var(--akzent-hell); }
+  .teil.real .aufdruck, .teil.simuliert .aufdruck, .teil.real .befehl, .teil.simuliert .befehl { fill: var(--text); }
+  .teil[data-teil='rack'] .form { fill-opacity: 0.25; }
+  .teil.real { filter: drop-shadow(0 0 6px color-mix(in srgb, var(--akzent-hell) 45%, transparent)); }
+  .teil.auftritt { animation: einschalten 0.7s ease-out both; animation-delay: var(--verz); }
+  @keyframes einschalten { from { opacity: 0.15; } 60% { opacity: 1; filter: drop-shadow(0 0 14px color-mix(in srgb, var(--akzent-hell) 90%, transparent)); } }
+  @media (prefers-reduced-motion: reduce) { .teil.auftritt { animation: none; } }
+  :global(html[data-bewegung='reduziert']) .teil.auftritt { animation: none; }
+  .legende { display: flex; flex-wrap: wrap; gap: 0.4rem 1.1rem; justify-content: center; font-size: 0.9rem; color: var(--leise); margin-top: 0.8rem; }
+  .l { display: inline-block; width: 0.9rem; height: 0.9rem; border-radius: 3px; margin-right: 0.35rem; vertical-align: -0.1rem; border: 2px solid; }
+  .l.gesperrt { border-color: var(--leise-dunkel); border-style: dashed; }
+  .l.aktiv { border-color: var(--akzent); border-style: dashed; }
+  .l.simuliert { border-color: var(--leise); background: rgba(163, 163, 163, 0.3); }
+  .l.real { border-color: var(--akzent-hell); background: color-mix(in srgb, var(--akzent) 50%, transparent); }
+</style>

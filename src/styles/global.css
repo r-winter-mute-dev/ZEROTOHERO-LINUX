@@ -1,0 +1,146 @@
+@import '@fontsource/atkinson-hyperlegible/400.css';
+@import '@fontsource/atkinson-hyperlegible/700.css';
+@import '@fontsource/atkinson-hyperlegible/400-italic.css';
+
+:root {
+  /* Grau und Schwarz, Akzente aus Catppuccin Mocha (sparsam einsetzen) */
+  --grund: #121212;          /* Seitenhintergrund */
+  --tief: #0c0c0c;           /* vertiefte Flächen: Prüfungen, Eingabefelder */
+  --flaeche: #2a2a2a;        /* Linien, Rahmen */
+  --flaeche-leicht: #1a1a1a; /* leicht erhabene Flächen */
+  --akzent: #cba6f7;         /* Catppuccin Mauve: Links, Knöpfe, aktive Teile */
+  --akzent-hell: #dcc3fa;
+  --text: #e6e6e6;
+  --leise: #a0a0a0;          /* Nebentext */
+  --leise-dunkel: #686868;
+  --gut: #a6e3a1;            /* Catppuccin Green: bestanden */
+  --warnung: #f9e2af;        /* Catppuccin Yellow */
+  --fehler: #f38ba8;         /* Catppuccin Red */
+
+  --schrift: 'Atkinson Hyperlegible', system-ui, sans-serif;
+  --mono: ui-monospace, 'Cascadia Code', 'JetBrains Mono', Consolas, monospace;
+  --zeile: 1.55;
+  --breite: 44rem;
+  --radius-klein: 4px;
+  --radius: 10px;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+html { background: var(--grund); color: var(--text); }
+
+body {
+  margin: 0;
+  font-family: var(--schrift);
+  font-size: 1.0625rem;
+  line-height: var(--zeile);
+  background: var(--grund);
+  min-height: 100vh;
+}
+
+a { color: var(--akzent-hell); text-underline-offset: 0.18em; }
+a:hover { color: var(--text); }
+
+:focus-visible { outline: 3px solid var(--akzent-hell); outline-offset: 3px; border-radius: 2px; }
+
+h1, h2, h3 { line-height: 1.15; font-weight: 700; margin: 0 0 0.5em; }
+h1 { font-size: clamp(2rem, 4.5vw, 3.1rem); letter-spacing: -0.01em; }
+h2 { font-size: 1.6rem; margin-top: 2.2em; }
+h3 { font-size: 1.2rem; margin-top: 1.6em; }
+p, ul, ol { margin: 0 0 1em; }
+li { margin-bottom: 0.35em; }
+strong { color: #fff; font-weight: 700; }
+code { font-family: var(--mono); font-size: 0.9em; background: var(--flaeche-leicht); padding: 0.1em 0.35em; border-radius: var(--radius-klein); }
+pre { font-family: var(--mono); font-size: 0.88rem; line-height: 1.5; padding: 1rem 1.1rem; border-radius: var(--radius); border: 1px solid var(--flaeche); overflow-x: auto; background: var(--tief) !important; }
+pre code { background: none; padding: 0; font-size: inherit; }
+hr { border: 0; border-top: 1px solid var(--flaeche); margin: 2.5rem 0; }
+
+table { border-collapse: collapse; width: 100%; margin: 0 0 1.2em; font-size: 0.97rem; }
+th, td { text-align: left; padding: 0.5em 0.7em; border-bottom: 1px solid var(--flaeche); vertical-align: top; }
+th { color: var(--leise); font-weight: 700; }
+
+.huelle { max-width: 72rem; margin: 0 auto; padding: 0 1.25rem; }
+.text { max-width: var(--breite); }
+.leise { color: var(--leise); }
+.klein { font-size: 0.9rem; }
+
+/* Knöpfe */
+.knopf {
+  display: inline-flex; align-items: center; gap: 0.5em;
+  font: inherit; font-weight: 700; font-size: 1rem;
+  padding: 0.6em 1.1em; border-radius: 999px;
+  border: 2px solid var(--akzent); background: var(--akzent); color: var(--tief);
+  cursor: pointer; text-decoration: none;
+}
+.knopf:hover { background: var(--akzent-hell); border-color: var(--akzent-hell); color: var(--tief); }
+.knopf.zweit { background: transparent; color: var(--akzent-hell); }
+.knopf.zweit:hover { background: color-mix(in srgb, var(--akzent) 15%, transparent); color: var(--text); }
+.knopf:disabled { opacity: 0.45; cursor: not-allowed; }
+
+input[type='text'], input[type='number'], textarea, select {
+  font: inherit; color: var(--text); background: var(--tief);
+  border: 1px solid var(--leise-dunkel); border-radius: var(--radius-klein);
+  padding: 0.45em 0.6em;
+}
+input:focus, textarea:focus, select:focus { border-color: var(--akzent-hell); }
+
+/* Kasten für Prüfungen und Übungen: Lötpad-Rand links */
+.station {
+  position: relative;
+  margin: 1.6rem 0;
+  padding: 1.25rem 1.25rem 1.1rem 1.5rem;
+  background: var(--tief);
+  border-radius: var(--radius);
+  border-left: 4px solid var(--leise-dunkel);
+}
+.station > h3:first-child, .station > .station-kopf { margin-top: 0; }
+.station-kopf { display: flex; justify-content: space-between; gap: 1rem; align-items: baseline; flex-wrap: wrap; margin-bottom: 0.8rem; }
+.station-kopf h3 { margin: 0; }
+.station-art { color: var(--leise); font-size: 0.88rem; }
+.station.bestanden { border-left-color: var(--gut); }
+.station.uebersprungen { border-left-color: var(--leise-dunkel); }
+.station.gesperrt { border-left-style: dashed; }
+.meldung { margin: 0.8rem 0 0; padding: 0.6rem 0.8rem; border-radius: var(--radius-klein); background: rgba(255,255,255,0.04); }
+.meldung.gut { color: var(--gut); }
+.meldung.fehler { color: var(--fehler); }
+.meldung.warnung { color: var(--warnung); }
+.meldung:empty { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+}
+
+/* Anzeige-Einstellungen (siehe src/scripts/einstellungen.ts) */
+html[data-schrift='gross'] body { font-size: 1.2rem; }
+html[data-schrift='sehr-gross'] body { font-size: 1.36rem; }
+html[data-abstand='weit'] { --zeile: 1.85; }
+html[data-abstand='weit'] body { letter-spacing: 0.015em; word-spacing: 0.08em; }
+html[data-abstand='weit'] p, html[data-abstand='weit'] li { margin-bottom: 1.25em; }
+html[data-bewegung='reduziert'] *, html[data-bewegung='reduziert'] *::before, html[data-bewegung='reduziert'] *::after {
+  animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important;
+}
+html[data-fokus='an'] .pfad { display: none; }
+
+/* Merksatz: die eine Aussage, die hängen bleiben soll */
+.merke {
+  margin: 1.2rem 0; padding: 0.75rem 1rem 0.75rem 1.1rem;
+  border-left: 4px solid var(--akzent); background: var(--flaeche-leicht);
+  border-radius: 0 var(--radius) var(--radius) 0; font-weight: 700; color: #fff;
+}
+.merke::before { content: 'Merke'; display: block; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--akzent-hell); margin-bottom: 0.15rem; }
+.merke p:last-child { margin-bottom: 0; }
+
+/* Checkliste für Aufbauschritte */
+.checkliste { list-style: none; padding: 0; }
+.checkliste li { display: flex; gap: 0.7rem; align-items: flex-start; padding: 0.35rem 0; }
+.checkliste input { width: 1.15rem; height: 1.15rem; margin-top: 0.25rem; accent-color: var(--gut); flex: none; }
+.checkliste li.erledigt span { color: var(--leise); text-decoration: line-through; text-decoration-color: var(--leise-dunkel); }
+/* Überspringen-Knopf in Prüfungen (Testhilfe) */
+.station .skip { margin: 0.6rem 0 0; text-align: right; }
+.station .skip button { font: inherit; font-size: 0.85rem; color: var(--leise); background: none; border: 0; padding: 0.4rem 0; text-decoration: underline; cursor: pointer; }
+.station .skip button:hover, .station .skip button:focus-visible { color: var(--akzent-hell); }
+.station .skip button[data-sicher="1"] { color: var(--warnung); }
+.station .skip:has(button[hidden]) { display: none; }
+.station .ohne-hw { margin: 0.8rem 0 0; }
+.station .ohne-hw:has(button[hidden]) { display: none; }

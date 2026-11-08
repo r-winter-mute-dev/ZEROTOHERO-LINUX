@@ -1,0 +1,52 @@
+---
+import Basis from '../layouts/Basis.astro';
+import { SEITE, url } from '../config';
+---
+<Basis titel="Über das Projekt">
+  <section class="huelle text seite">
+    <h1>Über {SEITE.name}</h1>
+    <p class="untertitel">{SEITE.untertitel}</p>
+    <p>{SEITE.mission}</p>
+    <p>
+      Der Kurs ist kostenlos und für alle, die bei null anfangen. Statt Befehle auswendig zu lernen, richtest du ein
+      echtes System ein. Die erste Kampagne ist ein eigener Server auf Arch Linux. Jeder Befehl kommt genau dann, wenn der Server ihn braucht.
+      {SEITE.name} ist der Schwesterkurs zu <a href={SEITE.schwester.url}>{SEITE.schwester.name}</a> (Elektronik) und funktioniert genauso.
+    </p>
+    <p>Willkommen und viel Spaß beim Lernen.</p>
+
+    <h2>So funktioniert der Kurs</h2>
+    <ul>
+      <li><strong>Missionen</strong> sind kurz und enden mit einer Prüfung: Quiz, Code-Puzzle, Simulator oder ein Nachweis aus deinem echten Terminal.</li>
+      <li><strong>Bosskämpfe</strong> am Ende eines Akts sind Fehlersuchen. Fehlermeldungen lesen statt raten ist die wichtigste Fähigkeit unter Linux.</li>
+      <li><strong>Ohne eigenes Linux</strong> kommst du im Terminal-Simulator weiter. Der Einschub im Rack wird dann grau statt farbig.</li>
+      <li><strong>Nachweise</strong> prüfen die Ausgabe deines echten Terminals direkt im Browser. Es wird nichts an einen Server geschickt.</li>
+      <li><strong>Prüfungen laufen im Browser.</strong> Sie helfen dir, Fehler zu erkennen, und sind kein amtliches Zertifikat.</li>
+    </ul>
+
+    <h2>Datenschutz</h2>
+    <p>
+      Die Seite setzt keine Cookies, nutzt kein Tracking und lädt keine Inhalte von fremden Servern. Dein Fortschritt
+      wird nur im Speicher deines Browsers (localStorage) abgelegt. Du kannst ihn auf der Seite
+      <a href={url('fortschritt')}>Fortschritt</a> exportieren oder löschen.
+    </p>
+
+    <h2>Sicherheit</h2>
+    <p>
+      Der Kurs arbeitet in einer eigenen Übungsumgebung (WSL oder virtuelle Maschine), nicht auf deinem Arbeitsrechner
+      mit wichtigen Daten. Befehle mit Adminrechten kommen erst, wenn du verstehst, was sie tun.
+      Die Sicherheitsregeln stehen in <a href={url('mission/l-0-2')}>Mission 0.2</a>.
+    </p>
+
+    <h2>Lizenz und Mitmachen</h2>
+    <p>
+      Die Inhalte stehen unter <a href="https://creativecommons.org/licenses/by-sa/4.0/deed.de">CC BY-SA 4.0</a>,
+      der Code unter der MIT-Lizenz. Fehler gefunden oder eine Idee für eine Mission? Beiträge sind willkommen.
+      {SEITE.repo && <> Der Quellcode liegt auf <a href={SEITE.repo}>GitHub</a>.</>}
+    </p>
+  </section>
+</Basis>
+
+<style>
+  .seite { padding-top: 2rem; }
+  .untertitel { font-size: 1.25rem; color: var(--leise); margin-top: -0.3rem; }
+</style>

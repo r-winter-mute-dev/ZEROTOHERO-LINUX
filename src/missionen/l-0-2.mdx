@@ -1,0 +1,114 @@
+---
+id: l-0-2
+abzeichen: Sicher unterwegs
+checks:
+  - id: umgebung
+  - id: root
+  - id: loeschen
+  - id: fremd
+  - id: geheim
+  - id: sichern
+spick:
+  - t: Regel 1
+    v: Üben in WSL oder einer VM, nicht in deinen wichtigen Daten
+  - t: Regel 2
+    v: "Prompt mit <code>#</code> heißt root. Adminrechte nur, wenn die Mission es sagt"
+  - t: Regel 3
+    v: "<code>rm</code> hat keinen Papierkorb. Erst mit <code>ls</code> ansehen, dann löschen"
+  - t: Regel 4
+    v: Keinen Befehl ausführen, den du nicht verstehst
+  - t: Regel 5
+    v: Passwörter und private Schlüssel nie zeigen, auch nicht auf Screenshots
+  - t: Regel 6
+    v: Vor großen Änderungen einen Snapshot anlegen
+  - t: Etwas läuft falsch?
+    v: "<kbd>Strg</kbd>+<kbd>C</kbd> bricht den laufenden Befehl ab"
+---
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Merke from '../components/Merke.astro';
+
+Im Terminal kann nichts brennen. Aber ein einziger falscher Befehl kann in einer Sekunde Dateien löschen, die nie wiederkommen. Mit sechs Regeln passiert dir das nicht. Du lernst sie hier einzeln: erst kurz lesen, dann eine kleine Frage dazu. Rechts (auf dem Handy unten) steht ein Spickzettel mit allen Regeln.
+
+## Regel 1: Üben in einer eigenen Umgebung
+
+Du richtest in Mission 0.3 ein eigenes Linux ein, entweder in **WSL** unter Windows oder in einer **virtuellen Maschine**. Das ist ein Computer im Computer. Geht dort etwas kaputt, setzt du ihn zurück, und dein echter Rechner bleibt unberührt.
+
+Eine Ausnahme musst du kennen: In WSL sind deine Windows-Laufwerke unter `/mnt/c`, `/mnt/d` und so weiter eingebunden. Was du dort löschst, ist auch in Windows weg.
+
+<Merke>Geübt wird in WSL oder in der VM. Unter /mnt/c liegen deine echten Windows-Dateien, dort wird nicht geübt.</Merke>
+
+<Quiz id="umgebung" titel="Kurzcheck: Übungsumgebung" fragen={[
+  { frage: 'Du arbeitest in WSL. Wo liegen deine echten Windows-Dateien?', richtig: 'Unter /mnt/c, und was dort gelöscht wird, ist auch in Windows weg', falsch: ['Nirgends, WSL ist vollständig von Windows getrennt', 'Unter /home, aber nur als Kopie'], erklaerung: 'WSL bindet die Windows-Laufwerke unter /mnt ein. Geübt wird im Linux-Heimatordner.' },
+]} />
+
+## Regel 2: root nur, wenn nötig
+
+Unter Linux gibt es einen Benutzer, der alles darf: **root**. Er kann jede Datei löschen, auch die, die das System zum Starten braucht. Deshalb arbeitest du als normaler Benutzer. Wenn eine Aufgabe Adminrechte braucht, stellst du `sudo` vor den Befehl. Das lernst du in Akt 3.
+
+Woran du erkennst, wer du gerade bist: am Zeichen am Ende des **Prompts**, der Zeile vor deinem Cursor.
+
+| Prompt | Bedeutung |
+| --- | --- |
+| `[hero@archbox ~]$` | Normaler Benutzer, hier `hero` |
+| `[root@archbox ~]#` | **root**, jetzt besonders aufpassen |
+
+<Merke>Endet der Prompt mit #, bist du root. Dann jeden Befehl zweimal lesen.</Merke>
+
+<Quiz id="root" titel="Kurzcheck: root" fragen={[
+  { frage: 'Dein Prompt sieht so aus: [root@archbox ~]#. Was bedeutet das?', richtig: 'Du bist root und darfst alles, auch das System zerstören', falsch: ['Du bist im Ordner root', 'Das Terminal wartet auf ein Passwort'], erklaerung: 'Das # am Ende zeigt root an. Vor dem @ steht der Benutzername.' },
+]} />
+
+## Regel 3: Gelöscht ist gelöscht
+
+Der Befehl `rm` löscht Dateien. Er fragt nicht nach und kennt **keinen Papierkorb**. Besonders gefährlich sind Platzhalter wie `*`, die viele Dateien auf einmal treffen, und ein einzelnes Leerzeichen an der falschen Stelle.
+
+Deshalb gilt: Erst mit `ls` und genau demselben Muster ansehen, was getroffen würde. Erst dann löschen. Das übst du ausführlich in Mission 1.5.
+
+<Hinweis art="sicherheit" titel="Das gefährlichste Leerzeichen">
+`rm -r ~/ alt` löscht nicht den Ordner `~/alt`, sondern **deinen ganzen Heimatordner** und danach noch `alt`. Das Leerzeichen macht aus einem Pfad zwei.
+</Hinweis>
+
+<Merke>rm fragt nicht und hat keinen Papierkorb. Erst ls, dann rm.</Merke>
+
+<Quiz id="loeschen" titel="Kurzcheck: Löschen" fragen={[
+  { frage: 'Du hast mit rm aus Versehen eine Datei gelöscht. Wo findest du sie wieder?', richtig: 'Nirgends, rm hat keinen Papierkorb', falsch: ['Im Papierkorb unter ~/.trash', 'Mit dem Befehl undo'], erklaerung: 'Was rm löscht, ist weg. Nur ein Backup oder Snapshot hilft (Regel 6).' },
+  { frage: 'Bevor du mit einem Platzhalter wie *.log löschst, solltest du …', richtig: 'mit ls *.log ansehen, welche Dateien getroffen werden', falsch: ['das Terminal neu starten', 'den Befehl mit sudo ausführen, damit er sicher klappt'], erklaerung: 'Gleiches Muster mit ls zeigt genau, was rm treffen würde.' },
+]} />
+
+## Regel 4: Keine fremden Befehle blind ausführen
+
+Im Internet findest du für jedes Problem einen Befehl zum Kopieren. Manche sind falsch, manche veraltet, einige absichtlich schädlich. Besonders vorsichtig bist du bei Befehlen, die etwas aus dem Netz laden und sofort ausführen, zum Beispiel `curl … | sh`. Dann läuft ein Programm, das du nie gesehen hast.
+
+Dazu kommt: Was eine Webseite anzeigt, muss nicht das sein, was beim Kopieren in der Zwischenablage landet. Lies einen eingefügten Befehl im Terminal noch einmal, bevor du Enter drückst.
+
+<Merke>Ausführen nur, was du verstehst. Im Kurs ist jeder Befehl erklärt.</Merke>
+
+<Quiz id="fremd" titel="Kurzcheck: Fremde Befehle" fragen={[
+  { frage: 'Ein Forum empfiehlt: curl https://beispiel.example/fix.sh | sudo sh. Was ist das Problem?', richtig: 'Ein unbekanntes Skript läuft sofort mit Adminrechten, ohne dass du es gelesen hast', falsch: ['Gar keins, sh ist sicher', 'curl ist veraltet und funktioniert nicht mehr'], erklaerung: 'Erst herunterladen, lesen, verstehen. Dann entscheiden.' },
+]} />
+
+## Regel 5: Geheimnisse bleiben geheim
+
+Passwörter, Zugangsschlüssel und dein **privater SSH-Schlüssel** (ab Akt 6) gehören nur dir. Sie haben nichts in einem Chat, einem Forum oder einem Screenshot zu suchen. Wenn du um Hilfe bittest, schau vorher, ob in der Ausgabe ein Passwort oder Schlüssel steht.
+
+Übrigens: Tippst du im Terminal ein Passwort, siehst du **gar nichts**, keine Sternchen. Das ist Absicht. Tipp einfach weiter und drück Enter.
+
+<Merke>Passwörter und private Schlüssel zeigst du niemandem. Bei der Eingabe erscheinen keine Sternchen, das ist normal.</Merke>
+
+<Quiz id="geheim" titel="Kurzcheck: Geheimnisse" fragen={[
+  { frage: 'Du tippst bei sudo dein Passwort ein, aber auf dem Bildschirm erscheint nichts. Was ist los?', richtig: 'Das ist normal, das Terminal zeigt Passwörter absichtlich nicht an', falsch: ['Die Tastatur ist abgestürzt', 'Das Passwort wurde abgelehnt'], erklaerung: 'Einfach weitertippen und Enter drücken.' },
+]} />
+
+## Regel 6: Vor großen Änderungen sichern
+
+Bevor du am System etwas Größeres änderst, zum Beispiel vor einem Update oder an der SSH-Konfiguration, legst du eine Sicherung an. In einer virtuellen Maschine heißt das **Snapshot**: ein Foto des ganzen Systems, zu dem du mit einem Klick zurückkehrst. In WSL exportierst du dein Linux dafür unter Windows mit `wsl --export` in eine Datei.
+
+Wie das genau geht, steht in Mission 0.3. Die Missionen sagen dir, wann ein guter Zeitpunkt ist.
+
+<Merke>Vor großen Änderungen: Snapshot anlegen. Dann darfst du Fehler machen.</Merke>
+
+<Quiz id="sichern" titel="Kurzcheck: Sichern" fragen={[
+  { frage: 'Du willst zum ersten Mal die SSH-Konfiguration ändern. Was tust du vorher?', richtig: 'Einen Snapshot der VM anlegen oder WSL exportieren', falsch: ['Nichts, Linux merkt sich die alte Version', 'Den Rechner neu starten'], erklaerung: 'Mit einem Snapshot kommst du jederzeit zum alten Stand zurück.' },
+  { frage: 'Ein Befehl läuft und läuft und du willst ihn stoppen. Welche Tasten?', richtig: 'Strg+C', falsch: ['Strg+Z, das bricht sicher ab', 'Esc'], erklaerung: 'Strg+C bricht ab. Strg+Z hält den Befehl nur an. Er bleibt im Speicher und kann später weiterlaufen (Akt 4).' },
+]} />

@@ -1,0 +1,18 @@
+---
+// Rahmen für jede Prüfung. id = Prüfungs-ID innerhalb der Mission (muss in "checks" im Frontmatter stehen).
+interface Props { id: string; titel: string; art?: string; hardware?: boolean; }
+const { id, titel, art = 'Prüfung', hardware = false } = Astro.props;
+---
+<section class="station" data-kw-check={id} data-hardware={String(hardware)} aria-labelledby={`st-${id}`}>
+  <div class="station-kopf">
+    <h3 id={`st-${id}`}>{titel}</h3>
+    <span class="station-art" data-kw-status data-art={hardware ? `${art} im echten Linux` : art}>{hardware ? `${art} im echten Linux` : art}</span>
+  </div>
+  <slot />
+  <p class="meldung" data-kw-meldung role="status" aria-live="polite"></p>
+  {hardware && <p class="ohne-hw"><button type="button" class="knopf zweit" data-kw-ohne-hw>Noch kein Linux eingerichtet? Im Simulator weitermachen</button></p>}
+  <p class="skip"><button type="button" class="linkknopf klein" data-kw-skip>Hängt hier etwas? Prüfung überspringen</button></p>
+</section>
+<script>
+  import '../scripts/station';
+</script>

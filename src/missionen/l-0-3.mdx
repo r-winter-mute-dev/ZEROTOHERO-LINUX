@@ -1,0 +1,157 @@
+---
+id: l-0-3
+abzeichen: Eigenes Linux
+checks:
+  - id: k1
+  - id: k2
+  - id: os
+    hardware: true
+  - id: snapshot
+    hardware: true
+spick:
+  - t: Distribution
+    v: Kernel + Programme + Paketverwaltung
+  - t: "WSL starten"
+    v: "<code>wsl -d archlinux</code> in PowerShell"
+  - t: "WSL neu starten"
+    v: "<code>wsl --terminate archlinux</code>"
+  - t: "Installer in der VM"
+    v: "<code>archinstall</code>, Profil <em>minimal</em>, Benutzer mit sudo"
+  - t: "Benutzername"
+    v: "klein, ohne Leerzeichen und Umlaute, z. B. <code>mia</code>"
+  - t: "Wer bin ich?"
+    v: "<code>whoami</code>"
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Checkliste from '../components/Checkliste.astro';
+import Nachweis from '../components/Nachweis.astro';
+import Bestaetigung from '../components/Bestaetigung.astro';
+
+Ein Server braucht ein Betriebssystem. Bevor du den ersten Befehl tippst, brauchst du also ein eigenes Linux, eines, das du verändern und auch kaputt machen darfst. **Deine Mission: Richte Arch Linux ein und melde dich als normaler Benutzer an.**
+
+**Du brauchst:** deinen Rechner, eine Internetverbindung und etwa eine Stunde Zeit. Mit WSL geht es meist schneller.
+
+## Theorie
+
+<Karte nr={1} titel="Was eine Distribution ist">
+Streng genommen ist **Linux** nur der **Kernel**: das Programm, das zwischen Hardware und allen anderen Programmen vermittelt. Damit man damit arbeiten kann, braucht es noch eine Shell, Werkzeuge wie `ls` und eine **Paketverwaltung**, die Software installiert. Dieses Gesamtpaket heißt **Distribution**. Arch, Debian, Ubuntu und Fedora sind Distributionen. Sie teilen sich den Kernel und die meisten Werkzeuge.
+</Karte>
+
+<Merke>Linux ist der Kernel. Eine Distribution packt Kernel, Werkzeuge und Paketverwaltung zusammen.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: Distribution" fragen={[
+  { frage: 'Was haben Arch und Ubuntu gemeinsam?', richtig: 'Den Linux-Kernel und die meisten Werkzeuge', falsch: ['Gar nichts, es sind völlig verschiedene Systeme', 'Die Paketverwaltung, beide nutzen pacman'], erklaerung: 'Gleicher Kernel, gleiche Grundwerkzeuge. Unterschiede gibt es vor allem bei der Paketverwaltung und den Voreinstellungen.' },
+]} />
+
+<Karte nr={2} titel="WSL oder virtuelle Maschine">
+Eine **virtuelle Maschine (VM)** ist ein simulierter Computer mit eigener Festplatte, auf dem ein komplettes Linux bootet. **WSL** (Windows Subsystem for Linux) ist leichter: Windows startet einen echten Linux-Kernel im Hintergrund, und du bekommst sofort ein Terminal. WSL ist schneller eingerichtet. Eine VM ist näher an einem echten Server, weil sie selbst bootet und ein eigenes Netzwerk hat. Für Akt 0 bis 5 reicht WSL locker. Ab Akt 6 (Netzwerk, SSH, Firewall) ist eine VM besser.
+</Karte>
+
+<Merke>WSL: schnell und leicht. VM: ein ganzer Rechner, näher am echten Server.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: WSL oder VM" fragen={[
+  { frage: 'Du hast Windows 11 und willst so schnell wie möglich anfangen. Was nimmst du?', richtig: 'WSL', falsch: ['Eine VM, WSL ist kein echtes Linux', 'Gar nichts, Windows kann Linux-Befehle von allein'], erklaerung: 'WSL ist in wenigen Minuten bereit und nutzt einen echten Linux-Kernel.' },
+]} />
+
+<Hinweis titel="Mac mit Apple-Chip (M1 und neuer)">
+Arch Linux gibt es offiziell nur für Intel- und AMD-Prozessoren (x86_64). Auf einem Mac mit Apple-Chip läuft es nur emuliert, zum Beispiel mit UTM, und dann sehr langsam [Trainingswissen, nicht geprüft]. Mach bis auf Weiteres im Simulator weiter und setz oben den Haken „ohne Linux“. Auf einem Mac mit Intel-Chip funktioniert Weg B.
+</Hinweis>
+
+## Weg A: WSL unter Windows
+
+Öffne **PowerShell** über das Startmenü. Normale Rechte reichen, Windows fragt nach, wenn es Adminrechte braucht.
+
+<Checkliste id="wsl" punkte={[
+  'In PowerShell eingeben: <code>wsl --install archlinux</code> und Enter. Ist WSL noch gar nicht installiert, richtet Windows es zuerst ein und will danach eventuell neu starten. Dann den Befehl noch einmal eingeben.',
+  'Arch starten: <code>wsl -d archlinux</code>. Der Prompt endet mit <code>#</code>, du bist also root (Mission 0.2, Regel 2). Das ändern wir jetzt.',
+  'Die Befehle aus dem Kasten unten <strong>einzeln</strong> eingeben. Statt <code>mia</code> nimmst du deinen eigenen Namen: klein geschrieben, ohne Leerzeichen und Umlaute.',
+  'Bei <code>passwd</code> zweimal ein Passwort eingeben. Es erscheinen keine Sternchen, das ist normal.',
+  'Mit <code>exit</code> zurück zu PowerShell, dann <code>wsl --terminate archlinux</code> und wieder <code>wsl -d archlinux</code>.',
+  'Der Prompt endet jetzt mit <code>$</code> und zeigt deinen Namen.',
+]} />
+
+Die Ersteinrichtung, Zeile für Zeile:
+
+```bash
+pacman -Syu                                   # 1. System aktualisieren
+pacman -S --needed sudo nano                  # 2. sudo und einen Editor installieren
+useradd -m -G wheel mia                       # 3. Benutzer mia anlegen, Gruppe wheel
+passwd mia                                    # 4. Passwort für mia setzen
+echo '%wheel ALL=(ALL:ALL) ALL' > /etc/sudoers.d/wheel   # 5. Gruppe wheel darf sudo
+chmod 440 /etc/sudoers.d/wheel                # 6. Datei nur lesbar machen
+visudo -c                                     # 7. Prüfen: muss "parsed OK" melden
+printf '[user]\ndefault=mia\n' >> /etc/wsl.conf          # 8. WSL startet künftig als mia
+```
+
+| Zeile | Was passiert | Ausführlich in |
+| --- | --- | --- |
+| 1 | `pacman` ist die Paketverwaltung von Arch. `-Syu` holt die neuesten Paketlisten und aktualisiert alles. Bei Fragen mit Enter bestätigen. | Mission 5.3 |
+| 2 | Installiert `sudo` (Adminrechte auf Zeit) und den einfachen Editor `nano`. | Mission 5.2 |
+| 3 | Legt den Benutzer an. `-m` erstellt seinen Heimatordner, `-G wheel` steckt ihn in die Gruppe der Admins. | Mission 3.6 |
+| 4 | Setzt das Passwort. Merk es dir gut, sudo fragt danach. | Mission 3.6 |
+| 5 bis 7 | Erlaubt der Gruppe wheel, sudo zu benutzen, und prüft, ob die Datei fehlerfrei ist. | Mission 3.5 |
+| 8 | Schreibt in die WSL-Einstellungen, dass Arch als dein Benutzer startet statt als root. | – |
+
+<Hinweis titel="Eine Ausnahme von Regel 4">
+Du führst hier Befehle aus, die du noch nicht ganz verstehst. Das ist die einzige Stelle im Kurs, an der das nötig ist. Jede Zeile ist oben erklärt und wird später ausführlich behandelt.
+</Hinweis>
+
+## Weg B: Virtuelle Maschine
+
+Für Linux, Windows und Macs mit Intel-Chip. Wir nehmen **VirtualBox**, unter Linux geht auch virt-manager oder GNOME Boxes.
+
+<Checkliste id="vm" punkte={[
+  'VirtualBox von <a href="https://www.virtualbox.org/" rel="noopener" target="_blank">virtualbox.org</a> installieren.',
+  'Das aktuelle ISO-Abbild von <a href="https://archlinux.org/download/" rel="noopener" target="_blank">archlinux.org/download</a> laden. Das ist die Installations-DVD als Datei.',
+  'In VirtualBox eine neue Maschine anlegen: Typ Linux, Version Arch Linux (64-bit), das ISO auswählen. Als Richtwert 2 GB Arbeitsspeicher, 2 Prozessoren, 20 GB Festplatte.',
+  'In den Einstellungen der Maschine unter <em>System</em> den Haken bei <strong>EFI aktivieren</strong> setzen. Der Installer braucht das.',
+  'Maschine starten und im Menü <em>Arch Linux install medium</em> wählen. Du landest an einem Prompt mit <code>#</code>.',
+  'Deutsche Tastatur einstellen: <code>loadkeys de-latin1</code>. Vorsicht, bis dahin liegen Y und Z vertauscht.',
+  'Den Installer starten: <code>archinstall</code>. Mit den Pfeiltasten bewegen, Enter wählt aus.',
+  'Im Installer: <em>Disk configuration</em> mit dem vorgeschlagenen Standard-Layout auf der virtuellen Platte, unter <em>Authentication</em> einen Benutzer mit <strong>sudo-Rechten (superuser)</strong> anlegen, als <em>Profile</em> den Typ <strong>minimal</strong>. Netzwerk: die Konfiguration des ISO übernehmen. Den Rest lässt du, wie er ist.',
+  '<em>Install</em> wählen und warten. Danach die VM ausschalten, das ISO unter <em>Massenspeicher</em> entfernen und neu starten.',
+  'Mit deinem Benutzer anmelden. Der Prompt endet mit <code>$</code>.',
+]} />
+
+<Hinweis titel="Die Menüs sehen bei dir anders aus?">
+archinstall wird laufend weiterentwickelt, Menüpunkte heißen deshalb manchmal etwas anders oder stehen an anderer Stelle. Entscheidend sind nur drei Dinge: ganze virtuelle Platte, Benutzer mit sudo, Profil minimal.
+</Hinweis>
+
+## Nachweis
+
+Egal welcher Weg, jetzt beweist du, dass dein Arch läuft und du nicht als root unterwegs bist. Der Befehl besteht aus zwei Befehlen, getrennt durch `;`. `cat` zeigt eine Datei an, `whoami` deinen Benutzernamen.
+
+<Nachweis id="os" befehl="cat /etc/os-release; whoami" muster={['^ID=arch$', '^(?!root$)[a-z_][a-z0-9_-]*$']} hilfe={[
+  { muster: 'is not recognized|wird nicht als|CommandNotFoundException|nicht erkannt', text: 'Das kam von Windows, nicht von Linux. Starte Arch zuerst mit wsl -d archlinux und gib den Befehl dort ein.' },
+  { muster: '^ID=(?!arch$)', text: 'Das ist ein Linux, aber kein Arch. Der Kurs ist auf Arch ausgelegt. Prüfe, ob du die richtige WSL-Distribution oder VM geöffnet hast (wsl -d archlinux).' },
+  { muster: '^root$', text: 'Arch läuft, aber du bist noch root. Leg wie oben beschrieben einen eigenen Benutzer an, starte WSL mit wsl --terminate archlinux neu oder melde dich in der VM mit deinem Benutzer an.' },
+  { muster: 'No such file', text: 'Die Datei fehlt. Achte auf den genauen Pfad: /etc/os-release, mit Bindestrich.' },
+]} />
+
+## Sicherung anlegen
+
+Dein frisches System ist der perfekte Stand, um im Notfall zurückzukehren (Mission 0.2, Regel 6).
+
+- **VM:** Maschine ausschalten, in VirtualBox die Maschine auswählen, *Snapshots* und *Erstellen*. Name: „Frisch installiert“.
+- **WSL:** In PowerShell `wsl --export archlinux $HOME\arch-frisch.tar`. Zurück geht es später mit `wsl --import`.
+
+<Bestaetigung id="snapshot" titel="Sicherung" art="Bestätigung" text="Ich habe einen Snapshot meiner VM angelegt oder mein WSL exportiert." />
+
+## Typische Fehler
+
+| Symptom | Wahrscheinliche Ursache | Lösung |
+| --- | --- | --- |
+| `wsl --install` meldet, die Distribution gebe es nicht | WSL ist veraltet | In PowerShell `wsl --update`, dann erneut versuchen |
+| `pacman -Syu` meldet `signature … is unknown trust` | Die Schlüssel der Paketverwaltung sind noch nicht eingerichtet | `pacman-key --init`, dann `pacman-key --populate archlinux`, dann noch einmal `pacman -Syu` |
+| Nach dem Neustart von WSL wieder `#` im Prompt | Zeile 8 fehlt oder enthält einen Tippfehler | `cat /etc/wsl.conf` muss `[user]` und darunter `default=deinname` zeigen |
+| VM bootet nur schwarz oder der Installer bricht beim Bootloader ab | EFI ist nicht aktiviert | VM ausschalten, unter *System* EFI aktivieren, Installation wiederholen |
+| In der VM sind Y und Z vertauscht | US-Tastaturbelegung | `loadkeys de-latin1`. Im installierten System übernimmt archinstall die gewählte Belegung |
+
+<details>
+<summary><strong>Vertiefung: Warum heißt die Admin-Gruppe „wheel“?</strong></summary>
+
+Der Name stammt aus alten Unix-Systemen der 1970er Jahre und spielt auf „big wheel“ an, englisch für eine wichtige Person. Viele Distributionen nennen die Gruppe heute `sudo`, Arch bleibt beim alten Namen [Trainingswissen].
+</details>

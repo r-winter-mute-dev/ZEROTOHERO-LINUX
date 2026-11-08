@@ -1,0 +1,222 @@
+---
+// Terminal-Simulator mit Missionszielen. Läuft komplett im Browser (src/scripts/shell.ts).
+// Ziele werden der Reihe nach geprüft. Jedes Ziel kann Bedingungen an den Befehl, die Ausgabe,
+// den Ort danach, den Exit-Code oder eine Datei stellen. Alle angegebenen Bedingungen müssen gleichzeitig stimmen.
+//
+// Beispiel:
+// <Terminal id="sim" ziele={[
+//   { text: 'Finde heraus, wo du bist.', befehl: '^pwd$' },
+//   { text: 'Geh in den Ordner Dokumente.', ort: '~/Dokumente' },
+// ]} />
+import Station from './Station.astro';
+import type { Start } from '../scripts/shell';
+
+export interface Ziel {
+  text: string;            // Aufgabe, darf <code> enthalten
+  befehl?: string;         // regulärer Ausdruck für die eingegebene Zeile
+  ausgabe?: string;        // regulärer Ausdruck für die Ausgabe
+  ort?: string;            // Ordner nach dem Befehl (~ erlaubt)
+  code?: number;           // Exit-Code, z. B. 127 für „command not found“
+  existiert?: string;      // Pfad, der danach existieren muss
+  tipp?: string;           // Hilfe, die nach zwei Fehlversuchen erscheint
+}
+interface Props {
+  id: string;
+  titel?: string;
+  ziele: Ziel[];
+  start?: Start;
+  hinweise?: boolean;      // deutsche Hinweise unter Fehlermeldungen
+  hoehe?: string;
+}
+const { id, titel = 'Terminal-Simulator', ziele, start = {}, hinweise = true, hoehe = '18rem' } = Astro.props;
+---
+<Station id={id} titel={titel} art="Simulator">
+  <div class="term-box" data-kw-terminal data-ziele={JSON.stringify(ziele)} data-start={JSON.stringify(start)} data-hinweise={String(hinweise)}>
+    <ol class="ziele" data-ziele-liste>
+      {ziele.map((z, i) => (
+        <li data-ziel={i}><span class="haken" aria-hidden="true"></span><span set:html={z.text} /><span class="tipp" data-tipp hidden></span></li>
+      ))}
+    </ol>
+    <div class="term" style={`--hoehe:${hoehe}`} data-term>
+      <div class="term-leiste" aria-hidden="true"><span></span><span></span><span></span><b>hero@archbox: ~</b></div>
+      <div class="term-ausgabe" data-ausgabe role="log" aria-live="polite" aria-label="Ausgabe des Terminals"></div>
+      <form class="term-zeile" data-zeile>
+        <label class="prompt" data-prompt for={`ti-${id}`}>[hero@archbox ~]$</label>
+        <input id={`ti-${id}`} type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="Befehl eingeben, Enter zum Ausführen" />
+      </form>
+    </div>
+    <div class="tasten" aria-label="Sondertasten">
+      <button type="button" class="taste" data-taste="tab" title="Vervollständigen">Tab</button>
+      <button type="button" class="taste" data-taste="hoch" title="Vorheriger Befehl">↑</button>
+      <button type="button" class="taste" data-taste="runter" title="Nächster Befehl">↓</button>
+      <button type="button" class="taste" data-taste="strgc" title="Abbrechen">Strg+C</button>
+      <button type="button" class="taste" data-taste="neu" title="Simulator zurücksetzen">Neu starten</button>
+    </div>
+  </div>
+</Station>
+
+<script>
+  import { Shell } from '../scripts/shell';
+  import { station } from '../scripts/station';
+
+  interface Ziel { text: string; befehl?: string; ausgabe?: string; ort?: string; code?: number; existiert?: string; tipp?: string; }
+
+  document.querySelectorAll<HTMLElement>('[data-kw-terminal]').forEach((box) => {
+    const s = station(box.closest('[data-kw-check]') as HTMLElement);
+    const ziele = JSON.parse(box.dataset.ziele!) as Ziel[];
+    const start = JSON.parse(box.dataset.start!);
+    const hinweise = box.dataset.hinweise === 'true';
+    const ausgabe = box.querySelector<HTMLElement>('[data-ausgabe]')!;
+    const form = box.querySelector<HTMLFormElement>('[data-zeile]')!;
+    const input = form.querySelector('input')!;
+    const prompt = box.querySelector<HTMLElement>('[data-prompt]')!;
+    const leiste = box.querySelector<HTMLElement>('.term-leiste b')!;
+    const lis = [...box.querySelectorAll<HTMLElement>('[data-ziel]')];
+
+    let sh = new Shell(start, hinweise);
+    let ziel = 0;
+    let fehlversuche = 0;
+    let pos = -1;            // Position im Verlauf beim Blättern
+    let entwurf = '';
+
+    function zeigeZiele() {
+      lis.forEach((li, i) => {
+        li.classList.toggle('erledigt', i < ziel);
+        li.classList.toggle('jetzt', i === ziel);
+        if (i === ziel) li.setAttribute('aria-current', 'step'); else li.removeAttribute('aria-current');
+      });
+    }
+    function promptSetzen() {
+      prompt.textContent = sh.prompt();
+      leiste.textContent = `hero@archbox: ${sh.kurzOrt()}`;
+    }
+    function schreiben(html: string, art = '') {
+      const d = document.createElement('div');
+      d.className = `tz ${art}`;
+      d.innerHTML = html;
+      ausgabe.append(d);
+      ausgabe.scrollTop = ausgabe.scrollHeight;
+    }
+    const esc = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const ortAbs = (p: string) => p.replace(/^~/, '/home/hero');
+
+    function begruessen() {
+      ausgabe.innerHTML = '';
+      schreiben('<span class="t-leise">Simulator. Tippe einen Befehl und drücke Enter. <code>help</code> zeigt alle Befehle.</span>');
+    }
+
+    function pruefen(e: { befehl: string; ausgabe: string; code: number }) {
+      if (ziel >= ziele.length) return;
+      // Üben geht immer. Die Ziele zählen erst, wenn die Mission freigeschaltet ist.
+      if (s.gesperrt()) return;
+      const z = ziele[ziel];
+      const ok =
+        (!z.befehl || new RegExp(z.befehl).test(e.befehl)) &&
+        (!z.ausgabe || new RegExp(z.ausgabe, 'm').test(e.ausgabe)) &&
+        (z.ort === undefined || sh.ort === ortAbs(z.ort)) &&
+        (z.code === undefined || e.code === z.code) &&
+        (!z.existiert || !!sh.finden(z.existiert));
+      if (ok) {
+        ziel++; fehlversuche = 0;
+        lis[ziel - 1]?.querySelector<HTMLElement>('[data-tipp]')?.setAttribute('hidden', '');
+        zeigeZiele();
+        if (ziel >= ziele.length) s.bestehen('Alle Ziele geschafft.');
+        else s.melden(`Ziel ${ziel} geschafft. Weiter mit Ziel ${ziel + 1}.`, 'gut');
+      } else if (e.befehl) {
+        fehlversuche++;
+        if (fehlversuche >= 2 && z.tipp) {
+          const t = lis[ziel].querySelector<HTMLElement>('[data-tipp]')!;
+          t.innerHTML = `Tipp: ${z.tipp}`;
+          t.hidden = false;
+        }
+      }
+    }
+
+    form.addEventListener('submit', (ev) => {
+      ev.preventDefault();
+      const zeile = input.value;
+      input.value = ''; pos = -1; entwurf = '';
+      schreiben(`<span class="t-prompt">${esc(sh.prompt())}</span> ${esc(zeile)}`);
+      const r = sh.ausfuehren(zeile);
+      if (r.leeren) ausgabe.innerHTML = '';
+      for (const z of r.zeilen) schreiben(z.html, z.art ? `t-${z.art}` : '');
+      promptSetzen();
+      pruefen(r.ergebnis);
+    });
+
+    function taste(was: string) {
+      if (was === 'tab') {
+        const v = sh.vervollstaendigen(input.value);
+        if (v.liste) { schreiben(`<span class="t-prompt">${esc(sh.prompt())}</span> ${esc(input.value)}`); schreiben(v.liste.map(esc).join('  ')); }
+        input.value = v.neu;
+      } else if (was === 'hoch' || was === 'runter') {
+        const v = sh.verlauf;
+        if (!v.length) return;
+        if (pos === -1) { entwurf = input.value; pos = v.length; }
+        pos = Math.max(0, Math.min(v.length, pos + (was === 'hoch' ? -1 : 1)));
+        input.value = pos === v.length ? entwurf : v[pos];
+        if (pos === v.length) pos = -1;
+      } else if (was === 'strgc') {
+        schreiben(`<span class="t-prompt">${esc(sh.prompt())}</span> ${esc(input.value)}^C`);
+        input.value = ''; pos = -1;
+      } else if (was === 'neu') {
+        sh = new Shell(start, hinweise);
+        promptSetzen();
+        begruessen();
+      }
+    }
+    input.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Tab') { ev.preventDefault(); taste('tab'); }
+      else if (ev.key === 'ArrowUp') { ev.preventDefault(); taste('hoch'); }
+      else if (ev.key === 'ArrowDown') { ev.preventDefault(); taste('runter'); }
+      else if (ev.ctrlKey && ev.key.toLowerCase() === 'c' && input.selectionStart !== input.selectionEnd) { /* markierten Text kopieren erlauben */ }
+      else if (ev.ctrlKey && ev.key.toLowerCase() === 'c') { ev.preventDefault(); taste('strgc'); }
+      else if (ev.ctrlKey && ev.key.toLowerCase() === 'l') { ev.preventDefault(); ausgabe.innerHTML = ''; }
+    });
+    box.querySelectorAll<HTMLButtonElement>('[data-taste]').forEach((b) =>
+      b.addEventListener('click', () => { taste(b.dataset.taste!); input.focus(); }));
+    box.querySelector('[data-term]')!.addEventListener('click', (ev) => {
+      if (!window.getSelection()?.toString() && !(ev.target as HTMLElement).closest('a, button')) input.focus({ preventScroll: true });
+    });
+
+    if (s.bestanden()) ziel = ziele.length;
+    zeigeZiele();
+    promptSetzen();
+    begruessen();
+  });
+</script>
+
+<style>
+  .ziele { list-style: none; padding: 0; margin: 0 0 0.9rem; counter-reset: z; }
+  .ziele li { display: grid; grid-template-columns: 1.6rem 1fr; gap: 0.1rem 0.4rem; padding: 0.3rem 0; color: var(--leise); }
+  .ziele li.jetzt { color: var(--text); font-weight: 700; }
+  .ziele li.erledigt { color: var(--leise); }
+  .haken { width: 1.1rem; height: 1.1rem; margin-top: 0.2rem; border-radius: 50%; border: 2px solid var(--leise-dunkel); }
+  .jetzt .haken { border-color: var(--akzent); }
+  .erledigt .haken { border-color: var(--gut); background: var(--gut); box-shadow: inset 0 0 0 3px var(--tief); }
+  .tipp { grid-column: 2; font-weight: 400; color: var(--warnung); font-size: 0.95rem; }
+
+  .term { background: #0a0a0a; border: 1px solid var(--flaeche); border-radius: var(--radius); font-family: var(--mono); font-size: 0.92rem; line-height: 1.45; overflow: hidden; cursor: text; }
+  .term-leiste { display: flex; align-items: center; gap: 0.4rem; padding: 0.4rem 0.7rem; background: var(--flaeche-leicht); border-bottom: 1px solid var(--flaeche); }
+  .term-leiste span { width: 0.65rem; height: 0.65rem; border-radius: 50%; background: var(--flaeche); }
+  .term-leiste b { margin-left: 0.5rem; font-weight: 400; color: var(--leise); font-size: 0.82rem; }
+  .term-ausgabe { height: var(--hoehe); overflow-y: auto; padding: 0.6rem 0.8rem 0; white-space: pre-wrap; word-break: break-word; }
+  .term-ausgabe :global(.tz) { min-height: 1.45em; }
+  .term-ausgabe :global(.t-prompt), .prompt { color: var(--gut); }
+  .term-ausgabe :global(.t-fehler) { color: var(--fehler); }
+  .term-ausgabe :global(.t-hinweis) { color: var(--warnung); font-family: var(--schrift); font-size: 0.9rem; border-left: 2px solid var(--warnung); padding-left: 0.6rem; margin: 0.15rem 0 0.35rem; white-space: normal; }
+  .term-ausgabe :global(.t-hinweis)::before { content: 'Hinweis: '; font-weight: 700; }
+  .term-ausgabe :global(.t-leise) { color: var(--leise); font-family: var(--schrift); white-space: normal; }
+  .term-ausgabe :global(.t-dir) { color: #89b4fa; font-weight: 700; }
+  .term-ausgabe :global(.t-link) { color: #94e2d5; }
+  .term-ausgabe :global(.t-exe) { color: var(--gut); font-weight: 700; }
+  .term-ausgabe :global(code) { font-family: var(--mono); color: var(--akzent-hell); }
+  .term-zeile { display: flex; gap: 0.5rem; align-items: baseline; padding: 0.1rem 0.8rem 0.7rem; }
+  .prompt { white-space: nowrap; }
+  .term-zeile input { flex: 1; min-width: 4rem; background: transparent; border: 0; padding: 0; color: var(--text); font: inherit; outline: none; caret-color: var(--akzent-hell); }
+  .term:focus-within { border-color: var(--akzent); }
+  .tasten { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem; }
+  .taste { font: inherit; font-size: 0.85rem; font-family: var(--mono); color: var(--leise); background: var(--flaeche-leicht); border: 1px solid var(--flaeche); border-radius: var(--radius-klein); padding: 0.25rem 0.6rem; cursor: pointer; }
+  .taste:hover { color: var(--text); border-color: var(--leise-dunkel); }
+  .taste[data-taste='neu'] { margin-left: auto; font-family: var(--schrift); }
+</style>

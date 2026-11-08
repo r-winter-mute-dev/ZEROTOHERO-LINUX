@@ -1,0 +1,102 @@
+---
+// Terminal-Nachweis: Ein Befehl läuft im echten Linux, die Ausgabe wird hier eingefügt und geprüft.
+// Das Gegenstück zum Gerätenachweis im Elektronik-Kurs. Kein Server, alles im Browser.
+//
+// {code} im Befehl wird durch einen zufälligen, pro Person festen Code ersetzt (z. B. "falke-4821").
+// {sha} in einem Muster steht für die SHA-256-Prüfsumme von "<code>\n", also genau das,
+// was `echo <code> | sha256sum` im echten Terminal ausgibt. Das lässt sich nur mit einem echten Terminal
+// (oder viel Mühe) erzeugen und beweist, dass der Befehl wirklich lief.
+//
+// muster: Alle müssen in der Ausgabe vorkommen (reguläre Ausdrücke, Zeilenmodus).
+// hilfe:  Passt ein Muster, erscheint der Text. Die erste passende Hilfe gewinnt.
+import Station from './Station.astro';
+interface Hilfe { muster: string; text: string; }
+interface Props {
+  id: string;
+  titel?: string;
+  befehl: string;
+  muster: string[];
+  hilfe?: Hilfe[];
+  erklaerung?: string;     // optionaler Satz unter dem Befehl
+  hardware?: boolean;
+}
+const { id, titel = 'Terminal-Nachweis', befehl, muster, hilfe = [], erklaerung, hardware = true } = Astro.props;
+const braucheCode = befehl.includes('{code}') || muster.some((m) => m.includes('{code}') || m.includes('{sha}'));
+---
+<Station id={id} titel={titel} art="Nachweis" hardware={hardware}>
+  <div class="nachweis" data-kw-nachweis data-befehl={befehl} data-muster={JSON.stringify(muster)} data-hilfe={JSON.stringify(hilfe)} data-code={String(braucheCode)}>
+    <p>Führe in <strong>deinem</strong> Terminal aus:</p>
+    <div class="befehl">
+      <code data-befehl-text>{befehl}</code>
+      <button type="button" class="knopf zweit klein" data-kopieren>Kopieren</button>
+    </div>
+    {erklaerung && <p class="leise klein" set:html={erklaerung} />}
+    <form data-form>
+      <label>
+        <span>Füge die komplette Ausgabe hier ein:</span>
+        <textarea rows="5" spellcheck="false" autocomplete="off" required></textarea>
+      </label>
+      <button class="knopf" type="submit">Ausgabe prüfen</button>
+    </form>
+  </div>
+</Station>
+
+<script>
+  import { station } from '../scripts/station';
+
+  const WOERTER = ['falke', 'kiefer', 'komet', 'anker', 'birke', 'nebel', 'quarz', 'otter', 'fjord', 'lava', 'mond', 'luchs'];
+  const CKEY = 'zthl:codes';
+  function codeFuer(schluessel: string): string {
+    let alle: Record<string, string> = {};
+    try { alle = JSON.parse(localStorage.getItem(CKEY) || '{}'); } catch { /* egal */ }
+    if (!alle[schluessel]) {
+      const z = crypto.getRandomValues(new Uint32Array(2));
+      alle[schluessel] = `${WOERTER[z[0] % WOERTER.length]}-${1000 + (z[1] % 9000)}`;
+      try { localStorage.setItem(CKEY, JSON.stringify(alle)); } catch { /* nur für diese Sitzung */ }
+    }
+    return alle[schluessel];
+  }
+  async function sha256(text: string): Promise<string> {
+    const h = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+    return [...new Uint8Array(h)].map((b) => b.toString(16).padStart(2, '0')).join('');
+  }
+  const regexEsc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+  document.querySelectorAll<HTMLElement>('[data-kw-nachweis]').forEach(async (box) => {
+    const s = station(box.closest('[data-kw-check]') as HTMLElement);
+    const code = box.dataset.code === 'true' ? codeFuer(`${s.mid}/${s.cid}`) : '';
+    const befehl = box.dataset.befehl!.replaceAll('{code}', code);
+    box.querySelector('[data-befehl-text]')!.textContent = befehl;
+
+    const kopieren = box.querySelector<HTMLButtonElement>('[data-kopieren]')!;
+    kopieren.addEventListener('click', async () => {
+      try { await navigator.clipboard.writeText(befehl); kopieren.textContent = 'Kopiert'; }
+      catch { kopieren.textContent = 'Bitte von Hand markieren'; }
+      setTimeout(() => (kopieren.textContent = 'Kopieren'), 2000);
+    });
+
+    const sha = code && crypto.subtle ? await sha256(code + '\n') : '';
+    const ersetzen = (m: string) => m.replaceAll('{code}', regexEsc(code)).replaceAll('{sha}', sha);
+    const muster = (JSON.parse(box.dataset.muster!) as string[]).map((m) => new RegExp(ersetzen(m), 'm'));
+    const hilfe = (JSON.parse(box.dataset.hilfe!) as { muster: string; text: string }[]).map((h) => ({ re: new RegExp(ersetzen(h.muster), 'm'), text: h.text }));
+
+    const form = box.querySelector<HTMLFormElement>('[data-form]')!;
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const text = form.querySelector('textarea')!.value.replace(/\r\n/g, '\n');
+      if (!text.trim()) return s.melden('Das Feld ist leer. Kopiere die Ausgabe aus deinem Terminal hierher.', 'warnung');
+      if (muster.every((re) => re.test(text))) return s.bestehen('Nachweis bestanden. Das kam aus deinem echten Linux.');
+      const h = hilfe.find((x) => x.re.test(text));
+      s.fehl(h?.text ?? 'Die Ausgabe passt nicht. Hast du den Befehl genau so ausgeführt und die ganze Ausgabe kopiert?');
+    });
+  });
+</script>
+
+<style>
+  .befehl { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; background: #0a0a0a; border: 1px solid var(--flaeche); border-radius: var(--radius-klein); padding: 0.55rem 0.7rem; margin-bottom: 0.6rem; }
+  .befehl code { flex: 1; font-family: var(--mono); color: var(--gut); word-break: break-all; }
+  .befehl code::before { content: '$ '; color: var(--leise-dunkel); }
+  .klein { font-size: 0.85rem; padding: 0.2rem 0.7rem; }
+  form label { display: flex; flex-direction: column; gap: 0.4rem; margin: 0.6rem 0 0.8rem; }
+  textarea { font-family: var(--mono); font-size: 0.9rem; width: 100%; resize: vertical; }
+</style>

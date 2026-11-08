@@ -1,0 +1,124 @@
+---
+id: l-0-4
+abzeichen: Erste Worte
+checks:
+  - id: k1
+  - id: k2
+  - id: k3
+  - id: k4
+  - id: sim
+  - id: echt
+    hardware: true
+spick:
+  - t: "Prompt"
+    v: "<code>[benutzer@rechner ordner]$</code>"
+  - t: "~"
+    v: "Dein Heimatordner"
+  - t: "Aufbau"
+    v: "<code>befehl -option argument</code>, getrennt durch Leerzeichen"
+  - t: "Tab"
+    v: "Vervollständigt Befehle und Namen"
+  - t: "↑ und ↓"
+    v: "Blättern durch alte Befehle"
+  - t: "Strg+C"
+    v: "Bricht ab und leert die Zeile"
+  - t: "Strg+L"
+    v: "Leert den Bildschirm (wie <code>clear</code>)"
+  - t: "Fehlermeldung"
+    v: "<code>wer: was: warum</code>"
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Nachweis from '../components/Nachweis.astro';
+
+Dein Server wird keinen Bildschirm mit Fenstern haben, keine Maus und keine Menüs. Alles, was du ihm sagen willst, tippst du ein. Das Programm, das deine Eingaben entgegennimmt, heißt **Shell**, bei Arch ist das standardmäßig **bash**. Das Fenster drumherum ist das **Terminal**. **Deine Mission: Lerne, mit der Shell zu sprechen.**
+
+## Theorie
+
+<Karte nr={1} titel="Der Prompt">
+Bevor du etwas tippst, zeigt die Shell den **Prompt**: `[hero@archbox ~]$`. Er verrät dir drei Dinge. Vor dem `@` steht dein **Benutzername** (hier `hero`), dahinter der Name des **Rechners** (`archbox`). Danach kommt der Ordner, in dem du gerade bist. Die Tilde `~` steht für deinen **Heimatordner**, deinen persönlichen Bereich. Das letzte Zeichen kennst du aus Mission 0.2: `$` für normale Benutzer, `#` für root.
+</Karte>
+
+<Merke>Der Prompt zeigt: wer, auf welchem Rechner, in welchem Ordner. ~ ist dein Heimatordner.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: Prompt" fragen={[
+  { frage: 'Der Prompt lautet [mia@nas Dokumente]$. Wo bist du gerade?', richtig: 'Im Ordner Dokumente, als Benutzerin mia, auf dem Rechner nas', falsch: ['Im Ordner nas, als Benutzerin Dokumente', 'Im Heimatordner, als root'], erklaerung: 'Benutzer@Rechner, dann der Ordner. Das $ zeigt: kein root.' },
+]} />
+
+<Karte nr={2} titel="Befehl, Option, Argument">
+Jede Eingabe hat denselben Aufbau, getrennt durch Leerzeichen: zuerst der **Befehl**, also das Programm. Dann **Optionen**, meist mit einem Minus davor, sie ändern das Verhalten. Zuletzt **Argumente**: worauf der Befehl wirken soll. In `ls -l /etc` ist `ls` der Befehl (Inhalt auflisten), `-l` die Option (ausführlich) und `/etc` das Argument (dieser Ordner). Linux unterscheidet **Groß- und Kleinschreibung**: `ls` ist nicht `LS`.
+</Karte>
+
+<Merke>befehl -option argument. Leerzeichen trennen, Groß und klein sind verschieden.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: Aufbau" fragen={[
+  { frage: 'In „ls -a /tmp“: Was ist -a?', richtig: 'Eine Option, sie ändert, wie ls arbeitet', falsch: ['Das Argument, also der Ordner', 'Ein zweiter Befehl'], erklaerung: 'Das Minus kennzeichnet die Option. /tmp ist das Argument.' },
+  { frage: 'Du tippst „LS“ statt „ls“. Was passiert?', richtig: 'Die Shell kennt den Befehl nicht und meldet einen Fehler', falsch: ['Es funktioniert genauso', 'ls läuft, aber mit Großbuchstaben in der Ausgabe'], erklaerung: 'Linux unterscheidet Groß- und Kleinschreibung. Befehle sind fast immer klein.' },
+]} />
+
+<Karte nr={3} titel="Tasten, die Zeit sparen">
+Niemand tippt alles aus. **Tab** vervollständigt: Tippst du `cat no` und drückst Tab, ergänzt die Shell `notiz.txt`, wenn es nur eine passende Datei gibt. Gibt es mehrere, zeigt zweimal Tab die Auswahl. Mit **↑** holst du frühere Befehle zurück. **Strg+C** bricht ab, was gerade läuft oder halb getippt ist. **Strg+L** leert den Bildschirm. Kopieren und Einfügen geht in den meisten Terminals mit **Strg+Umschalt+C** und **Strg+Umschalt+V**, weil Strg+C schon belegt ist.
+</Karte>
+
+<Merke>Tab vervollständigt, ↑ wiederholt, Strg+C bricht ab.</Merke>
+
+<Quiz id="k3" titel="Kurzcheck: Tasten" fragen={[
+  { frage: 'Du hast einen langen Befehl halb getippt und willst neu anfangen. Was ist am schnellsten?', richtig: 'Strg+C', falsch: ['Das Terminal schließen und neu öffnen', 'Enter drücken und den Fehler abwarten'], erklaerung: 'Strg+C verwirft die Zeile, und du bekommst sofort einen neuen Prompt.' },
+  { frage: 'Wie kopierst du im Linux-Terminal meist markierten Text?', richtig: 'Strg+Umschalt+C', falsch: ['Strg+C wie überall', 'Das geht im Terminal nicht'], erklaerung: 'Strg+C ist im Terminal fürs Abbrechen reserviert.' },
+]} />
+
+<Karte nr={4} titel="Fehlermeldungen lesen">
+Fehler sind im Terminal normal und nützlich. Die Meldung `bash: Whoami: command not found` hat einen festen Aufbau: **Wer** meldet sich (`bash`), **was** war betroffen (`Whoami`), **warum** ging es nicht (`command not found`, Befehl nicht gefunden). Fast alle Programme melden Fehler nach diesem Muster, meist auf Englisch. Lies immer die ganze Meldung, bevor du etwas änderst. Die Ursache steht oft wörtlich darin.
+</Karte>
+
+<Merke>Fehlermeldungen lesen: wer, was, warum. Die Ursache steht meist schon da.</Merke>
+
+<Quiz id="k4" titel="Kurzcheck: Fehlermeldung" fragen={[
+  { frage: 'Die Shell meldet „ls: cannot access \'Dokumnete\': No such file or directory“. Was ist das Problem?', richtig: 'Den Ordner „Dokumnete“ gibt es nicht, vermutlich ein Tippfehler', falsch: ['ls ist nicht installiert', 'Du hast keine Rechte für den Ordner'], erklaerung: 'Wer: ls. Was: Dokumnete. Warum: Datei oder Ordner existiert nicht.' },
+]} />
+
+## Übung im Simulator
+
+Hier üben wir ohne Risiko. Der Simulator verhält sich wie das echte Arch und gibt dir unter jedem Fehler einen Hinweis. Klick ins schwarze Feld und tipp los.
+
+<Terminal id="sim" titel="Simulator: Erste Worte" ziele={[
+  { text: 'Frag den Rechner, wer du bist: <code>whoami</code>', befehl: '^whoami$', tipp: 'Genau so tippen, alles klein, dann Enter.' },
+  { text: 'Lass dir den Inhalt deines Heimatordners zeigen: <code>ls</code>', befehl: '^ls$' },
+  { text: 'Jetzt mit Option: <code>ls -l</code> zeigt dieselben Dateien mit Details.', befehl: '^ls\\s+-[a-zA-Z]*l[a-zA-Z]*$', tipp: 'Nach ls ein Leerzeichen, dann Minus und ein kleines L.' },
+  { text: 'Jetzt mit Argument: Zeig den Inhalt des Ordners <code>/etc</code>, ohne dorthin zu wechseln.', befehl: '^ls(\\s+-\\S+)*\\s+/etc/?$', tipp: 'Befehl, Leerzeichen, Ordner: <code>ls /etc</code>' },
+  { text: 'Lies die Datei <code>notiz.txt</code> mit <code>cat</code>. Tipp nur <code>cat no</code> und drück dann Tab.', befehl: '^cat\\s+(\\./)?notiz\\.txt$', tipp: 'Tab ergänzt den Namen. Auf dem Handy gibt es dafür die Taste „Tab“ unter dem Terminal.' },
+  { text: 'Mach absichtlich einen Fehler: Tipp <code>Whoami</code> mit großem W und lies die Meldung.', code: 127 },
+  { text: 'Hol mit <kbd>↑</kbd> einen früheren Befehl zurück und führ <code>whoami</code> noch einmal aus.', befehl: '^whoami$' },
+]} />
+
+## Im echten Terminal
+
+Jetzt in deinem eigenen Arch. Der Befehl unten enthält einen Code, der nur für dich erzeugt wurde. `echo` gibt ihn aus, der senkrechte Strich `|` reicht die Ausgabe weiter, und `sha256sum` berechnet daraus eine Prüfsumme, eine Art Fingerabdruck. Den Strich findest du auf deutschen Tastaturen mit <kbd>AltGr</kbd>+<kbd>&lt;</kbd>. Was `|` genau tut, lernst du in Mission 2.4.
+
+<Nachweis id="echt" befehl="echo {code} | sha256sum" muster={['^{sha}\\s+-\\s*$']} hilfe={[
+  { muster: 'is not recognized|wird nicht als|CommandNotFoundException|nicht erkannt', text: 'Das kam von Windows. Öffne zuerst dein Arch (wsl -d archlinux) und gib den Befehl dort ein.' },
+  { muster: '^{code}\\s*$', text: 'Das ist nur die Ausgabe von echo. Hinter den Code gehört noch | sha256sum.' },
+  { muster: '^[0-9a-f]{64}\\s+-', text: 'Das ist eine Prüfsumme, aber nicht die erwartete. Kopiere den Befehl genau so, mit deinem Code und ohne Anführungszeichen drumherum.' },
+]} />
+
+<Hinweis titel="Warum eine Prüfsumme?">
+Schon ein einziges anderes Zeichen ergibt eine völlig andere Prüfsumme. Deshalb kann die Seite erkennen, ob die Ausgabe wirklich zu deinem Code gehört, ohne dass irgendetwas verschickt wird. Prüfsummen begegnen dir wieder, wenn du heruntergeladene Dateien prüfst.
+</Hinweis>
+
+## Typische Fehler
+
+| Symptom | Ursache | Lösung |
+| --- | --- | --- |
+| `command not found` | Tippfehler oder Großbuchstaben | Befehl klein und genau so tippen. Tab hilft |
+| Es passiert gar nichts, kein neuer Prompt | Ein Programm wartet auf Eingabe, oft ein offenes Anführungszeichen (`>` am Zeilenanfang) | Strg+C |
+| Strg+V fügt nichts ein, sondern zeigt `^V` | Im Terminal ist Strg+V belegt | Strg+Umschalt+V oder Rechtsklick, Einfügen |
+| `^[[A` erscheint statt des letzten Befehls | Du bist in einem Programm, das keine Pfeiltasten kennt | Strg+C, dann neu versuchen |
+
+<details>
+<summary><strong>Vertiefung: Shell, Terminal, Konsole</strong></summary>
+
+Die Begriffe werden oft durcheinander benutzt. Genau genommen ist das **Terminal** das Fenster, das Tastendrücke annimmt und Text anzeigt. Früher war das ein eigenes Gerät mit Bildschirm und Tastatur. Die **Shell** ist das Programm darin, das deine Zeile liest, versteht und Programme startet. Es gibt mehrere Shells, zum Beispiel bash, zsh und fish. Der Kurs nutzt bash, weil sie auf fast jedem Linux-Server vorhanden ist. Mit **Konsole** meint man meist den Textbildschirm direkt am Rechner, ohne grafische Oberfläche, so wie in deiner VM.
+</details>

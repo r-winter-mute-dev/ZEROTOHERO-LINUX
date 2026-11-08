@@ -1,0 +1,142 @@
+---
+import Basis from '../layouts/Basis.astro';
+import Rack from '../components/Rack.astro';
+import { KAMPAGNEN, GEPLANT } from '../data/kampagne';
+import { SEITE, url } from '../config';
+---
+<Basis>
+  <section class="huelle held">
+    <div class="held-text">
+      <h1>Vom ersten Befehl zum eigenen Server.</h1>
+      <p class="einstieg">{SEITE.mission}</p>
+      <p class="einstieg leise-text">
+        Jede Kampagne baut ein echtes System. Mission für Mission lernst du genau die Befehle, die du für den nächsten
+        Schritt brauchst. Kostenlos, ohne Anmeldung, auch ohne eigenes Linux im Simulator.
+      </p>
+      <div class="weiter">
+        <a class="knopf" href={url('mission/l-0-1')} data-kw-weiter>Erste Mission starten</a>
+        <span class="leise" data-kw-weiter-info>Du brauchst nur einen Browser.</span>
+      </div>
+      <div class="rangleiste" aria-label="Dein Rang">
+        <div class="rang-zeile"><b data-kw-level>Neuling</b><span class="leise" data-kw-naechster></span></div>
+        <div class="balken"><span data-kw-balken></span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="huelle kampagnen" aria-labelledby="k-titel">
+    <h2 id="k-titel">Die Kampagnen</h2>
+    <p class="leise">Jeder Einschub im Rack füllt sich, wenn du den passenden Akt abschließt.</p>
+    <div class="raster">
+      {KAMPAGNEN.map((k) => (
+        <a class="kk" href={url(`kampagne/${k.id}`)} data-kk={k.id}>
+          <div class="kk-bild"><Rack legende={false} /></div>
+          <div class="kk-text">
+            <p class="kk-nr">Kampagne {k.nr}</p>
+            <h3>{k.titel}</h3>
+            <p class="kk-kurz">{k.kurz}</p>
+            <p class="leise klein" data-kk-stand></p>
+            <div class="balken klein-balken"><span data-kk-balken></span></div>
+            <span class="knopf zweit klein kk-knopf" data-kk-knopf>Kampagne ansehen</span>
+          </div>
+        </a>
+      ))}
+    </div>
+
+    <h3 class="geplant-titel">Danach geplant</h3>
+    <ul class="geplant">
+      {GEPLANT.map((g) => (
+        <li>
+          <span class="kk-nr">Kampagne {g.nr}</span>
+          <strong>{g.titel}</strong>
+          <span class="leise klein">{g.kurz}</span>
+        </li>
+      ))}
+    </ul>
+  </section>
+
+  <section class="huelle willkommen">
+    <div class="text">
+      <h2>Willkommen bei {SEITE.name}</h2>
+      <p>Die erste Kampagne, der eigene Server, bringt dir die Grundlagen bei: Dateisystem, Textwerkzeuge, Rechte, Prozesse, Pakete, Netzwerk, Skripte und Dienste. Gearbeitet wird mit Arch Linux, weil es schlank ist, nichts vor dir versteckt und mit dem Arch Wiki eine der besten Dokumentationen hat, die es gibt. Danach installierst du Arch von Hand und baust dir ein eigenes Homelab.</p>
+      <p>Du kommst vom Elektronik-Kurs? Willkommen zurück, hier funktioniert alles genauso. Dein Fortschritt wird getrennt gespeichert.</p>
+      <p>Willkommen und viel Spaß beim Lernen.</p>
+    </div>
+  </section>
+</Basis>
+
+<script>
+  import { aktuelleMission, beiAenderung, laden, level, xpGesamt } from '../scripts/engine';
+  import { KAMPAGNEN, LEVEL, missionenVon } from '../data/kampagne';
+  import { url } from '../config';
+  function zeigen() {
+    const z = laden();
+    const xp = xpGesamt(z);
+    const l = level(xp);
+    const naechst = document.querySelector('[data-kw-naechster]')!;
+    naechst.textContent = l.naechstesAb ? `noch ${l.naechstesAb - xp} XP bis ${l.naechsterName}` : 'höchster Rang erreicht';
+    const vorher = LEVEL[l.nr - 1].ab;
+    const anteil = l.naechstesAb ? (xp - vorher) / (l.naechstesAb - vorher) : 1;
+    (document.querySelector('[data-kw-balken]') as HTMLElement).style.width = `${Math.round(anteil * 100)}%`;
+    const weiter = document.querySelector<HTMLAnchorElement>('[data-kw-weiter]')!;
+    if (Object.keys(z.missionen).length > 0) {
+      const k1 = missionenVon(KAMPAGNEN[0]);
+      const k1fertig = k1.every((x) => z.missionen[x.id]);
+      // Weiter in der Kampagne, in der zuletzt etwas geschafft wurde. Ist sie fertig, in der anderen.
+      const zuletzt = Object.entries(z.missionen).sort((a, b) => (b[1].am ?? '').localeCompare(a[1].am ?? ''))[0]?.[0] ?? '';
+      const offen = (kid: string) => { const m = aktuelleMission(kid); return m.bereit && !z.missionen[m.id] ? m : undefined; };
+      // Zuerst die Kampagne, in der zuletzt etwas geschafft wurde, dann die übrigen der Reihe nach.
+      const zuletztK = KAMPAGNEN.find((k) => missionenVon(k).some((x) => x.id === zuletzt))?.id;
+      const reihe = [...(zuletztK ? [zuletztK] : []), ...KAMPAGNEN.map((k) => k.id).filter((k) => k !== zuletztK)];
+      const kid = reihe.find((k) => offen(k));
+      const m = kid ? offen(kid)! : undefined;
+      const knr = KAMPAGNEN.find((k) => k.id === kid)?.nr;
+      weiter.textContent = m ? `Weiter mit ${knr === 1 ? '' : `Kampagne ${knr}, `}${m.nr}: ${m.titel}` : 'Fortschritt ansehen';
+      weiter.href = m ? url(`mission/${m.id}`) : url('fortschritt');
+      document.querySelector('[data-kw-weiter-info]')!.textContent = k1fertig
+        ? `Kampagne 1 geschafft. Dein Server läuft.`
+        : `${Object.keys(z.missionen).length} Missionen geschafft.`;
+    }
+    // Kampagnenkarten: Stand und Balken
+    KAMPAGNEN.forEach((k) => {
+      const el = document.querySelector<HTMLElement>(`[data-kk="${k.id}"]`);
+      if (!el) return;
+      const l = missionenVon(k).filter((m) => m.bereit);
+      const n = l.filter((m) => z.missionen[m.id]).length;
+      el.querySelector('[data-kk-stand]')!.textContent = n === 0 ? `${l.length} Missionen spielbar` : `${n} von ${l.length} Missionen geschafft`;
+      (el.querySelector('[data-kk-balken]') as HTMLElement).style.width = `${Math.round((n / Math.max(1, l.length)) * 100)}%`;
+      const m = aktuelleMission(k.id);
+      el.querySelector('[data-kk-knopf]')!.textContent = n === 0 ? 'Kampagne ansehen' : m.bereit && !z.missionen[m.id] ? `Weiter mit ${m.nr}` : 'Kampagne ansehen';
+    });
+  }
+  zeigen();
+  beiAenderung(zeigen);
+</script>
+
+<style>
+  .held { padding-top: 3rem; padding-bottom: 1.5rem; }
+  .held h1 { max-width: 20ch; }
+  .einstieg { font-size: 1.15rem; max-width: 40rem; }
+  .leise-text { color: var(--leise); }
+  .weiter { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; margin: 1.6rem 0 2rem; }
+  .rangleiste { max-width: 24rem; }
+  .rang-zeile { display: flex; justify-content: space-between; gap: 1rem; margin-bottom: 0.4rem; font-size: 0.95rem; }
+  .balken { height: 8px; background: var(--tief); border-radius: 4px; overflow: hidden; border: 1px solid var(--flaeche); }
+  .balken span { display: block; height: 100%; width: 0; background: var(--akzent); transition: width 0.6s; }
+  .klein-balken { height: 6px; margin: 0.3rem 0 1rem; }
+  .kampagnen { padding-top: 1rem; }
+  .raster { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr)); gap: 1.4rem; margin-top: 1.2rem; }
+  .kk { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: 1.2rem; align-items: center; padding: 1.2rem; border-radius: var(--radius); background: var(--flaeche-leicht); border: 1px solid var(--flaeche); color: var(--text); text-decoration: none; transition: border-color 0.2s, transform 0.2s; }
+  .kk:hover, .kk:focus-visible { border-color: var(--akzent); }
+  @media (max-width: 520px) { .kk { grid-template-columns: 1fr; } .kk-bild :global(svg) { max-width: 14rem; } }
+  .kk-bild :global(svg) { max-width: 15rem; }
+  .kk h3 { margin: 0.1rem 0 0.4rem; font-size: 1.3rem; }
+  .kk-nr { color: var(--akzent-hell); font-weight: 700; font-size: 0.9rem; margin: 0; }
+  .kk-kurz { margin: 0 0 0.6rem; }
+  .kk-knopf { pointer-events: none; }
+  .geplant-titel { margin-top: 2.2rem; }
+  .geplant { list-style: none; padding: 0; margin: 0.6rem 0 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); gap: 0.9rem; }
+  .geplant li { display: flex; flex-direction: column; gap: 0.25rem; padding: 0.9rem 1rem; border-radius: var(--radius); border: 2px dashed var(--flaeche); }
+  .willkommen { padding-top: 1.5rem; }
+  .willkommen h2 { margin-top: 1rem; }
+</style>

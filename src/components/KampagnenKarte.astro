@@ -1,0 +1,102 @@
+---
+// Die Kampagne als Leiste: jeder Akt ein großer Punkt, jede Mission ein kleiner.
+import { KAMPAGNEN } from '../data/kampagne';
+import { url } from '../config';
+interface Props { kampagne?: string; }
+const kid = Astro.props.kampagne ?? 'server';
+const k = KAMPAGNEN.find((x) => x.id === kid)!;
+---
+<ol class="bahn" data-kw-karte={kid}>
+  {k.akte.map((a) => (
+    <li class="akt" data-akt={`${kid}-${a.nr}`}>
+      <span class="pad" aria-hidden="true"></span>
+      <details data-akt-details>
+        <summary>
+          <span class="akt-titel">Akt {a.nr}: {a.titel}</span>
+          <span class="akt-teil">baut: {a.teilName}</span>
+          <span class="akt-stand" data-akt-stand></span>
+        </summary>
+        <p class="akt-ziel">{a.ziel}</p>
+        <ul class="missionen">
+          {a.missionen.map((m) => (
+            <li data-mission-eintrag={m.id} class:list={[{ boss: m.boss, entwurf: !m.bereit }]}>
+              <a href={url(`mission/${m.id}`)}>
+                <span class="mpad" aria-hidden="true"></span>
+                <span class="mnr">{m.nr}</span>
+                <span class="mtitel">{m.titel}</span>
+                <span class="mstatus" data-mstatus>{m.bereit ? '' : 'in Arbeit'}</span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      </details>
+    </li>
+  ))}
+</ol>
+
+<script>
+  import { KAMPAGNEN } from '../data/kampagne';
+  import { aktuelleMission, beiAenderung, istFreigeschaltet, laden } from '../scripts/engine';
+  function zeigen(erstes = false) {
+    const z = laden();
+    KAMPAGNEN.forEach((k) => {
+    const karte = document.querySelector<HTMLElement>(`[data-kw-karte="${k.id}"]`);
+    if (!karte) return;
+    const a0 = aktuelleMission(k.id);
+    const aktuell = a0.bereit ? a0 : { id: '' };
+    k.akte.forEach((a) => {
+      const li = karte.querySelector<HTMLElement>(`[data-akt="${k.id}-${a.nr}"]`)!;
+      const fertig = a.missionen.filter((m) => z.missionen[m.id]).length;
+      li.querySelector('[data-akt-stand]')!.textContent = `${fertig} von ${a.missionen.length}`;
+      li.classList.toggle('fertig', fertig === a.missionen.length);
+      li.classList.toggle('laeuft', a.missionen.some((m) => m.id === aktuell.id));
+      if (erstes && a.missionen.some((m) => m.id === aktuell.id)) li.querySelector('details')!.open = true;
+      a.missionen.forEach((m) => {
+        const e = li.querySelector<HTMLElement>(`[data-mission-eintrag="${m.id}"]`)!;
+        const st = z.missionen[m.id]?.status;
+        e.classList.toggle('real', st === 'real');
+        e.classList.toggle('simuliert', st === 'simuliert');
+        e.classList.toggle('offen', !st && istFreigeschaltet(m.id));
+        e.classList.toggle('aktuell', m.id === aktuell.id);
+        const s = e.querySelector('[data-mstatus]')!;
+        s.textContent = st === 'real' ? 'geschafft' : st === 'simuliert' ? 'simuliert' : m.id === aktuell.id ? 'jetzt dran' : !m.bereit ? 'in Arbeit' : '';
+      });
+    });
+    });
+  }
+  zeigen(true);
+  beiAenderung(() => zeigen());
+</script>
+
+<style>
+  .bahn { list-style: none; margin: 0; padding: 0; position: relative; }
+  .bahn::before { content: ''; position: absolute; left: 13px; top: 14px; bottom: 14px; width: 4px; background: var(--flaeche); border-radius: 2px; }
+  .akt { position: relative; padding-left: 3rem; margin: 0 0 0.6rem; }
+  .pad { position: absolute; left: 0; top: 0.65rem; width: 30px; height: 30px; border-radius: 50%; background: var(--grund); border: 4px solid var(--leise-dunkel); box-shadow: 0 0 0 4px var(--grund); }
+  .akt.fertig .pad { background: var(--akzent); border-color: var(--akzent); }
+  .akt.laeuft .pad { border-color: var(--akzent); background: radial-gradient(circle, var(--akzent-hell) 35%, var(--grund) 38%); }
+  details { border-radius: var(--radius); }
+  summary { cursor: pointer; display: grid; grid-template-columns: 1fr auto; gap: 0 1rem; padding: 0.7rem 0.9rem; border-radius: var(--radius); list-style: none; }
+  summary::-webkit-details-marker { display: none; }
+  summary:hover { background: var(--flaeche-leicht); }
+  details[open] summary { background: var(--flaeche-leicht); }
+  .akt-titel { font-weight: 700; font-size: 1.15rem; }
+  .akt-teil { color: var(--leise); grid-column: 1; font-size: 0.95rem; }
+  .akt-stand { grid-row: 1 / 3; grid-column: 2; align-self: center; color: var(--akzent-hell); font-weight: 700; font-variant-numeric: tabular-nums; }
+  .akt-ziel { margin: 0.6rem 0.9rem; color: var(--leise); }
+  .missionen { list-style: none; padding: 0 0 0.6rem; margin: 0 0.4rem; }
+  .missionen li { margin: 0; }
+  .missionen a { display: grid; grid-template-columns: 1.4rem 4.2rem 1fr auto; align-items: center; gap: 0.5rem; padding: 0.42rem 0.5rem; text-decoration: none; color: var(--text); border-radius: var(--radius-klein); }
+  .missionen a:hover { background: rgba(255, 255, 255, 0.04); }
+  .mpad { width: 14px; height: 14px; border-radius: 50%; border: 2px dashed var(--leise-dunkel); }
+  .offen .mpad, .aktuell .mpad { border: 3px solid var(--akzent); }
+  .simuliert .mpad { border: 3px solid var(--leise); background: var(--leise); }
+  .real .mpad { border: 3px solid var(--akzent); background: var(--akzent); }
+  .boss .mpad { border-radius: 3px; transform: rotate(45deg); }
+  .mnr { color: var(--leise); font-variant-numeric: tabular-nums; }
+  .entwurf .mtitel { color: var(--leise); }
+  .mstatus { font-size: 0.88rem; color: var(--leise); }
+  .aktuell .mstatus { color: var(--akzent-hell); font-weight: 700; }
+  .real .mstatus { color: var(--gut); }
+  @media (max-width: 520px) { .missionen a { grid-template-columns: 1.4rem 3.4rem 1fr; } .mstatus { grid-column: 2 / 4; } }
+</style>

@@ -1,0 +1,52 @@
+---
+import Basis from '../layouts/Basis.astro';
+import { url } from '../config';
+---
+<Basis titel="Einrichtung" beschreibung="Welche Linux-Umgebung passt zu deinem Rechner?">
+  <section class="huelle text seite">
+    <h1>Einrichtung</h1>
+    <p class="einstieg">
+      Für den Kurs brauchst du ein eigenes Arch Linux, in dem du üben darfst. Du musst dafür nichts kaufen und deinen
+      Rechner nicht umbauen. Die Schritt-für-Schritt-Anleitung steht in <a href={url('mission/l-0-3')}>Mission 0.3</a>.
+      Hier siehst du, welcher Weg zu dir passt.
+    </p>
+
+    <table>
+      <thead>
+        <tr><th scope="col">Dein Rechner</th><th scope="col">Empfohlener Weg</th><th scope="col">Gut zu wissen</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Windows 10 oder 11</td><td><strong>WSL</strong>, später zusätzlich eine VM</td><td>WSL reicht für Akt 0 bis 5. Für Netzwerk und Firewall ab Akt 6 ist eine VM besser.</td></tr>
+        <tr><td>Linux</td><td><strong>VM</strong> mit virt-manager, GNOME Boxes oder VirtualBox</td><td>Bitte nicht auf deinem Hauptsystem üben, auch wenn es schon Arch ist.</td></tr>
+        <tr><td>Mac mit Intel-Chip</td><td><strong>VM</strong> mit VirtualBox oder UTM</td><td>Funktioniert wie unter Windows.</td></tr>
+        <tr><td>Mac mit Apple-Chip (M1 und neuer)</td><td><strong>Simulator</strong></td><td>Arch gibt es offiziell nur für x86_64. Emulation ist möglich, aber sehr langsam.</td></tr>
+        <tr><td>Schul- oder Firmenrechner, Tablet, Handy</td><td><strong>Simulator</strong></td><td>Setz in den Missionen den Haken „ohne Linux“. Die Nachweise holst du später nach.</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Was du ungefähr brauchst</h2>
+    <ul>
+      <li>20 GB freien Speicher und 4 GB Arbeitsspeicher im Rechner (Richtwert für eine VM, WSL braucht weniger)</li>
+      <li>eine Internetverbindung für Installation und Updates</li>
+      <li>bei einer VM: Virtualisierung im BIOS oder UEFI eingeschaltet (heißt oft VT-x, AMD-V oder SVM)</li>
+    </ul>
+
+    <h2>Später im Kurs</h2>
+    <p>
+      Ab Akt 6 meldest du dich per SSH an deinem Server an. Dafür reicht deine VM. Wer mag, nimmt stattdessen einen
+      alten Laptop oder Mini-PC, der dann wirklich als Server in der Ecke steht. Pflicht ist das nicht.
+    </p>
+
+    <h2>Ohne eigenes Linux</h2>
+    <p>
+      Jede Mission hat einen Weg ohne eigenes Linux: Quiz, Code-Puzzles und der Terminal-Simulator im Browser. Dein
+      Einschub im Rack wird dann grau statt farbig. Sobald dein Linux läuft, kannst du die echten Nachweise in jeder
+      Mission nachholen.
+    </p>
+  </section>
+</Basis>
+
+<style>
+  .seite { padding-top: 2rem; }
+  .einstieg { font-size: 1.15rem; }
+</style>

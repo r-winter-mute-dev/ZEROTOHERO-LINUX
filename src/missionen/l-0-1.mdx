@@ -1,0 +1,69 @@
+---
+id: l-0-1
+checks:
+  - id: kurs
+  - id: verstanden
+---
+import Quiz from '../components/Quiz.astro';
+import Merke from '../components/Merke.astro';
+import Bestaetigung from '../components/Bestaetigung.astro';
+import Hinweis from '../components/Hinweis.astro';
+import { url as seitenUrl } from '../config';
+
+Am Ende dieses Kurses läuft auf einem Rechner ein Linux-Server, den du selbst eingerichtet hast, nur mit der Tastatur und ohne grafische Oberfläche. Er zeigt eine eigene Statusseite, sichert jede Nacht deine Daten und lässt nur dich herein, mit deinem persönlichen SSH-Schlüssel.
+
+<Merke>Ziel des Kurses: ein eigener, abgesicherter Linux-Server mit Statusseite und nächtlichem Backup.</Merke>
+
+## Woraus der Server besteht
+
+Das Rack auf der Startseite zeigt den Rahmen und neun Einschübe. Jeder Akt füllt einen davon.
+
+| Akt | Einschub | Was du lernst |
+| --- | --- | --- |
+| 0 | Rack | Dein eigenes Linux, Sicherheit, das Terminal |
+| 1 | Festplatte | Dich im Dateisystem bewegen, Dateien anlegen und löschen |
+| 2 | Werkzeugkasten | Text lesen, durchsuchen und mit Pipes verketten |
+| 3 | Schloss | Benutzer, Rechte und sudo |
+| 4 | Prozessor | Laufende Programme sehen und steuern |
+| 5 | Lager | Software installieren und aktuell halten |
+| 6 | Netzwerkkarte | Netzwerk und Anmeldung per SSH |
+| 7 | Steuerplatine | Eigene Skripte, zum Beispiel dein Backup |
+| 8 | Wachturm | Dienste, Logs und Zeitpläne |
+| 9 | Schutzschild | Firewall, sichere Anmeldung, Statusseite |
+
+<Merke>Zehn Teile, zehn Akte. Jeder Akt füllt einen Einschub im Rack.</Merke>
+
+## Warum Arch Linux?
+
+Linux gibt es in vielen Varianten, den **Distributionen**. Wir nehmen **Arch Linux**. Ein frisches Arch enthält fast nichts: keinen Webserver, keine Firewall, kein vorkonfiguriertes Irgendwas. Alles, was auf deinem Server läuft, hast du selbst installiert und verstanden.
+
+Dazu kommt das **Arch Wiki**, eine der gründlichsten Linux-Dokumentationen überhaupt. Im Kurs lernst du, dort selbst nachzuschlagen.
+
+<Hinweis titel="Andere Distributionen">
+Die meisten Befehle im Kurs funktionieren auf jedem Linux. Anders sind vor allem die Paketverwaltung (Akt 5) und einige Pfade. Wo das wichtig ist, steht ein Hinweis dabei. Die Nachweise prüfen allerdings, ob du wirklich Arch benutzt.
+</Hinweis>
+
+## So funktioniert der Kurs
+
+1. **Missionen sind kurz.** Jede hat eine Idee, ein paar Theorie-Karten und Übungen im Terminal.
+2. **Jede Mission endet mit einer Prüfung.** Das kann ein Quiz sein, ein Code-Puzzle, eine Aufgabe im Terminal-Simulator oder ein **Nachweis** aus deinem echten Terminal. Dafür führst du einen Befehl aus und fügst die Ausgabe hier ein. Die Seite prüft sie direkt in deinem Browser, nichts wird verschickt.
+3. **Bosskämpfe** am Ende eines Akts sind Fehlersuchen. Dort lernst du, Fehlermeldungen zu lesen statt zu raten.
+4. **Missionen bauen aufeinander auf.** Die Prüfungen einer Mission zählen erst, wenn die vorherige geschafft ist. Lesen kannst du alles.
+5. **Ohne eigenes Linux geht es trotzdem weiter.** Setze auf einer Mission den Haken „Ich habe (noch) kein Linux eingerichtet“. Dann zählen nur die Prüfungen im Simulator, und dein Einschub im Rack wird grau statt farbig. Die echten Nachweise kannst du später nachholen.
+
+<Merke>Noch kein Linux? Setz den Haken „ohne Linux“ und mach im Simulator weiter.</Merke>
+
+<Quiz id="kurs" titel="Kurzcheck: So läuft der Kurs" fragen={[
+  { frage: 'Du sitzt an einem Rechner, auf dem du nichts installieren darfst. Was tust du?', richtig: 'Den Haken „ohne Linux“ setzen und im Simulator weitermachen', falsch: ['Warten, bis du einen eigenen Rechner hast', 'Die Mission überspringen und eine spätere öffnen'], erklaerung: 'Im Simulator geht es weiter. Die echten Nachweise holst du später nach.' },
+  { frage: 'Was passiert mit der Ausgabe, die du bei einem Nachweis einfügst?', richtig: 'Sie wird nur in deinem Browser geprüft', falsch: ['Sie wird an einen Server geschickt und gespeichert', 'Ein Mensch schaut sie sich an'], erklaerung: 'Die Seite hat keinen Server. Alles bleibt bei dir.' },
+]} />
+
+## Was du brauchst
+
+Einen Rechner mit Windows 10 oder 11, Linux oder macOS und etwa 20 GB freien Speicher. Welche Art von Linux-Umgebung zu deinem Rechner passt, klärt Mission 0.3. Eine Übersicht steht auf der Seite <a href={seitenUrl('einrichtung')}>Einrichtung</a>.
+
+<Hinweis titel="Was es nicht braucht">
+Du brauchst keinen zweiten Rechner, keinen Server im Internet und kein Geld. Für den ganzen Kurs reicht eine virtuelle Maschine oder WSL auf deinem normalen Computer.
+</Hinweis>
+
+<Bestaetigung id="verstanden" titel="Bereit?" art="Start" hardware={false} text="Ich habe verstanden, wie der Kurs funktioniert." knopf="Los geht’s" />
