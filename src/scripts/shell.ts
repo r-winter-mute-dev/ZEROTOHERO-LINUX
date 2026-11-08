@@ -35,7 +35,7 @@ NAME="Debian GNU/Linux"
 VERSION_ID="13"
 VERSION="13 (trixie)"
 VERSION_CODENAME=trixie
-DEBIAN_VERSION_FULL=13.1
+DEBIAN_VERSION_FULL=13.7
 ID=debian
 HOME_URL="https://www.debian.org/"
 SUPPORT_URL="https://www.debian.org/support"
@@ -54,7 +54,7 @@ function standardBaum(): Knoten {
     ['/etc/os-release', datei(OS_RELEASE)],
     ['/etc/hosts', datei('# Static table lookup for hostnames.\n# See hosts(5) for details.\n127.0.0.1 localhost\n::1       localhost\n')],
     ['/etc/passwd', datei(`root:x:0:0:root:/root:/bin/bash\n${BENUTZER}:x:1000:1000:${BENUTZER}:${HEIM}:/bin/bash\n`)],
-    ['/etc/debian_version', datei('13.1\n')],
+    ['/etc/debian_version', datei('13.7\n')],
     ['/home', ordner()],
     [HEIM, ordner(BENUTZER, 'rwx------')],
     [`${HEIM}/.bash_logout`, datei('# ~/.bash_logout: executed by bash(1) when login shell exits.\n', BENUTZER)],
