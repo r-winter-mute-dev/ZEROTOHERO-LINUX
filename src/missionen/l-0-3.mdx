@@ -11,14 +11,16 @@ checks:
 spick:
   - t: Distribution
     v: Kernel + Programme + Paketverwaltung
+  - t: "WSL installieren"
+    v: "<code>wsl --install -d Debian</code> in PowerShell"
   - t: "WSL starten"
-    v: "<code>wsl -d archlinux</code> in PowerShell"
-  - t: "WSL neu starten"
-    v: "<code>wsl --terminate archlinux</code>"
-  - t: "Installer in der VM"
-    v: "<code>archinstall</code>, Profil <em>minimal</em>, Benutzer mit sudo"
+    v: "<code>wsl -d Debian</code>"
+  - t: "Im Installer"
+    v: "root-Passwort <strong>leer lassen</strong>, Software: nur SSH-Server und Standard-Systemwerkzeuge"
   - t: "Benutzername"
     v: "klein, ohne Leerzeichen und Umlaute, z. B. <code>mia</code>"
+  - t: "Aktualisieren"
+    v: "<code>sudo apt update && sudo apt full-upgrade</code>"
   - t: "Wer bin ich?"
     v: "<code>whoami</code>"
 ---
@@ -30,20 +32,20 @@ import Checkliste from '../components/Checkliste.astro';
 import Nachweis from '../components/Nachweis.astro';
 import Bestaetigung from '../components/Bestaetigung.astro';
 
-Ein Server braucht ein Betriebssystem. Bevor du den ersten Befehl tippst, brauchst du also ein eigenes Linux, eines, das du verändern und auch kaputt machen darfst. **Deine Mission: Richte Arch Linux ein und melde dich als normaler Benutzer an.**
+Ein Server braucht ein Betriebssystem. Bevor du den ersten Befehl tippst, brauchst du also ein eigenes Linux, eines, das du verändern und auch kaputt machen darfst. **Deine Mission: Richte Debian ein und melde dich als normaler Benutzer an.**
 
-**Du brauchst:** deinen Rechner, eine Internetverbindung und etwa eine Stunde Zeit. Mit WSL geht es meist schneller.
+**Du brauchst:** deinen Rechner, eine Internetverbindung und etwa 20 Minuten mit WSL oder eine Stunde mit einer virtuellen Maschine.
 
 ## Theorie
 
 <Karte nr={1} titel="Was eine Distribution ist">
-Streng genommen ist **Linux** nur der **Kernel**: das Programm, das zwischen Hardware und allen anderen Programmen vermittelt. Damit man damit arbeiten kann, braucht es noch eine Shell, Werkzeuge wie `ls` und eine **Paketverwaltung**, die Software installiert. Dieses Gesamtpaket heißt **Distribution**. Arch, Debian, Ubuntu und Fedora sind Distributionen. Sie teilen sich den Kernel und die meisten Werkzeuge.
+Streng genommen ist **Linux** nur der **Kernel**: das Programm, das zwischen Hardware und allen anderen Programmen vermittelt. Damit man damit arbeiten kann, braucht es noch eine Shell, Werkzeuge wie `ls` und eine **Paketverwaltung**, die Software installiert. Dieses Gesamtpaket heißt **Distribution**. Debian, Ubuntu, Fedora und Arch sind Distributionen. Sie teilen sich den Kernel und die meisten Werkzeuge.
 </Karte>
 
 <Merke>Linux ist der Kernel. Eine Distribution packt Kernel, Werkzeuge und Paketverwaltung zusammen.</Merke>
 
 <Quiz id="k1" titel="Kurzcheck: Distribution" fragen={[
-  { frage: 'Was haben Arch und Ubuntu gemeinsam?', richtig: 'Den Linux-Kernel und die meisten Werkzeuge', falsch: ['Gar nichts, es sind völlig verschiedene Systeme', 'Die Paketverwaltung, beide nutzen pacman'], erklaerung: 'Gleicher Kernel, gleiche Grundwerkzeuge. Unterschiede gibt es vor allem bei der Paketverwaltung und den Voreinstellungen.' },
+  { frage: 'Was haben Debian und Fedora gemeinsam?', richtig: 'Den Linux-Kernel und die meisten Werkzeuge', falsch: ['Gar nichts, es sind völlig verschiedene Systeme', 'Die Paketverwaltung, beide nutzen apt'], erklaerung: 'Gleicher Kernel, gleiche Grundwerkzeuge. Unterschiede gibt es vor allem bei der Paketverwaltung und den Voreinstellungen.' },
 ]} />
 
 <Karte nr={2} titel="WSL oder virtuelle Maschine">
@@ -56,48 +58,20 @@ Eine **virtuelle Maschine (VM)** ist ein simulierter Computer mit eigener Festpl
   { frage: 'Du hast Windows 11 und willst so schnell wie möglich anfangen. Was nimmst du?', richtig: 'WSL', falsch: ['Eine VM, WSL ist kein echtes Linux', 'Gar nichts, Windows kann Linux-Befehle von allein'], erklaerung: 'WSL ist in wenigen Minuten bereit und nutzt einen echten Linux-Kernel.' },
 ]} />
 
-<Hinweis titel="Mac mit Apple-Chip (M1 und neuer)">
-Arch Linux gibt es offiziell nur für Intel- und AMD-Prozessoren (x86_64). Auf einem Mac mit Apple-Chip läuft es nur emuliert, zum Beispiel mit UTM, und dann sehr langsam [Trainingswissen, nicht geprüft]. Mach bis auf Weiteres im Simulator weiter und setz oben den Haken „ohne Linux“. Auf einem Mac mit Intel-Chip funktioniert Weg B.
-</Hinweis>
-
 ## Weg A: WSL unter Windows
 
 Öffne **PowerShell** über das Startmenü. Normale Rechte reichen, Windows fragt nach, wenn es Adminrechte braucht.
 
 <Checkliste id="wsl" punkte={[
-  'In PowerShell eingeben: <code>wsl --install archlinux</code> und Enter. Ist WSL noch gar nicht installiert, richtet Windows es zuerst ein und will danach eventuell neu starten. Dann den Befehl noch einmal eingeben.',
-  'Arch starten: <code>wsl -d archlinux</code>. Der Prompt endet mit <code>#</code>, du bist also root (Mission 0.2, Regel 2). Das ändern wir jetzt.',
-  'Die Befehle aus dem Kasten unten <strong>einzeln</strong> eingeben. Statt <code>mia</code> nimmst du deinen eigenen Namen: klein geschrieben, ohne Leerzeichen und Umlaute.',
-  'Bei <code>passwd</code> zweimal ein Passwort eingeben. Es erscheinen keine Sternchen, das ist normal.',
-  'Mit <code>exit</code> zurück zu PowerShell, dann <code>wsl --terminate archlinux</code> und wieder <code>wsl -d archlinux</code>.',
-  'Der Prompt endet jetzt mit <code>$</code> und zeigt deinen Namen.',
+  'In PowerShell eingeben: <code>wsl --install -d Debian</code> und Enter. Ist WSL noch gar nicht installiert, richtet Windows es zuerst ein und will danach eventuell neu starten. Dann den Befehl noch einmal eingeben.',
+  'Debian fragt beim ersten Start nach einem <strong>Benutzernamen</strong>: klein geschrieben, ohne Leerzeichen und Umlaute, zum Beispiel <code>mia</code>. Er muss nicht zu deinem Windows-Namen passen.',
+  'Dann zweimal ein <strong>Passwort</strong>. Es erscheinen keine Sternchen, das ist normal (Mission 0.2, Regel 5). Merk es dir gut, du brauchst es für sudo.',
+  'Der Prompt sieht jetzt etwa so aus: <code>mia@DESKTOP-AB12CD:~$</code>. Das <code>$</code> heißt: kein root.',
+  'System aktualisieren: <code>sudo apt update && sudo apt full-upgrade</code>. sudo fragt nach deinem Passwort. Bei der Frage „Möchten Sie fortfahren?“ mit Enter bestätigen.',
+  'Später startest du Debian über das Startmenü oder in PowerShell mit <code>wsl -d Debian</code>.',
 ]} />
 
-Die Ersteinrichtung, Zeile für Zeile:
-
-```bash
-pacman -Syu                                   # 1. System aktualisieren
-pacman -S --needed sudo nano                  # 2. sudo und einen Editor installieren
-useradd -m -G wheel mia                       # 3. Benutzer mia anlegen, Gruppe wheel
-passwd mia                                    # 4. Passwort für mia setzen
-echo '%wheel ALL=(ALL:ALL) ALL' > /etc/sudoers.d/wheel   # 5. Gruppe wheel darf sudo
-chmod 440 /etc/sudoers.d/wheel                # 6. Datei nur lesbar machen
-visudo -c                                     # 7. Prüfen: muss "parsed OK" melden
-printf '[user]\ndefault=mia\n' >> /etc/wsl.conf          # 8. WSL startet künftig als mia
-```
-
-| Zeile | Was passiert | Ausführlich in |
-| --- | --- | --- |
-| 1 | `pacman` ist die Paketverwaltung von Arch. `-Syu` holt die neuesten Paketlisten und aktualisiert alles. Bei Fragen mit Enter bestätigen. | Mission 5.3 |
-| 2 | Installiert `sudo` (Adminrechte auf Zeit) und den einfachen Editor `nano`. | Mission 5.2 |
-| 3 | Legt den Benutzer an. `-m` erstellt seinen Heimatordner, `-G wheel` steckt ihn in die Gruppe der Admins. | Mission 3.6 |
-| 4 | Setzt das Passwort. Merk es dir gut, sudo fragt danach. | Mission 3.6 |
-| 5 bis 7 | Erlaubt der Gruppe wheel, sudo zu benutzen, und prüft, ob die Datei fehlerfrei ist. | Mission 3.5 |
-| 8 | Schreibt in die WSL-Einstellungen, dass Arch als dein Benutzer startet statt als root. | – |
-
-<Hinweis titel="Eine Ausnahme von Regel 4">
-Du führst hier Befehle aus, die du noch nicht ganz verstehst. Das ist die einzige Stelle im Kurs, an der das nötig ist. Jede Zeile ist oben erklärt und wird später ausführlich behandelt.
-</Hinweis>
+Was dabei passiert: Der Benutzer, den du beim ersten Start anlegst, ist automatisch Administrator und darf `sudo` benutzen. `apt` ist die Paketverwaltung von Debian. `apt update` holt die neuesten Paketlisten, `apt full-upgrade` installiert alle Updates. Beides lernst du in Akt 5 genauer kennen.
 
 ## Weg B: Virtuelle Maschine
 
@@ -105,29 +79,35 @@ Für Linux, Windows und Macs mit Intel-Chip. Wir nehmen **VirtualBox**, unter Li
 
 <Checkliste id="vm" punkte={[
   'VirtualBox von <a href="https://www.virtualbox.org/" rel="noopener" target="_blank">virtualbox.org</a> installieren.',
-  'Das aktuelle ISO-Abbild von <a href="https://archlinux.org/download/" rel="noopener" target="_blank">archlinux.org/download</a> laden. Das ist die Installations-DVD als Datei.',
-  'In VirtualBox eine neue Maschine anlegen: Typ Linux, Version Arch Linux (64-bit), das ISO auswählen. Als Richtwert 2 GB Arbeitsspeicher, 2 Prozessoren, 20 GB Festplatte.',
-  'In den Einstellungen der Maschine unter <em>System</em> den Haken bei <strong>EFI aktivieren</strong> setzen. Der Installer braucht das.',
-  'Maschine starten und im Menü <em>Arch Linux install medium</em> wählen. Du landest an einem Prompt mit <code>#</code>.',
-  'Deutsche Tastatur einstellen: <code>loadkeys de-latin1</code>. Vorsicht, bis dahin liegen Y und Z vertauscht.',
-  'Den Installer starten: <code>archinstall</code>. Mit den Pfeiltasten bewegen, Enter wählt aus.',
-  'Im Installer: <em>Disk configuration</em> mit dem vorgeschlagenen Standard-Layout auf der virtuellen Platte, unter <em>Authentication</em> einen Benutzer mit <strong>sudo-Rechten (superuser)</strong> anlegen, als <em>Profile</em> den Typ <strong>minimal</strong>. Netzwerk: die Konfiguration des ISO übernehmen. Den Rest lässt du, wie er ist.',
-  '<em>Install</em> wählen und warten. Danach die VM ausschalten, das ISO unter <em>Massenspeicher</em> entfernen und neu starten.',
-  'Mit deinem Benutzer anmelden. Der Prompt endet mit <code>$</code>.',
+  'Das Installationsabbild <strong>netinst</strong> für <strong>amd64</strong> von <a href="https://www.debian.org/download" rel="noopener" target="_blank">debian.org/download</a> laden. Das ist eine kleine ISO-Datei, der Rest kommt während der Installation aus dem Netz.',
+  'In VirtualBox eine neue Maschine anlegen: Typ Linux, Version Debian (64-bit), das ISO auswählen. Bietet VirtualBox eine <em>unbeaufsichtigte Installation</em> an, diese <strong>überspringen</strong>, du willst die Schritte selbst sehen. Als Richtwert 2 GB Arbeitsspeicher, 2 Prozessoren, 20 GB Festplatte.',
+  'Maschine starten und <em>Install</em> wählen. Sprache Deutsch, Standort Deutschland, Tastatur Deutsch.',
+  'Rechnername: <code>server</code>. Den Domainnamen leer lassen.',
+  '<strong>Root-Passwort leer lassen</strong> und zweimal Enter. Dann wird root gesperrt, und dein Benutzer bekommt sudo-Rechte. Genau das wollen wir.',
+  'Deinen Namen, einen Benutzernamen (z. B. <code>mia</code>) und ein Passwort eingeben.',
+  'Partitionierung: <em>Geführt – vollständige Festplatte verwenden</em>, die virtuelle Platte wählen, <em>Alle Dateien auf eine Partition</em>, dann die Änderungen schreiben.',
+  'Bei der <strong>Softwareauswahl</strong> mit der Leertaste die Haken bei <em>Debian desktop environment</em> und <em>GNOME</em> entfernen. Haken setzen bei <strong>SSH server</strong> und <strong>Standard-Systemwerkzeuge</strong>. Ein Server braucht keine grafische Oberfläche.',
+  'Den Bootloader GRUB auf die virtuelle Festplatte installieren lassen. Nach dem Neustart mit deinem Benutzer anmelden. Der Prompt lautet <code>mia@server:~$</code>.',
+  'Einmal aktualisieren: <code>sudo apt update && sudo apt full-upgrade</code>.',
 ]} />
 
+## Weg C: Mac mit Apple-Chip
+
+Debian gibt es auch für ARM-Prozessoren (arm64), es läuft auf einem Mac mit M-Chip also ohne langsame Emulation. Statt VirtualBox nimmst du **UTM** (<a href="https://mac.getutm.app/" rel="noopener" target="_blank">mac.getutm.app</a>) und lädst das netinst-Abbild für **arm64** statt amd64. In UTM wählst du *Virtualisieren*, dann *Linux*, und gibst das ISO an. Ab dem Start der Installation geht es weiter wie bei Weg B.
+
 <Hinweis titel="Die Menüs sehen bei dir anders aus?">
-archinstall wird laufend weiterentwickelt, Menüpunkte heißen deshalb manchmal etwas anders oder stehen an anderer Stelle. Entscheidend sind nur drei Dinge: ganze virtuelle Platte, Benutzer mit sudo, Profil minimal.
+Installer und Programme werden weiterentwickelt, Bezeichnungen ändern sich manchmal leicht. Entscheidend sind nur drei Dinge: root-Passwort leer lassen, keine Desktop-Umgebung, dafür SSH-Server und Standard-Systemwerkzeuge.
 </Hinweis>
 
 ## Nachweis
 
-Egal welcher Weg, jetzt beweist du, dass dein Arch läuft und du nicht als root unterwegs bist. Der Befehl besteht aus zwei Befehlen, getrennt durch `;`. `cat` zeigt eine Datei an, `whoami` deinen Benutzernamen.
+Egal welcher Weg, jetzt beweist du, dass dein Debian läuft und du nicht als root unterwegs bist. Der Befehl besteht aus zwei Befehlen, getrennt durch `;`. `cat` zeigt eine Datei an, `whoami` deinen Benutzernamen.
 
-<Nachweis id="os" befehl="cat /etc/os-release; whoami" muster={['^ID=arch$', '^(?!root$)[a-z_][a-z0-9_-]*$']} hilfe={[
-  { muster: 'is not recognized|wird nicht als|CommandNotFoundException|nicht erkannt', text: 'Das kam von Windows, nicht von Linux. Starte Arch zuerst mit wsl -d archlinux und gib den Befehl dort ein.' },
-  { muster: '^ID=(?!arch$)', text: 'Das ist ein Linux, aber kein Arch. Der Kurs ist auf Arch ausgelegt. Prüfe, ob du die richtige WSL-Distribution oder VM geöffnet hast (wsl -d archlinux).' },
-  { muster: '^root$', text: 'Arch läuft, aber du bist noch root. Leg wie oben beschrieben einen eigenen Benutzer an, starte WSL mit wsl --terminate archlinux neu oder melde dich in der VM mit deinem Benutzer an.' },
+<Nachweis id="os" befehl="cat /etc/os-release; whoami" muster={['^ID=debian$', '^(?!root$)[a-z_][a-z0-9_-]*$']} hilfe={[
+  { muster: 'is not recognized|wird nicht als|CommandNotFoundException|nicht erkannt', text: 'Das kam von Windows, nicht von Linux. Starte Debian zuerst mit wsl -d Debian und gib den Befehl dort ein.' },
+  { muster: '^ID=ubuntu$', text: 'Das ist Ubuntu. Ubuntu baut auf Debian auf, aber der Kurs ist für Debian geschrieben. Installiere Debian zusätzlich mit wsl --install -d Debian und starte es mit wsl -d Debian.' },
+  { muster: '^ID=(?!debian$)', text: 'Das ist ein Linux, aber kein Debian. Prüfe, ob du die richtige WSL-Distribution oder VM geöffnet hast (wsl -d Debian).' },
+  { muster: '^root$', text: 'Debian läuft, aber du bist als root angemeldet. Melde dich mit deinem Benutzer an. In WSL hilft wsl -d Debian -u deinname.' },
   { muster: 'No such file', text: 'Die Datei fehlt. Achte auf den genauen Pfad: /etc/os-release, mit Bindestrich.' },
 ]} />
 
@@ -135,8 +115,9 @@ Egal welcher Weg, jetzt beweist du, dass dein Arch läuft und du nicht als root 
 
 Dein frisches System ist der perfekte Stand, um im Notfall zurückzukehren (Mission 0.2, Regel 6).
 
-- **VM:** Maschine ausschalten, in VirtualBox die Maschine auswählen, *Snapshots* und *Erstellen*. Name: „Frisch installiert“.
-- **WSL:** In PowerShell `wsl --export archlinux $HOME\arch-frisch.tar`. Zurück geht es später mit `wsl --import`.
+- **VirtualBox:** Maschine ausschalten, in der Liste auswählen, *Snapshots* und *Erstellen*. Name: „Frisch installiert“.
+- **UTM:** Maschine ausschalten, Rechtsklick, *Klonen*. Den Klon lässt du unberührt liegen.
+- **WSL:** In PowerShell `wsl --export Debian $HOME\debian-frisch.tar`. Zurück geht es später mit `wsl --import`.
 
 <Bestaetigung id="snapshot" titel="Sicherung" art="Bestätigung" text="Ich habe einen Snapshot meiner VM angelegt oder mein WSL exportiert." />
 
@@ -145,13 +126,14 @@ Dein frisches System ist der perfekte Stand, um im Notfall zurückzukehren (Miss
 | Symptom | Wahrscheinliche Ursache | Lösung |
 | --- | --- | --- |
 | `wsl --install` meldet, die Distribution gebe es nicht | WSL ist veraltet | In PowerShell `wsl --update`, dann erneut versuchen |
-| `pacman -Syu` meldet `signature … is unknown trust` | Die Schlüssel der Paketverwaltung sind noch nicht eingerichtet | `pacman-key --init`, dann `pacman-key --populate archlinux`, dann noch einmal `pacman -Syu` |
-| Nach dem Neustart von WSL wieder `#` im Prompt | Zeile 8 fehlt oder enthält einen Tippfehler | `cat /etc/wsl.conf` muss `[user]` und darunter `default=deinname` zeigen |
-| VM bootet nur schwarz oder der Installer bricht beim Bootloader ab | EFI ist nicht aktiviert | VM ausschalten, unter *System* EFI aktivieren, Installation wiederholen |
-| In der VM sind Y und Z vertauscht | US-Tastaturbelegung | `loadkeys de-latin1`. Im installierten System übernimmt archinstall die gewählte Belegung |
+| `mia is not in the sudoers file` | Im Installer wurde doch ein root-Passwort gesetzt | `su -` und das root-Passwort eingeben, dann `usermod -aG sudo mia`, mit `exit` zurück, abmelden und neu anmelden |
+| WSL-Passwort vergessen | – | In PowerShell `wsl -d Debian -u root`, dann `passwd mia` und mit `exit` zurück |
+| Nach dem Neustart startet wieder der Installer | Das ISO steckt noch im virtuellen Laufwerk | VM ausschalten, ISO unter *Massenspeicher* entfernen |
+| `apt update` meldet, Server seien nicht erreichbar | Die VM hat kein Netzwerk | In den Einstellungen der VM unter *Netzwerk* „NAT“ wählen |
+| Nach dem Start erscheint eine grafische Anmeldung | Bei der Softwareauswahl war die Desktop-Umgebung noch angehakt | Für den Kurs nicht schlimm, besser ist aber eine Neuinstallation ohne Desktop |
 
 <details>
-<summary><strong>Vertiefung: Warum heißt die Admin-Gruppe „wheel“?</strong></summary>
+<summary><strong>Vertiefung: Warum heißt Debian 13 „trixie“?</strong></summary>
 
-Der Name stammt aus alten Unix-Systemen der 1970er Jahre und spielt auf „big wheel“ an, englisch für eine wichtige Person. Viele Distributionen nennen die Gruppe heute `sudo`, Arch bleibt beim alten Namen [Trainingswissen].
+Debian benennt seine Versionen nach Figuren aus den Toy-Story-Filmen. Trixie ist der blaue Triceratops, Debian 12 hieß „bookworm“ nach dem Bücherwurm. Die Entwicklungsversion, in der neue Pakete zuerst landen, heißt immer „sid“, nach dem Nachbarsjungen, der Spielzeug kaputt macht [Trainingswissen].
 </details>

@@ -41,7 +41,7 @@ export const SERVER: Akt[] = [
     missionen: [
       m('l-0-1', '0.1', 'Das Ziel', 'Den fertigen Server kennenlernen und verstehen, wie der Kurs funktioniert.', 'Was ein Server ist, alle Einschübe im Überblick', 'Bestätigen', { bereit: true }),
       m('l-0-2', '0.2', 'Sicherheit', 'Die Regeln lernen, die dich und deine Daten schützen.', 'root, rm, fremde Befehle, Backups und Snapshots', 'Sicherheitsquiz, alles richtig', { bereit: true }),
-      m('l-0-3', '0.3', 'Dein Linux', 'Arch Linux in WSL oder einer VM einrichten.', 'Distribution, Kernel, WSL, virtuelle Maschine, archinstall', 'Terminal-Nachweis mit /etc/os-release', { bereit: true }),
+      m('l-0-3', '0.3', 'Dein Linux', 'Debian in WSL oder einer VM einrichten.', 'Distribution, Kernel, WSL, virtuelle Maschine, Debian-Installer', 'Terminal-Nachweis mit /etc/os-release', { bereit: true }),
       m('l-0-4', '0.4', 'Das Terminal', 'Den Prompt lesen und die ersten Befehle eintippen.', 'Prompt, Befehl, Option, Argument, Tab, Verlauf, Strg+C', 'Simulator und Terminal-Nachweis', { bereit: true }),
     ],
   },
@@ -54,7 +54,7 @@ export const SERVER: Akt[] = [
       m('l-1-3', '1.3', 'Der Verzeichnisbaum', 'Herausfinden, wo Linux was ablegt.', '/etc, /home, /usr, /var, /tmp, /dev, /proc', 'Quiz und Terminal-Nachweis'),
       m('l-1-4', '1.4', 'Anlegen und verschieben', 'Eine Ordnerstruktur für den Server bauen.', 'mkdir -p, touch, cp, mv, Umbenennen', 'Simulator und Terminal-Nachweis mit Prüfsumme'),
       m('l-1-5', '1.5', 'Löschen ohne Reue', 'Dateien gezielt löschen, ohne aus Versehen zu viel zu erwischen.', 'rm, rmdir, -i, Platzhalter *, erst mit echo testen', 'Simulator'),
-      m('l-1-6', '1.6', 'Hilfe holen', 'Antworten in man-Pages und im Arch Wiki finden statt zu raten.', '--help, man, Abschnitte einer man-Page, Arch Wiki', 'man-Page-Übung mit echten Seiten'),
+      m('l-1-6', '1.6', 'Hilfe holen', 'Antworten in man-Pages und offizieller Doku finden statt zu raten.', '--help, man, Abschnitte einer man-Page, Debian-Handbuch, Arch Wiki als Nachschlagewerk', 'man-Page-Übung mit echten Seiten'),
       m('l-1-7', '1.7', 'Unsichtbare Dateien', 'Versteckte Dateien finden und ls -l lesen.', 'Punktdateien, ls -la, Dateityp, Größe, Datum', 'Quiz und Terminal-Nachweis'),
       m('l-1-boss', 'Boss 1', 'Die Datei ist weg', 'Verlorene Dateien wiederfinden und Pfadfehler aufklären.', 'No such file or directory, falsches Verzeichnis, Tippfehler', 'Fehlerszenarien', { boss: true }),
     ],
@@ -83,8 +83,8 @@ export const SERVER: Akt[] = [
       m('l-3-2', '3.2', 'rwx lesen', 'Die Rechte-Spalte von ls -l entschlüsseln.', 'Besitzer, Gruppe, andere; lesen, schreiben, ausführen; Ordnerrechte', 'Rechte-Trainer'),
       m('l-3-3', '3.3', 'chmod', 'Rechte symbolisch und als Zahl setzen.', 'u+x, go-w, 644, 755, 600', 'Rechte-Trainer und Terminal-Nachweis'),
       m('l-3-4', '3.4', 'Besitz und Gruppen', 'Dateien einem anderen Besitzer und einer Gruppe geben.', 'chown, chgrp, Gruppen anlegen', 'Simulator'),
-      m('l-3-5', '3.5', 'root und sudo', 'Mit Adminrechten arbeiten, ohne dauerhaft root zu sein.', 'root, sudo, wheel-Gruppe, Prinzip minimaler Rechte', 'Quiz und Terminal-Nachweis'),
-      m('l-3-6', '3.6', 'Benutzer anlegen', 'Einen eigenen Dienstbenutzer für den Server anlegen.', 'useradd, passwd, /etc/passwd, /etc/shadow', 'Terminal-Nachweis'),
+      m('l-3-5', '3.5', 'root und sudo', 'Mit Adminrechten arbeiten, ohne dauerhaft root zu sein.', 'root, sudo, Gruppe sudo, Prinzip minimaler Rechte', 'Quiz und Terminal-Nachweis'),
+      m('l-3-6', '3.6', 'Benutzer anlegen', 'Einen eigenen Dienstbenutzer für den Server anlegen.', 'adduser, passwd, /etc/passwd, /etc/shadow', 'Terminal-Nachweis'),
       m('l-3-7', '3.7', 'Ausführbar', 'Ein eigenes Programm von überall starten.', 'Shebang, x-Recht, PATH, ~/.local/bin', 'Terminal-Nachweis'),
       m('l-3-boss', 'Boss 3', 'Permission denied', 'Fünf Rechteprobleme anhand der Fehlermeldung lösen.', 'Datei-, Ordner- und sudo-Rechte', 'Fehlerszenarien', { boss: true }),
     ],
@@ -107,12 +107,12 @@ export const SERVER: Akt[] = [
     ziel: 'Software sicher installieren, aktuell halten und wieder entfernen.',
     missionen: [
       m('l-5-1', '5.1', 'Was ein Paketmanager tut', 'Verstehen, woher Software unter Linux kommt.', 'Paketquellen, Spiegelserver, Signaturen, Abhängigkeiten', 'Quiz'),
-      m('l-5-2', '5.2', 'pacman', 'Pakete suchen, installieren und entfernen.', 'pacman -Ss, -S, -Qi, -Ql, -Rns', 'Terminal-Nachweis'),
-      m('l-5-3', '5.3', 'Das Update-Ritual', 'Das System richtig aktualisieren.', 'Rolling Release, Arch-News lesen, pacman -Syu, keine Teil-Upgrades', 'Quiz und Terminal-Nachweis'),
-      m('l-5-4', '5.4', 'Woher kommt der Befehl?', 'Herausfinden, welches Paket welche Datei liefert.', 'which, type, pacman -Qo, /usr/bin', 'Terminal-Nachweis'),
-      m('l-5-5', '5.5', 'Das AUR', 'Fremde Bauanleitungen lesen, bevor du sie ausführst.', 'AUR, PKGBUILD, makepkg, Vertrauen', 'Code-Review'),
+      m('l-5-2', '5.2', 'apt', 'Pakete suchen, installieren und entfernen.', 'apt search, show, install, remove, purge, autoremove', 'Terminal-Nachweis'),
+      m('l-5-3', '5.3', 'Updates', 'Das System richtig aktualisieren.', 'apt update gegen apt upgrade, full-upgrade, Stable und Sicherheitsupdates', 'Quiz und Terminal-Nachweis'),
+      m('l-5-4', '5.4', 'Woher kommt der Befehl?', 'Herausfinden, welches Paket welche Datei liefert.', 'which, type, dpkg -S, dpkg -L, /usr/bin', 'Terminal-Nachweis'),
+      m('l-5-5', '5.5', 'Fremde Quellen', 'Software von außerhalb von Debian prüfen, bevor du ihr vertraust.', 'Drittanbieter-Paketquellen, Signaturschlüssel, signed-by, Skripte erst lesen', 'Code-Review'),
       m('l-5-6', '5.6', 'Archive', 'Dateien packen und entpacken.', 'tar, gzip, zstd', 'Terminal-Nachweis mit Prüfsumme'),
-      m('l-5-boss', 'Boss 5', 'Das Update hat etwas kaputt gemacht', 'Fehlgeschlagene Installationen und Updates reparieren.', 'Sperrdatei, Schlüsselring, Dateikonflikte, kein Platz, Teil-Upgrade', 'Fehlerszenarien', { boss: true }),
+      m('l-5-boss', 'Boss 5', 'Die Installation scheitert', 'Fehlgeschlagene Installationen und Updates reparieren.', 'dpkg-Sperre, unterbrochene Installation, fehlender Schlüssel, kein Platz, Tippfehler in der Quelle', 'Fehlerszenarien', { boss: true }),
     ],
   },
   {
@@ -158,7 +158,7 @@ export const SERVER: Akt[] = [
     nr: 9, titel: 'Die Festung', teil: 'schild', teilName: 'Schutzschild',
     ziel: 'Den Server absichern und online bringen.',
     missionen: [
-      m('l-9-1', '9.1', 'Update-Wächter', 'Benachrichtigt werden, wenn Updates oder Arch-News warten.', 'Timer, checkupdates, Warum Arch nicht automatisch aktualisiert', 'Terminal-Nachweis'),
+      m('l-9-1', '9.1', 'Automatische Updates', 'Sicherheitsupdates von allein einspielen lassen und kontrollieren.', 'unattended-upgrades, Protokoll prüfen, Neustart nach Kernel-Updates', 'Terminal-Nachweis'),
       m('l-9-2', '9.2', 'Die Firewall', 'Nur die Ports öffnen, die wirklich gebraucht werden.', 'Paketfilter, ufw, Standard verbieten', 'Terminal-Nachweis'),
       m('l-9-3', '9.3', 'SSH härten', 'Anmeldung nur per Schlüssel, kein root-Login.', 'sshd_config, Drop-in-Dateien, testen ohne sich auszusperren', 'Terminal-Nachweis'),
       m('l-9-4', '9.4', 'Die Statusseite', 'Ein Webserver zeigt eine Seite, die dein Skript erzeugt.', 'Webserver, statische Seite, Timer', 'Terminal-Nachweis mit curl'),
@@ -182,13 +182,13 @@ export interface Kampagne {
 export const KAMPAGNEN: Kampagne[] = [
   { id: 'server', nr: 1, titel: 'Dein eigener Server', kurz: 'Vom ersten Befehl bis zum abgesicherten Server mit nächtlichem Backup.',
     ueberschrift: 'Richte einen Linux-Server ein, ganz allein im Terminal.',
-    einstieg: 'Du fängst bei null an: Was ist ein Terminal, wo bin ich gerade? Mission für Mission füllst du einen Einschub im Rack und lernst genau die Befehle, die du dafür brauchst. Am Ende läuft auf deinem Arch Linux eine eigene Statusseite, jede Nacht startet ein Backup, und anmelden kann man sich nur mit deinem SSH-Schlüssel.',
+    einstieg: 'Du fängst bei null an: Was ist ein Terminal, wo bin ich gerade? Mission für Mission füllst du einen Einschub im Rack und lernst genau die Befehle, die du dafür brauchst. Am Ende läuft auf deinem Debian eine eigene Statusseite, jede Nacht startet ein Backup, und anmelden kann man sich nur mit deinem SSH-Schlüssel.',
     akte: SERVER },
 ];
 
 // Kampagnen, die geplant, aber noch nicht begonnen sind. Erscheinen auf der Startseite als Vorschau.
 export const GEPLANT = [
-  { nr: 2, titel: 'Arch von Hand', kurz: 'Ohne Installer: Partitionen, Dateisysteme, fstab, Bootloader und chroot. Du baust jede Schicht selbst.' },
+  { nr: 2, titel: 'Arch von Hand', kurz: 'Der Hero-Schritt: Arch Linux ohne Installer. Partitionen, Dateisysteme, fstab, Bootloader, chroot und ein Rolling Release, das du selbst pflegst.' },
   { nr: 3, titel: 'Das Homelab', kurz: 'Git, Container, Reverse Proxy und Monitoring: mehrere Dienste auf einem Rechner.' },
 ];
 

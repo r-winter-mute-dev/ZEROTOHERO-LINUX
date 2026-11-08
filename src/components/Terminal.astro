@@ -9,7 +9,7 @@
 //   { text: 'Geh in den Ordner Dokumente.', ort: '~/Dokumente' },
 // ]} />
 import Station from './Station.astro';
-import type { Start } from '../scripts/shell';
+import { BENUTZER, RECHNER, type Start } from '../scripts/shell';
 
 export interface Ziel {
   text: string;            // Aufgabe, darf <code> enthalten
@@ -38,10 +38,10 @@ const { id, titel = 'Terminal-Simulator', ziele, start = {}, hinweise = true, ho
       ))}
     </ol>
     <div class="term" style={`--hoehe:${hoehe}`} data-term>
-      <div class="term-leiste" aria-hidden="true"><span></span><span></span><span></span><b>hero@archbox: ~</b></div>
+      <div class="term-leiste" aria-hidden="true"><span></span><span></span><span></span><b>{BENUTZER}@{RECHNER}: ~</b></div>
       <div class="term-ausgabe" data-ausgabe role="log" aria-live="polite" aria-label="Ausgabe des Terminals"></div>
       <form class="term-zeile" data-zeile>
-        <label class="prompt" data-prompt for={`ti-${id}`}>[hero@archbox ~]$</label>
+        <label class="prompt" data-prompt for={`ti-${id}`}>{BENUTZER}@{RECHNER}:~$</label>
         <input id={`ti-${id}`} type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="Befehl eingeben, Enter zum Ausführen" />
       </form>
     </div>
@@ -56,7 +56,7 @@ const { id, titel = 'Terminal-Simulator', ziele, start = {}, hinweise = true, ho
 </Station>
 
 <script>
-  import { Shell } from '../scripts/shell';
+  import { BENUTZER, RECHNER, Shell } from '../scripts/shell';
   import { station } from '../scripts/station';
 
   interface Ziel { text: string; befehl?: string; ausgabe?: string; ort?: string; code?: number; existiert?: string; tipp?: string; }
@@ -88,7 +88,7 @@ const { id, titel = 'Terminal-Simulator', ziele, start = {}, hinweise = true, ho
     }
     function promptSetzen() {
       prompt.textContent = sh.prompt();
-      leiste.textContent = `hero@archbox: ${sh.kurzOrt()}`;
+      leiste.textContent = `${BENUTZER}@${RECHNER}: ${sh.kurzOrt()}`;
     }
     function schreiben(html: string, art = '') {
       const d = document.createElement('div');
@@ -98,7 +98,7 @@ const { id, titel = 'Terminal-Simulator', ziele, start = {}, hinweise = true, ho
       ausgabe.scrollTop = ausgabe.scrollHeight;
     }
     const esc = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    const ortAbs = (p: string) => p.replace(/^~/, '/home/hero');
+    const ortAbs = (p: string) => p.replace(/^~/, `/home/${BENUTZER}`);
 
     function begruessen() {
       ausgabe.innerHTML = '';

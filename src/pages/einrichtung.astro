@@ -6,7 +6,7 @@ import { url } from '../config';
   <section class="huelle text seite">
     <h1>Einrichtung</h1>
     <p class="einstieg">
-      Für den Kurs brauchst du ein eigenes Arch Linux, in dem du üben darfst. Du musst dafür nichts kaufen und deinen
+      Für den Kurs brauchst du ein eigenes Debian, in dem du üben darfst. Du musst dafür nichts kaufen und deinen
       Rechner nicht umbauen. Die Schritt-für-Schritt-Anleitung steht in <a href={url('mission/l-0-3')}>Mission 0.3</a>.
       Hier siehst du, welcher Weg zu dir passt.
     </p>
@@ -17,9 +17,9 @@ import { url } from '../config';
       </thead>
       <tbody>
         <tr><td>Windows 10 oder 11</td><td><strong>WSL</strong>, später zusätzlich eine VM</td><td>WSL reicht für Akt 0 bis 5. Für Netzwerk und Firewall ab Akt 6 ist eine VM besser.</td></tr>
-        <tr><td>Linux</td><td><strong>VM</strong> mit virt-manager, GNOME Boxes oder VirtualBox</td><td>Bitte nicht auf deinem Hauptsystem üben, auch wenn es schon Arch ist.</td></tr>
+        <tr><td>Linux</td><td><strong>VM</strong> mit virt-manager, GNOME Boxes oder VirtualBox</td><td>Bitte nicht auf deinem Hauptsystem üben, auch wenn es schon Debian ist.</td></tr>
         <tr><td>Mac mit Intel-Chip</td><td><strong>VM</strong> mit VirtualBox oder UTM</td><td>Funktioniert wie unter Windows.</td></tr>
-        <tr><td>Mac mit Apple-Chip (M1 und neuer)</td><td><strong>Simulator</strong></td><td>Arch gibt es offiziell nur für x86_64. Emulation ist möglich, aber sehr langsam.</td></tr>
+        <tr><td>Mac mit Apple-Chip (M1 und neuer)</td><td><strong>VM</strong> mit UTM</td><td>Debian gibt es auch für ARM (arm64), es läuft ohne langsame Emulation.</td></tr>
         <tr><td>Schul- oder Firmenrechner, Tablet, Handy</td><td><strong>Simulator</strong></td><td>Setz in den Missionen den Haken „ohne Linux“. Die Nachweise holst du später nach.</td></tr>
       </tbody>
     </table>
@@ -34,7 +34,7 @@ import { url } from '../config';
     <h2>Später im Kurs</h2>
     <p>
       Ab Akt 6 meldest du dich per SSH an deinem Server an. Dafür reicht deine VM. Wer mag, nimmt stattdessen einen
-      alten Laptop oder Mini-PC, der dann wirklich als Server in der Ecke steht. Pflicht ist das nicht.
+      alten Laptop, Mini-PC oder Raspberry Pi, der dann wirklich als Server in der Ecke steht. Pflicht ist das nicht.
     </p>
 
     <h2>Ohne eigenes Linux</h2>

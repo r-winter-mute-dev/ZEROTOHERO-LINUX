@@ -18,7 +18,7 @@ src/
   scripts/station.ts     Gemeinsame Logik aller Prüfungen
   scripts/shell.ts       Mini-Shell und virtuelles Dateisystem für den Simulator
   pages/                 Startseite, Missionsseiten, Fortschritt, Über
-tests/befehle.sh         Befehle aus den Missionen, monatlich in einem frischen Arch-Container geprüft
+tests/befehle.sh         Befehle aus den Missionen, monatlich in frischen Debian-Containern geprüft
 ```
 
 ## Eine Mission schreiben
@@ -74,7 +74,7 @@ Text der Mission …
 
 Die Mini-Shell in `src/scripts/shell.ts` bildet einen kleinen Teil von bash und GNU coreutils nach. Regeln:
 
-1. Ausgaben und Fehlermeldungen so, wie sie unter Arch Linux wirklich erscheinen (englisch, gleiche Form). Wer sie im Simulator gesehen hat, soll sie im echten Terminal wiedererkennen.
+1. Ausgaben und Fehlermeldungen so, wie sie unter Debian wirklich erscheinen (englisch, gleiche Form). Wer sie im Simulator gesehen hat, soll sie im echten Terminal wiedererkennen.
 2. Darunter darf ein deutscher Hinweis stehen (zweites Argument von `ctx.fehler`).
 3. Neue Befehle kommen erst, wenn eine Mission sie braucht. Unbekannte Optionen melden einen Fehler statt sie still zu ignorieren.
 4. Was im Simulator nicht geht (zum Beispiel `sudo`), sagt das ehrlich und verweist auf die Mission, in der es drankommt.
@@ -86,7 +86,7 @@ Die Mini-Shell in `src/scripts/shell.ts` bildet einen kleinen Teil von bash und 
 3. Höchstens vier Theorie-Karten. Eine neue Idee pro Mission.
 4. Mindestens eine Prüfung mit echtem Bezug (Terminal-Nachweis), nicht nur ein Quiz. Dazu eine Übung im Simulator für den Weg ohne Linux.
 5. Falsche Quizantworten sind echte Fehlvorstellungen, keine Scherzantworten.
-6. Jede technische Angabe ist belegt (man-Page, Arch Wiki, offizielle Doku) oder als ungeprüft markiert.
+6. Jede technische Angabe ist belegt (man-Page, Debian-Dokumentation, offizielle Doku des Programms) oder als ungeprüft markiert.
 7. Der Weg ohne Linux bleibt immer möglich.
 8. Sprache: kurze Sätze, Du-Form, Fachbegriffe beim ersten Auftreten erklären.
 9. Kleine Schritte: Die Seite zeigt jede Zwischenüberschrift und jede Theorie-Karte als eigenen Bildschirm. Eine Übung steht auf demselben Bildschirm wie die Erklärung davor. Lieber kurz erklären und gleich fragen, als lange erklären und am Ende viel abfragen (Vorlage: `l-0-2.mdx`).
@@ -94,10 +94,10 @@ Die Mini-Shell in `src/scripts/shell.ts` bildet einen kleinen Teil von bash und 
 
 ## Befehle prüfen
 
-Arch ändert sich laufend. Jeder Befehl, den eine Mission im echten Terminal ausführen lässt, gehört deshalb zusätzlich in `tests/befehle.sh`. Die GitHub Action `befehle.yml` führt das Skript jeden Monat in einem frischen `archlinux:latest`-Container aus. Schlägt ein Befehl fehl, wird der Lauf rot, und die betroffene Mission muss angepasst werden. Lokal geht das mit Docker oder Podman:
+Jeder Befehl, den eine Mission im echten Terminal ausführen lässt, gehört zusätzlich in `tests/befehle.sh`. Die GitHub Action `befehle.yml` führt das Skript jeden Monat in frischen Containern mit `debian:13` und `debian:stable` aus. Schlägt ein Befehl fehl, wird der Lauf rot, und die betroffene Mission muss angepasst werden. Spätestens wenn Debian 14 erscheint, zeigt der Lauf mit `debian:stable`, was sich geändert hat. Das Skript gibt außerdem das echte `/etc/os-release` aus, damit der Simulator aktuell bleibt. Lokal geht das mit Docker oder Podman:
 
 ```bash
-docker run --rm -v "$PWD/tests:/tests:ro" archlinux:latest bash /tests/befehle.sh
+docker run --rm -v "$PWD/tests:/tests:ro" debian:13 bash /tests/befehle.sh
 ```
 
 ## Lokal testen

@@ -1,5 +1,5 @@
 // Mini-Shell für den Terminal-Simulator (Modus „ohne Linux“).
-// Bildet einen kleinen Teil von bash und GNU coreutils nach, so wie sie unter Arch Linux reagieren.
+// Bildet einen kleinen Teil von bash und GNU coreutils nach, so wie sie unter Debian reagieren.
 // Fehlermeldungen bleiben im Original (englisch), damit man sie später im echten Terminal wiedererkennt.
 // Darunter steht auf Wunsch ein deutscher Hinweis.
 //
@@ -7,7 +7,7 @@
 // und schreibt über ctx.aus() und ctx.fehler(). Rückgabe ist der Exit-Code.
 
 export const BENUTZER = 'hero';
-export const RECHNER = 'archbox';
+export const RECHNER = 'server';
 export const HEIM = `/home/${BENUTZER}`;
 
 interface Knoten {
@@ -29,20 +29,20 @@ function datei(inhalt: string, besitzer = 'root', rechte = 'rw-r--r--'): Knoten 
   return { typ: 'f', rechte, besitzer, inhalt, zeit: STARTZEIT };
 }
 
-const OS_RELEASE = `NAME="Arch Linux"
-PRETTY_NAME="Arch Linux"
-ID=arch
-BUILD_ID=rolling
-ANSI_COLOR="38;2;23;147;209"
-HOME_URL="https://archlinux.org/"
-DOCUMENTATION_URL="https://wiki.archlinux.org/"
-SUPPORT_URL="https://bbs.archlinux.org/"
-BUG_REPORT_URL="https://gitlab.archlinux.org/groups/archlinux/-/issues"
-PRIVACY_POLICY_URL="https://terms.archlinux.org/docs/privacy-policy/"
-LOGO=archlinux-logo
+// Debian 13 „trixie“. tests/befehle.sh gibt das echte /etc/os-release zum Vergleich aus.
+const OS_RELEASE = `PRETTY_NAME="Debian GNU/Linux 13 (trixie)"
+NAME="Debian GNU/Linux"
+VERSION_ID="13"
+VERSION="13 (trixie)"
+VERSION_CODENAME=trixie
+DEBIAN_VERSION_FULL=13.1
+ID=debian
+HOME_URL="https://www.debian.org/"
+SUPPORT_URL="https://www.debian.org/support"
+BUG_REPORT_URL="https://bugs.debian.org/"
 `;
 
-/** Standard-Dateisystem: ein frisch installiertes Arch mit Benutzer „hero“. */
+/** Standard-Dateisystem: ein frisch installiertes Debian mit Benutzer „hero“. */
 function standardBaum(): Knoten {
   const wurzel = ordner();
   const plan: [string, Knoten][] = [
@@ -53,10 +53,13 @@ function standardBaum(): Knoten {
     ['/etc/hostname', datei(`${RECHNER}\n`)],
     ['/etc/os-release', datei(OS_RELEASE)],
     ['/etc/hosts', datei('# Static table lookup for hostnames.\n# See hosts(5) for details.\n127.0.0.1 localhost\n::1       localhost\n')],
-    ['/etc/passwd', datei(`root:x:0:0::/root:/usr/bin/bash\n${BENUTZER}:x:1000:1000::${HEIM}:/usr/bin/bash\n`)],
+    ['/etc/passwd', datei(`root:x:0:0:root:/root:/bin/bash\n${BENUTZER}:x:1000:1000:${BENUTZER}:${HEIM}:/bin/bash\n`)],
+    ['/etc/debian_version', datei('13.1\n')],
     ['/home', ordner()],
     [HEIM, ordner(BENUTZER, 'rwx------')],
-    [`${HEIM}/.bashrc`, datei("#\n# ~/.bashrc\n#\n\n# If not running interactively, don't do anything\n[[ $- != *i* ]] && return\n\nalias ls='ls --color=auto'\nalias grep='grep --color=auto'\nPS1='[\\u@\\h \\W]\\$ '\n", BENUTZER)],
+    [`${HEIM}/.bash_logout`, datei('# ~/.bash_logout: executed by bash(1) when login shell exits.\n', BENUTZER)],
+    [`${HEIM}/.bashrc`, datei("# ~/.bashrc: executed by bash(1) for non-login shells.\n\n# If not running interactively, don't do anything\ncase $- in\n    *i*) ;;\n      *) return;;\nesac\n\nPS1='${debian_chroot:+($debian_chroot)}\\u@\\h:\\w\\$ '\n", BENUTZER)],
+    [`${HEIM}/.profile`, datei('# ~/.profile: executed by the command interpreter for login shells.\n', BENUTZER)],
     [`${HEIM}/Dokumente`, ordner(BENUTZER)],
     [`${HEIM}/Downloads`, ordner(BENUTZER)],
     [`${HEIM}/notiz.txt`, datei('Willkommen auf deinem Server.\nHier entsteht in den nächsten Akten alles Schritt für Schritt.\n', BENUTZER)],
@@ -67,7 +70,8 @@ function standardBaum(): Knoten {
     ['/usr/bin', ordner()],
     ['/var', ordner()],
     ['/var/log', ordner()],
-    ['/var/log/pacman.log', datei('[2026-11-08T09:10:02+0100] [PACMAN] Running \'pacman -Syu\'\n[2026-11-08T09:10:41+0100] [ALPM] upgraded linux (6.17.7.arch1-1 -> 6.17.8.arch1-1)\n')],
+    ['/var/log/apt', ordner()],
+    ['/var/log/apt/history.log', datei('\nStart-Date: 2026-11-08  09:10:02\nCommandline: apt full-upgrade\nRequested-By: hero (1000)\nUpgrade: openssh-client:amd64 (1:10.0p1-7, 1:10.0p1-7+deb13u1)\nEnd-Date: 2026-11-08  09:10:41\n')],
   ];
   for (const [pfad, k] of plan) einhaengen(wurzel, pfad, k);
   return wurzel;
@@ -134,13 +138,13 @@ export class Shell {
     this.vorher = this.ort;
   }
 
-  /** Kurzform für den Prompt: ~ für den Heimatordner, sonst der letzte Teil (wie \W in bash). */
+  /** Ort für den Prompt wie \\w in bash: ganzer Pfad, der Heimatordner wird zu ~. */
   kurzOrt(): string {
-    if (this.ort === HEIM) return '~';
-    if (this.ort === '/') return '/';
-    return this.ort.split('/').pop()!;
+    if (this.ort === HEIM || this.ort.startsWith(HEIM + '/')) return '~' + this.ort.slice(HEIM.length);
+    return this.ort;
   }
-  prompt(): string { return `[${BENUTZER}@${RECHNER} ${this.kurzOrt()}]$`; }
+  /** Debian-Standard aus /etc/skel/.bashrc: benutzer@rechner:ort$ */
+  prompt(): string { return `${BENUTZER}@${RECHNER}:${this.kurzOrt()}$`; }
 
   absolut(pfad: string): string {
     if (pfad === '~' || pfad.startsWith('~/')) pfad = HEIM + pfad.slice(1);
@@ -334,10 +338,8 @@ function zerlegen(zeile: string, sh: Shell): string[] {
   return raus;
 }
 
-// Gibt es unter Linux, ist aber bei einem frischen Arch nicht dabei. So meldet es auch das echte System.
+// Gibt es unter Linux, ist aber bei einem frischen Debian nicht dabei. Eintrag: Name → Hinweis.
 const NICHT_VORINSTALLIERT: Record<string, string> = {
-  hostname: 'Unter Arch ist <code>hostname</code> nicht vorinstalliert. Den Namen des Rechners zeigt <code>cat /etc/hostname</code>.',
-  man: 'Die Anleitungen (man-Pages) sind bei Arch nicht vorinstalliert. Wie du sie installierst und liest, lernst du in Mission 1.6.',
 };
 const AEHNLICH: Record<string, string> = {
   dir: 'ls', cls: 'clear', copy: 'cp', move: 'mv', del: 'rm', md: 'mkdir', sl: 'ls', pdw: 'pwd', claer: 'clear', whoiam: 'whoami',
@@ -416,6 +418,22 @@ export const BEFEHLE: Record<string, Befehl> = {
     kurz: 'zeigt, in welchem Ordner du gerade bist',
     lauf(_a, ctx) { ctx.aus(ctx.sh.ort); return 0; },
   },
+  hostname: {
+    kurz: 'zeigt den Namen des Rechners',
+    lauf(_a, ctx) { ctx.aus(RECHNER); return 0; },
+  },
+  man: {
+    kurz: 'zeigt die Anleitung zu einem Befehl (im Simulator nur kurz)',
+    lauf(args, ctx) {
+      if (!args.length) { ctx.fehler('What manual page do you want?\nFor example, try \'man man\'.'); return 1; }
+      const b = BEFEHLE[args[0]];
+      if (!b) { ctx.fehler(`No manual entry for ${args[0]}`); return 16; }
+      ctx.aus(`${args[0].toUpperCase()}(1)    (Kurzfassung im Simulator)`);
+      ctx.aus(`  ${args[0]} – ${b.kurz}`);
+      ctx.aus('Echte man-Pages sind viel länger. Wie man sie liest, lernst du in Mission 1.6.');
+      return 0;
+    },
+  },
   whoami: {
     kurz: 'zeigt deinen Benutzernamen',
     lauf(_a, ctx) { ctx.aus(BENUTZER); return 0; },
@@ -425,7 +443,7 @@ export const BEFEHLE: Record<string, Befehl> = {
     lauf(args, ctx) {
       const { opt } = optionen(args);
       if (unbekannteOption(ctx, 'uname', opt, 'asnrvmo')) return 1;
-      const t = { s: 'Linux', n: RECHNER, r: '6.17.8-arch1-1', v: '#1 SMP PREEMPT_DYNAMIC Thu, 06 Nov 2026 18:21:44 +0000', m: 'x86_64', o: 'GNU/Linux' };
+      const t = { s: 'Linux', n: RECHNER, r: '6.12.48+deb13-amd64', v: '#1 SMP PREEMPT_DYNAMIC Debian 6.12.48-1 (2025-09-20)', m: 'x86_64', o: 'GNU/Linux' };
       if (opt.has('a')) { ctx.aus(`${t.s} ${t.n} ${t.r} ${t.v} ${t.m} ${t.o}`); return 0; }
       const w = (['s', 'n', 'r', 'v', 'm', 'o'] as const).filter((x) => opt.has(x));
       ctx.aus((w.length ? w : ['s' as const]).map((x) => t[x]).join(' '));

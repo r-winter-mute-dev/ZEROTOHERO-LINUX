@@ -11,7 +11,7 @@ checks:
     hardware: true
 spick:
   - t: "Prompt"
-    v: "<code>[benutzer@rechner ordner]$</code>"
+    v: "<code>benutzer@rechner:ordner$</code>"
   - t: "~"
     v: "Dein Heimatordner"
   - t: "Aufbau"
@@ -34,18 +34,18 @@ import Hinweis from '../components/Hinweis.astro';
 import Terminal from '../components/Terminal.astro';
 import Nachweis from '../components/Nachweis.astro';
 
-Dein Server wird keinen Bildschirm mit Fenstern haben, keine Maus und keine Menüs. Alles, was du ihm sagen willst, tippst du ein. Das Programm, das deine Eingaben entgegennimmt, heißt **Shell**, bei Arch ist das standardmäßig **bash**. Das Fenster drumherum ist das **Terminal**. **Deine Mission: Lerne, mit der Shell zu sprechen.**
+Dein Server wird keinen Bildschirm mit Fenstern haben, keine Maus und keine Menüs. Alles, was du ihm sagen willst, tippst du ein. Das Programm, das deine Eingaben entgegennimmt, heißt **Shell**, bei Debian ist das standardmäßig **bash**. Das Fenster drumherum ist das **Terminal**. **Deine Mission: Lerne, mit der Shell zu sprechen.**
 
 ## Theorie
 
 <Karte nr={1} titel="Der Prompt">
-Bevor du etwas tippst, zeigt die Shell den **Prompt**: `[hero@archbox ~]$`. Er verrät dir drei Dinge. Vor dem `@` steht dein **Benutzername** (hier `hero`), dahinter der Name des **Rechners** (`archbox`). Danach kommt der Ordner, in dem du gerade bist. Die Tilde `~` steht für deinen **Heimatordner**, deinen persönlichen Bereich. Das letzte Zeichen kennst du aus Mission 0.2: `$` für normale Benutzer, `#` für root.
+Bevor du etwas tippst, zeigt die Shell den **Prompt**: `hero@server:~$`. Er verrät dir drei Dinge. Vor dem `@` steht dein **Benutzername** (hier `hero`), dahinter der Name des **Rechners** (`server`). Nach dem Doppelpunkt kommt der Ordner, in dem du gerade bist. Die Tilde `~` steht für deinen **Heimatordner**, deinen persönlichen Bereich. Das letzte Zeichen kennst du aus Mission 0.2: `$` für normale Benutzer, `#` für root.
 </Karte>
 
 <Merke>Der Prompt zeigt: wer, auf welchem Rechner, in welchem Ordner. ~ ist dein Heimatordner.</Merke>
 
 <Quiz id="k1" titel="Kurzcheck: Prompt" fragen={[
-  { frage: 'Der Prompt lautet [mia@nas Dokumente]$. Wo bist du gerade?', richtig: 'Im Ordner Dokumente, als Benutzerin mia, auf dem Rechner nas', falsch: ['Im Ordner nas, als Benutzerin Dokumente', 'Im Heimatordner, als root'], erklaerung: 'Benutzer@Rechner, dann der Ordner. Das $ zeigt: kein root.' },
+  { frage: 'Der Prompt lautet mia@nas:~/Dokumente$. Wo bist du gerade?', richtig: 'Im Ordner Dokumente in deinem Heimatordner, als Benutzerin mia, auf dem Rechner nas', falsch: ['Im Ordner nas, als Benutzerin Dokumente', 'Im Heimatordner, als root'], erklaerung: 'Benutzer@Rechner, nach dem Doppelpunkt der Ordner. Das $ zeigt: kein root.' },
 ]} />
 
 <Karte nr={2} titel="Befehl, Option, Argument">
@@ -82,7 +82,7 @@ Fehler sind im Terminal normal und nützlich. Die Meldung `bash: Whoami: command
 
 ## Übung im Simulator
 
-Hier üben wir ohne Risiko. Der Simulator verhält sich wie das echte Arch und gibt dir unter jedem Fehler einen Hinweis. Klick ins schwarze Feld und tipp los.
+Hier üben wir ohne Risiko. Der Simulator verhält sich wie ein echtes Debian und gibt dir unter jedem Fehler einen Hinweis. Klick ins schwarze Feld und tipp los.
 
 <Terminal id="sim" titel="Simulator: Erste Worte" ziele={[
   { text: 'Frag den Rechner, wer du bist: <code>whoami</code>', befehl: '^whoami$', tipp: 'Genau so tippen, alles klein, dann Enter.' },
@@ -96,10 +96,10 @@ Hier üben wir ohne Risiko. Der Simulator verhält sich wie das echte Arch und g
 
 ## Im echten Terminal
 
-Jetzt in deinem eigenen Arch. Der Befehl unten enthält einen Code, der nur für dich erzeugt wurde. `echo` gibt ihn aus, der senkrechte Strich `|` reicht die Ausgabe weiter, und `sha256sum` berechnet daraus eine Prüfsumme, eine Art Fingerabdruck. Den Strich findest du auf deutschen Tastaturen mit <kbd>AltGr</kbd>+<kbd>&lt;</kbd>. Was `|` genau tut, lernst du in Mission 2.4.
+Jetzt in deinem eigenen Debian. Der Befehl unten enthält einen Code, der nur für dich erzeugt wurde. `echo` gibt ihn aus, der senkrechte Strich `|` reicht die Ausgabe weiter, und `sha256sum` berechnet daraus eine Prüfsumme, eine Art Fingerabdruck. Den Strich findest du auf deutschen Tastaturen mit <kbd>AltGr</kbd>+<kbd>&lt;</kbd>. Was `|` genau tut, lernst du in Mission 2.4.
 
 <Nachweis id="echt" befehl="echo {code} | sha256sum" muster={['^{sha}\\s+-\\s*$']} hilfe={[
-  { muster: 'is not recognized|wird nicht als|CommandNotFoundException|nicht erkannt', text: 'Das kam von Windows. Öffne zuerst dein Arch (wsl -d archlinux) und gib den Befehl dort ein.' },
+  { muster: 'is not recognized|wird nicht als|CommandNotFoundException|nicht erkannt', text: 'Das kam von Windows. Öffne zuerst dein Debian (wsl -d Debian) und gib den Befehl dort ein.' },
   { muster: '^{code}\\s*$', text: 'Das ist nur die Ausgabe von echo. Hinter den Code gehört noch | sha256sum.' },
   { muster: '^[0-9a-f]{64}\\s+-', text: 'Das ist eine Prüfsumme, aber nicht die erwartete. Kopiere den Befehl genau so, mit deinem Code und ohne Anführungszeichen drumherum.' },
 ]} />

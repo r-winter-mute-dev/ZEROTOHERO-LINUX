@@ -1,14 +1,14 @@
-name: Befehle auf aktuellem Arch prüfen
+name: Befehle auf Debian prüfen
 
-# Arch ist eine Rolling-Release-Distribution. Einmal im Monat (und bei Änderungen an Missionen oder Tests)
-# laufen alle Befehle aus tests/befehle.sh in einem frischen Arch-Container.
-# Ein roter Lauf heißt: Eine Anleitung im Kurs passt nicht mehr zum aktuellen Arch.
+# Einmal im Monat (und bei Änderungen an Missionen oder Tests) laufen alle Befehle aus tests/befehle.sh
+# in frischen Debian-Containern: einmal Debian 13, für das der Kurs geschrieben ist, und einmal
+# "stable". Sobald Debian 14 erscheint, zeigt der zweite Lauf, ob die Anleitungen noch passen.
 on:
   schedule:
     - cron: '17 4 3 * *'   # am 3. jedes Monats, 04:17 UTC
   push:
     branches: [main]
-    paths: ['tests/**', 'src/missionen/**', '.github/workflows/befehle.yml']
+    paths: ['tests/**', 'src/missionen/**', 'src/scripts/shell.ts', '.github/workflows/befehle.yml']
   workflow_dispatch:
 
 permissions:
@@ -16,9 +16,13 @@ permissions:
   issues: write
 
 jobs:
-  arch:
+  debian:
     runs-on: ubuntu-latest
-    container: archlinux:latest
+    strategy:
+      fail-fast: false
+      matrix:
+        abbild: ['debian:13', 'debian:stable']
+    container: ${{ matrix.abbild }}
     steps:
       - name: Code holen
         uses: actions/checkout@v5
@@ -27,7 +31,7 @@ jobs:
         run: bash tests/befehle.sh
 
   melden:
-    needs: arch
+    needs: debian
     if: failure() && github.event_name == 'schedule'
     runs-on: ubuntu-latest
     steps:
@@ -37,4 +41,4 @@ jobs:
         run: |
           gh issue create --repo "${{ github.repository }}" \
             --title "Befehlsprüfung fehlgeschlagen ($(date +%Y-%m))" \
-            --body "Die monatliche Prüfung auf aktuellem Arch ist fehlgeschlagen: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}. Bitte die betroffene Mission anpassen."
+            --body "Die monatliche Prüfung auf Debian ist fehlgeschlagen: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}. Bitte die betroffene Mission anpassen."

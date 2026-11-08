@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://github.com/r-winter-mute-dev/ZEROTOHERO-LINUX/actions/workflows/deploy.yml"><img src="https://github.com/r-winter-mute-dev/ZEROTOHERO-LINUX/actions/workflows/deploy.yml/badge.svg" alt="Veröffentlichung"></a>
-  <a href="https://github.com/r-winter-mute-dev/ZEROTOHERO-LINUX/actions/workflows/befehle.yml"><img src="https://github.com/r-winter-mute-dev/ZEROTOHERO-LINUX/actions/workflows/befehle.yml/badge.svg" alt="Befehle auf aktuellem Arch geprüft"></a>
+  <a href="https://github.com/r-winter-mute-dev/ZEROTOHERO-LINUX/actions/workflows/befehle.yml"><img src="https://github.com/r-winter-mute-dev/ZEROTOHERO-LINUX/actions/workflows/befehle.yml/badge.svg" alt="Befehle auf Debian geprüft"></a>
   <img src="https://img.shields.io/badge/spielbar-Akt_0-a6e3a1?labelColor=2a2a2a" alt="Spielbar: Akt 0">
   <img src="https://img.shields.io/badge/kostenlos-ohne_Anmeldung-cba6f7?labelColor=2a2a2a" alt="Kostenlos, ohne Anmeldung">
   <img src="https://img.shields.io/badge/Inhalte-CC_BY--SA_4.0-a0a0a0?labelColor=2a2a2a" alt="Inhalte: CC BY-SA 4.0">
@@ -29,7 +29,7 @@ Willkommen und viel Spaß beim Lernen.
 
 ## Kampagne 1: Dein eigener Server
 
-> Am Ende läuft auf deinem **Arch Linux** ein Server, den du komplett im Terminal eingerichtet hast: eine eigene **Statusseite**, ein **Backup**, das jede Nacht von allein startet, Anmeldung nur per **SSH-Schlüssel** und eine **Firewall**.
+> Am Ende läuft auf deinem **Debian** ein Server, den du komplett im Terminal eingerichtet hast: eine eigene **Statusseite**, ein **Backup**, das jede Nacht von allein startet, Anmeldung nur per **SSH-Schlüssel** und eine **Firewall**.
 
 Der Weg dorthin beginnt mit `whoami`.
 
@@ -49,28 +49,32 @@ Der Weg dorthin beginnt mit `whoami`.
 
 | Akt | Einschub | Du lernst | Stand |
 | :---: | --- | --- | :---: |
-| 0 | Rack | Sicherheit, Arch in WSL oder VM einrichten, das Terminal: Prompt, Befehl, Option, Argument, Tab, Fehlermeldungen lesen | ✅ |
-| 1 | Festplatte | `pwd`, `ls`, `cd`, Pfade, Verzeichnisbaum, Dateien anlegen und sicher löschen, man-Pages und Arch Wiki lesen | 🛠️ |
+| 0 | Rack | Sicherheit, Debian in WSL oder VM einrichten, das Terminal: Prompt, Befehl, Option, Argument, Tab, Fehlermeldungen lesen | ✅ |
+| 1 | Festplatte | `pwd`, `ls`, `cd`, Pfade, Verzeichnisbaum, Dateien anlegen und sicher löschen, man-Pages und Doku lesen | 🛠️ |
 | 2 | Werkzeugkasten | `cat`, `less`, `tail`, nano, Umleitungen, Pipes, `grep`, `find`, `sort`, `uniq`, reguläre Ausdrücke, `sed` und `awk` | 🛠️ |
 | 3 | Schloss | Benutzer und Gruppen, rwx, `chmod`, `chown`, root und `sudo`, `PATH` | 🛠️ |
 | 4 | Prozessor | Prozesse, `top`, Signale, Hintergrundjobs, Speicher und Platten, Umgebungsvariablen | 🛠️ |
-| 5 | Lager | `pacman`, das Update-Ritual, das AUR sicher nutzen, Archive | 🛠️ |
+| 5 | Lager | `apt`, Updates, fremde Paketquellen prüfen, Archive | 🛠️ |
 | 6 | Netzwerkkarte | IP und DNS, Ports, `curl`, SSH und Schlüssel, `rsync` | 🛠️ |
 | 7 | Steuerplatine | Shell-Skripte: Variablen, Quoting, Bedingungen, Schleifen, Funktionen, robuste Skripte. Ergebnis: dein Backup-Skript | 🛠️ |
 | 8 | Wachturm | systemd, `journalctl`, eigene Dienste und Timer. Ergebnis: das Backup läuft jede Nacht | 🛠️ |
-| 9 | Schutzschild | Update-Wächter, Firewall, SSH härten, Statusseite, Finale | 🛠️ |
+| 9 | Schutzschild | Automatische Sicherheitsupdates, Firewall, SSH härten, Statusseite, Finale | 🛠️ |
 
 ✅ spielbar · 🛠️ geplant, Missionen stehen fest
 
-**Danach geplant:** Kampagne 2 *Arch von Hand* (Installation ohne Installer) und Kampagne 3 *Das Homelab* (Git, Container, Reverse Proxy, Monitoring).
+**Danach geplant:** Kampagne 2 *Arch von Hand*, der Hero-Schritt: Arch Linux ohne Installer, mit allem, was dazugehört. Kampagne 3 *Das Homelab*: Git, Container, Reverse Proxy, Monitoring.
 
-## Warum Arch Linux?
+## Warum Debian, und Arch erst später?
 
-Ein frisches Arch enthält fast nichts. Alles, was auf deinem Server läuft, hast du selbst installiert und verstanden. Dazu kommt das [Arch Wiki](https://wiki.archlinux.org/), eine der gründlichsten Linux-Dokumentationen. Arch ist eine Rolling-Release-Distribution und ändert sich laufend. Damit die Anleitungen im Kurs nicht veralten, prüft eine [GitHub Action](.github/workflows/befehle.yml) jeden Monat die Befehle des Kurses in einem frischen Arch-Container.
+Anfänger lernen nachweislich besser mit klarer Anleitung und wenig Ballast, der nichts mit dem Lernziel zu tun hat. Fortgeschrittene profitieren dagegen von mehr Freiheit ([Kirschner, Sweller & Clark 2006](https://doi.org/10.1207/s15326985ep4102_1); Kalyuga et al. 2003, Expertise-Reversal-Effekt). Ob das für die Wahl einer Distribution gilt, ist nicht direkt untersucht. Es ist eine begründete Übertragung.
+
+Daraus folgt der Aufbau: **Kampagne 1 nutzt Debian.** Jede Version bekommt etwa fünf Jahre lang Sicherheitsupdates, die Anleitungen bleiben also lange gültig. Der Installer richtet Benutzer und sudo selbst ein, und Debian läuft auf vielen echten Servern. **Kampagne 2 ist Arch Linux von Hand**: Wer die Grundlagen kann, baut sich dort jede Schicht selbst und pflegt ein Rolling Release.
+
+Eine [GitHub Action](.github/workflows/befehle.yml) prüft jeden Monat die Befehle des Kurses in frischen Debian-Containern.
 
 ## Was du brauchst
 
-Einen Rechner mit Windows 10/11, Linux oder einem Intel-Mac und etwa 20 GB freien Speicher. Unter Windows reicht WSL, sonst eine virtuelle Maschine. Ohne eigenes Linux geht es im Simulator weiter. Die Übersicht steht im Kurs auf der Seite **Einrichtung**.
+Einen Rechner mit Windows 10/11, Linux oder macOS (auch mit Apple-Chip) und etwa 20 GB freien Speicher. Unter Windows reicht WSL, sonst eine virtuelle Maschine. Ohne eigenes Linux geht es im Simulator weiter. Die Übersicht steht im Kurs auf der Seite **Einrichtung**.
 
 ## Mitmachen
 
@@ -78,7 +82,7 @@ Fehler gefunden, eine Erklärung unverständlich oder Lust, eine Mission zu schr
 
 Am meisten hilft gerade:
 
-- [ ] **Akt 0 mit echtem WSL und echter VM durchspielen.** Stimmen die Schritte mit der aktuellen Version von archinstall und dem WSL-Image überein?
+- [ ] **Akt 0 mit echtem WSL, VirtualBox und UTM durchspielen.** Stimmen die Schritte mit dem aktuellen Debian-Installer und dem WSL-Image überein?
 - [ ] **Feedback von Einsteigern.** Wo bist du hängen geblieben?
 - [ ] **Missionen für Akt 1 schreiben.** Der Simulator kann schon `cd`, `ls`, `mkdir`, `touch`, `cat` und Umleitungen.
 
@@ -87,7 +91,7 @@ Am meisten hilft gerade:
 > [!NOTE]
 > Dieser Kurs entsteht mit Unterstützung von **Claude**, einer KI von Anthropic. Die KI ist für dieses Projekt verändert und auf wissenschaftliches Arbeiten ausgelegt.
 
-- **Belege zuerst:** Technische Angaben stützen sich auf die offizielle Dokumentation: man-Pages, Arch Wiki, GNU-Handbücher. Foren, Blogs und soziale Medien gelten nicht als Beleg.
+- **Belege zuerst:** Technische Angaben stützen sich auf die offizielle Dokumentation: man-Pages, Debian-Dokumentation, GNU-Handbücher. Foren, Blogs und soziale Medien gelten nicht als Beleg.
 - **Kennzeichnung:** Angaben, die nicht geprüft werden konnten, sind im Kurs markiert.
 - **Lernpsychologie:** Der Aufbau der Missionen (kurze Schritte, Merksätze, Fragen direkt nach jeder Erklärung, Spickzettel, wenig Ablenkung) folgt dem Elektronik-Kurs und damit der Forschung zu Arbeitsgedächtnis, Segmentierung und ADHS. Wo es keine direkte Studie zu einem Linux-Kurs gibt, ist das eine begründete Übertragung, kein Nachweis.
 
