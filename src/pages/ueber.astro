@@ -1,0 +1,73 @@
+---
+import Basis from '../layouts/Basis.astro';
+import { SEITE, url } from '../config';
+import { ZERTIFIKATE } from '../data/lernziele';
+---
+<Basis titel="Über das Projekt">
+  <section class="huelle text seite">
+    <h1>Über {SEITE.name}</h1>
+    <p class="untertitel">{SEITE.untertitel}</p>
+    <p>{SEITE.mission}</p>
+    <p>Der Kurs ist kostenlos, braucht keine Anmeldung und richtet sich an alle, die bei null anfangen. Er folgt den offiziellen Lernzielen des Linux Professional Institute (LPI) und bereitet auf drei Zertifikate vor:</p>
+    <ul>
+      {ZERTIFIKATE.map((z) => <li><strong>{z.name}</strong> (Lernziele Version {z.version}): {z.pruefungen.map((p) => p.code).join(', ')}. <a href={z.quelle}>Offizielle Lernziele</a></li>)}
+    </ul>
+    <p class="leise klein">{SEITE.name} ist ein unabhängiges Projekt und gehört nicht zum LPI. LPIC ist eine Marke des Linux Professional Institute. Die Fragen hier sind selbst geschrieben, es sind keine echten Prüfungsfragen.</p>
+
+    <h2>So funktioniert der Kurs</h2>
+    <ul>
+      <li><strong>Missionen</strong> sind kurz: eine Erklärung, ein Merksatz, sofort eine Frage. Jede Mission endet mit Prüfungen.</li>
+      <li><strong>Das Terminal im Browser</strong> ist ein Simulator. Er kennt nur die Befehle aus den Missionen, verhält sich bei diesen aber wie ein echtes System, bis hin zu den typischen Fehlermeldungen.</li>
+      <li><strong>Dein Labor</strong> ist eine eigene virtuelle Maschine (Mission 0.2). Aufgaben dort prüfen, ob du es auf einem echten Linux geschafft hast. Ohne Labor kommst du mit dem Simulator weiter, die Mission zählt dann als „im Simulator geschafft“.</li>
+      <li><strong>Bosskämpfe</strong> sind Fehlersuchen anhand echter Meldungen. Genau so sehen viele Prüfungsfragen aus.</li>
+      <li><strong>Wiederholen</strong> holt jeden Tag die fälligen Karten zurück, gemischt über alle Themen.</li>
+      <li><strong>Probeprüfungen</strong> haben das Tempo und die Gewichtung der echten Prüfung und zeigen, welche Lernziele noch wackeln.</li>
+    </ul>
+
+    <h2 id="forschung">Warum der Kurs so aufgebaut ist</h2>
+    <p>Die Methoden stützen sich auf Meta-Analysen der Lernforschung. Keine dieser Studien wurde mit Linux oder mit LPI-Prüfungen gemacht. Die Übertragung auf diesen Kurs ist begründet, aber nicht nachgewiesen.</p>
+    <table>
+      <thead><tr><th scope="col">Methode</th><th scope="col">Was die Forschung zeigt</th><th scope="col">So steckt es im Kurs</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">Abrufen (Testing-Effekt)</th><td>Quizze verbessern den Lernerfolg im Mittel um eine halbe Standardabweichung (g ≈ 0,50; 222 Studien in echten Klassen, 48 478 Lernende). Rückmeldung zur richtigen Antwort verstärkt den Effekt [1].</td><td>Nach jeder Erklärung eine Frage. Erklärung zu jeder falschen Antwort.</td></tr>
+        <tr><th scope="row">Verteiltes Abrufen</th><td>Abrufen mit Pausen dazwischen schlägt Abrufen am Stück deutlich (g = 0,74; 29 Studien). Wachsende Abstände waren gleich großen nicht überlegen (g = 0,03, nicht signifikant) [2].</td><td>Karten kommen nach 1, 3, 7, 14, 30 und 60 Tagen zurück. Die Abstände sind ein Richtwert.</td></tr>
+        <tr><th scope="row">Mischen (Interleaving)</th><td>Gemischtes Üben statt Üben im Block hilft im Mittel (g = 0,42; 59 Studien), vor allem bei ähnlichen, leicht verwechselbaren Inhalten. Die Ergebnisse schwanken stark (I² = 77 %), bei erklärenden Texten wird zur Vorsicht geraten [3].</td><td>Wiederholung und Probeprüfungen mischen alle Themen. Neue Inhalte kommen dagegen im Block.</td></tr>
+        <tr><th scope="row">Segmentieren</th><td>Lernende behalten und übertragen mehr, wenn Lernmaterial in sinnvolle Abschnitte geteilt ist, die sie im eigenen Tempo weiterklicken (kleine bis mittlere Effekte; 56 Untersuchungen). Die Studien betreffen vor allem Multimedia [4].</td><td>„Schritt für Schritt“: ein Gedanke pro Bildschirm, weiter erst auf Knopfdruck.</td></tr>
+        <tr><th scope="row">Lösungsbeispiele</th><td>Ausgearbeitete Beispiele verbessern die Leistung beim Problemlösen mäßig (55 Studien, nur Mathematik). Korrekte Beispiele wirkten stärker als fehlerhafte [5].</td><td>Jeder neue Befehl kommt zuerst als vollständiges Beispiel mit Ausgabe, danach tippst du selbst.</td></tr>
+      </tbody>
+    </table>
+    <p class="klein"><strong>Grenzen:</strong> Die Effektgrößen sind Mittelwerte über sehr unterschiedliche Studien. Ob ein Effekt bei dir genauso groß ist, kann niemand vorhersagen. Laborstudien zeigen meist größere Effekte als Studien im echten Unterricht. Der Spickzettel in den Missionen ist bewusst da, um beim ersten Lernen den Kopf zu entlasten. In der Wiederholung und in den Probeprüfungen gibt es ihn nicht, weil dort gerade das Abrufen aus dem Gedächtnis zählt.</p>
+
+    <h3>Quellen</h3>
+    <ol class="quellen klein">
+      <li>Yang, C., Luo, L., Vadillo, M. A., Yu, R. &amp; Shanks, D. R. (2021). Testing (quizzing) boosts classroom learning: A systematic and meta-analytic review. <em>Psychological Bulletin, 147</em>(4), 399–435. <a href="https://doi.org/10.1037/bul0000309">doi:10.1037/bul0000309</a></li>
+      <li>Latimier, A., Peyre, H. &amp; Ramus, F. (2021). A meta-analytic review of the benefit of spacing out retrieval practice episodes on retention. <em>Educational Psychology Review, 33</em>, 959–987. <a href="https://doi.org/10.1007/s10648-020-09572-8">doi:10.1007/s10648-020-09572-8</a></li>
+      <li>Brunmair, M. &amp; Richter, T. (2019). Similarity matters: A meta-analysis of interleaved learning and its moderators. <em>Psychological Bulletin, 145</em>(11), 1029–1052. <a href="https://doi.org/10.1037/bul0000209">doi:10.1037/bul0000209</a></li>
+      <li>Rey, G. D., Beege, M., Nebel, S., Wirzberger, M., Schmitt, T. H. &amp; Schneider, S. (2019). A meta-analysis of the segmenting effect. <em>Educational Psychology Review, 31</em>, 389–419. <a href="https://doi.org/10.1007/s10648-018-9456-4">doi:10.1007/s10648-018-9456-4</a></li>
+      <li>Barbieri, C. A., Miller-Cotto, D., Clerjuste, S. N. &amp; Chawla, K. (2023). A meta-analysis of the worked examples effect on mathematics performance. <em>Educational Psychology Review, 35</em>, 11. <a href="https://doi.org/10.1007/s10648-023-09745-1">doi:10.1007/s10648-023-09745-1</a></li>
+    </ol>
+
+    <h2>Fachliche Quellen</h2>
+    <p>Befehle und Optionen sind gegen die Handbuchseiten (man pages) der Programme geprüft, die Lernziele gegen die Seiten des LPI. Das LPI stellt eigenes, kostenloses Lernmaterial bereit: <a href="https://learning.lpi.org/">learning.lpi.org</a>. Es eignet sich gut als zweite Quelle. Es steht unter einer Lizenz, die Bearbeitungen verbietet, deshalb ist hier nichts daraus übernommen.</p>
+
+    <h2>Sicherheit</h2>
+    <p>Übe nur in deinem eigenen Labor, nie auf Rechnern, die dir nicht gehören oder die jemand braucht. Ein falsches <code>systemctl isolate</code> oder <code>rmmod</code> auf einem Server beendet Dienste sofort. Ab Kampagne 3 kommen Angriffswerkzeuge vor: Die setzt du ausschließlich in einem abgeschotteten Netz gegen eigene Maschinen ein.</p>
+
+    <h2>Datenschutz</h2>
+    <p>Keine Cookies, kein Tracking, keine Inhalte von fremden Servern. Dein Fortschritt und deine Wiederholungskarten liegen nur im Speicher deines Browsers (localStorage). Auf der Seite <a href={url('fortschritt')}>Fortschritt</a> kannst du alles als Code sichern, auf ein anderes Gerät übertragen oder löschen.</p>
+
+    <h2>Entstehung</h2>
+    <p>Texte, Übungen und der Simulator entstehen mit Unterstützung von Claude, einer KI von Anthropic. Ein Mensch gibt Ziele und Entscheidungen vor, prüft und gibt frei. Trotzdem können Fehler drinstecken. Wenn dir etwas falsch vorkommt, öffne bitte ein Issue{SEITE.repo && <> auf <a href={`${SEITE.repo}/issues`}>GitHub</a></>}. Hinweise mit Quelle, etwa einer Handbuchseite, helfen am meisten.</p>
+
+    <h2>Lizenz</h2>
+    <p>Inhalte unter <a href="https://creativecommons.org/licenses/by-sa/4.0/deed.de">CC BY-SA 4.0</a>, Code unter der MIT-Lizenz.</p>
+  </section>
+</Basis>
+
+<style>
+  .seite { padding-top: 2rem; }
+  .untertitel { font-size: 1.25rem; color: var(--leise); margin-top: -0.3rem; }
+  table { font-size: 0.95rem; }
+  td, th { vertical-align: top; }
+  .quellen li { margin: 0.4rem 0; }
+</style>

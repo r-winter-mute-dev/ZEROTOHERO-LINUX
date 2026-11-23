@@ -1,0 +1,55 @@
+---
+// Reihenfolge-Aufgabe: Schritte in die richtige Reihenfolge bringen (mit Knöpfen, auch per Tastatur bedienbar).
+import Station from './Station.astro';
+interface Props { id: string; titel?: string; aufgabe: string; schritte: string[]; erklaerung?: string; }
+const { id, titel = 'Reihenfolge', aufgabe, schritte, erklaerung } = Astro.props;
+---
+<Station id={id} titel={titel} art="Reihenfolge">
+  <div class="rf" data-kw-reihe data-schritte={JSON.stringify(schritte)} data-erklaerung={erklaerung ?? ''}>
+    <p>{aufgabe}</p>
+    <ol class="rf-liste" data-rf-liste></ol>
+    <button class="knopf" type="button" data-rf-pruefen>Reihenfolge prüfen</button>
+  </div>
+</Station>
+
+<script>
+  import { mischen, station } from '../scripts/station';
+  document.querySelectorAll<HTMLElement>('[data-kw-reihe]').forEach((box) => {
+    const s = station(box.closest('[data-kw-check]') as HTMLElement);
+    const richtig = JSON.parse(box.dataset.schritte!) as string[];
+    let reihe = mischen(richtig);
+    while (reihe.length > 1 && reihe.every((x, i) => x === richtig[i])) reihe = mischen(richtig);
+    const ol = box.querySelector<HTMLOListElement>('[data-rf-liste]')!;
+    function zeigen(fokus?: number) {
+      ol.innerHTML = '';
+      reihe.forEach((x, i) => {
+        const li = document.createElement('li');
+        const t = document.createElement('span'); t.textContent = x;
+        const hoch = document.createElement('button'); hoch.type = 'button'; hoch.className = 'rf-k'; hoch.textContent = '↑'; hoch.setAttribute('aria-label', `„${x}“ nach oben`); hoch.disabled = i === 0;
+        const runter = document.createElement('button'); runter.type = 'button'; runter.className = 'rf-k'; runter.textContent = '↓'; runter.setAttribute('aria-label', `„${x}“ nach unten`); runter.disabled = i === reihe.length - 1;
+        hoch.addEventListener('click', () => { [reihe[i - 1], reihe[i]] = [reihe[i], reihe[i - 1]]; zeigen(i - 1); });
+        runter.addEventListener('click', () => { [reihe[i + 1], reihe[i]] = [reihe[i], reihe[i + 1]]; zeigen(i + 1); });
+        li.append(t, hoch, runter);
+        ol.append(li);
+      });
+      if (fokus !== undefined) (ol.children[fokus]?.querySelector('button:not(:disabled)') as HTMLButtonElement | null)?.focus();
+    }
+    zeigen();
+    box.querySelector('[data-rf-pruefen]')!.addEventListener('click', () => {
+      const n = reihe.filter((x, i) => x === richtig[i]).length;
+      [...ol.children].forEach((li, i) => { li.classList.toggle('ok', reihe[i] === richtig[i]); li.classList.toggle('nein', reihe[i] !== richtig[i]); });
+      if (n === richtig.length) s.bestehen(box.dataset.erklaerung || 'Richtige Reihenfolge.');
+      else s.fehl(`${n} von ${richtig.length} Schritten stehen schon an der richtigen Stelle (grün).`);
+    });
+  });
+</script>
+
+<style>
+  .rf-liste { padding-left: 1.6rem; margin: 0 0 1rem; }
+  .rf-liste :global(li) { display: flex; align-items: center; gap: 0.5rem; padding: 0.45rem 0.6rem; margin: 0.35rem 0; border: 1px solid var(--flaeche); border-radius: var(--radius-klein); background: var(--tief); }
+  .rf-liste :global(li span) { flex: 1; }
+  .rf-liste :global(li.ok) { border-color: var(--gut); }
+  .rf-liste :global(li.nein) { border-color: var(--warnung); }
+  .rf-liste :global(.rf-k) { font: inherit; width: 2.2rem; height: 2.2rem; border-radius: var(--radius-klein); border: 1px solid var(--flaeche); background: var(--flaeche-leicht); color: var(--text); cursor: pointer; }
+  .rf-liste :global(.rf-k:disabled) { opacity: 0.3; cursor: default; }
+</style>

@@ -1,0 +1,175 @@
+---
+id: l1-1-3
+checks:
+  - id: k1
+  - id: anschauen
+  - id: k2
+  - id: laden
+  - id: k3
+  - id: konfig
+  - id: sperren
+  - id: k4
+spick:
+  - t: "Geladene Module"
+    v: "lsmod (liest /proc/modules)"
+  - t: "Infos zu einem Modul"
+    v: "modinfo name, nur Parameter: modinfo -p"
+  - t: "Laden"
+    v: "modprobe name (mit Abhängigkeiten)"
+  - t: "Entladen"
+    v: "modprobe -r name oder rmmod name"
+  - t: "Nur eine Datei"
+    v: "insmod /pfad/modul.ko"
+  - t: "Konfiguration"
+    v: "/etc/modprobe.d/*.conf"
+  - t: "Nicht automatisch laden"
+    v: "blacklist name"
+  - t: "Gar nicht laden"
+    v: "install name /bin/false"
+  - t: "Option setzen"
+    v: "options name param=wert"
+karten:
+  - f: "Welcher Befehl zeigt alle geladenen Kernelmodule?"
+    a: ["lsmod"]
+  - f: "Aus welcher Datei liest lsmod?"
+    a: ["/proc/modules"]
+  - f: "Mit welchem Befehl lädst du das Modul e1000e samt Abhängigkeiten?"
+    a: ["modprobe e1000e", "sudo modprobe e1000e"]
+  - f: "Mit welchem Befehl entlädst du das Modul pcspkr und nicht mehr benötigte Abhängigkeiten?"
+    a: ["modprobe -r pcspkr", "sudo modprobe -r pcspkr"]
+  - f: "Welcher Befehl zeigt nur die Parameter des Moduls iwlwifi?"
+    a: ["modinfo -p iwlwifi"]
+  - f: "In welchem Verzeichnis liegt die Konfiguration für modprobe?"
+    a: ["/etc/modprobe.d", "/etc/modprobe.d/"]
+  - f: "Welche Zeile in /etc/modprobe.d verhindert, dass floppy überhaupt geladen werden kann, auch nicht mit modprobe von Hand?"
+    a: ["install floppy /bin/false", "install floppy /bin/true"]
+  - f: "Was bewirkt „blacklist floppy“ in /etc/modprobe.d, und was nicht?"
+    a: ["floppy wird nicht mehr automatisch über seine Aliase geladen. Mit modprobe floppy lässt es sich aber weiterhin von Hand laden."]
+    aufdecken: true
+  - f: "Wo liegen die Module des laufenden Kernels?"
+    a: ["/lib/modules/$(uname -r)", "/lib/modules/$(uname -r)/", "/lib/modules/`uname -r`"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Lueckentext from '../components/Lueckentext.astro';
+
+In der letzten Mission hast du gesehen, dass zu jedem Gerät ein Treiber gehört, etwa `e1000e` für die Netzwerkkarte. Diese Treiber sind meist **Kernelmodule**: Teile des Kernels, die erst bei Bedarf nachgeladen werden. **Deine Mission: Lade Module, entlade sie und sperre eines dauerhaft.** Lernziel 101.1.
+
+## Module ansehen
+
+<Karte nr={1} titel="Was ein Modul ist">
+Ein Kernel, der jeden denkbaren Treiber fest eingebaut hätte, wäre riesig. Deshalb liegen die meisten Treiber als einzelne Dateien mit der Endung **.ko** (kernel object) unter `/lib/modules/$(uname -r)/`, also in einem eigenen Verzeichnis für jede Kernelversion. Der Kernel lädt sie, wenn ein passendes Gerät auftaucht, und kann sie wieder entladen.
+
+`lsmod` zeigt, was gerade geladen ist. Es liest dafür `/proc/modules`:
+
+```
+Module                  Size  Used by
+usb_storage            81920  2 uas
+usbcore               348160  5 xhci_hcd,usb_storage,uas,uvcvideo,btusb
+```
+
+Die letzte Spalte zeigt, **wie oft** ein Modul benutzt wird und **von welchen anderen Modulen**. usbcore wird hier von fünf anderen Modulen gebraucht.
+</Karte>
+
+<Merke>lsmod zeigt geladene Module. „Used by“ verrät, wer ein Modul noch braucht.</Merke>
+
+<Karte nr={2} titel="modinfo">
+`modinfo e1000e` zeigt alles über ein Modul: die Datei, eine Beschreibung, die Lizenz, die Abhängigkeiten (`depends`) und die **Parameter** (`parm`), mit denen sich das Modul einstellen lässt. `modinfo -p e1000e` zeigt nur die Parameter. modinfo funktioniert auch für Module, die gerade nicht geladen sind.
+</Karte>
+
+<Quiz id="k1" titel="Kurzcheck: Ansehen" fragen={[
+  { frage: 'In lsmod steht bei snd „Used by: 3 snd_hda_intel,snd_hda_codec“. Was bedeutet das?', richtig: 'snd wird gerade benutzt, unter anderem von den Modulen snd_hda_intel und snd_hda_codec.', falsch: ['snd ist dreimal geladen.', 'snd benutzt drei andere Module.'], erklaerung: 'Die Zahl kann größer sein als die Liste, weil auch Programme oder Geräte ein Modul benutzen können.' },
+]} />
+
+<Terminal id="anschauen" titel="Terminal: Module ansehen" aufgaben={[
+  { text: 'Lass dir alle geladenen Module anzeigen.', befehl: '^lsmod$' },
+  { text: 'Filtere die Liste mit <code>grep</code> nach Modulen, die „snd“ im Namen haben.', befehl: '^lsmod \\| grep snd', frage: 'Welches Modul benutzt soundcore?', antwort: ['snd'], tipp: 'Lies in der Zeile von soundcore die letzte Spalte.' },
+  { text: 'Lass dir die Informationen zum Modul <code>iwlwifi</code> anzeigen.', befehl: '^modinfo iwlwifi$', frage: 'Von welchem Modul hängt iwlwifi ab? (depends)', antwort: ['cfg80211'] },
+  { text: 'Lass dir nur die Parameter von <code>snd_hda_intel</code> anzeigen.', befehl: '^modinfo -p snd[-_]hda[-_]intel$' },
+]} />
+
+## Laden und entladen
+
+<Karte nr={3} titel="modprobe, insmod und rmmod">
+Es gibt zwei Werkzeugsätze:
+
+- **modprobe** ist der kluge. `modprobe name` lädt ein Modul **samt allen Abhängigkeiten**, die es braucht. Woher es die kennt, steht in `modules.dep`, einer Datei, die `depmod` erzeugt. `modprobe -r name` entlädt das Modul und zusätzlich Abhängigkeiten, die danach niemand mehr braucht. modprobe liest außerdem die Einstellungen aus `/etc/modprobe.d`.
+- **insmod** und **rmmod** sind die einfachen. `insmod` lädt genau eine Datei, du musst den vollständigen Pfad angeben, und es kümmert sich nicht um Abhängigkeiten. `rmmod name` entlädt genau ein Modul.
+
+Beide Sätze brauchen Root-Rechte. Ein Modul, das noch benutzt wird, lässt sich nicht entladen. Ob man `-` oder `_` im Namen schreibt, ist egal: `snd-hda-intel` und `snd_hda_intel` sind dasselbe.
+</Karte>
+
+<Merke>modprobe kümmert sich um Abhängigkeiten, insmod und rmmod nicht. Benutzte Module lassen sich nicht entladen.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: Laden" fragen={[
+  { frage: 'Du willst uvcvideo laden, es braucht aber videodev. Welcher Befehl erledigt beides in einem Schritt?', richtig: 'modprobe uvcvideo', falsch: ['insmod uvcvideo', 'lsmod uvcvideo'], erklaerung: 'insmod würde mit „Unknown symbol in module“ scheitern, weil videodev fehlt.' },
+  { frage: 'rmmod usbcore meldet „Module usbcore is in use by: xhci_hcd …“. Was nun?', richtig: 'Erst die Module entladen, die usbcore benutzen, oder es lassen.', falsch: ['rmmod -f usbcore, das ist immer sicher.', 'Den Rechner neu starten, dann geht rmmod.'], erklaerung: 'Ein benutztes Modul gewaltsam zu entladen kann das System abstürzen lassen. -f ist im Handbuch als extrem gefährlich markiert.' },
+]} />
+
+<Terminal id="laden" titel="Terminal: Laden und entladen" aufgaben={[
+  { text: 'Der PC-Lautsprecher piept nervig. Versuch, das Modul <code>pcspkr</code> <strong>ohne</strong> sudo zu entladen, und lies die Fehlermeldung.', befehl: '^modprobe -r pcspkr$', auchFehler: true },
+  { text: 'Jetzt mit sudo. Prüf danach mit lsmod, ob es weg ist.', zustand: 'modul:pcspkr=aus' },
+  { text: 'Versuch, <code>usbcore</code> mit rmmod zu entladen.', befehl: '^rmmod usbcore$', auchFehler: true, frage: 'Nenne eines der Module, die usbcore noch benutzen.', antwort: ['xhci_hcd', 'usb_storage', 'uas', 'uvcvideo', 'btusb'] },
+  { text: 'Lade das Modul <code>floppy</code> und lass dir dabei mit <code>-v</code> zeigen, was modprobe tut.', befehl: '^modprobe -v floppy$', zustand: 'modul:floppy=an' },
+  { text: 'Lade <code>pcspkr</code> wieder, diesmal mit <code>insmod</code>. Tipp: insmod braucht den vollständigen Pfad, den <code>modinfo -F filename pcspkr</code> verrät.', befehl: '^insmod /lib/modules/', zustand: 'modul:pcspkr=an' },
+]} />
+
+## Dauerhaft einstellen
+
+<Karte nr={4} titel="/etc/modprobe.d">
+Was du mit modprobe von Hand tust, ist nach dem nächsten Neustart vergessen. Dauerhafte Einstellungen gehören in Dateien mit der Endung **.conf** im Verzeichnis **/etc/modprobe.d/**. Eine Zeile pro Anweisung:
+
+```
+# /etc/modprobe.d/werkstatt.conf
+options snd_hda_intel power_save=1
+blacklist pcspkr
+install floppy /bin/false
+```
+
+- **options** gibt einem Modul bei jedem Laden einen Parameter mit.
+- **blacklist** schaltet die eingebauten Aliase des Moduls ab. udev lädt es dann nicht mehr automatisch, wenn das Gerät erkannt wird. **Aber:** `modprobe pcspkr` von Hand lädt es trotzdem. Ein anderes Modul, das es als Abhängigkeit braucht, auch.
+- **install** ersetzt das Laden durch einen anderen Befehl. Mit `/bin/false` schlägt jedes Laden fehl. Das ist die harte Sperre.
+</Karte>
+
+<Merke>blacklist = nicht mehr automatisch. install name /bin/false = gar nicht mehr.</Merke>
+
+<Hinweis titel="Prüfungstipp">
+Der Unterschied zwischen blacklist und install ist eine typische Prüfungsfalle. Außerdem: Einmalig beim Start sperren kannst du ein Modul auch mit dem Kernelparameter <code>modprobe.blacklist=name</code>. Das ist praktisch, wenn ein Treiber den Start verhindert. Kernelparameter kommen in Mission 1.5.
+</Hinweis>
+
+<Quiz id="k3" titel="Kurzcheck: Einstellen" fragen={[
+  { frage: 'In /etc/modprobe.d/x.conf steht „blacklist pcspkr“. Nach dem Neustart tippst du „sudo modprobe pcspkr“. Was passiert?', richtig: 'Das Modul wird geladen.', falsch: ['modprobe meldet, das Modul sei gesperrt.', 'Der Rechner startet neu.'], erklaerung: 'blacklist wirkt nur gegen das automatische Laden über Aliase, nicht gegen einen ausdrücklichen Befehl.' },
+]} />
+
+<Lueckentext id="konfig" titel="Code-Puzzle: Eine Konfigurationsdatei"
+  aufgabe="Ergänze die Datei: Der Soundtreiber soll mit power_save=1 laden, pcspkr soll nicht mehr automatisch laden, und floppy soll sich überhaupt nicht mehr laden lassen."
+  code={`# /etc/modprobe.d/werkstatt.conf
+___ snd_hda_intel power_save=1
+___ pcspkr
+___ floppy /bin/false`}
+  luecken={[
+    { loesungen: ['options'], tipp: 'Welches Schlüsselwort gibt einem Modul Parameter mit?' },
+    { loesungen: ['blacklist'], tipp: 'Nicht mehr automatisch laden.' },
+    { loesungen: ['install'], tipp: 'Ersetzt das Laden durch einen anderen Befehl.' },
+  ]} />
+
+<Terminal id="sperren" titel="Terminal: Dauerhaft sperren"
+  einleitung="Der PC-Lautsprecher soll auch nach einem Neustart nicht mehr automatisch geladen werden. Einen Editor gibt es im Simulator nicht. Schreib die Datei mit echo und tee."
+  aufgaben={[
+    { text: 'Leg die Datei <code>/etc/modprobe.d/pcspkr.conf</code> mit der Zeile <code>blacklist pcspkr</code> an. Versuch es zuerst mit <code>sudo echo "blacklist pcspkr" > /etc/modprobe.d/pcspkr.conf</code>. Warum scheitert das?', befehl: '^echo .*> */etc/modprobe\\.d/', auchFehler: true },
+    { text: 'Jetzt richtig: <code>echo "blacklist pcspkr" | sudo tee /etc/modprobe.d/pcspkr.conf</code>', zustand: 'datei:/etc/modprobe.d/*~^blacklist pcspkr' },
+    { text: 'Starte den Rechner neu (Knopf unter dem Terminal) und prüf mit lsmod, dass pcspkr nicht geladen ist.', zustand: 'neustart && modul:pcspkr=aus && datei:/etc/modprobe.d/*~^blacklist pcspkr' },
+    { text: 'Lade pcspkr jetzt von Hand mit modprobe. Klappt das trotz Sperrliste?', befehl: '^modprobe pcspkr$', zustand: 'modul:pcspkr=an', frage: 'Lässt sich ein Modul auf der Blacklist von Hand laden? (ja/nein)', antwort: ['ja'] },
+  ]} />
+
+<Hinweis titel="Warum scheitert sudo echo … > datei?">
+Die Umleitung <code>&gt;</code> führt nicht sudo aus, sondern deine eigene Shell, und die darf nicht nach /etc schreiben. sudo gilt nur für echo. Mit <code>| sudo tee datei</code> schreibt dagegen tee mit Root-Rechten. Das ist ein Klassiker.
+</Hinweis>
+
+<Quiz id="k4" titel="Abschluss" fragen={[
+  { frage: 'Welche Zeile sperrt das Modul floppy so, dass es sich weder automatisch noch von Hand laden lässt?', richtig: 'install floppy /bin/false', falsch: ['blacklist floppy', 'options floppy disable=1'], erklaerung: 'install ersetzt das Laden. /bin/false endet immer mit einem Fehler.' },
+  { frage: 'Wo liegen die Moduldateien für den laufenden Kernel?', richtig: '/lib/modules/$(uname -r)/', falsch: ['/etc/modules/', '/boot/modules/'], erklaerung: 'Jede installierte Kernelversion hat ihr eigenes Verzeichnis.' },
+]} />

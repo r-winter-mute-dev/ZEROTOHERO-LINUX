@@ -1,0 +1,203 @@
+---
+// Terminal-Übung im Browser. Aufgaben werden geprüft, sobald du einen Befehl ausführst.
+// aufgaben: siehe Aufgabe in src/scripts/shell.ts. welt: Startzustand (WeltOptionen).
+import Station from './Station.astro';
+import type { Aufgabe, WeltOptionen } from '../scripts/shell';
+interface Props { id: string; titel?: string; aufgaben: Aufgabe[]; welt?: WeltOptionen; einleitung?: string; }
+const { id, titel = 'Terminal', aufgaben, welt = {}, einleitung } = Astro.props;
+---
+<Station id={id} titel={titel} art="Terminal">
+  <div class="term-box" data-kw-term data-aufgaben={JSON.stringify(aufgaben)} data-welt={JSON.stringify(welt)}>
+    {einleitung && <p>{einleitung}</p>}
+    <ol class="aufgaben" data-term-aufgaben></ol>
+    <div class="term" data-term-fenster>
+      <div class="term-ausgabe" data-term-ausgabe role="log" aria-label="Ausgabe des Terminals"></div>
+      <form class="term-zeile" data-term-form autocomplete="off">
+        <label class="term-prompt" data-term-prompt for={`ti-${id}`}>lea@werkstatt:~$ </label>
+        <input id={`ti-${id}`} class="term-eingabe" data-term-eingabe type="text" spellcheck="false" autocapitalize="off" autocorrect="off" enterkeyhint="send" aria-describedby={`th-${id}`} />
+      </form>
+    </div>
+    <p class="leise klein" id={`th-${id}`}>Tippe einen Befehl und drücke Enter. Pfeil hoch holt frühere Befehle, Tab ergänzt. <code>help</code> zeigt, was der Simulator kann.</p>
+    <p class="term-knoepfe">
+      <button type="button" class="knopf zweit klein" data-term-neustart>Neu starten</button>
+      <button type="button" class="knopf zweit klein" data-term-reset>Alles zurücksetzen</button>
+    </p>
+  </div>
+</Station>
+
+<script>
+  import { station } from '../scripts/station';
+  import { ausfuehren, befehlStimmt, BEFEHLSNAMEN, neueWelt, neuStarten, prompt, zustandStimmt, type Aufgabe, type Welt } from '../scripts/shell';
+
+  document.querySelectorAll<HTMLElement>('[data-kw-term]').forEach((box) => {
+    const s = station(box.closest('[data-kw-check]') as HTMLElement);
+    const aufgaben = JSON.parse(box.dataset.aufgaben!) as Aufgabe[];
+    const optionen = JSON.parse(box.dataset.welt!);
+    let w: Welt = neueWelt(optionen);
+    const beantwortet = new Set<number>();
+    const geschafft = new Set<number>();   // einmal erledigt bleibt erledigt
+    const zustandErreicht = new Set<number>();   // Zustand war irgendwann erfüllt (z. B. kurz im Rettungsmodus)
+    const ausgabe = box.querySelector<HTMLElement>('[data-term-ausgabe]')!;
+    const eingabe = box.querySelector<HTMLInputElement>('[data-term-eingabe]')!;
+    const promptEl = box.querySelector<HTMLElement>('[data-term-prompt]')!;
+    const liste = box.querySelector<HTMLOListElement>('[data-term-aufgaben]')!;
+    let verlauf: string[] = []; let pos = 0;
+
+    const norm = (x: string) => x.trim().toLowerCase().replace(/\s+/g, ' ');
+
+    function zeile(text: string, art = '') {
+      const p = document.createElement('pre');
+      p.className = `tz ${art}`;
+      p.textContent = text;
+      ausgabe.append(p);
+      ausgabe.scrollTop = ausgabe.scrollHeight;
+    }
+
+    function aufbauen() {
+      liste.innerHTML = '';
+      aufgaben.forEach((a, i) => {
+        const li = document.createElement('li');
+        li.dataset.i = String(i);
+        const t = document.createElement('span');
+        t.className = 'a-text';
+        t.innerHTML = a.text;
+        li.append(t);
+        if (a.frage) {
+          const f = document.createElement('form');
+          f.className = 'a-frage';
+          const lab = document.createElement('label');
+          lab.textContent = a.frage;
+          const inp = document.createElement('input');
+          inp.type = 'text'; inp.spellcheck = false; inp.autocomplete = 'off';
+          const b = document.createElement('button');
+          b.className = 'knopf klein'; b.type = 'submit'; b.textContent = 'Antwort prüfen';
+          const m = document.createElement('span'); m.className = 'a-meldung';
+          lab.append(inp);
+          f.append(lab, b, m);
+          f.addEventListener('submit', (e) => {
+            e.preventDefault();
+            if ((a.antwort ?? []).some((x) => norm(x) === norm(inp.value))) {
+              beantwortet.add(i); pruefen();
+              const offen = !geschafft.has(i);
+              m.textContent = offen ? 'Richtig. Jetzt fehlt noch der Teil im Terminal.' : 'Richtig.';
+              m.className = 'a-meldung gut';
+            }
+            else { m.textContent = a.tipp ?? 'Noch nicht. Lies die Ausgabe im Terminal genau.'; m.className = 'a-meldung fehler'; s.fehl('Eine Antwort stimmt noch nicht.'); }
+          });
+          li.append(f);
+        }
+        liste.append(li);
+      });
+    }
+
+    function erledigt(a: Aufgabe, i: number) {
+      if (a.zustand && zustandStimmt(w, a.zustand)) zustandErreicht.add(i);
+      if (a.frage && !beantwortet.has(i)) return false;
+      if (!befehlStimmt(w, a)) return false;
+      if (a.zustand && !zustandErreicht.has(i)) return false;
+      return true;
+    }
+
+    function pruefen() {
+      let alle = true;
+      aufgaben.forEach((a, i) => {
+        if (erledigt(a, i)) geschafft.add(i);
+        const fertig = geschafft.has(i);
+        const li = liste.children[i] as HTMLElement;
+        li.classList.toggle('fertig', fertig);
+        if (!fertig) alle = false;
+      });
+      if (alle && !s.bestanden()) s.bestehen('Alle Aufgaben erledigt.');
+      else if (alle) s.melden('Alle Aufgaben erledigt.', 'gut');
+    }
+
+    function begruessen() {
+      ausgabe.innerHTML = '';
+      zeile('Simulierter Rechner "werkstatt" (Debian 12). Nichts, was du hier tust, verändert deinen echten Computer.', 'info');
+      promptEl.textContent = prompt(w);
+    }
+
+    box.querySelector<HTMLFormElement>('[data-term-form]')!.addEventListener('submit', (e) => {
+      e.preventDefault();
+      if (s.gesperrt()) return;
+      const cmd = eingabe.value;
+      zeile(prompt(w) + cmd, 'cmd');
+      const r = ausfuehren(w, cmd);
+      if (r.clear) ausgabe.innerHTML = '';
+      else if (r.ausgabe) zeile(r.ausgabe, r.code ? 'fehler' : '');
+      if (cmd.trim()) { verlauf.push(cmd); pos = verlauf.length; }
+      eingabe.value = '';
+      promptEl.textContent = prompt(w);
+      pruefen();
+    });
+
+    eingabe.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowUp' && pos > 0) { e.preventDefault(); eingabe.value = verlauf[--pos]; }
+      else if (e.key === 'ArrowDown') { e.preventDefault(); pos = Math.min(verlauf.length, pos + 1); eingabe.value = verlauf[pos] ?? ''; }
+      else if (e.key === 'Tab') {
+        e.preventDefault();
+        const teile = eingabe.value.split(' ');
+        const letzt = teile[teile.length - 1];
+        let kandidaten: string[];
+        if (teile.length === 1 || (teile.length === 2 && teile[0] === 'sudo')) kandidaten = BEFEHLSNAMEN.filter((b) => b.startsWith(letzt));
+        else {
+          const basis = letzt.includes('/') ? letzt.slice(0, letzt.lastIndexOf('/') + 1) : '';
+          const dir = basis ? (basis.startsWith('/') ? basis : `${w.cwd}/${basis}`).replace(/\/+$/, '') || '/' : w.cwd;
+          const rest = letzt.slice(basis.length);
+          kandidaten = Object.keys(w.fs).filter((k) => k.startsWith(dir === '/' ? '/' : dir + '/') && !k.slice(dir === '/' ? 1 : dir.length + 1).includes('/'))
+            .map((k) => k.split('/').pop()!).filter((n) => n.startsWith(rest)).map((n) => basis + n + (w.fs[(dir === '/' ? '' : dir) + '/' + n] === null ? '/' : ''));
+        }
+        if (kandidaten.length === 1) { teile[teile.length - 1] = kandidaten[0] + (kandidaten[0].endsWith('/') ? '' : ' '); eingabe.value = teile.join(' '); }
+        else if (kandidaten.length > 1) zeile(kandidaten.join('  '), 'info');
+      }
+    });
+
+    box.querySelector('[data-term-neustart]')!.addEventListener('click', () => {
+      neuStarten(w);
+      w.verlauf.push({ zeile: '#neustart', code: 0, ausgabe: '' });
+      zeile('--- Neustart ---\nDer Rechner fährt hoch. Module aus Sperrlisten werden nicht automatisch geladen.', 'info');
+      zeile(`Gestartet in: ${w.target}`, 'info');
+      promptEl.textContent = prompt(w);
+      pruefen();
+    });
+    box.querySelector('[data-term-reset]')!.addEventListener('click', () => {
+      w = neueWelt(optionen); beantwortet.clear(); geschafft.clear(); zustandErreicht.clear(); verlauf = []; pos = 0;
+      aufbauen(); begruessen(); pruefen();
+    });
+
+    // Klick ins Terminal setzt den Cursor in die Eingabezeile
+    box.querySelector('[data-term-fenster]')!.addEventListener('click', () => { if (!getSelection()?.toString()) eingabe.focus({ preventScroll: true }); });
+
+    aufbauen();
+    begruessen();
+    if (s.bestanden()) {
+      s.melden('Bereits bestanden. Du kannst trotzdem weiter üben.', 'gut');
+      liste.querySelectorAll('li').forEach((li) => li.classList.add('fertig'));
+    }
+  });
+</script>
+
+<style>
+  .aufgaben { margin: 0 0 1rem; padding-left: 1.4rem; }
+  .aufgaben :global(li) { margin: 0.45rem 0; padding-left: 0.2rem; }
+  .aufgaben :global(li.fertig) { color: var(--gut); }
+  .aufgaben :global(li.fertig::marker) { content: '✓  '; }
+  .aufgaben :global(li.fertig .a-frage) { display: none; }
+  .aufgaben :global(.a-frage) { display: flex; gap: 0.5rem; align-items: flex-end; flex-wrap: wrap; margin: 0.4rem 0 0.2rem; }
+  .aufgaben :global(.a-frage label) { display: flex; flex-direction: column; gap: 0.2rem; font-size: 0.95rem; color: var(--leise); }
+  .aufgaben :global(.a-frage input) { font-family: var(--mono); font-size: 1rem; padding: 0.35rem 0.5rem; background: var(--tief); color: var(--text); border: 1px solid var(--flaeche); border-radius: var(--radius-klein); min-width: 12rem; }
+  .aufgaben :global(.a-meldung) { font-size: 0.92rem; }
+  .aufgaben :global(.a-meldung.gut) { color: var(--gut); }
+  .aufgaben :global(.a-meldung.fehler) { color: var(--warnung); }
+  .term { background: #0b0b0b; border: 1px solid var(--flaeche); border-radius: var(--radius-klein); font-family: var(--mono); font-size: 0.92rem; cursor: text; }
+  .term-ausgabe { max-height: 22rem; min-height: 9rem; overflow-y: auto; padding: 0.7rem 0.9rem 0; }
+  .term-ausgabe :global(.tz) { margin: 0 0 0.35rem; padding: 0; background: none; border: 0; white-space: pre-wrap; word-break: break-word; font: inherit; color: #d6d6d6; }
+  .term-ausgabe :global(.tz.cmd) { color: var(--text); font-weight: 700; }
+  .term-ausgabe :global(.tz.fehler) { color: #f5a97f; }
+  .term-ausgabe :global(.tz.info) { color: var(--leise); font-style: italic; }
+  .term-zeile { display: flex; align-items: baseline; padding: 0.3rem 0.9rem 0.7rem; }
+  .term-prompt { color: var(--gut); white-space: pre; flex: none; }
+  .term-eingabe { flex: 1; min-width: 4rem; font: inherit; color: var(--text); background: transparent; border: 0; outline: none; padding: 0; caret-color: var(--akzent); }
+  .term:focus-within { border-color: var(--akzent); }
+  .term-knoepfe { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+</style>

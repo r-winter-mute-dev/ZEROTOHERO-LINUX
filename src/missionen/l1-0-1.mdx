@@ -1,0 +1,107 @@
+---
+id: l1-0-1
+checks:
+  - id: k1
+  - id: k2
+  - id: k3
+  - id: plan
+spick:
+  - t: "LPIC-1"
+    v: "Prüfung 101-500 und 102-500"
+  - t: "Je Prüfung"
+    v: "60 Fragen, 90 Minuten"
+  - t: "Bestanden"
+    v: "ab 500 auf der Skala 200–800"
+  - t: "Gewichtung"
+    v: "≈ Zahl der Fragen zu einem Lernziel"
+  - t: "Jeden Tag"
+    v: "ein paar Minuten Wiederholen"
+karten:
+  - f: "Wie viele Fragen hat eine LPIC-1-Prüfung?"
+    a: ["60", "sechzig"]
+    e: "Jede der beiden Prüfungen 101 und 102 hat 60 Fragen und dauert 90 Minuten."
+  - f: "Ab welchem Wert ist eine LPI-Prüfung bestanden? Die Skala reicht von 200 bis 800."
+    a: ["500"]
+  - f: "Wie heißen die beiden Prüfungen für LPIC-1? (Codes, mit Komma getrennt)"
+    a: ["101-500, 102-500", "101-500,102-500", "101-500 102-500"]
+  - f: "Was sagt die Gewichtung eines Lernziels aus?"
+    a: ["Ungefähr wie viele Fragen in der Prüfung dazu kommen"]
+    aufdecken: true
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Bestaetigung from '../components/Bestaetigung.astro';
+import Lernzielkarte from '../components/Lernzielkarte.astro';
+import { url as seite } from '../config';
+
+Willkommen. Am Ende dieser Kampagne kannst du ein Linux-System einrichten, verwalten und reparieren, und du bist bereit für die beiden Prüfungen zum **LPIC-1**. Bevor es losgeht, zwei Dinge: wie die Prüfung aussieht und warum dieser Kurs so aufgebaut ist, wie er ist. **Deine Mission: Lerne dein Ziel kennen.**
+
+## Die Prüfung
+
+<Karte nr={1} titel="Zwei Prüfungen, ein Zertifikat">
+Das **LPIC-1** vergibt das Linux Professional Institute (LPI), eine gemeinnützige Organisation, die an keinen Hersteller gebunden ist. Du bekommst es, wenn du zwei Prüfungen bestehst: **101-500** und **102-500**. Jede hat **60 Fragen** und dauert **90 Minuten**. Die Reihenfolge darfst du selbst wählen. Das Zertifikat gilt fünf Jahre.
+
+Die Fragen sind entweder Mehrfachauswahl oder **Lückentext**: Dann tippst du einen Befehl, eine Option oder einen Pfad selbst ein. Wiedererkennen reicht dort nicht.
+</Karte>
+
+<Merke>Zwei Prüfungen (101 und 102), je 60 Fragen in 90 Minuten. Manche Antworten musst du selbst tippen.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: Aufbau" fragen={[
+  { frage: 'Was brauchst du für das Zertifikat LPIC-1?', richtig: 'Die bestandenen Prüfungen 101 und 102', falsch: ['Nur die Prüfung 101', 'Eine Prüfung und ein Praktikum'], erklaerung: 'LPIC-1 besteht aus zwei Prüfungen, 101-500 und 102-500.' },
+  { frage: 'Warum reicht es nicht, Befehle nur wiederzuerkennen?', richtig: 'Weil es Lückentext-Fragen gibt, bei denen man die Antwort selbst tippt.', falsch: ['Weil die Prüfung mündlich ist.', 'Weil man in der Prüfung an einem echten Server arbeitet.'], erklaerung: 'Ein Teil der Fragen sind Lückentexte. Dort hilft nur, was du aktiv abrufen kannst.' },
+]} />
+
+<Karte nr={2} titel="Wie bewertet wird">
+Das LPI rechnet dein Ergebnis auf eine Skala von **200 bis 800** um. Bestanden hast du ab **500**. Wie viele richtige Antworten das sind, steht nirgends: Es hängt davon ab, wie schwer die Fragen in deiner Prüfung sind. Darum gilt in diesem Kurs: Eine Probeprüfung zählt erst ab 80 % als bestanden. Das ist ein Richtwert mit Puffer, keine Angabe des LPI.
+
+Die Prüfungen gibt es im Testzentrum in mehreren Sprachen, darunter Deutsch. Online von zu Hause aus kannst du LPIC-1 nur auf Englisch oder Japanisch ablegen. Befehle, Optionen und Dateinamen sind sowieso englisch. Deshalb nennt dieser Kurs bei wichtigen Begriffen immer auch das englische Wort.
+</Karte>
+
+<Merke>Bestanden ab 500 von 800. Die Zahl der nötigen richtigen Antworten ist nicht veröffentlicht.</Merke>
+
+<Karte nr={3} titel="Nicht jedes Thema ist gleich wichtig">
+Jedes Lernziel hat eine **Gewichtung**. Die Gewichtungen einer Prüfung ergeben zusammen 60. Ein Lernziel mit Gewicht 4 bringt also ungefähr vier Fragen. Hier siehst du alle Lernziele. Je breiter eine Kachel, desto mehr Fragen. Das größte Thema der Prüfung 101 sind die Befehle auf der Kommandozeile (Topic 103).
+</Karte>
+
+<Lernzielkarte kampagne="lpic1" />
+
+<Merke>Gewichtung ≈ Zahl der Fragen. Die Kacheln zeigen dir, wo sich Lernen am meisten lohnt.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: Gewichtung" fragen={[
+  { frage: 'Lernziel 103.1 hat die Gewichtung 4. Was bedeutet das?', richtig: 'In der Prüfung kommen ungefähr vier Fragen dazu.', falsch: ['Es ist das vierte Lernziel.', 'Man braucht vier Stunden dafür.'], erklaerung: 'Alle Gewichtungen einer Prüfung ergeben 60, so viele Fragen hat sie auch.' },
+]} />
+
+## Wie du hier lernst
+
+<Karte nr={4} titel="Abrufen, nicht nur lesen">
+Der Kurs ist nach einer einfachen Erkenntnis gebaut: Wer Wissen aus dem Gedächtnis **abruft**, behält es besser, als wer denselben Text noch einmal liest. Deshalb kommt nach jeder Erklärung sofort eine Frage. Das fühlt sich anstrengender an als Lesen. Genau diese Anstrengung macht den Unterschied.
+
+Eine große Übersichtsarbeit über 222 Studien aus echten Klassenzimmern fand im Mittel einen mittleren Vorteil für Quizze gegenüber anderen Lernformen [Yang et al., 2021].
+</Karte>
+
+<Karte nr={5} titel="Mit Abstand wiederholen">
+Was du einmal kannst, vergisst du wieder, wenn du es nie wieder brauchst. Darum kommt jede Mission mit **Karteikarten**. Einen Tag nach der Mission tauchen sie unter **Wiederholen** auf. Weißt du die Antwort, kommt die Karte erst nach drei Tagen wieder, dann nach einer Woche, nach zwei Wochen und so weiter. Weißt du sie nicht, beginnt sie von vorn.
+
+Wiederholen mit Pausen dazwischen wirkt deutlich besser als alles an einem Abend [Latimier et al., 2021]. Die Karten verschiedener Themen sind dabei gemischt, damit du lernst, ähnliche Befehle auseinanderzuhalten [Brunmair &amp; Richter, 2019].
+</Karte>
+
+<Merke>Jeden Tag ein paar Minuten Wiederholen bringt mehr als ein langer Abend vor der Prüfung.</Merke>
+
+<Hinweis titel="Ehrlich gesagt">
+Diese Studien stammen aus Schulen, Hochschulen und Laboren, nicht aus Linux-Kursen. Dass die Methoden auch hier wirken, ist gut begründet, aber nicht im Einzelnen nachgewiesen. Mehr dazu und alle Quellen findest du auf der Seite <a href={seite('ueber#forschung')}>Über</a>.
+</Hinweis>
+
+<Quiz id="k3" titel="Kurzcheck: Lernen" fragen={[
+  { frage: 'Du hast eine Mission abgeschlossen. Was passiert mit ihren Karteikarten?', richtig: 'Sie kommen ab dem nächsten Tag unter „Wiederholen“, in wachsenden Abständen.', falsch: ['Sie verschwinden, weil die Mission geschafft ist.', 'Sie kommen nur in der Abschlussprüfung.'], erklaerung: 'Abgeschlossen heißt hier nicht „vergessen dürfen“. Die Karten kommen zurück, bis sie sitzen.' },
+  { frage: 'Was hilft dir laut Studienlage am meisten beim Behalten?', richtig: 'Mich selbst abfragen, verteilt über mehrere Tage', falsch: ['Den Text mehrmals am Stück lesen', 'Alles am Abend vor der Prüfung lernen'], erklaerung: 'Abrufen und Verteilen sind zwei der am besten untersuchten Lernstrategien.' },
+]} />
+
+## Dein Plan
+
+<Bestaetigung id="plan" titel="Abmachung mit dir selbst" hardware={false} art="Bestätigung"
+  text="Ich mache jeden Tag, an dem ich lerne, zuerst meine fällige Wiederholung und danach die nächste Mission."
+  knopf="Abgemacht" />
+
+Weiter geht es mit deinem eigenen Labor: einem Linux, auf dem du alles ausprobieren darfst, ohne etwas kaputtzumachen.

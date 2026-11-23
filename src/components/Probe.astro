@@ -1,0 +1,228 @@
+---
+// Probeprüfung im Format der LPI-Prüfungen: gemischte Fragen, Zeitlimit, Markieren, Auswertung nach Lernziel.
+// Die Fragen werden nach Gewichtung der Lernziele gezogen. Falsch beantwortete Fragen landen im Wiederholsystem.
+import Station from './Station.astro';
+import { FRAGEN } from '../data/fragen';
+import { lernziel } from '../data/lernziele';
+interface Props { id: string; titel?: string; ziele: string[]; anzahl: number; minuten?: number; richtwert?: number; }
+const { id, titel = 'Probeprüfung', ziele, anzahl, minuten = Math.round(anzahl * 1.5), richtwert = 80 } = Astro.props;
+const pool = FRAGEN.filter((f) => ziele.includes(f.ziel));
+const gewichte = Object.fromEntries(ziele.map((z) => [z, lernziel(z)?.gewicht ?? 1]));
+const titelZiele = Object.fromEntries(ziele.map((z) => [z, lernziel(z)?.titel ?? z]));
+---
+<Station id={id} titel={titel} art="Probeprüfung">
+  <div class="probe" data-kw-probe data-pool={JSON.stringify(pool)} data-gewichte={JSON.stringify(gewichte)} data-titel={JSON.stringify(titelZiele)} data-anzahl={anzahl} data-minuten={minuten} data-richtwert={richtwert}>
+    <div data-p-start>
+      <p><strong>{anzahl} Fragen, {minuten} Minuten.</strong> Das entspricht dem Tempo der echten Prüfung (60 Fragen in 90 Minuten). Die Fragen sind nach der Gewichtung der Lernziele gemischt.</p>
+      <ul class="klein">
+        <li>Bei „Wähle zwei“ zählt die Frage nur, wenn beide Antworten stimmen.</li>
+        <li>Bei Eingabefragen tippst du einen Befehl, einen Pfad oder einen Begriff.</li>
+        <li>Du kannst Fragen markieren und später zu ihnen zurückspringen.</li>
+        <li>Kein Spickzettel. Erst nach dem Abgeben siehst du Lösungen und Erklärungen.</li>
+      </ul>
+      <p class="leise klein">Bestanden ist diese Probe ab {richtwert} % richtig. Das ist ein selbst gesetzter Richtwert mit Puffer. Das LPI rechnet auf einer Skala von 200 bis 800, bestanden ist ab 500, und wie viele Fragen dafür richtig sein müssen, hängt von der Schwierigkeit der Fragen ab und wird nicht veröffentlicht.</p>
+      <button class="knopf" type="button" data-p-los>Probeprüfung starten</button>
+    </div>
+    <div data-p-lauf hidden>
+      <div class="p-kopf"><span data-p-nr></span><span class="p-zeit" data-p-zeit aria-live="off"></span></div>
+      <fieldset class="p-frage" data-p-frage></fieldset>
+      <div class="p-nav">
+        <button class="knopf zweit" type="button" data-p-zurueck>Zurück</button>
+        <label class="p-mark"><input type="checkbox" data-p-markieren /> Markieren</label>
+        <button class="knopf zweit" type="button" data-p-weiter>Weiter</button>
+      </div>
+      <ol class="p-uebersicht" data-p-uebersicht aria-label="Alle Fragen"></ol>
+      <button class="knopf" type="button" data-p-abgeben>Prüfung abgeben</button>
+    </div>
+    <div data-p-ende hidden>
+      <p class="p-ergebnis" data-p-ergebnis></p>
+      <table class="p-ziele"><thead><tr><th scope="col">Lernziel</th><th scope="col">Richtig</th></tr></thead><tbody data-p-ziele></tbody></table>
+      <h4>Deine Fehler</h4>
+      <div data-p-fehler></div>
+      <button class="knopf" type="button" data-p-neu>Neue Probeprüfung mit anderen Fragen</button>
+    </div>
+  </div>
+</Station>
+
+<script>
+  import { mischen, station } from '../scripts/station';
+  import { aufnehmen, heute, plusTage, probeSpeichern } from '../scripts/engine';
+  interface Frage { id: string; ziel: string; typ: 'einfach' | 'mehrfach' | 'eingabe'; frage: string; optionen?: string[]; richtig: (number | string)[]; erklaerung: string; }
+
+  document.querySelectorAll<HTMLElement>('[data-kw-probe]').forEach((box) => {
+    const s = station(box.closest('[data-kw-check]') as HTMLElement);
+    const pool = JSON.parse(box.dataset.pool!) as Frage[];
+    const gewichte = JSON.parse(box.dataset.gewichte!) as Record<string, number>;
+    const zielTitel = JSON.parse(box.dataset.titel!) as Record<string, string>;
+    const anzahl = Math.min(Number(box.dataset.anzahl), pool.length);
+    const minuten = Number(box.dataset.minuten);
+    const richtwert = Number(box.dataset.richtwert);
+    const $ = <T extends HTMLElement = HTMLElement>(q: string) => box.querySelector<T>(q)!;
+
+    let fragen: (Frage & { reihe: number[] })[] = [];
+    let antworten: (number[] | string)[] = [];
+    let markiert = new Set<number>();
+    let i = 0; let ende = 0; let uhr = 0;
+
+    // Fragen nach Gewichtung auf die Lernziele verteilen (größte Reste zuerst)
+    function ziehen() {
+      const ziele = Object.keys(gewichte).filter((z) => pool.some((f) => f.ziel === z));
+      const summe = ziele.reduce((a, z) => a + gewichte[z], 0);
+      const roh = ziele.map((z) => ({ z, n: (gewichte[z] / summe) * anzahl }));
+      const soll = Object.fromEntries(roh.map((r) => [r.z, Math.floor(r.n)]));
+      let rest = anzahl - Object.values(soll).reduce((a, b) => a + b, 0);
+      for (const r of [...roh].sort((a, b) => (b.n % 1) - (a.n % 1))) { if (rest <= 0) break; soll[r.z]++; rest--; }
+      const gezogen = ziele.flatMap((z) => mischen(pool.filter((f) => f.ziel === z)).slice(0, soll[z]));
+      return mischen(gezogen).map((f) => ({ ...f, reihe: f.optionen ? mischen(f.optionen.map((_, k) => k)) : [] }));
+    }
+
+    function zeigeFrage() {
+      const f = fragen[i];
+      $('[data-p-nr]').textContent = `Frage ${i + 1} von ${fragen.length}`;
+      const fs = $<HTMLFieldSetElement>('[data-p-frage]');
+      fs.innerHTML = '';
+      const lg = document.createElement('legend'); lg.textContent = f.frage; fs.append(lg);
+      if (f.typ === 'eingabe') {
+        const inp = document.createElement('input'); inp.type = 'text'; inp.className = 'p-eingabe'; inp.spellcheck = false; inp.autocomplete = 'off';
+        inp.setAttribute('aria-label', 'Deine Antwort');
+        inp.value = (antworten[i] as string) ?? '';
+        inp.addEventListener('input', () => { antworten[i] = inp.value; uebersicht(); });
+        fs.append(inp);
+      } else {
+        for (const k of f.reihe) {
+          const lab = document.createElement('label');
+          const inp = document.createElement('input');
+          inp.type = f.typ === 'mehrfach' ? 'checkbox' : 'radio'; inp.name = `p-${s.cid}`; inp.value = String(k);
+          inp.checked = ((antworten[i] as number[]) ?? []).includes(k);
+          inp.addEventListener('change', () => {
+            antworten[i] = [...fs.querySelectorAll<HTMLInputElement>('input:checked')].map((x) => Number(x.value));
+            uebersicht();
+          });
+          lab.append(inp, document.createTextNode(' ' + f.optionen![k]));
+          fs.append(lab);
+        }
+      }
+      $<HTMLInputElement>('[data-p-markieren]').checked = markiert.has(i);
+      $<HTMLButtonElement>('[data-p-zurueck]').disabled = i === 0;
+      $<HTMLButtonElement>('[data-p-weiter]').disabled = i === fragen.length - 1;
+      uebersicht();
+    }
+
+    function beantwortet(k: number) { const a = antworten[k]; return Array.isArray(a) ? a.length > 0 : !!a?.trim(); }
+
+    function uebersicht() {
+      const ol = $('[data-p-uebersicht]'); ol.innerHTML = '';
+      fragen.forEach((_, k) => {
+        const li = document.createElement('li'); const b = document.createElement('button');
+        b.type = 'button'; b.textContent = String(k + 1);
+        b.className = [k === i ? 'jetzt' : '', beantwortet(k) ? 'ok' : '', markiert.has(k) ? 'mark' : ''].join(' ');
+        b.setAttribute('aria-label', `Frage ${k + 1}${beantwortet(k) ? ', beantwortet' : ''}${markiert.has(k) ? ', markiert' : ''}`);
+        b.addEventListener('click', () => { i = k; zeigeFrage(); });
+        li.append(b); ol.append(li);
+      });
+    }
+
+    function tick() {
+      const rest = Math.max(0, Math.round((ende - Date.now()) / 1000));
+      $('[data-p-zeit]').textContent = `noch ${Math.floor(rest / 60)}:${String(rest % 60).padStart(2, '0')}`;
+      $('[data-p-zeit]').classList.toggle('knapp', rest < 120);
+      if (rest === 0) abgeben(true);
+    }
+
+    const norm = (x: string) => x.trim().replace(/\s+/g, ' ').toLowerCase();
+    function stimmt(f: Frage, a: number[] | string | undefined) {
+      if (f.typ === 'eingabe') return typeof a === 'string' && f.richtig.some((r) => norm(String(r)) === norm(a));
+      const w = [...((a as number[]) ?? [])].sort().join(',');
+      return w === [...(f.richtig as number[])].sort().join(',');
+    }
+
+    function abgeben(zeitAbgelaufen = false) {
+      if (!zeitAbgelaufen) {
+        const offen = fragen.filter((_, k) => !beantwortet(k)).length;
+        const k = $<HTMLButtonElement>('[data-p-abgeben]');
+        if (offen && k.dataset.sicher !== '1') { k.dataset.sicher = '1'; k.textContent = `${offen} Fragen sind offen. Trotzdem abgeben?`; return; }
+      }
+      clearInterval(uhr);
+      const proZiel: Record<string, [number, number]> = {};
+      const falsch: { f: Frage & { reihe: number[] }; a: number[] | string }[] = [];
+      fragen.forEach((f, k) => {
+        proZiel[f.ziel] = proZiel[f.ziel] ?? [0, 0];
+        proZiel[f.ziel][1]++;
+        if (stimmt(f, antworten[k])) proZiel[f.ziel][0]++; else falsch.push({ f, a: antworten[k] });
+      });
+      const n = fragen.length - falsch.length;
+      const prozent = Math.round((n / fragen.length) * 100);
+      probeSpeichern({ id: s.mid, am: new Date().toISOString(), prozent, proZiel });
+      // Falsche Fragen kommen ab morgen ins Wiederholen
+      aufnehmen(falsch.map((x) => `f:${x.f.id}`), plusTage(heute(), 1));
+      $('[data-p-lauf]').hidden = true; $('[data-p-ende]').hidden = false;
+      const bestanden = prozent >= richtwert;
+      $('[data-p-ergebnis]').textContent = `${zeitAbgelaufen ? 'Die Zeit ist um. ' : ''}${n} von ${fragen.length} richtig (${prozent} %). ${bestanden ? 'Richtwert erreicht.' : `Für diese Probe fehlen dir noch ${Math.ceil((richtwert / 100) * fragen.length) - n} richtige Antworten.`}`;
+      const tb = $('[data-p-ziele]'); tb.innerHTML = '';
+      for (const [z, [r, g]] of Object.entries(proZiel).sort()) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<th scope="row">${z} ${zielTitel[z] ?? ''}</th><td>${r} von ${g}</td>`;
+        if (r < g) tr.className = 'schwach';
+        tb.append(tr);
+      }
+      const fe = $('[data-p-fehler]'); fe.innerHTML = '';
+      if (!falsch.length) fe.textContent = 'Keine. Stark.';
+      for (const { f, a } of falsch) {
+        const d = document.createElement('div'); d.className = 'p-fehler';
+        const richtigText = f.typ === 'eingabe' ? String(f.richtig[0]) : (f.richtig as number[]).map((k) => f.optionen![k]).join(' und ');
+        const deine = f.typ === 'eingabe' ? (a as string) || '(leer)' : ((a as number[]) ?? []).map((k) => f.optionen![k]).join(' und ') || '(keine)';
+        const p1 = document.createElement('p'); p1.innerHTML = '<strong></strong>'; p1.firstElementChild!.textContent = f.frage;
+        const p2 = document.createElement('p'); p2.className = 'klein'; p2.textContent = `Deine Antwort: ${deine}`;
+        const p3 = document.createElement('p'); p3.className = 'klein gut'; p3.textContent = `Richtig: ${richtigText}`;
+        const p4 = document.createElement('p'); p4.className = 'klein'; p4.textContent = f.erklaerung;
+        d.append(p1, p2, p3, p4); fe.append(d);
+      }
+      if (falsch.length) { const h = document.createElement('p'); h.className = 'leise klein'; h.textContent = 'Diese Fragen kommen ab morgen in deine Wiederholung.'; fe.append(h); }
+      if (bestanden) s.bestehen(`Bestanden mit ${prozent} %.`);
+      else s.fehl(`${prozent} %. Wiederhole die schwachen Lernziele und versuch es mit neuen Fragen noch einmal.`);
+    }
+
+    function starten() {
+      if (s.gesperrt()) return;
+      fragen = ziehen(); antworten = []; markiert = new Set(); i = 0;
+      ende = Date.now() + minuten * 60000;
+      $('[data-p-start]').hidden = true; $('[data-p-ende]').hidden = true; $('[data-p-lauf]').hidden = false;
+      const k = $<HTMLButtonElement>('[data-p-abgeben]'); k.dataset.sicher = ''; k.textContent = 'Prüfung abgeben';
+      zeigeFrage(); tick();
+      clearInterval(uhr); uhr = window.setInterval(tick, 1000);
+      $('[data-p-frage]').scrollIntoView({ block: 'nearest' });
+    }
+
+    $('[data-p-los]').addEventListener('click', starten);
+    $('[data-p-neu]').addEventListener('click', starten);
+    $('[data-p-zurueck]').addEventListener('click', () => { i--; zeigeFrage(); });
+    $('[data-p-weiter]').addEventListener('click', () => { i++; zeigeFrage(); });
+    $('[data-p-abgeben]').addEventListener('click', () => abgeben());
+    $<HTMLInputElement>('[data-p-markieren]').addEventListener('change', (e) => { if ((e.target as HTMLInputElement).checked) markiert.add(i); else markiert.delete(i); uebersicht(); });
+    if (s.bestanden()) s.melden('Bereits bestanden. Eine neue Probe mit anderen Fragen schadet nie.', 'gut');
+  });
+</script>
+
+<style>
+  .p-kopf { display: flex; justify-content: space-between; font-weight: 700; margin-bottom: 0.6rem; }
+  .p-zeit { font-variant-numeric: tabular-nums; color: var(--akzent-hell); }
+  .p-zeit.knapp { color: var(--warnung); }
+  .p-frage { border: 1px solid var(--flaeche); border-radius: var(--radius-klein); padding: 0.9rem 1rem; margin: 0 0 1rem; }
+  .p-frage :global(legend) { font-weight: 700; padding: 0 0.3rem; }
+  .p-frage :global(label) { display: block; padding: 0.35rem 0; cursor: pointer; }
+  .p-frage :global(.p-eingabe) { width: 100%; font-family: var(--mono); font-size: 1rem; padding: 0.5rem; background: var(--tief); color: var(--text); border: 1px solid var(--flaeche); border-radius: var(--radius-klein); margin-top: 0.5rem; }
+  .p-nav { display: flex; justify-content: space-between; align-items: center; gap: 0.8rem; flex-wrap: wrap; margin-bottom: 1rem; }
+  .p-mark { display: inline-flex; gap: 0.4rem; align-items: center; cursor: pointer; }
+  .p-uebersicht { display: flex; flex-wrap: wrap; gap: 0.3rem; list-style: none; padding: 0; margin: 0 0 1rem; }
+  .p-uebersicht :global(li) { margin: 0; }
+  .p-uebersicht :global(button) { font: inherit; font-size: 0.85rem; width: 2.2rem; height: 2.2rem; border-radius: var(--radius-klein); border: 1px solid var(--flaeche); background: var(--tief); color: var(--leise); cursor: pointer; }
+  .p-uebersicht :global(button.ok) { color: var(--text); border-color: var(--leise-dunkel); }
+  .p-uebersicht :global(button.mark) { border-color: var(--warnung); color: var(--warnung); }
+  .p-uebersicht :global(button.jetzt) { outline: 2px solid var(--akzent); }
+  .p-ergebnis { font-size: 1.15rem; font-weight: 700; }
+  .p-ziele { width: 100%; margin-bottom: 1rem; }
+  .p-ziele :global(tr.schwach th), .p-ziele :global(tr.schwach td) { color: var(--warnung); }
+  .probe :global(.p-fehler) { border-left: 3px solid var(--warnung); padding: 0.2rem 0 0.2rem 0.9rem; margin: 0 0 1rem; }
+  .probe :global(.p-fehler p) { margin: 0.2rem 0; }
+  .probe :global(.gut) { color: var(--gut); }
+</style>

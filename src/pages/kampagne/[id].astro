@@ -1,0 +1,90 @@
+---
+import Basis from '../../layouts/Basis.astro';
+import KampagnenKarte from '../../components/KampagnenKarte.astro';
+import Lernzielkarte from '../../components/Lernzielkarte.astro';
+import { KAMPAGNEN, missionenVon } from '../../data/kampagne';
+import { zertifikat } from '../../data/lernziele';
+import { url } from '../../config';
+
+export function getStaticPaths() {
+  return KAMPAGNEN.map((k) => ({ params: { id: k.id } }));
+}
+const { id } = Astro.params as { id: string };
+const k = KAMPAGNEN.find((x) => x.id === id)!;
+const z = zertifikat(k.zertifikat);
+const liste = missionenVon(k);
+const bereit = liste.filter((m) => m.bereit).length;
+const akteBereit = k.akte.filter((a) => a.missionen.every((m) => m.bereit)).length;
+---
+<Basis titel={`Kampagne ${k.nr}: ${k.titel}`} beschreibung={k.kurz}>
+  <section class="huelle held" data-kw-kampagne={k.id}>
+    <p class="leise klein"><a href={url('')}>Alle Kampagnen</a> / Kampagne {k.nr}</p>
+    <h1>{k.ueberschrift}</h1>
+    <p class="einstieg">{k.einstieg}</p>
+    <div class="weiter">
+      {bereit > 0
+        ? <a class="knopf" href={url(`mission/${liste[0].id}`)} data-kk-weiter>Erste Mission starten</a>
+        : <span class="knopf zweit" aria-disabled="true">Missionen folgen</span>}
+      <span class="leise" data-kk-info>{bereit ? `${bereit} Missionen spielbar.` : 'Der Lehrplan steht, die Missionen werden gerade geschrieben.'}</span>
+    </div>
+    {k.voraussetzung && <p class="leise klein vor">Voraussetzung: {k.voraussetzung}</p>}
+    <dl class="eckdaten">
+      <div><dt>Zertifikat</dt><dd>{z.name}, Lernziele Version {z.version}</dd></div>
+      <div><dt>Prüfungen</dt><dd>{z.pruefungen.map((p) => `${p.code} (${p.fragen} Fragen, ${p.minuten} Min.)`).join(' und ')}</dd></div>
+      <div><dt>Bestehen</dt><dd>500 auf einer Skala von 200 bis 800</dd></div>
+    </dl>
+    {z.hinweis && <p class="leise klein vor">{z.hinweis}</p>}
+  </section>
+
+  <section class="huelle">
+    <h2>Lernziele und dein Stand</h2>
+    <Lernzielkarte kampagne={k.id} />
+  </section>
+
+  <section class="huelle karte-bereich">
+    <div class="text">
+      <h2>Der Weg</h2>
+      <p class="leise">
+        {k.akte.length} Akte. Jede Mission endet mit einer Prüfung: einem Quiz, einer Aufgabe im simulierten Terminal oder einer Ausgabe von deinem eigenen Linux.
+        Am Ende jedes Akts wartet ein Bosskampf, nach jeder Prüfungshälfte eine Generalprobe.
+        {akteBereit < k.akte.length && ` Spielbar sind ${akteBereit} von ${k.akte.length} Akten, die übrigen entstehen gerade.`}
+      </p>
+    </div>
+    <KampagnenKarte kampagne={k.id} />
+  </section>
+</Basis>
+
+<script>
+  import { aktuelleMission, beiAenderung, laden } from '../../scripts/engine';
+  import { KAMPAGNEN, missionenVon } from '../../data/kampagne';
+  import { url } from '../../config';
+  const kid = document.querySelector<HTMLElement>('[data-kw-kampagne]')!.dataset.kwKampagne!;
+  function zeigen() {
+    const z = laden();
+    const k = KAMPAGNEN.find((x) => x.id === kid)!;
+    const liste = missionenVon(k);
+    const fertig = liste.filter((m) => z.missionen[m.id]).length;
+    if (fertig === 0) return;
+    const m = aktuelleMission(kid);
+    const a = document.querySelector<HTMLAnchorElement>('[data-kk-weiter]');
+    if (!a) return;
+    const offen = m.bereit && !z.missionen[m.id];
+    a.textContent = offen ? `Weiter mit ${m.nr}: ${m.titel}` : 'Fortschritt ansehen';
+    a.href = offen ? url(`mission/${m.id}`) : url('fortschritt');
+    document.querySelector('[data-kk-info]')!.textContent = `${fertig} von ${liste.filter((x) => x.bereit).length} spielbaren Missionen geschafft.`;
+  }
+  zeigen();
+  beiAenderung(zeigen);
+</script>
+
+<style>
+  .held { padding-top: 2.5rem; padding-bottom: 1rem; }
+  .held h1 { max-width: 22ch; }
+  .einstieg { font-size: 1.15rem; max-width: 42rem; }
+  .weiter { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; margin: 1.6rem 0 1rem; }
+  .vor { max-width: 42rem; }
+  .eckdaten { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: 0.8rem 2rem; margin: 1.5rem 0 0.5rem; max-width: 52rem; }
+  .eckdaten dt { color: var(--leise); font-size: 0.85rem; }
+  .eckdaten dd { margin: 0.1rem 0 0; font-weight: 700; }
+  .karte-bereich > :global(*) { max-width: 52rem; }
+</style>

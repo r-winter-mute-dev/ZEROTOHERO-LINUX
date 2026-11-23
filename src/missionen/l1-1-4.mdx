@@ -1,0 +1,146 @@
+---
+id: l1-1-4
+checks:
+  - id: k1
+  - id: k2
+  - id: reihe
+  - id: k3
+  - id: k4
+  - id: labor
+    hardware: true
+spick:
+  - t: "1. Firmware"
+    v: "BIOS oder UEFI: Selbsttest, Bootgerät suchen"
+  - t: "2. Bootloader"
+    v: "GRUB 2 lädt Kernel und initramfs"
+  - t: "3. Kernel"
+    v: "Hardware einrichten, initramfs als vorläufiges /"
+  - t: "4. Echtes /"
+    v: "einhängen, Wechsel aus der initramfs"
+  - t: "5. init (PID 1)"
+    v: "systemd, SysVinit oder Upstart"
+  - t: "BIOS"
+    v: "Bootloader im MBR (erster Sektor)"
+  - t: "UEFI"
+    v: ".efi-Datei in der ESP (FAT)"
+karten:
+  - f: "Welche Prozess-ID hat das Init-System?"
+    a: ["1"]
+  - f: "Wofür ist die initramfs da?"
+    a: ["Sie ist ein vorläufiges Wurzeldateisystem mit den Treibern und Werkzeugen, die zum Einhängen des echten Wurzeldateisystems nötig sind."]
+    aufdecken: true
+  - f: "Wo liegt bei UEFI der Bootloader?"
+    a: ["Als .efi-Datei in der EFI-Systempartition (ESP), die mit FAT formatiert ist."]
+    aufdecken: true
+  - f: "Wo liegt beim klassischen BIOS der erste Teil des Bootloaders?"
+    a: ["Im Master Boot Record (MBR), dem ersten Sektor der Platte"]
+    aufdecken: true
+  - f: "Nenne die drei Init-Systeme, die LPIC-1 kennt."
+    a: ["SysVinit, Upstart, systemd"]
+    aufdecken: true
+  - f: "Wie heißt der verbreitetste Bootloader unter Linux?"
+    a: ["GRUB 2", "GRUB", "grub2"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Reihenfolge from '../components/Reihenfolge.astro';
+import Labor from '../components/Labor.astro';
+
+Zwischen dem Druck auf den Einschaltknopf und dem Anmeldebildschirm passiert eine Menge. Wenn ein System nicht startet, musst du wissen, an welcher Stelle es hängt, sonst suchst du an der falschen. **Deine Mission: Verfolge den Start Schritt für Schritt.** Lernziel 101.2.
+
+## Firmware und Bootloader
+
+<Karte nr={1} titel="Die Firmware: BIOS oder UEFI">
+Nach dem Einschalten startet zuerst die **Firmware** auf der Hauptplatine. Sie prüft die Hardware (beim BIOS heißt das POST, Power-On Self-Test) und sucht dann ein Gerät, von dem sie starten kann.
+
+- Das alte **BIOS** liest dafür den **ersten Sektor** der Platte, den **Master Boot Record (MBR)**. Darin ist nur Platz für ein winziges Programm (446 Byte). Es lädt den Rest des Bootloaders nach.
+- Das neuere **UEFI** kennt Dateisysteme. Es startet eine **.efi-Datei** aus der **EFI-Systempartition (ESP)**, einer kleinen, mit FAT formatierten Partition, unter Linux meist eingehängt unter `/boot/efi`. Welche Datei, steht in Booteinträgen im NVRAM der Hauptplatine.
+</Karte>
+
+<Merke>BIOS startet den Code im MBR, UEFI startet eine .efi-Datei aus der FAT-formatierten ESP.</Merke>
+
+<Karte nr={2} titel="Der Bootloader">
+Der **Bootloader** zeigt bei Bedarf ein Menü, lädt den **Kernel** (meist `/boot/vmlinuz-…`) und die **initramfs** (meist `/boot/initrd.img-…` oder `/boot/initramfs-….img`) in den Arbeitsspeicher und übergibt dem Kernel eine Zeile mit **Kernelparametern**, zum Beispiel, wo das Wurzeldateisystem liegt. Unter Linux ist das fast immer **GRUB 2**. Wie du ihm beim Start etwas mitgibst, lernst du in Mission 1.5. Installieren und einrichten kommt in Akt 2.
+</Karte>
+
+<Quiz id="k1" titel="Kurzcheck: Firmware und Bootloader" fragen={[
+  { frage: 'Auf einem UEFI-Rechner fehlt nach einer Neuinstallation die Partition mit dem FAT-Dateisystem. Was ist die wahrscheinlichste Folge?', richtig: 'Die Firmware findet keinen Bootloader.', falsch: ['Der Kernel startet ohne initramfs.', 'Nichts, die ESP ist nur für Windows.'], erklaerung: 'In der ESP liegt die .efi-Datei des Bootloaders. Ohne sie kann UEFI nichts starten.' },
+  { frage: 'Was lädt der Bootloader in den Arbeitsspeicher?', richtig: 'Den Kernel und die initramfs', falsch: ['Nur das Init-System', 'Die Firmware'], erklaerung: 'Dazu übergibt er die Kernelparameter.' },
+]} />
+
+## Kernel und initramfs
+
+<Karte nr={3} titel="Ein Henne-Ei-Problem">
+Der Kernel richtet die Hardware ein. Dann muss er das **Wurzeldateisystem** `/` einhängen. Liegt das aber auf einer verschlüsselten Partition, in einem LVM-Volume oder hinter einem Controller, dessen Treiber ein Modul ist, braucht er dafür Module und Werkzeuge. Und die liegen ausgerechnet auf dem Wurzeldateisystem.
+
+Die Lösung ist die **initramfs** (initial RAM file system): ein kleines Dateisystem im Arbeitsspeicher mit genau diesen Treibern und Werkzeugen. Der Kernel startet zuerst sie, sie hängt das echte `/` ein und übergibt dann an das richtige System.
+</Karte>
+
+<Merke>Die initramfs ist ein vorläufiges / im Arbeitsspeicher. Sie hilft dem Kernel, das echte / einzuhängen.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: initramfs" fragen={[
+  { frage: 'Nach einem Update meldet der Kernel beim Start „VFS: Unable to mount root fs“. Was könnte fehlen?', richtig: 'Eine passende initramfs mit dem Treiber für die Platte', falsch: ['Die grafische Oberfläche', 'Der Eintrag in /etc/hostname'], erklaerung: 'Ohne Treiber für den Speicher-Controller findet der Kernel das Wurzeldateisystem nicht. Auch ein falsches root= in den Kernelparametern führt zu dieser Meldung.' },
+]} />
+
+## init: der erste Prozess
+
+<Karte nr={4} titel="PID 1">
+Sobald das echte `/` da ist, startet der Kernel das **Init-System** als ersten Prozess mit der **Prozess-ID 1**. Es startet alle Dienste und am Ende die Anmeldung. Es gibt drei Init-Systeme, die die Prüfung kennt:
+
+- **SysVinit** ist das klassische System aus Unix. Es arbeitet mit **Runlevels** und startet Skripte aus `/etc/init.d` nacheinander. Eingestellt wird es in `/etc/inittab`.
+- **Upstart** war ein ereignisgesteuerter Nachfolger, den unter anderem Ubuntu einige Jahre lang benutzte. Heute spielt es kaum noch eine Rolle. Die Prüfung erwartet nur, dass du es einordnen kannst.
+- **systemd** ist heute auf fast allen großen Distributionen Standard. Es arbeitet mit **Units** und **Targets** und startet Dienste parallel.
+
+Auf einem systemd-System ist `/sbin/init` meist nur ein Link auf systemd.
+</Karte>
+
+<Merke>init hat immer PID 1. SysVinit = Runlevel und Skripte, Upstart = Ereignisse, systemd = Units und Targets.</Merke>
+
+<Reihenfolge id="reihe" titel="Reihenfolge: Der Start" aufgabe="Bring die Schritte in die richtige Reihenfolge, vom Einschalten bis zur Anmeldung."
+  schritte={[
+    'Die Firmware prüft die Hardware.',
+    'Die Firmware findet und startet den Bootloader.',
+    'Der Bootloader lädt Kernel und initramfs und übergibt die Kernelparameter.',
+    'Der Kernel richtet die Hardware ein und startet die initramfs.',
+    'Die initramfs hängt das echte Wurzeldateisystem ein.',
+    'Der Kernel startet init mit der PID 1.',
+    'init startet die Dienste und die Anmeldung.',
+  ]}
+  erklaerung="Genau so. Bei einem Fehler weißt du jetzt: Kommt das GRUB-Menü, ist die Firmware fertig. Kommen Kernelmeldungen, ist der Bootloader fertig." />
+
+<Quiz id="k3" titel="Kurzcheck: init" fragen={[
+  { frage: 'Welches Init-System arbeitet mit Runlevels und Skripten in /etc/init.d?', richtig: 'SysVinit', falsch: ['systemd', 'GRUB'], erklaerung: 'systemd versteht Runlevel noch aus Kompatibilitätsgründen, arbeitet intern aber mit Targets.' },
+  { frage: 'Welche PID hat der Prozess systemd auf einem laufenden System?', richtig: '1', falsch: ['0', 'Das hängt vom Start ab.'], erklaerung: 'Das Init-System ist immer der erste Prozess.' },
+]} />
+
+## Woran du erkennst, wo es hängt
+
+<Karte nr={5} titel="Fehlersuche nach Phase">
+| Was du siehst | Wo es hängt |
+| --- | --- |
+| Kein Bild, Piepsen, Meldung der Firmware | Hardware oder Firmware |
+| „No bootable device“ oder Ähnliches | Firmware findet keinen Bootloader |
+| GRUB-Menü oder „grub rescue&gt;“ | Bootloader läuft, findet aber Kernel oder Konfiguration nicht |
+| Kernelmeldungen, dann „Kernel panic“ | Kernel oder initramfs |
+| Meldungen von systemd, „emergency mode“ | Init-System, oft ein Dateisystem oder Dienst |
+</Karte>
+
+<Hinweis titel="Prüfungstipp">
+Die Prüfung beschreibt oft ein Symptom und fragt nach der Phase oder der Ursache. Übe, das Symptom einer Phase zuzuordnen, bevor du über die Lösung nachdenkst. Im Bosskampf am Ende dieses Akts brauchst du genau das.
+</Hinweis>
+
+<Quiz id="k4" titel="Kurzcheck: Phase finden" fragen={[
+  { frage: 'Das System zeigt nur noch „grub rescue>“. In welcher Phase steckt es?', richtig: 'Beim Bootloader', falsch: ['Bei der Firmware', 'Beim Init-System'], erklaerung: 'GRUB läuft, findet aber seine Dateien nicht, zum Beispiel nach einer Änderung an den Partitionen.' },
+  { frage: 'Du siehst viele Kernelmeldungen und dann „Kernel panic – not syncing: VFS: Unable to mount root fs“. Was ist schon erfolgreich gelaufen?', richtig: 'Firmware und Bootloader', falsch: ['Alles bis zur Anmeldung', 'Nur die Firmware'], erklaerung: 'Der Kernel läuft ja schon. Er scheitert beim Einhängen von /.' },
+]} />
+
+## Und in deinem Labor?
+
+<Labor id="labor" titel="Aufgabe im Labor: Wer ist PID 1?"
+  aufgabe="Führe in deiner Debian-VM diesen Befehl aus. Er zeigt den Namen des Prozesses mit der Nummer 1."
+  befehl="ps -p 1 -o pid,comm"
+  muster={['^\\s*1\\s+\\S+']}
+  hilfe={[{ wenn: '\\bsystemd\\b', text: 'Deine VM läuft mit systemd, wie fast alle aktuellen Distributionen.' }, { wenn: '\\binit\\b', text: 'Hier heißt PID 1 init. Prüf mit „ls -l /sbin/init“, ob das ein Link auf systemd ist.' }]}
+  erfolg="Richtig gefunden." />

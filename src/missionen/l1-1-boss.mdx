@@ -1,0 +1,83 @@
+---
+id: l1-1-boss
+abzeichen: "Boot-Doktor"
+checks:
+  - id: boss
+spick:
+  - t: "1. Phase finden"
+    v: "Firmware, Bootloader, Kernel, init?"
+  - t: "2. Meldungen lesen"
+    v: "journalctl -b, -b -1, dmesg"
+  - t: "3. Einstellungen prüfen"
+    v: "get-default, /etc/modprobe.d, /proc/cmdline"
+  - t: "4. Kleinste Änderung"
+    v: "erst testen, dann dauerhaft machen"
+karten:
+  - f: "Ein System startet nach einer Änderung an /etc/fstab im Notfallmodus. Welche Phase ist betroffen?"
+    a: ["Das Init-System (systemd) beim Einhängen der Dateisysteme"]
+    aufdecken: true
+  - f: "Nach einem Kernel-Update meldet modprobe „Module … not found in directory /lib/modules/<neue Version>“. Was ist die wahrscheinlichste Ursache?"
+    a: ["Das Modul wurde nur für den alten Kernel gebaut oder installiert und fehlt für den neuen."]
+    aufdecken: true
+---
+import Logdiagnose from '../components/Logdiagnose.astro';
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+
+Montagmorgen. Das Ticketsystem quillt über: Server, die nicht richtig starten, Geräte, die verschwunden sind, Benutzer, die sich beschweren. **Deine Mission: Finde in vier Fällen die Ursache.** Jeder Fall zeigt dir ein Symptom und die Meldungen, die du dazu gesammelt hast.
+
+## Vorgehen
+
+<Karte nr={1} titel="Systematisch statt raten">
+1. **Phase finden:** Wo im Start hängt es? Firmware, Bootloader, Kernel, initramfs oder Init-System?
+2. **Meldungen lesen:** Was sagen `journalctl -b` (oder `-b -1` für den vorigen Start) und `dmesg`?
+3. **Einstellungen prüfen:** Standard-Target, Dateien in `/etc/modprobe.d`, Kernelparameter in `/proc/cmdline`.
+4. **Kleinste Änderung:** Erst für einen Start testen (zum Beispiel über das GRUB-Menü), dann dauerhaft machen.
+</Karte>
+
+<Merke>Erst die Phase, dann die Meldung, dann die Einstellung. Nie mehrere Dinge gleichzeitig ändern.</Merke>
+
+<Logdiagnose id="boss" titel="Bosskampf: Vier Tickets" anzahl={4} faelle={[
+  {
+    symptom: 'Ticket 1: „Seit gestern startet mein Rechner nur noch mit einem schwarzen Anmeldebildschirm in Textform. Die Oberfläche ist weg.“ Gestern hat ein Kollege „aufgeräumt“.',
+    log: '$ systemctl get-default\nmulti-user.target\n$ systemctl status gdm\n● gdm.service - GNOME Display Manager\n     Loaded: loaded (/lib/systemd/system/gdm.service; static)\n     Active: inactive (dead)',
+    richtig: 'Das Standard-Target wurde auf multi-user.target gesetzt. Abhilfe: sudo systemctl set-default graphical.target',
+    falsch: ['Der Grafiktreiber ist kaputt und muss neu installiert werden.', 'Das Modul gdm ist auf der Blacklist.', 'Der Bootloader startet den falschen Kernel.'],
+    erklaerung: 'Der Display-Manager ist nicht defekt, er wird nur nicht gestartet, weil multi-user.target ihn nicht braucht. graphical.target zieht ihn mit.',
+  },
+  {
+    symptom: 'Ticket 2: „Nach dem Update ist das WLAN weg.“ lspci zeigt die WLAN-Karte, aber ohne Zeile „Kernel driver in use“.',
+    log: '$ lsmod | grep iwlwifi\n$ grep -r iwlwifi /etc/modprobe.d/\n/etc/modprobe.d/aufraeumen.conf:blacklist iwlwifi\n$ sudo modprobe iwlwifi\n$ lsmod | grep iwlwifi\niwlwifi               380928  0\ncfg80211             1105920  1 iwlwifi',
+    richtig: 'iwlwifi steht auf der Blacklist und wird deshalb nicht mehr automatisch geladen. Die Zeile entfernen.',
+    falsch: ['Die WLAN-Karte ist im BIOS abgeschaltet.', 'Das Modul iwlwifi fehlt auf der Platte.', 'cfg80211 ist zu alt.'],
+    erklaerung: 'Im BIOS abgeschaltet würde die Karte in lspci fehlen. Dass modprobe von Hand klappt, zeigt: Das Modul ist da, nur das automatische Laden ist gesperrt.',
+  },
+  {
+    symptom: 'Ticket 3: „Der Server startet seit dem Einbau der neuen Datenplatte nicht mehr. Er bleibt bei einer Meldung über einen Notfallmodus stehen.“ Die neue Platte ist inzwischen wieder ausgebaut.',
+    log: 'systemd[1]: dev-disk-by\\x2duuid-7d2e….device: Job dev-disk-by\\x2duuid-7d2e….device/start timed out.\nsystemd[1]: Timed out waiting for device /dev/disk/by-uuid/7d2e….\nsystemd[1]: Dependency failed for /daten.\nsystemd[1]: Dependency failed for Local File Systems.\nYou are in emergency mode. After logging in, type "journalctl -xb" to view system logs,\n"systemctl reboot" to reboot, "systemctl default" or "exit" to boot into default mode.',
+    richtig: 'Das Init-System wartet auf ein Dateisystem, das in /etc/fstab eingetragen, aber nicht mehr vorhanden ist. Den Eintrag entfernen oder mit der Option nofail versehen.',
+    falsch: ['Die initramfs ist beschädigt.', 'GRUB findet den Kernel nicht.', 'Der Server braucht mehr Arbeitsspeicher.'],
+    erklaerung: 'Kernel und initramfs sind längst durch, das zeigen die Meldungen von systemd. Kann ein benötigtes Dateisystem nicht eingehängt werden, wechselt systemd in emergency.target. /etc/fstab ist Thema in Topic 104.',
+  },
+  {
+    symptom: 'Ticket 4: „Ich habe gestern Abend Kernelparameter ausprobiert. Jetzt startet gar nichts mehr.“ Auf dem Bildschirm stehen Kernelmeldungen, dann bleibt alles stehen.',
+    log: '[    1.912003] VFS: Cannot open root device "sdz2" or unknown-block(0,0): error -6\n[    1.912010] Please append a correct "root=" boot option; here are the available partitions:\n[    1.912021] (Liste gekürzt: nvme0n1, nvme0n1p1, nvme0n1p2, nvme0n1p3)\n[    1.912044] Kernel panic - not syncing: VFS: Unable to mount root fs on unknown-block(0,0)',
+    richtig: 'Der Kernelparameter root= zeigt auf ein Gerät, das es nicht gibt. Im GRUB-Menü mit e den alten Wert (root=UUID=…) wiederherstellen.',
+    falsch: ['Die Platte ist kaputt.', 'Das Init-System fehlt.', 'Der Ringpuffer ist voll.'],
+    erklaerung: 'Der Kernel nennt das Problem selbst: Er findet sdz2 nicht und schlägt vor, ein richtiges root= anzugeben. Die Platte nvme0n1 mit Partition p2 ist ja da.',
+  },
+  {
+    symptom: 'Ticket 5: „Um 22 Uhr ist der Server einfach heruntergefahren, mitten in meiner Arbeit!“ Es gab keinen Stromausfall.',
+    log: '$ journalctl -b -1 | grep -i shutdown\nNov 22 17:04:51 srv01 sudo[20313]:  admin : TTY=pts/2 ; PWD=/root ; USER=root ; COMMAND=/usr/sbin/shutdown -h 22:00 Wartungsfenster\nNov 22 21:55:00 srv01 systemd-logind[612]: Creating /run/nologin, blocking further logins...\nNov 22 22:00:00 srv01 systemd-logind[612]: System is powering down.',
+    richtig: 'Ein Administrator hat um 17:04 einen Shutdown für 22:00 geplant und ihn nicht abgebrochen.',
+    falsch: ['acpid hat den Ein-Aus-Knopf erkannt.', 'Der Kernel ist abgestürzt.', 'Ein Dienst hat SIGKILL bekommen.'],
+    erklaerung: 'Der Eintrag von sudo zeigt den genauen Befehl. Mit shutdown -c hätte man ihn abbrechen können, mit shutdown --show sieht man geplante Shutdowns.',
+  },
+  {
+    symptom: 'Ticket 6: „Nach dem Kernel-Update funktioniert unsere Spezialkarte nicht mehr.“ Vor dem Update lief alles.',
+    log: '$ uname -r\n6.1.0-28-amd64\n$ sudo modprobe messkarte\nmodprobe: FATAL: Module messkarte not found in directory /lib/modules/6.1.0-28-amd64\n$ ls /lib/modules/6.1.0-27-amd64/extra/\nmesskarte.ko',
+    richtig: 'Das Modul des Herstellers wurde nur für den alten Kernel 6.1.0-27 gebaut. Für den neuen fehlt es.',
+    falsch: ['Das Modul steht auf der Blacklist.', 'Die Karte ist im BIOS abgeschaltet.', 'modprobe braucht hier den vollständigen Pfad.'],
+    erklaerung: 'Jede Kernelversion hat ihr eigenes Verzeichnis unter /lib/modules. Module, die nicht zum Kernel gehören, muss man für jede neue Version neu bauen. Das erledigt oft DKMS automatisch, ein Thema für LPIC-2.',
+  },
+]} />

@@ -1,0 +1,151 @@
+---
+id: l1-1-7
+checks:
+  - id: k1
+  - id: planen
+  - id: k2
+  - id: prozesse
+  - id: k3
+  - id: labor
+    hardware: true
+spick:
+  - t: "Syntax"
+    v: "shutdown [Option] [Zeit] [Nachricht]"
+  - t: "Zeit"
+    v: "now, +15 (Minuten), 22:30"
+  - t: "Neustart / Aus"
+    v: "-r / -h oder -P"
+  - t: "Anhalten (halt)"
+    v: "-H"
+  - t: "Abbrechen"
+    v: "shutdown -c"
+  - t: "Nur warnen"
+    v: "shutdown -k"
+  - t: "Nachricht an alle"
+    v: "wall Text"
+  - t: "Prozess beenden"
+    v: "kill PID (SIGTERM 15), notfalls kill -9 PID"
+karten:
+  - f: "Wie startest du das System in 15 Minuten neu und warnst alle Benutzer mit „Update“?"
+    a: ["shutdown -r +15 Update", "shutdown -r +15 \"Update\"", "sudo shutdown -r +15 \"Update\"", "sudo shutdown -r +15 Update"]
+  - f: "Mit welchem Befehl brichst du einen geplanten Shutdown ab?"
+    a: ["shutdown -c", "sudo shutdown -c"]
+  - f: "Mit welchem Befehl schreibst du eine Nachricht an alle angemeldeten Benutzer?"
+    a: ["wall"]
+  - f: "Welche Option von shutdown verschickt nur die Warnung, ohne herunterzufahren?"
+    a: ["-k"]
+  - f: "Welches Signal schickt kill ohne Angabe?"
+    a: ["SIGTERM", "15", "TERM", "SIGTERM (15)"]
+  - f: "Welches Signal beendet einen Prozess sofort und lässt sich nicht abfangen? (Name und Nummer)"
+    a: ["SIGKILL (9)", "SIGKILL 9", "9", "SIGKILL", "KILL"]
+  - f: "Was unterscheidet halt von poweroff?"
+    a: ["halt hält das Betriebssystem an, lässt die Hardware aber eingeschaltet. poweroff schaltet auch den Strom ab."]
+    aufdecken: true
+  - f: "Wofür ist acpid zuständig?"
+    a: ["Er reagiert auf ACPI-Ereignisse wie den Ein-Aus-Knopf oder das Zuklappen des Laptops."]
+    aufdecken: true
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+
+Auf deinem Laptop klickst du auf „Ausschalten“. Auf einem Server sind aber vielleicht zwanzig andere Leute angemeldet, und auf manchen läuft gerade eine lange Datensicherung. **Deine Mission: Fahre ein System so herunter, dass niemand Daten verliert.** Lernziel 101.3.
+
+## shutdown
+
+<Karte nr={1} titel="Planen, warnen, ausführen">
+```
+shutdown [Optionen] [Zeit] [Nachricht]
+```
+
+- **Zeit:** `now` für sofort, `+15` für in 15 Minuten, `22:30` für eine Uhrzeit. Unter systemd gilt ohne Zeitangabe `+1`.
+- **Nachricht:** Text, den alle angemeldeten Benutzer bekommen. Wer eine Nachricht angibt, muss davor auch eine Zeit angeben.
+- **Optionen:** `-r` startet neu, `-h` oder `-P` schaltet aus, `-H` hält nur an (halt), `-c` bricht einen geplanten Shutdown ab, `-k` schickt nur die Warnung und fährt nicht herunter.
+
+Fünf Minuten vor dem geplanten Zeitpunkt sperrt shutdown neue Anmeldungen (über die Datei `/run/nologin`). Root darf sich weiterhin anmelden.
+</Karte>
+
+<Merke>shutdown -r +15 "Text" plant einen Neustart mit Warnung. shutdown -c bricht ab.</Merke>
+
+<Karte nr={2} titel="halt, poweroff, reboot">
+- **halt** hält das Betriebssystem an, die Hardware bleibt aber eingeschaltet.
+- **poweroff** fährt herunter und schaltet den Strom ab.
+- **reboot** fährt herunter und startet neu.
+
+Unter systemd gibt es dafür `systemctl halt`, `systemctl poweroff` und `systemctl reboot`. Die alten Befehle `halt`, `poweroff`, `reboot` und `telinit 0` oder `telinit 6` funktionieren weiterhin. Alle schicken eine Nachricht an die angemeldeten Benutzer, aber ohne Vorwarnzeit.
+</Karte>
+
+<Karte nr={3} titel="wall">
+`wall` (write all) schreibt eine Nachricht in die Terminals **aller** angemeldeten Benutzer. Das ist sinnvoll vor jeder größeren Änderung, nicht nur vor einem Shutdown: „In 10 Minuten wird der Webserver neu gestartet.“ Wer gerade angemeldet ist, zeigt `who`.
+</Karte>
+
+<Quiz id="k1" titel="Kurzcheck: shutdown" fragen={[
+  { frage: 'Was bewirkt „shutdown -h 22:30 Wartung“?', richtig: 'Um 22:30 Uhr ausschalten, vorher bekommen alle die Nachricht „Wartung“.', falsch: ['In 22 Minuten und 30 Sekunden neu starten', 'Sofort anhalten und um 22:30 neu starten'], erklaerung: 'Eine Zeit im Format hh:mm ist eine Uhrzeit. -h schaltet aus.' },
+  { frage: 'Du willst die Benutzer nur vorwarnen, aber noch nicht herunterfahren. Welche Option?', richtig: 'shutdown -k', falsch: ['shutdown -c', 'shutdown -w'], erklaerung: 'Laut Handbuch schreibt -k nur die Nachricht.' },
+]} />
+
+<Terminal id="planen" titel="Terminal: Einen Neustart planen" aufgaben={[
+  { text: 'Schau nach, wer außer dir angemeldet ist.', befehl: '^who$', frage: 'Wer ist außer lea noch angemeldet?', antwort: ['max'] },
+  { text: 'Plane einen Neustart in 15 Minuten mit der Nachricht „Kernel-Update, bitte speichern“.', zustand: 'shutdown=reboot', befehl: '^shutdown (-r .*\\+15|\\+15 .*-r)' },
+  { text: 'Lass dir anzeigen, ob und wann ein Shutdown geplant ist.', befehl: '^shutdown --show$' },
+  { text: 'Max ruft an: Er braucht noch eine Stunde. Brich den Neustart ab.', befehl: '^shutdown -c$', zustand: 'shutdown=keiner' },
+  { text: 'Schick allen eine Nachricht, dass der Neustart auf heute Abend verschoben ist.', befehl: '^wall ', zustand: 'wall' },
+]} />
+
+## Prozesse richtig beenden
+
+<Karte nr={4} titel="Erst bitten, dann zwingen">
+Prozesse beendest du mit **Signalen**. `kill PID` schickt standardmäßig **SIGTERM (15)**: die höfliche Bitte, sich zu beenden. Ein gut geschriebenes Programm speichert dann seine Daten, schließt Dateien und beendet sich. **SIGKILL (9)** mit `kill -9 PID` beendet sofort. Der Prozess bekommt davon nichts mit und kann nichts mehr retten. Deshalb gilt: erst SIGTERM, ein paar Sekunden warten, nur wenn es nicht hilft SIGKILL.
+
+`killall name` und `pkill name` schicken das Signal an alle Prozesse mit diesem Namen. Die Prozessnummer (PID) findest du mit `ps aux` oder `pgrep name`.
+
+Beim Herunterfahren macht systemd genau das automatisch: Es schickt allen Diensten SIGTERM und nach einer Wartezeit (standardmäßig 90 Sekunden) SIGKILL.
+</Karte>
+
+<Merke>Erst SIGTERM (15), dann notfalls SIGKILL (9). SIGKILL lässt keine Zeit zum Aufräumen.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: Signale" fragen={[
+  { frage: 'Ein Programm reagiert nicht mehr. Was ist die richtige Reihenfolge?', richtig: 'kill PID, kurz warten, dann kill -9 PID', falsch: ['Sofort kill -9 PID, das ist sicherer', 'kill -9 PID, dann kill PID'], erklaerung: 'SIGTERM gibt dem Programm die Chance, Daten zu sichern.' },
+]} />
+
+<Terminal id="prozesse" titel="Terminal: Ein hängendes Programm" welt={{ prozesse: [
+    { pid: 1, user: 'root', cmd: '/sbin/init' }, { pid: 612, user: 'root', cmd: '/lib/systemd/systemd-logind' },
+    { pid: 845, user: 'root', cmd: '/usr/sbin/NetworkManager --no-daemon' }, { pid: 1203, user: 'lea', cmd: '-bash' },
+    { pid: 2210, user: 'lea', cmd: 'python3 backup.py', ignoriertTerm: true }, { pid: 2290, user: 'lea', cmd: 'vim bericht.txt' },
+  ] }}
+  einleitung="Das Skript backup.py hängt und blockiert den geplanten Neustart."
+  aufgaben={[
+    { text: 'Finde die PID von backup.py.', befehl: '^(ps( aux| -ef| -e)?|pgrep .*backup.*)$', frage: 'Welche PID hat backup.py?', antwort: ['2210'] },
+    { text: 'Bitte den Prozess höflich, sich zu beenden (SIGTERM).', zustand: 'signal:2210=15', befehl: '^kill (-15 |-TERM |-SIGTERM )?2210$', tipp: 'kill ohne Option schickt SIGTERM.' },
+    { text: 'Prüf mit ps, ob der Prozess noch läuft.', befehl: '^ps', frage: 'Läuft backup.py noch? (ja/nein)', antwort: ['ja'] },
+    { text: 'Er reagiert nicht. Beende ihn jetzt mit Gewalt.', zustand: 'prozess:2210=weg' },
+  ]} />
+
+<Hinweis titel="Warum hat SIGTERM nicht gewirkt?">
+Ein Programm darf auf SIGTERM selbst reagieren, es also auch ignorieren. Das Skript im Simulator tut genau das, wie manches hängende Programm in echt. SIGKILL dagegen erreicht das Programm gar nicht erst: Der Kernel beendet es direkt.
+</Hinweis>
+
+## Der Ein-Aus-Knopf
+
+<Karte nr={5} titel="acpid">
+Drückst du kurz auf den Ein-Aus-Knopf, schaltet der Rechner nicht einfach den Strom ab. Die Hardware meldet ein **ACPI-Ereignis**, und das Betriebssystem entscheidet, was passiert: herunterfahren, schlafen legen, nichts tun. Klassisch kümmert sich der Dienst **acpid** darum. Auf systemd-Systemen übernimmt das meist **systemd-logind**, eingestellt in `/etc/systemd/logind.conf`. Die Prüfung erwartet, dass du acpid kennst.
+</Karte>
+
+<Quiz id="k3" titel="Kurzcheck: Gemischt" fragen={[
+  { frage: 'Welcher Dienst reagiert klassisch auf das Zuklappen eines Laptops?', richtig: 'acpid', falsch: ['udev', 'cron'], erklaerung: 'acpid wertet ACPI-Ereignisse aus. Unter systemd übernimmt das oft systemd-logind.' },
+  { frage: 'Welcher Befehl schaltet einen systemd-Rechner sofort aus?', richtig: 'systemctl poweroff', falsch: ['systemctl halt', 'systemctl stop'], erklaerung: 'halt würde nur anhalten, die Hardware bliebe an.' },
+]} />
+
+## Und in deinem Labor?
+
+<Labor id="labor" titel="Aufgabe im Labor: Planen und abbrechen"
+  aufgabe="Führe in deiner Debian-VM nacheinander diese drei Befehle aus und füge die ganze Ausgabe ein. Vergiss den letzten nicht, sonst startet deine VM in 30 Minuten neu."
+  befehl={`sudo shutdown -r +30 "Test aus dem Kurs"
+shutdown --show
+sudo shutdown -c`}
+  muster={['scheduled for']}
+  hilfe={[{ wenn: 'Unknown option|unrecognized option', text: 'Deine Version von shutdown kennt --show noch nicht (es gibt die Option erst seit systemd 250). Füge dann nur die Ausgabe der ersten Zeile ein.' }]}
+  erfolg="Geplant und wieder abgebrochen. Alle angemeldeten Benutzer haben zweimal eine Nachricht bekommen." />

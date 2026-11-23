@@ -1,0 +1,54 @@
+---
+// Zuordnung: Zu jedem Begriff links das passende Gegenstück rechts wählen.
+import Station from './Station.astro';
+interface Paar { links: string; rechts: string; }
+interface Props { id: string; titel?: string; aufgabe: string; paare: Paar[]; extra?: string[]; }
+const { id, titel = 'Zuordnung', aufgabe, paare, extra = [] } = Astro.props;
+const optionen = [...new Set([...paare.map((p) => p.rechts), ...extra])].sort((a, b) => a.localeCompare(b, 'de'));
+---
+<Station id={id} titel={titel} art="Zuordnung">
+  <form class="zo" data-kw-zuordnung data-paare={JSON.stringify(paare)}>
+    <p>{aufgabe}</p>
+    <div class="zo-raster">
+      {paare.map((p, i) => (
+        <label class="zo-zeile">
+          <span class="zo-links" set:html={p.links} />
+          <select data-i={i}>
+            <option value="">bitte wählen</option>
+            {optionen.map((o) => <option value={o}>{o}</option>)}
+          </select>
+        </label>
+      ))}
+    </div>
+    <button class="knopf" type="submit">Zuordnung prüfen</button>
+  </form>
+</Station>
+
+<script>
+  import { station } from '../scripts/station';
+  document.querySelectorAll<HTMLFormElement>('[data-kw-zuordnung]').forEach((form) => {
+    const s = station(form.closest('[data-kw-check]') as HTMLElement);
+    const paare = JSON.parse(form.dataset.paare!) as { links: string; rechts: string }[];
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      let n = 0;
+      form.querySelectorAll<HTMLSelectElement>('select').forEach((sel) => {
+        const ok = sel.value === paare[Number(sel.dataset.i)].rechts;
+        if (ok) n++;
+        sel.classList.toggle('ok', ok); sel.classList.toggle('nein', !ok);
+      });
+      if (n === paare.length) s.bestehen('Alles richtig zugeordnet.');
+      else s.fehl(`${n} von ${paare.length} richtig.`);
+    });
+  });
+</script>
+
+<style>
+  .zo-raster { display: grid; gap: 0.5rem; margin-bottom: 1rem; }
+  .zo-zeile { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 0.8rem; align-items: center; }
+  @media (max-width: 560px) { .zo-zeile { grid-template-columns: 1fr; gap: 0.2rem; } }
+  .zo-links { font-family: var(--mono); font-size: 0.95rem; }
+  .zo select { font: inherit; padding: 0.4rem; background: var(--tief); color: var(--text); border: 1px solid var(--flaeche); border-radius: var(--radius-klein); }
+  .zo select.ok { border-color: var(--gut); }
+  .zo select.nein { border-color: var(--warnung); }
+</style>

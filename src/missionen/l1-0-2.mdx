@@ -1,0 +1,122 @@
+---
+id: l1-0-2
+checks:
+  - id: k1
+  - id: k2
+  - id: k3
+  - id: debian
+    hardware: true
+  - id: rpm
+    hardware: true
+spick:
+  - t: "VM 1"
+    v: "Debian (Pakete mit dpkg und apt)"
+  - t: "VM 2"
+    v: "AlmaLinux oder Rocky Linux (rpm und dnf)"
+  - t: "Pro VM"
+    v: "2 CPU-Kerne, 2–4 GB RAM, 25 GB Platte"
+  - t: "Nach der Installation"
+    v: "Snapshot „frisch installiert“"
+  - t: "Welches System?"
+    v: "cat /etc/os-release"
+karten:
+  - f: "Mit welchem Befehl findest du heraus, welche Distribution und Version installiert ist? (Befehl mit Datei)"
+    a: ["cat /etc/os-release"]
+  - f: "Warum übst du auf zwei verschiedenen Distributionen?"
+    a: ["Weil die Prüfung beide Paketsysteme abfragt: dpkg/apt (Debian) und rpm/dnf (Red Hat)."]
+    aufdecken: true
+  - f: "Wofür ist ein Snapshot einer virtuellen Maschine gut?"
+    a: ["Man kann jederzeit auf den gespeicherten Zustand zurückspringen, wenn man etwas kaputt gemacht hat."]
+    aufdecken: true
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Labor from '../components/Labor.astro';
+
+Linux lernst du nicht durch Lesen, sondern indem du Dinge kaputtmachst und wieder reparierst. Dafür brauchst du ein System, bei dem das egal ist. **Deine Mission: Richte zwei virtuelle Maschinen ein, eine mit Debian und eine mit einem RPM-System.**
+
+## Warum eine virtuelle Maschine
+
+<Karte nr={1} titel="Ein Rechner im Rechner">
+Eine **virtuelle Maschine** (VM) ist ein Computer, den ein Programm auf deinem echten Computer nachbildet. Sie hat eine eigene virtuelle Festplatte, eigenen Speicher und bootet ganz normal mit Bootloader und Kernel. Alles, was du darin anstellst, bleibt darin.
+
+Das Beste daran ist der **Snapshot**: ein gespeicherter Zustand der ganzen VM. Hast du dein System zerschossen, springst du mit zwei Klicks zurück zum Snapshot. In einigen Missionen ist Zerschießen ausdrücklich erwünscht.
+</Karte>
+
+<Merke>In der VM darfst du alles. Ein Snapshot holt dich jederzeit zurück.</Merke>
+
+<Karte nr={2} titel="Warum gleich zwei">
+Linux-Distributionen teilen sich grob in zwei Familien, je nachdem, wie sie Software verwalten. **Debian** und Ubuntu nutzen `.deb`-Pakete mit `dpkg` und `apt`. **Red Hat Enterprise Linux** und seine Verwandten wie AlmaLinux, Rocky Linux und Fedora nutzen `.rpm`-Pakete mit `rpm` und `dnf`. Die Prüfung 101 fragt beides ab (Lernziele 102.4 und 102.5), und auch sonst unterscheiden sich die Familien in Details, etwa bei Pfaden oder Gruppennamen.
+</Karte>
+
+<Merke>Eine Debian-VM und eine VM aus der Red-Hat-Familie, weil die Prüfung beide Paketsysteme abfragt.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: Labor" fragen={[
+  { frage: 'Du hast in deiner VM aus Versehen den Bootloader gelöscht. Was ist der schnellste Weg zurück?', richtig: 'Den letzten Snapshot wiederherstellen', falsch: ['Alles neu installieren', 'Den echten Computer neu starten'], erklaerung: 'Genau dafür gibt es Snapshots. Mach nach jeder größeren Einrichtung einen neuen.' },
+  { frage: 'Welche der beiden VMs nutzt rpm und dnf?', richtig: 'Die mit AlmaLinux oder Rocky Linux', falsch: ['Die mit Debian', 'Beide gleichermaßen'], erklaerung: 'rpm und dnf gehören zur Red-Hat-Familie, dpkg und apt zu Debian.' },
+]} />
+
+## Das richtige Programm
+
+<Karte nr={3} titel="Je nach Computer">
+- **Windows oder Linux mit Intel- oder AMD-Prozessor:** VirtualBox ist kostenlos und einfach. Unter Linux gehen auch GNOME Boxes oder virt-manager.
+- **Mac mit Apple-Chip (M1 und neuer):** UTM. Wichtig: Dort brauchst du die **ARM64-Version** (auch „aarch64“ genannt) von Debian und AlmaLinux, nicht die übliche amd64-Version.
+- **Kein eigener Computer, der das schafft?** Ein alter PC, auf dem du Linux direkt installierst, geht auch. Dann fehlen dir aber die Snapshots.
+
+Das Windows-Subsystem für Linux (WSL) eignet sich für diesen Kurs **nicht**: Es startet ohne eigenen Bootloader und mit einem angepassten Kernel von Microsoft. Genau das brauchst du aber schon in Akt 1.
+</Karte>
+
+<Merke>VirtualBox auf Intel und AMD, UTM mit ARM64-Images auf Macs mit Apple-Chip. Kein WSL.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: Programm" fragen={[
+  { frage: 'Du hast ein MacBook mit M2-Chip. Welches Debian-Abbild lädst du herunter?', richtig: 'arm64 (aarch64)', falsch: ['amd64', 'i386'], erklaerung: 'Apple-Chips sind ARM-Prozessoren. Ein amd64-Abbild würde dort nur sehr langsam über Emulation laufen.' },
+  { frage: 'Warum reicht WSL unter Windows für diesen Kurs nicht?', richtig: 'Es hat keinen eigenen Bootloader und einen angepassten Kernel.', falsch: ['Es kann keine Befehle ausführen.', 'Es ist kostenpflichtig.'], erklaerung: 'In Akt 1 geht es um Bootloader, Kernelparameter und Runlevel. Das alles fehlt in WSL.' },
+]} />
+
+## Aufbauen
+
+<Karte nr={4} titel="VM 1: Debian">
+Lade das aktuelle Debian-Abbild von debian.org (die kleine „netinst“-Variante reicht) und lege eine VM an: **2 CPU-Kerne, 4 GB Arbeitsspeicher, 25 GB Festplatte.** Bei der Installation:
+
+1. Ob du im Startmenü „Install“ oder „Graphical install“ wählst, ist egal. Beide führen zum selben System.
+2. Beim **Root-Passwort** lässt du das Feld leer. Dann sperrt Debian das Root-Konto, und dein eigener Benutzer darf mit `sudo` Befehle als Administrator ausführen. So arbeiten auch die Beispiele in diesem Kurs.
+3. Bei der Softwareauswahl nimmst du eine schlanke Oberfläche wie **Xfce** und den **SSH-Server**. Die Oberfläche brauchst du in Akt 1, um zwischen grafischem und Textmodus zu wechseln.
+</Karte>
+
+<Karte nr={5} titel="VM 2: AlmaLinux oder Rocky Linux">
+Beide sind kostenlose Nachbauten von Red Hat Enterprise Linux und für den Kurs gleich gut. Lade das „minimal“-Abbild und lege eine zweite VM an: **2 CPU-Kerne, 2 GB Arbeitsspeicher, 25 GB Festplatte.** Im Installer legst du einen Benutzer an und setzt den Haken **„Make this user administrator“**. Damit kommt der Benutzer in die Gruppe `wheel` und darf `sudo` verwenden. Diese VM bleibt ohne grafische Oberfläche.
+</Karte>
+
+<Karte nr={6} titel="Sofort danach: Snapshot">
+Sobald beide Systeme laufen und du dich anmelden kannst, fährst du sie herunter und legst je einen Snapshot an. Nenn ihn **frisch installiert**. Wenn später etwas schiefgeht, ist das dein Rettungsanker.
+</Karte>
+
+<Merke>Debian mit Xfce, Alma oder Rocky minimal, Benutzer mit sudo-Rechten, danach Snapshot.</Merke>
+
+<Quiz id="k3" titel="Kurzcheck: Installation" fragen={[
+  { frage: 'Was passiert, wenn du bei der Debian-Installation kein Root-Passwort vergibst?', richtig: 'Das Root-Konto wird gesperrt, und dein Benutzer bekommt sudo-Rechte.', falsch: ['Root hat dann gar kein Passwort und jeder kann sich anmelden.', 'Die Installation bricht ab.'], erklaerung: 'Das ist der empfohlene Weg: Administratorrechte nur gezielt mit sudo.' },
+]} />
+
+<Hinweis art="sicherheit" titel="Nicht auf dem eigenen Computer üben">
+Führe die Befehle aus diesem Kurs nur in deinen VMs aus, nicht auf deinem Arbeitsrechner und nie auf einem Server, den jemand braucht. Manche Befehle beenden sofort alle Programme oder machen das System unbrauchbar. Genau das sollst du ja kennenlernen, aber in sicherer Umgebung.
+</Hinweis>
+
+## Nachweis
+
+<Labor id="debian" titel="Aufgabe im Labor: Debian läuft"
+  aufgabe="Melde dich in deiner Debian-VM an, öffne ein Terminal und führe diesen Befehl aus. Kopiere die ganze Ausgabe hier hinein."
+  befehl="cat /etc/os-release"
+  muster={['^ID(_LIKE)?=.*debian']}
+  hilfe={[{ wenn: '^ID(_LIKE)?=.*(rhel|fedora|centos)', text: 'Das ist deine RPM-VM. Die gehört in die nächste Aufgabe.' }]}
+  erfolg="Debian läuft." />
+
+<Labor id="rpm" titel="Aufgabe im Labor: Die RPM-VM läuft"
+  aufgabe="Jetzt dasselbe in deiner zweiten VM mit AlmaLinux oder Rocky Linux."
+  befehl="cat /etc/os-release"
+  muster={['^ID(_LIKE)?=.*(rhel|fedora|centos|suse)']}
+  hilfe={[{ wenn: '^ID(_LIKE)?=.*debian', text: 'Das ist noch die Debian-VM. Führe den Befehl in der zweiten VM aus.' }]}
+  erfolg="Die zweite VM läuft. Dein Labor steht." />
+
+Dein Labor steht. In der nächsten Mission lernst du die Handvoll Befehle, ohne die im Terminal nichts geht.

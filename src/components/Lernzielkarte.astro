@@ -1,0 +1,106 @@
+---
+// Alle Lernziele einer Prüfung als Balken. Breite eines Abschnitts = Gewichtung (≈ Zahl der Fragen).
+// Ein Abschnitt füllt sich, wenn die Missionen zu diesem Lernziel geschafft sind.
+import { zertifikat } from '../data/lernziele';
+import { KAMPAGNEN, missionenVon } from '../data/kampagne';
+interface Props { kampagne: string; klein?: boolean; }
+const { kampagne, klein = false } = Astro.props;
+const k = KAMPAGNEN.find((x) => x.id === kampagne)!;
+const z = zertifikat(k.zertifikat);
+const missionen = missionenVon(k).filter((m) => !m.probe && !m.boss);
+const zuordnung = Object.fromEntries(z.ziele.map((l) => [l.nr, missionen.filter((m) => m.ziele?.includes(l.nr)).map((m) => ({ id: m.id, bereit: !!m.bereit }))]));
+---
+<div class:list={['lzk', { klein }]} data-lzk={JSON.stringify(zuordnung)}>
+  {z.pruefungen.map((p) => {
+    const code = p.code.split('-')[0];
+    const ziele = z.ziele.filter((l) => l.pruefung === code);
+    const themen = [...new Set(ziele.map((l) => l.thema))];
+    return (
+      <section class="lzk-pruefung" aria-label={`${p.name} (${p.code})`}>
+        <p class="lzk-kopf"><strong>{p.name}</strong> <span class="leise">{p.code}</span> <span class="lzk-stand" data-lzk-stand={p.code}></span></p>
+        <div class="lzk-balken">
+          {themen.map((t) => {
+            const tz = ziele.filter((l) => l.thema === t);
+            const summe = tz.reduce((a, l) => a + l.gewicht, 0);
+            return (
+              <div class="lzk-thema" style={`flex:${summe} 1 0`} title={`Topic ${t}`}>
+                <span class="lzk-tnr" aria-hidden="true">{t.split(' ')[0]}</span>
+                <ul class="lzk-reihe" aria-label={`Topic ${t}`}>
+                  {tz.map((l) => (
+                    <li class="lzk-ziel" style={`flex:${l.gewicht} 1 0`} data-lzk-ziel={l.nr} data-gewicht={l.gewicht} data-pruefung={p.code} title={`${l.nr} ${l.titel} (Gewichtung ${l.gewicht})`}>
+                      <span class="lzk-nr" aria-hidden="true">.{l.nr.split('.')[1]}</span>
+                      <span class="lzk-sr">{l.nr} {l.titel}, Gewichtung {l.gewicht}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          })}
+        </div>
+        {!klein && (
+          <details class="lzk-liste">
+            <summary>Alle Lernziele von {p.name} als Liste</summary>
+            <table>
+              <thead><tr><th scope="col">Nr.</th><th scope="col">Lernziel</th><th scope="col">Gewicht</th></tr></thead>
+              <tbody>{ziele.map((l) => <tr><td>{l.nr}</td><td>{l.titel}</td><td>{l.gewicht}</td></tr>)}</tbody>
+            </table>
+          </details>
+        )}
+      </section>
+    );
+  })}
+  {!klein && <p class="leise klein">Breite eines Abschnitts = Gewichtung des Lernziels, also ungefähr die Zahl der Fragen dazu. Gestrichelt: noch nicht ausgeschrieben. Mit der Maus über einem Abschnitt siehst du den Titel. Version {z.version} der Lernziele, <a href={z.quelle}>Quelle: LPI</a>.</p>}
+</div>
+
+<script>
+  import { beiAenderung, laden } from '../scripts/engine';
+  function zeigen() {
+    const st = laden();
+    document.querySelectorAll<HTMLElement>('[data-lzk]').forEach((box) => {
+      const zu = JSON.parse(box.dataset.lzk!) as Record<string, { id: string; bereit: boolean }[]>;
+      const summe: Record<string, [number, number]> = {};
+      box.querySelectorAll<HTMLElement>('[data-lzk-ziel]').forEach((el) => {
+        const liste = zu[el.dataset.lzkZiel!] ?? [];
+        const bereit = liste.length > 0 && liste.every((m) => m.bereit);
+        const fertig = liste.filter((m) => st.missionen[m.id]).length;
+        const voll = liste.length > 0 && fertig === liste.length;
+        el.classList.toggle('geplant', !bereit);
+        el.classList.toggle('voll', voll);
+        el.style.setProperty('--anteil', `${liste.length ? Math.round((fertig / liste.length) * 100) : 0}%`);
+        const p = el.dataset.pruefung!; const g = Number(el.dataset.gewicht);
+        summe[p] = summe[p] ?? [0, 0];
+        summe[p][1] += g;
+        if (voll) summe[p][0] += g;
+      });
+      for (const [p, [a, b]] of Object.entries(summe)) {
+        const e = box.querySelector(`[data-lzk-stand="${p}"]`);
+        if (e) e.textContent = `${a} von ${b} Punkten geschafft`;
+      }
+    });
+  }
+  zeigen();
+  beiAenderung(zeigen);
+</script>
+
+<style>
+  .lzk-pruefung { margin: 0 0 1.4rem; }
+  .lzk-kopf { margin: 0 0 0.4rem; display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: baseline; }
+  .lzk-stand { margin-left: auto; color: var(--akzent-hell); font-weight: 700; font-size: 0.95rem; }
+  .lzk-balken { display: flex; gap: 6px; }
+  .lzk-thema { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .lzk-tnr { font-size: 0.75rem; color: var(--leise); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; }
+  .lzk-reihe { display: flex; gap: 2px; list-style: none; padding: 0; margin: 0; }
+  .lzk-ziel { --anteil: 0%; min-width: 0; height: 2.4rem; margin: 0; border-radius: 4px; border: 1px solid var(--leise-dunkel);
+    background: linear-gradient(to top, var(--akzent) var(--anteil), var(--tief) var(--anteil)); display: grid; place-items: center; overflow: hidden; }
+  .lzk-ziel.geplant { border-style: dashed; opacity: 0.5; }
+  .lzk-ziel.voll { border-color: var(--akzent); }
+  .lzk-nr { font-size: 0.72rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .lzk-ziel.voll .lzk-nr { color: var(--tief); }
+  .lzk-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .klein .lzk-ziel { height: 1.2rem; }
+  .klein .lzk-nr { display: none; }
+  @media (max-width: 700px) { .lzk-nr { display: none; } .lzk-ziel { height: 1.8rem; } }
+  .lzk-liste { margin-top: 0.6rem; font-size: 0.9rem; }
+  .lzk-liste summary { cursor: pointer; color: var(--akzent-hell); }
+  .lzk-liste table { margin-top: 0.5rem; width: 100%; }
+</style>

@@ -1,0 +1,121 @@
+---
+import Basis from '../layouts/Basis.astro';
+import Lernzielkarte from '../components/Lernzielkarte.astro';
+import { KAMPAGNEN } from '../data/kampagne';
+import { SEITE, url } from '../config';
+---
+<Basis>
+  <section class="huelle held">
+    <div class="held-text">
+      <h1>Vom ersten Befehl zum Linux-Profi.</h1>
+      <p class="einstieg">{SEITE.mission}</p>
+      <p class="einstieg leise-text">
+        Drei Kampagnen, eine pro Zertifikat. Du übst im Terminal direkt im Browser und auf deinem eigenen Linux,
+        jede Mission endet mit einer Prüfung, und alles Gelernte kommt in wachsenden Abständen zurück, bis es sitzt.
+        Kostenlos, ohne Anmeldung, ohne Tracking.
+      </p>
+      <div class="weiter">
+        <a class="knopf" href={url('mission/l1-0-1')} data-kw-weiter>Erste Mission starten</a>
+        <a class="knopf zweit" href={url('wiederholen')} data-kw-wh hidden>Heute wiederholen</a>
+        <span class="leise" data-kw-weiter-info>Am besten mit Kampagne 1.</span>
+      </div>
+      <div class="rangleiste" aria-label="Dein Rang">
+        <div class="rang-zeile"><b data-kw-level>Neuling</b><span class="leise" data-kw-naechster></span></div>
+        <div class="balken"><span data-kw-balken></span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="huelle kampagnen" aria-labelledby="k-titel">
+    <h2 id="k-titel">Die Kampagnen</h2>
+    <p class="leise">Jede Kachel ist ein offizielles Lernziel. Je breiter, desto mehr Fragen kommen in der Prüfung dazu.</p>
+    <div class="raster">
+      {KAMPAGNEN.map((k) => (
+        <a class="kk" href={url(`kampagne/${k.id}`)} data-kk={k.id}>
+          <p class="kk-nr">Kampagne {k.nr}</p>
+          <h3>{k.titel}</h3>
+          <p class="kk-kurz">{k.kurz}</p>
+          <Lernzielkarte kampagne={k.id} klein />
+          <p class="leise klein" data-kk-stand></p>
+          <span class="knopf zweit klein kk-knopf" data-kk-knopf>Kampagne ansehen</span>
+        </a>
+      ))}
+    </div>
+  </section>
+
+  <section class="huelle willkommen">
+    <div class="text">
+      <h2>So lernst du hier</h2>
+      <ul>
+        <li><strong>Kleine Schritte.</strong> Eine Erklärung, ein Merksatz, sofort eine Frage dazu.</li>
+        <li><strong>Selbst tun.</strong> Ein simuliertes Terminal im Browser und Aufgaben auf deinem eigenen Linux. Prüfungsfragen sind oft so gebaut, dass nur weiterkommt, wer den Befehl wirklich schon getippt hat.</li>
+        <li><strong>Wiederholen mit Abstand.</strong> Was du gelernt hast, kommt nach einem Tag, drei Tagen, einer Woche und so weiter zurück, gemischt über alle Themen.</li>
+        <li><strong>Prüfen wie in echt.</strong> Probeprüfungen mit Zeitlimit, gewichtet wie die echten Prüfungen, mit Auswertung nach Lernziel.</li>
+      </ul>
+      <p><a href={url('ueber')}>Warum genau so? Die Studienlage und ihre Grenzen.</a></p>
+    </div>
+  </section>
+</Basis>
+
+<script>
+  import { aktuelleMission, beiAenderung, heute, laden, level, wiederholungen, xpGesamt } from '../scripts/engine';
+  import { KAMPAGNEN, LEVEL, missionenVon } from '../data/kampagne';
+  import { url } from '../config';
+  function zeigen() {
+    const z = laden();
+    const xp = xpGesamt(z);
+    const l = level(xp);
+    document.querySelector('[data-kw-naechster]')!.textContent = l.naechstesAb ? `noch ${l.naechstesAb - xp} XP bis ${l.naechsterName}` : 'höchster Rang erreicht';
+    const vorher = LEVEL[l.nr - 1].ab;
+    const anteil = l.naechstesAb ? (xp - vorher) / (l.naechstesAb - vorher) : 1;
+    (document.querySelector('[data-kw-balken]') as HTMLElement).style.width = `${Math.round(anteil * 100)}%`;
+    const weiter = document.querySelector<HTMLAnchorElement>('[data-kw-weiter]')!;
+    if (Object.keys(z.missionen).length > 0) {
+      const zuletzt = Object.entries(z.missionen).sort((a, b) => (b[1].am ?? '').localeCompare(a[1].am ?? ''))[0]?.[0] ?? '';
+      const offen = (kid: string) => { const m = aktuelleMission(kid); return m.bereit && !z.missionen[m.id] ? m : undefined; };
+      const start = KAMPAGNEN.find((k) => zuletzt.startsWith(k.id.replace('lpic', 'l')))?.id ?? 'lpic1';
+      const reihe = [start, ...KAMPAGNEN.map((k) => k.id).filter((x) => x !== start)];
+      const kid = reihe.find((k) => offen(k));
+      const m = kid ? offen(kid)! : undefined;
+      const knr = KAMPAGNEN.find((k) => k.id === kid)?.nr;
+      weiter.textContent = m ? `Weiter mit ${knr === 1 ? '' : `Kampagne ${knr}, `}${m.nr}: ${m.titel}` : 'Fortschritt ansehen';
+      weiter.href = m ? url(`mission/${m.id}`) : url('fortschritt');
+      document.querySelector('[data-kw-weiter-info]')!.textContent = `${Object.keys(z.missionen).length} Missionen geschafft.`;
+    }
+    const n = Object.values(wiederholungen()).filter((e) => e.faellig <= heute()).length;
+    document.querySelector<HTMLElement>('[data-kw-wh]')!.hidden = n === 0;
+    KAMPAGNEN.forEach((k) => {
+      const el = document.querySelector<HTMLElement>(`[data-kk="${k.id}"]`);
+      if (!el) return;
+      const liste = missionenVon(k).filter((m) => m.bereit);
+      const fertig = liste.filter((m) => z.missionen[m.id]).length;
+      el.querySelector('[data-kk-stand]')!.textContent = liste.length === 0 ? 'In Arbeit: Lehrplan steht, Missionen folgen.' : fertig === 0 ? `${liste.length} Missionen spielbar` : `${fertig} von ${liste.length} spielbaren Missionen geschafft`;
+      const m = aktuelleMission(k.id);
+      el.querySelector('[data-kk-knopf]')!.textContent = liste.length === 0 ? 'Lehrplan ansehen' : fertig === 0 ? 'Kampagne ansehen' : m.bereit && !z.missionen[m.id] ? `Weiter mit ${m.nr}` : 'Kampagne ansehen';
+    });
+  }
+  zeigen();
+  beiAenderung(zeigen);
+</script>
+
+<style>
+  .held { padding-top: 3rem; padding-bottom: 1.5rem; }
+  .held h1 { max-width: 20ch; }
+  .einstieg { font-size: 1.15rem; max-width: 42rem; }
+  .leise-text { color: var(--leise); }
+  .weiter { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; margin: 1.6rem 0 2rem; }
+  .rangleiste { max-width: 24rem; }
+  .rang-zeile { display: flex; justify-content: space-between; gap: 1rem; margin-bottom: 0.4rem; font-size: 0.95rem; }
+  .balken { height: 8px; background: var(--tief); border-radius: 4px; overflow: hidden; border: 1px solid var(--flaeche); }
+  .balken span { display: block; height: 100%; width: 0; background: var(--akzent); transition: width 0.6s; }
+  .kampagnen { padding-top: 1rem; }
+  .raster { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); gap: 1.4rem; margin-top: 1.2rem; }
+  .kk { display: flex; flex-direction: column; padding: 1.2rem; border-radius: var(--radius); background: var(--flaeche-leicht); border: 1px solid var(--flaeche); color: var(--text); text-decoration: none; transition: border-color 0.2s; }
+  .kk:hover, .kk:focus-visible { border-color: var(--akzent); }
+  .kk h3 { margin: 0.1rem 0 0.4rem; font-size: 1.3rem; }
+  .kk-nr { color: var(--akzent-hell); font-weight: 700; font-size: 0.9rem; margin: 0; }
+  .kk-kurz { margin: 0 0 0.9rem; }
+  .kk-knopf { pointer-events: none; align-self: flex-start; margin-top: auto; }
+  .willkommen { padding-top: 1.5rem; }
+  .willkommen h2 { margin-top: 1rem; }
+</style>

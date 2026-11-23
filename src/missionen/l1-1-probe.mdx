@@ -1,0 +1,21 @@
+---
+id: l1-1-probe
+abzeichen: "Topic 101 bestanden"
+checks:
+  - id: probe
+---
+import Probe from '../components/Probe.astro';
+import Karte from '../components/Karte.astro';
+import Hinweis from '../components/Hinweis.astro';
+
+Topic 101 bringt in der echten Prüfung 101-500 ungefähr **8 von 60 Fragen**: 2 zu Hardware (101.1), je 3 zum Booten (101.2) und zu Runlevels und Herunterfahren (101.3). Diese Probe hat dieselbe Gewichtung, nur mit dreimal so vielen Fragen. **Deine Mission: Bestehe die Probeprüfung mit mindestens 80 %.**
+
+<Karte nr={1} titel="So läuft die Probe">
+Kein Spickzettel, keine Erklärungen zwischendurch. Arbeite in deinem Tempo, aber behalte die Zeit im Blick: In der echten Prüfung hast du im Schnitt 90 Sekunden pro Frage. Bist du dir bei einer Frage unsicher, markiere sie und mach weiter. Am Ende siehst du, welche Lernziele sitzen und welche nicht. Jede Frage, die du falsch beantwortest, kommt ab morgen in deine Wiederholung.
+</Karte>
+
+<Hinweis titel="Nicht bestanden?">
+Das ist keine Niederlage, sondern eine Messung. Die Auswertung zeigt dir das schwächste Lernziel. Geh die Mission dazu noch einmal durch, mach ein, zwei Tage deine Wiederholung und versuch dann eine neue Probe. Die Fragen werden jedes Mal neu gezogen.
+</Hinweis>
+
+<Probe id="probe" titel="Probeprüfung: Topic 101" ziele={['101.1', '101.2', '101.3']} anzahl={24} />

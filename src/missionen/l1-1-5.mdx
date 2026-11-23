@@ -1,0 +1,161 @@
+---
+id: l1-1-5
+checks:
+  - id: k1
+  - id: param
+  - id: k2
+  - id: logs
+  - id: k3
+  - id: labor
+    hardware: true
+spick:
+  - t: "GRUB-Eintrag ändern"
+    v: "e, dann Strg+X oder F10 zum Starten"
+  - t: "Rettungsmodus"
+    v: "systemd.unit=rescue.target, single, 1"
+  - t: "Notfallmodus"
+    v: "systemd.unit=emergency.target, emergency"
+  - t: "Shell statt init"
+    v: "init=/bin/bash"
+  - t: "Modul beim Start sperren"
+    v: "modprobe.blacklist=name"
+  - t: "Aktuelle Parameter"
+    v: "cat /proc/cmdline"
+  - t: "Kernelmeldungen"
+    v: "dmesg (unter Debian mit sudo), journalctl -k"
+  - t: "Journal"
+    v: "journalctl -b, -b -1, --list-boots, -p err"
+karten:
+  - f: "Mit welcher Taste bearbeitest du im GRUB-Menü einen Eintrag für diesen einen Start?"
+    a: ["e"]
+  - f: "Welcher Kernelparameter startet systemd in den Rettungsmodus? (die lange Form)"
+    a: ["systemd.unit=rescue.target"]
+  - f: "Welcher Kernelparameter startet statt init direkt eine Bash?"
+    a: ["init=/bin/bash"]
+  - f: "In welcher Datei stehen die Kernelparameter des laufenden Systems?"
+    a: ["/proc/cmdline"]
+  - f: "Welcher Befehl zeigt den Ringpuffer des Kernels?"
+    a: ["dmesg"]
+  - f: "Mit welcher Option zeigt journalctl nur den aktuellen Start?"
+    a: ["-b", "--boot"]
+  - f: "Mit welchem Befehl siehst du die Meldungen des vorigen Starts? (journalctl mit Optionen)"
+    a: ["journalctl -b -1"]
+  - f: "Welcher Befehl listet alle Starts, die im Journal gespeichert sind?"
+    a: ["journalctl --list-boots"]
+  - f: "Mit welchem Kernelparameter sperrst du ein Modul für einen einzigen Start?"
+    a: ["modprobe.blacklist=name", "modprobe.blacklist="]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Zuordnung from '../components/Zuordnung.astro';
+import Labor from '../components/Labor.astro';
+
+Manchmal startet ein System nicht mehr richtig: Ein Treiber hängt, ein Dienst blockiert, das Root-Passwort ist vergessen. Dann gibst du dem Kernel beim Start eine Anweisung mit und liest danach nach, was passiert ist. **Deine Mission: Setze Kernelparameter und lies die Bootmeldungen.** Lernziel 101.2.
+
+## Kernelparameter
+
+<Karte nr={1} titel="Im GRUB-Menü eingreifen">
+Erscheint das GRUB-Menü, markierst du einen Eintrag und drückst **e**. Du siehst dann die Befehle, mit denen GRUB startet, darunter eine Zeile, die mit `linux` beginnt:
+
+```
+linux /boot/vmlinuz-6.1.0-27-amd64 root=UUID=3f1c… ro quiet
+```
+
+Alles hinter dem Kernel sind **Kernelparameter**. Du hängst etwas an, etwa `systemd.unit=rescue.target`, und startest mit **Strg+X** oder **F10**. Die Änderung gilt **nur für diesen einen Start**. Dauerhaft ändert man Parameter in `/etc/default/grub` und erzeugt danach die Konfiguration neu. Das kommt in Akt 2.
+
+Taucht das Menü gar nicht auf, hilft es oft, beim Start die **Umschalttaste** (BIOS) oder **Esc** (UEFI) gedrückt zu halten.
+</Karte>
+
+<Merke>e im GRUB-Menü, Parameter an die linux-Zeile, Strg+X. Gilt nur für diesen Start.</Merke>
+
+<Karte nr={2} titel="Die wichtigsten Parameter">
+| Parameter | Wirkung |
+| --- | --- |
+| `ro` / `rw` | Wurzeldateisystem erst nur lesbar (später wird es meist beschreibbar eingehängt) oder gleich beschreibbar |
+| `root=` | wo das Wurzeldateisystem liegt |
+| `quiet` | weniger Meldungen auf dem Bildschirm |
+| `systemd.unit=rescue.target` | Rettungsmodus. Kurzformen: `rescue`, `single`, `s`, `S` oder `1` |
+| `systemd.unit=emergency.target` | Notfallmodus, noch weniger. Kurzform: `emergency` |
+| `3` oder `5` | in den alten Runlevel 3 oder 5 starten (systemd übersetzt das) |
+| `init=/bin/bash` | statt des Init-Systems direkt eine Shell als PID 1 |
+| `modprobe.blacklist=name` | ein Modul für diesen Start sperren |
+| `modul.parameter=wert` | einem fest eingebauten oder geladenen Modul einen Parameter mitgeben |
+
+Welche Parameter das laufende System bekommen hat, steht in **/proc/cmdline**.
+</Karte>
+
+<Merke>/proc/cmdline zeigt die Parameter, mit denen das laufende System gestartet wurde.</Merke>
+
+<Hinweis art="sicherheit" titel="init=/bin/bash">
+Mit init=/bin/bash bekommt jeder, der am Rechner sitzt, eine Root-Shell, ganz ohne Passwort. So setzt man ein vergessenes Root-Passwort zurück. Es zeigt aber auch: Wer physischen Zugang zum Rechner hat, hat ihn ohne weiteren Schutz (Passwort für GRUB, verschlüsselte Platte) praktisch übernommen. Mehr dazu in Topic 110.
+</Hinweis>
+
+<Quiz id="k1" titel="Kurzcheck: Parameter" fragen={[
+  { frage: 'Ein grafischer Treiber hängt beim Start. Wie startest du einmalig in den Textmodus?', richtig: 'Im GRUB-Menü mit e an die linux-Zeile „systemd.unit=multi-user.target“ anhängen und mit Strg+X starten', falsch: ['In /etc/default/grub „text“ eintragen und neu starten', 'Im GRUB-Menü c drücken und „reboot text“ tippen'], erklaerung: 'Für einen einzigen Start bearbeitest du den Eintrag mit e. multi-user.target ist der Textmodus mit allen Diensten.' },
+  { frage: 'Wie prüfst du nach dem Start, ob dein Parameter wirklich angekommen ist?', richtig: 'cat /proc/cmdline', falsch: ['cat /etc/default/grub', 'uname -r'], erklaerung: '/etc/default/grub zeigt nur die dauerhafte Einstellung, nicht das, was beim aktuellen Start wirklich übergeben wurde.' },
+]} />
+
+<Zuordnung id="param" titel="Zuordnung: Welcher Parameter?" aufgabe="Was hängst du an die linux-Zeile, um das jeweilige Ziel zu erreichen?"
+  paare={[
+    { links: 'Rettungsmodus (Einzelbenutzer)', rechts: 'systemd.unit=rescue.target' },
+    { links: 'Notfallmodus, fast nichts gestartet', rechts: 'emergency' },
+    { links: 'Root-Shell statt Init-System', rechts: 'init=/bin/bash' },
+    { links: 'Der Treiber nouveau soll diesmal nicht laden', rechts: 'modprobe.blacklist=nouveau' },
+    { links: 'Alle Meldungen beim Start sehen', rechts: 'quiet entfernen' },
+  ]}
+  extra={['runlevel=rescue', 'init=rescue', 'blacklist nouveau', 'verbose']} />
+
+## Bootmeldungen lesen
+
+<Karte nr={3} titel="dmesg: der Ringpuffer">
+Alles, was der Kernel meldet, schreibt er in einen Speicherbereich fester Größe, den **Ringpuffer**. Ist er voll, überschreiben neue Meldungen die ältesten. `dmesg` gibt ihn aus. Nützliche Optionen: `-T` zeigt die Uhrzeit statt Sekunden seit dem Start, `-H` macht die Ausgabe lesbarer, `-l err,warn` zeigt nur Fehler und Warnungen, `-w` wartet auf neue Meldungen.
+
+Debian und Ubuntu erlauben das Lesen des Ringpuffers nur root. Als normaler Benutzer kommt dann „dmesg: read kernel buffer failed: Operation not permitted“. Mit `sudo dmesg` geht es.
+</Karte>
+
+<Karte nr={4} titel="journalctl: das Journal von systemd">
+systemd sammelt die Meldungen von Kernel **und** Diensten im **Journal**. `journalctl` liest es:
+
+| Befehl | Zeigt |
+| --- | --- |
+| `journalctl -b` | alles seit dem aktuellen Start |
+| `journalctl -b -1` | den vorigen Start |
+| `journalctl --list-boots` | alle gespeicherten Starts |
+| `journalctl -k` | nur Kernelmeldungen, wie dmesg |
+| `journalctl -p err` | nur Fehler und Schlimmeres |
+| `journalctl -u ssh` | nur eine Unit |
+
+Den vorigen Start gibt es nur, wenn das Journal **dauerhaft** gespeichert wird, also im Verzeichnis `/var/log/journal`. Sonst liegt es nur im Arbeitsspeicher und ist nach dem Neustart weg. Auf manchen Systemen stehen Bootmeldungen außerdem klassisch in `/var/log/boot.log` oder `/var/log/messages`.
+</Karte>
+
+<Merke>dmesg = Kernel jetzt. journalctl -b = Kernel und Dienste seit dem Start, -b -1 = voriger Start.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: Logs" fragen={[
+  { frage: 'Der Server ist heute Nacht abgestürzt und neu gestartet. Wo findest du die Meldungen von kurz vor dem Absturz?', richtig: 'journalctl -b -1', falsch: ['dmesg', 'journalctl -b'], erklaerung: 'dmesg und journalctl -b zeigen nur den aktuellen Start. Der vorige ist -b -1, wenn das Journal dauerhaft gespeichert wird.' },
+  { frage: 'Als normaler Benutzer meldet dmesg „Operation not permitted“. Was tust du?', richtig: 'sudo dmesg', falsch: ['dmesg -f', 'Den Rechner neu starten'], erklaerung: 'Viele Distributionen beschränken den Ringpuffer auf root (kernel.dmesg_restrict).' },
+]} />
+
+<Terminal id="logs" titel="Terminal: Was ist beim Start passiert?" aufgaben={[
+  { text: 'Lass dir anzeigen, mit welchen Kernelparametern der Rechner gestartet ist.', befehl: '^cat /proc/cmdline$', frage: 'Welcher Parameter sorgt dafür, dass beim Start wenig Text erscheint?', antwort: ['quiet'] },
+  { text: 'Lies den Ringpuffer des Kernels. Ohne sudo klappt es nicht.', befehl: '^dmesg', },
+  { text: 'Zeig nur Fehler und Warnungen des Kernels.', befehl: '^dmesg (-l|--level)[ =]?(err,warn|warn,err)', frage: 'Auf welcher Partition meldet der Kernel ein Problem mit dem Dateisystem? (z. B. nvme0n1p2)', antwort: ['sda1'] },
+  { text: 'Lass dir alle gespeicherten Starts auflisten.', befehl: '^journalctl --list-boots$' },
+  { text: 'Zeig nur die Fehler des aktuellen Starts aus dem Journal.', befehl: '^journalctl(?=.*-b)(?=.*(-p|--priority)[ =]?err)', frage: 'Welcher Dienst ist beim Start fehlgeschlagen? (Name ohne .service)', antwort: ['smartd'] },
+  { text: 'Schau dir die letzten Zeilen des <strong>vorigen</strong> Starts an.', befehl: '^journalctl -b -1', frage: 'In welches Target ist das System am Ende des vorigen Starts gegangen?', antwort: ['poweroff.target', 'poweroff'] },
+]} />
+
+<Quiz id="k3" titel="Kurzcheck: Werkzeug wählen" fragen={[
+  { frage: 'Du willst live sehen, welche Meldungen der Kernel ausgibt, während du einen USB-Stick einsteckst. Welcher Befehl?', richtig: 'sudo dmesg -w', falsch: ['journalctl --list-boots', 'cat /proc/cmdline'], erklaerung: '-w (follow) wartet auf neue Meldungen. journalctl -f oder journalctl -kf gehen auch.' },
+]} />
+
+## Und in deinem Labor?
+
+<Labor id="labor" titel="Aufgabe im Labor: Deine Starts"
+  aufgabe="Führe in deiner Debian-VM diesen Befehl aus. Siehst du nur einen Start (Nummer 0), wird das Journal nicht dauerhaft gespeichert. Das kannst du mit „sudo mkdir -p /var/log/journal“ und einem Neustart ändern, dann sammelt deine VM ab jetzt alle Starts."
+  befehl="journalctl --list-boots"
+  muster={['^\\s*0\\s+[0-9a-f]{32}']}
+  hilfe={[{ wenn: '^\\s*-1\\s+[0-9a-f]{32}', text: 'Dein Journal wird dauerhaft gespeichert, du siehst auch frühere Starts.' }]}
+  erfolg="Das sind deine Starts." />

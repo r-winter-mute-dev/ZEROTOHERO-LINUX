@@ -1,0 +1,176 @@
+---
+id: l1-1-6
+checks:
+  - id: k1
+  - id: zuordnen
+  - id: k2
+  - id: targets
+  - id: k3
+  - id: labor
+    hardware: true
+spick:
+  - t: "Runlevel 0 / 6"
+    v: "ausschalten / neu starten"
+  - t: "Runlevel 1 (S)"
+    v: "Einzelbenutzer = rescue.target"
+  - t: "Runlevel 3"
+    v: "Text, Netz = multi-user.target"
+  - t: "Runlevel 5"
+    v: "grafisch = graphical.target"
+  - t: "SysV: Standard"
+    v: "/etc/inittab, id:3:initdefault:"
+  - t: "SysV: jetzt wechseln"
+    v: "telinit 3 oder init 3"
+  - t: "systemd: Standard"
+    v: "systemctl get-default / set-default"
+  - t: "systemd: jetzt wechseln"
+    v: "systemctl isolate multi-user.target"
+  - t: "Wo bin ich?"
+    v: "runlevel, who -r"
+karten:
+  - f: "Welcher SysV-Runlevel startet das System neu?"
+    a: ["6"]
+  - f: "Welcher SysV-Runlevel schaltet das System aus?"
+    a: ["0"]
+  - f: "Welches systemd-Target entspricht Runlevel 5?"
+    a: ["graphical.target"]
+  - f: "Welches systemd-Target entspricht Runlevel 3?"
+    a: ["multi-user.target"]
+  - f: "Welches systemd-Target entspricht dem Einzelbenutzermodus (Runlevel 1)?"
+    a: ["rescue.target"]
+  - f: "Welcher Befehl zeigt das Standard-Target?"
+    a: ["systemctl get-default"]
+  - f: "Wie setzt du den Textmodus als Standard für alle künftigen Starts? (vollständiger Befehl)"
+    a: ["systemctl set-default multi-user.target", "sudo systemctl set-default multi-user.target"]
+  - f: "Wie wechselst du unter systemd sofort in den Textmodus? (vollständiger Befehl)"
+    a: ["systemctl isolate multi-user.target", "sudo systemctl isolate multi-user.target"]
+  - f: "In welcher Datei legt SysVinit den Standard-Runlevel fest?"
+    a: ["/etc/inittab"]
+  - f: "Wie sieht die Zeile für Standard-Runlevel 3 in /etc/inittab aus?"
+    a: ["id:3:initdefault:"]
+  - f: "Wohin gehören Unit-Dateien, die der Administrator anlegt oder überschreibt?"
+    a: ["/etc/systemd/system", "/etc/systemd/system/"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Zuordnung from '../components/Zuordnung.astro';
+import Labor from '../components/Labor.astro';
+
+Ein Server braucht keine grafische Oberfläche, ein Laptop schon. Für eine Reparatur willst du ein System, auf dem fast nichts läuft. Dafür gibt es Betriebsarten: **Runlevel** bei SysVinit, **Targets** bei systemd. **Deine Mission: Wechsle zwischen ihnen und lege den Standard fest.** Lernziel 101.3. Die Prüfung fragt beide Welten ab.
+
+## Die alte Welt: Runlevel
+
+<Karte nr={1} titel="Sieben Runlevel">
+SysVinit kennt sieben **Runlevel**, durchnummeriert von 0 bis 6:
+
+| Runlevel | Bedeutung |
+| --- | --- |
+| 0 | System ausschalten (halt) |
+| 1 (auch S oder s) | Einzelbenutzermodus für Wartung, ohne Netzwerk |
+| 2 | Mehrbenutzer, bei Red Hat ohne Netzwerkfreigaben, bei Debian alles |
+| 3 | Mehrbenutzer mit Netzwerk, Textmodus |
+| 4 | frei für eigene Zwecke |
+| 5 | wie 3, dazu die grafische Anmeldung |
+| 6 | Neustart (reboot) |
+
+Die Bedeutung von 0, 1 und 6 ist überall gleich. Bei 2 bis 5 weichen Distributionen voneinander ab. Für die Prüfung gilt die Red-Hat-Lesart oben.
+</Karte>
+
+<Karte nr={2} titel="Einstellen und wechseln unter SysVinit">
+Der Standard-Runlevel steht in **/etc/inittab**, in einer Zeile wie dieser:
+
+```
+id:3:initdefault:
+```
+
+Sofort wechseln geht mit **telinit 3** oder **init 3**. Welcher Runlevel gerade aktiv ist, zeigt **runlevel**: Die Ausgabe `N 3` heißt „vorher keiner (N), jetzt 3“. `who -r` zeigt dasselbe mit Uhrzeit. Die Startskripte liegen in `/etc/init.d`, und Links in `/etc/rc0.d` bis `/etc/rc6.d` legen fest, welche Skripte in welchem Runlevel starten (S) oder stoppen (K).
+</Karte>
+
+<Merke>/etc/inittab legt den Standard fest, telinit wechselt, runlevel zeigt „vorher jetzt“.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: Runlevel" fragen={[
+  { frage: 'Der Befehl runlevel gibt „3 5“ aus. Was bedeutet das?', richtig: 'Vorher war Runlevel 3, jetzt ist es 5.', falsch: ['Es laufen Runlevel 3 und 5 gleichzeitig.', 'Das System hat drei Benutzer und fünf Dienste.'], erklaerung: 'Erst der vorige, dann der aktuelle Runlevel.' },
+  { frage: 'Welche Zeile in /etc/inittab lässt ein SysVinit-System im Textmodus mit Netzwerk starten?', richtig: 'id:3:initdefault:', falsch: ['id:5:initdefault:', 'default:3'], erklaerung: 'Das Feld zwischen den ersten beiden Doppelpunkten ist der Runlevel.' },
+]} />
+
+## Die neue Welt: Targets
+
+<Karte nr={3} titel="Targets statt Runlevel">
+systemd kennt keine Runlevel, sondern **Targets**: Gruppen von Units, die zusammen einen Zustand ergeben. Für die Runlevel gibt es Entsprechungen und sogar Aliase mit den alten Namen:
+
+| Runlevel | Target | Alias |
+| --- | --- | --- |
+| 0 | `poweroff.target` | `runlevel0.target` |
+| 1 | `rescue.target` | `runlevel1.target` |
+| 3 | `multi-user.target` | `runlevel3.target` (auch 2 und 4) |
+| 5 | `graphical.target` | `runlevel5.target` |
+| 6 | `reboot.target` | `runlevel6.target` |
+
+Dazu kommt `emergency.target`: noch weniger als rescue, nur eine Shell, das Wurzeldateisystem bleibt meist nur lesbar eingehängt.
+</Karte>
+
+<Merke>1 = rescue, 3 = multi-user, 5 = graphical, 0 = poweroff, 6 = reboot.</Merke>
+
+<Zuordnung id="zuordnen" titel="Zuordnung: Runlevel und Targets" aufgabe="Welches Target entspricht dem jeweiligen Runlevel?"
+  paare={[
+    { links: 'Runlevel 0', rechts: 'poweroff.target' },
+    { links: 'Runlevel 1', rechts: 'rescue.target' },
+    { links: 'Runlevel 3', rechts: 'multi-user.target' },
+    { links: 'Runlevel 5', rechts: 'graphical.target' },
+    { links: 'Runlevel 6', rechts: 'reboot.target' },
+  ]}
+  extra={['emergency.target', 'default.target', 'single.target']} />
+
+<Karte nr={4} titel="Den Standard festlegen">
+Mit welchem Target das System startet, bestimmt der Link **default.target**. Du liest ihn mit `systemctl get-default` und setzt ihn mit `systemctl set-default`:
+
+```
+$ sudo systemctl set-default multi-user.target
+Removed "/etc/systemd/system/default.target".
+Created symlink /etc/systemd/system/default.target → /usr/lib/systemd/system/multi-user.target.
+```
+
+Hier siehst du auch die zwei wichtigen Orte für Units: In **/usr/lib/systemd/system/** liegen die Units aus den Paketen. Was der Administrator anlegt oder überschreibt, gehört nach **/etc/systemd/system/**. Dort hat es Vorrang und übersteht Updates.
+</Karte>
+
+<Karte nr={5} titel="Jetzt sofort wechseln">
+`systemctl isolate multi-user.target` wechselt **sofort**: Es startet alles, was das Ziel braucht, und **stoppt alles andere**, auch deine grafische Sitzung. Das geht nur mit Targets, in deren Unit-Datei `AllowIsolate=yes` steht. Für die häufigsten Fälle gibt es Kurzbefehle: `systemctl rescue`, `systemctl emergency` und `systemctl default` (zurück ins Standard-Target). Auch `telinit 3` funktioniert unter systemd noch: Es wird in den passenden Target-Wechsel übersetzt.
+</Karte>
+
+<Merke>set-default ändert den nächsten Start, isolate wechselt jetzt. Eigene Units nach /etc/systemd/system.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: Targets" fragen={[
+  { frage: 'Du willst, dass der Server ab sofort immer ohne grafische Oberfläche startet, aber jetzt erst einmal weiterarbeiten. Welcher Befehl?', richtig: 'sudo systemctl set-default multi-user.target', falsch: ['sudo systemctl isolate multi-user.target', 'sudo telinit 3'], erklaerung: 'isolate und telinit wechseln sofort und ändern den Standard nicht.' },
+  { frage: 'Wo legst du eine eigene, angepasste Version einer Unit ab, damit ein Paket-Update sie nicht überschreibt?', richtig: '/etc/systemd/system/', falsch: ['/usr/lib/systemd/system/', '/proc/systemd/'], erklaerung: 'Units in /etc/systemd/system haben Vorrang vor denen in /usr/lib/systemd/system.' },
+]} />
+
+<Terminal id="targets" titel="Terminal: Wechseln und festlegen" aufgaben={[
+  { text: 'Finde heraus, mit welchem Target der Rechner standardmäßig startet.', befehl: '^systemctl get-default$', frage: 'Welches ist es?', antwort: ['graphical.target'] },
+  { text: 'Zeig den aktuellen Runlevel an.', befehl: '^(runlevel|who -r)$' },
+  { text: 'Schau in der Unit-Datei nach, ob man rescue.target mit isolate erreichen darf.', befehl: '^(cat|grep).*/usr/lib/systemd/system/rescue\\.target', frage: 'Welche Zeile erlaubt das? (Schlüssel=Wert)', antwort: ['AllowIsolate=yes'] },
+  { text: 'Wechsle sofort in den Rettungsmodus und prüf danach mit runlevel, was sich geändert hat.', zustand: 'target=rescue.target', frage: 'Was zeigt runlevel jetzt an?', antwort: ['5 1'] },
+  { text: 'Lege fest, dass der Rechner künftig im Textmodus startet.', zustand: 'default=multi-user.target' },
+  { text: 'Prüf mit <code>ls -l /etc/systemd/system/default.target</code>, wohin der Link jetzt zeigt.', befehl: '^ls -l /etc/systemd/system/default\\.target$' },
+  { text: 'Kehr mit einem Kurzbefehl ins Standard-Target zurück.', befehl: '^systemctl default$', zustand: 'target=multi-user.target' },
+]} />
+
+<Hinweis titel="Prüfungstipp">
+Die Prüfung mischt gern die Welten: „Welcher Befehl wechselt in Runlevel 3?“ Unter SysVinit sind das telinit 3 und init 3, unter systemd systemctl isolate multi-user.target. Und runlevel funktioniert auf beiden.
+</Hinweis>
+
+<Quiz id="k3" titel="Kurzcheck: Gemischt" fragen={[
+  { frage: 'Welcher Befehl bringt ein systemd-System sofort in den Einzelbenutzermodus?', richtig: 'systemctl rescue', falsch: ['systemctl single', 'systemctl get-default rescue'], erklaerung: 'systemctl rescue ist gleichbedeutend mit systemctl isolate rescue.target.' },
+  { frage: 'Was macht systemctl isolate graphical.target mit Diensten, die nicht zu graphical.target gehören?', richtig: 'Es stoppt sie.', falsch: ['Es lässt sie unverändert laufen.', 'Es startet sie zusätzlich.'], erklaerung: 'Genau das unterscheidet isolate von start.' },
+]} />
+
+## Und in deinem Labor?
+
+<Labor id="labor" titel="Aufgabe im Labor: Dein Standard"
+  aufgabe="Führe in deiner Debian-VM alle drei Befehle aus (in einer Zeile) und füge die Ausgabe ein. Wer mag, probiert danach in der VM „sudo systemctl isolate multi-user.target“ aus: Die Oberfläche verschwindet, du meldest dich im Textmodus an und kommst mit „sudo systemctl isolate graphical.target“ zurück."
+  befehl="systemctl get-default; runlevel; who -r"
+  muster={['^[\\w-]+\\.target$', '^[N0-6S] [0-6S]$', 'run-level [0-6S]']}
+  hilfe={[{ wenn: '^graphical\\.target$', text: 'Deine VM startet grafisch, wie erwartet mit Xfce.' }, { wenn: '^multi-user\\.target$', text: 'Deine VM startet im Textmodus.' }]}
+  erfolg="Passt." />

@@ -1,0 +1,169 @@
+---
+id: l1-1-1
+checks:
+  - id: k1
+  - id: pci
+  - id: k2
+  - id: usb
+  - id: k3
+  - id: res
+  - id: k4
+  - id: labor
+    hardware: true
+spick:
+  - t: "PCI-Geräte"
+    v: "lspci"
+  - t: "… mit Treiber"
+    v: "lspci -k"
+  - t: "… mit IDs"
+    v: "lspci -nn"
+  - t: "Ein Gerät"
+    v: "lspci -s 00:1f.6"
+  - t: "USB-Geräte"
+    v: "lsusb, als Baum: lsusb -t"
+  - t: "Ressourcen"
+    v: "/proc/interrupts, /proc/ioports, /proc/dma"
+karten:
+  - f: "Welcher Befehl zeigt zu jedem PCI-Gerät den Kerneltreiber?"
+    a: ["lspci -k"]
+  - f: "Welcher Befehl zeigt PCI-Geräte mit Namen und Hersteller:Geräte-ID?"
+    a: ["lspci -nn"]
+  - f: "Welcher Befehl zeigt USB-Geräte als Baum mit Treiber und Geschwindigkeit?"
+    a: ["lsusb -t"]
+  - f: "In welcher Datei stehen die Interrupts (IRQs) der Geräte?"
+    a: ["/proc/interrupts"]
+  - f: "In welcher Datei stehen die belegten I/O-Port-Bereiche?"
+    a: ["/proc/ioports"]
+  - f: "Was bedeutet 00:1f.6 am Anfang einer Zeile von lspci?"
+    a: ["Bus 00, Gerät 1f, Funktion 6"]
+    aufdecken: true
+  - f: "Wo deaktivierst du ein eingebautes Gerät so, dass Linux es gar nicht mehr sieht?"
+    a: ["Im Firmware-Setup (BIOS/UEFI)"]
+    aufdecken: true
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+
+Bevor du ein System verwalten kannst, musst du wissen, was drinsteckt: Welche Netzwerkkarte? Welcher Speicher? Hat Linux für alles einen Treiber? **Deine Mission: Finde heraus, welche Hardware im Rechner „werkstatt“ steckt und welcher Treiber sie steuert.** Lernziel 101.1.
+
+## Geräte im Inneren: PCI
+
+<Karte nr={1} titel="Der Bus und seine Geräte">
+Fast alles, was fest im Rechner steckt, hängt am **PCI-Bus** (heute in der schnellen Variante PCI Express): Grafik, Netzwerk, SSD, Sound, der USB-Controller. Jedes Gerät meldet beim Start eine **Hersteller-ID** und eine **Geräte-ID**, zum Beispiel `8086:15bc`. 8086 steht für Intel. An diesen Nummern erkennt der Kernel, welcher Treiber passt.
+
+`lspci` zeigt eine Zeile pro Gerät:
+
+```
+00:1f.6 Ethernet controller: Intel Corporation Ethernet Connection (7) I219-V (rev 10)
+```
+
+Vorne steht die Adresse: **Bus 00, Gerät 1f, Funktion 6**. Danach die Geräteklasse und der Name.
+</Karte>
+
+<Merke>lspci listet alle PCI-Geräte. Vorne steht die Adresse Bus:Gerät.Funktion.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: PCI" fragen={[
+  { frage: 'Woran erkennt der Kernel, welcher Treiber zu einem PCI-Gerät passt?', richtig: 'An der Hersteller- und Geräte-ID, die das Gerät meldet', falsch: ['Am Namen, den der Hersteller auf die Platine druckt', 'An der Reihenfolge, in der die Geräte stecken'], erklaerung: 'Jeder Treiber bringt eine Liste von IDs mit, die er unterstützt.' },
+]} />
+
+<Karte nr={2} titel="Wer steuert das Gerät?">
+Mit `-k` zeigt lspci zu jedem Gerät den **Treiber, der es gerade steuert** (Kernel driver in use), und die **Module, die es steuern könnten** (Kernel modules). Mit `-nn` siehst du zusätzlich die IDs in eckigen Klammern. Mit `-s` beschränkst du die Ausgabe auf ein einziges Gerät:
+
+```
+$ lspci -k -s 00:1f.6
+00:1f.6 Ethernet controller: Intel Corporation Ethernet Connection (7) I219-V (rev 10)
+	Kernel driver in use: e1000e
+	Kernel modules: e1000e
+```
+
+Fehlt die Zeile „Kernel driver in use“, hat Linux für dieses Gerät gerade keinen Treiber geladen. Das ist der erste Blick, wenn ein Gerät nicht funktioniert.
+</Karte>
+
+<Merke>lspci -k zeigt den Treiber. Fehlt „Kernel driver in use“, arbeitet das Gerät nicht.</Merke>
+
+<Terminal id="pci" titel="Terminal: PCI-Geräte" aufgaben={[
+  { text: 'Lass dir alle PCI-Geräte anzeigen.', befehl: '^lspci$' },
+  { text: 'Lass dir zu allen Geräten die Treiber anzeigen.', befehl: '^lspci( -\\w+)* -\\w*k|^lspci -\\w*k', frage: 'Welcher Treiber steuert die WLAN-Karte (Network controller)?', antwort: ['iwlwifi'] },
+  { text: 'Lass dir die Hersteller- und Geräte-IDs anzeigen.', befehl: '^lspci.* -\\w*nn|^lspci -nn', frage: 'Welche ID hat die NVMe-SSD? (Format hhhh:hhhh)', antwort: ['144d:a808'] },
+  { text: 'Zeig nur das Gerät mit der Adresse <code>00:1f.3</code>, mit Treiber.', befehl: '^lspci(?=.*-\\w*k)(?=.*-s 00:1f\\.3)', frage: 'Was für ein Gerät ist das, und welcher Treiber steuert es? (nur der Treiber)', antwort: ['snd_hda_intel'] },
+]} />
+
+## Geräte von außen: USB
+
+<Karte nr={3} titel="lsusb">
+Was du einsteckst, hängt meist am **USB**. `lsusb` zeigt eine Zeile pro Gerät mit Bus, Gerätenummer und der ID Hersteller:Produkt:
+
+```
+Bus 001 Device 003: ID 0781:5583 SanDisk Corp. Ultra Fit
+```
+
+Den Treiber verrät `lsusb` in dieser Form nicht. Dafür gibt es `lsusb -t`: Es zeigt die Geräte als **Baum**, so wie sie an den Anschlüssen hängen, mit Geräteklasse, Treiber und Geschwindigkeit. Mit `-v` bekommst du sehr ausführliche Angaben, mit `-s Bus:Gerät` oder `-d Hersteller:Produkt` nur ein bestimmtes Gerät.
+</Karte>
+
+<Merke>lsusb listet USB-Geräte, lsusb -t zeigt sie als Baum mit Treiber.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: USB" fragen={[
+  { frage: 'Du willst wissen, welcher Treiber deinen USB-Stick bedient. Welcher Befehl hilft?', richtig: 'lsusb -t', falsch: ['lsusb -k', 'lspci -k'], erklaerung: 'lsusb hat kein -k. Der Baum von lsusb -t zeigt den Treiber pro Schnittstelle (Driver=...).' },
+]} />
+
+<Terminal id="usb" titel="Terminal: USB-Geräte" aufgaben={[
+  { text: 'Lass dir alle USB-Geräte anzeigen.', befehl: '^lsusb$', frage: 'Welche Hersteller-ID hat der USB-Stick von SanDisk?', antwort: ['0781'] },
+  { text: 'Lass dir die USB-Geräte als Baum anzeigen.', befehl: '^lsusb -t$', frage: 'Welcher Treiber bedient die Webcam (Class=Video)?', antwort: ['uvcvideo'] },
+  { text: 'Zeig nur das Gerät mit der ID <code>046d:0825</code>.', befehl: '^lsusb -d 046d:0825$' },
+]} />
+
+## Ressourcen: IRQ, I/O-Ports, DMA
+
+<Karte nr={4} titel="Wie Geräte mit dem Prozessor reden">
+Damit ein Gerät dem Prozessor etwas mitteilen kann, bekommt es **Ressourcen**:
+
+- einen **Interrupt (IRQ)**: Das Gerät „klopft an“, wenn es Daten hat.
+- **I/O-Ports** oder Speicherbereiche, über die Daten ausgetauscht werden.
+- bei manchen alten Geräten einen **DMA-Kanal** für direkten Speicherzugriff.
+
+Heute verteilen Firmware und Kernel das automatisch. Nachschauen kannst du es in drei Dateien, die der Kernel bereitstellt: `/proc/interrupts`, `/proc/ioports` und `/proc/dma`.
+</Karte>
+
+<Merke>/proc/interrupts, /proc/ioports und /proc/dma zeigen, welches Gerät welche Ressourcen hat.</Merke>
+
+<Quiz id="k3" titel="Kurzcheck: Ressourcen" fragen={[
+  { frage: 'Ein Kollege fragt, wie oft die Netzwerkkarte seit dem Start einen Interrupt ausgelöst hat. Wo schaust du?', richtig: '/proc/interrupts', falsch: ['/proc/ioports', '/etc/interrupts'], erklaerung: '/proc/interrupts zählt pro IRQ und pro CPU-Kern mit.' },
+]} />
+
+<Terminal id="res" titel="Terminal: Ressourcen" aufgaben={[
+  { text: 'Lass dir die Interrupts anzeigen.', befehl: '^cat /proc/interrupts', frage: 'Welche IRQ-Nummer hat die Netzwerkschnittstelle enp0s31f6?', antwort: ['125'] },
+  { text: 'Lass dir die I/O-Ports anzeigen.', befehl: '^cat /proc/ioports', frage: 'Welcher Treiber belegt den Bereich f060-f07f?', antwort: ['ahci'] },
+  { text: 'Lass dir die DMA-Kanäle anzeigen.', befehl: '^cat /proc/dma' },
+]} />
+
+## Geräte ein- und ausschalten
+
+<Karte nr={5} titel="Im Firmware-Setup">
+Eingebaute Geräte wie Onboard-Sound, WLAN oder serielle Schnittstellen lassen sich im **Firmware-Setup** (BIOS oder UEFI) abschalten. Dorthin kommst du beim Einschalten mit einer Taste wie Entf, F2 oder F10, je nach Hersteller. Ein dort abgeschaltetes Gerät meldet sich gar nicht mehr am Bus. Linux sieht es nicht, `lspci` zeigt es nicht, und kein Treiber wird geladen.
+
+Ist ein Gerät dagegen nur „kaputt konfiguriert“, taucht es in `lspci` auf, aber ohne „Kernel driver in use“. Wie du einen Treiber von Hand lädst oder sperrst, lernst du in Mission 1.3.
+</Karte>
+
+<Merke>Im Firmware-Setup abgeschaltet heißt: unsichtbar für Linux. Sichtbar, aber ohne Treiber, heißt: ein Fall für die Kernelmodule.</Merke>
+
+<Quiz id="k4" titel="Kurzcheck: Ein und aus" fragen={[
+  { frage: 'Nach einem Hardware-Tausch fehlt die Soundkarte komplett in der Ausgabe von lspci. Was prüfst du zuerst?', richtig: 'Ob sie im Firmware-Setup (BIOS/UEFI) abgeschaltet ist', falsch: ['Ob der Treiber in /etc/modprobe.d gesperrt ist', 'Ob der Lautsprecher angeschlossen ist'], erklaerung: 'Ein gesperrter Treiber würde das Gerät nicht aus lspci verschwinden lassen, nur die Treiberzeile.' },
+  { frage: 'lspci zeigt deine WLAN-Karte, aber ohne „Kernel driver in use“. Was heißt das?', richtig: 'Linux sieht die Karte, aber kein Treiber ist geladen.', falsch: ['Die Karte ist im BIOS abgeschaltet.', 'Die Karte ist kaputt.'], erklaerung: 'Das Gerät ist am Bus sichtbar. Es fehlt nur der passende Treiber.' },
+]} />
+
+## Und in deinem Labor?
+
+<Labor id="labor" titel="Aufgabe im Labor: Deine VM durchleuchten"
+  aufgabe="Führe in deiner Debian-VM diesen Befehl aus und füge die Ausgabe ein. Deine VM hat virtuelle Geräte: Je nach Programm stehen dort Namen wie „VirtualBox“, „InnoTek“ oder „Virtio“. Achte darauf, welche Treiber die Geräte steuern."
+  befehl="lspci -k"
+  muster={['^[0-9a-f]{2}:[0-9a-f]{2}\\.[0-7] ', 'Kernel driver in use: ']}
+  hilfe={[{ wenn: 'command not found|Befehl nicht gefunden', text: 'Dann fehlt das Paket pciutils. Installiere es mit: sudo apt install pciutils' }]}
+  erfolg="Das ist die Hardware deiner VM." />
+
+<Hinweis titel="Prüfungstipp">
+Die Prüfung fragt gern nach dem Unterschied zwischen den Befehlen: lspci für PCI, lsusb für USB, lsmod für geladene Module. Und danach, welche Option was bewirkt: -k für Treiber, -t für den Baum, -v für ausführlich.
+</Hinweis>

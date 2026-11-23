@@ -1,0 +1,140 @@
+---
+id: l1-1-2
+checks:
+  - id: k1
+  - id: erkunden
+  - id: k2
+  - id: namen
+  - id: k3
+  - id: labor
+    hardware: true
+spick:
+  - t: "/proc"
+    v: "procfs: Prozesse und Kernel-Infos"
+  - t: "/sys"
+    v: "sysfs: Geräte, Treiber, Module als Baum"
+  - t: "/dev"
+    v: "Gerätedateien, angelegt von udev"
+  - t: "SATA, USB, SCSI"
+    v: "/dev/sda, /dev/sdb1 …"
+  - t: "NVMe"
+    v: "/dev/nvme0n1p1"
+  - t: "SD-Karte, eMMC"
+    v: "/dev/mmcblk0p1"
+  - t: "Optisch"
+    v: "/dev/sr0"
+  - t: "Virtio (VM)"
+    v: "/dev/vda1"
+karten:
+  - f: "Welches virtuelle Dateisystem ist unter /sys eingehängt?"
+    a: ["sysfs"]
+  - f: "Welches virtuelle Dateisystem ist unter /proc eingehängt?"
+    a: ["procfs", "proc"]
+  - f: "Welcher Dienst legt beim Einstecken eines Geräts die Gerätedatei in /dev an?"
+    a: ["udev", "systemd-udevd"]
+  - f: "Wie heißt die zweite Partition auf der ersten NVMe-SSD? (Pfad)"
+    a: ["/dev/nvme0n1p2"]
+  - f: "Wie heißt die erste Partition der zweiten SATA-Platte? (Pfad)"
+    a: ["/dev/sdb1"]
+  - f: "Wofür ist D-Bus da?"
+    a: ["Programme tauschen darüber Nachrichten aus, z. B. dass ein neues Gerät angeschlossen wurde."]
+    aufdecken: true
+  - f: "Was ist der Unterschied zwischen Hotplug und Coldplug?"
+    a: ["Hotplug-Geräte darf man im laufenden Betrieb anschließen und entfernen, Coldplug-Geräte nur bei ausgeschaltetem Rechner."]
+    aufdecken: true
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Terminal from '../components/Terminal.astro';
+import Zuordnung from '../components/Zuordnung.astro';
+import Labor from '../components/Labor.astro';
+
+lspci und lsusb sind bequem, aber woher wissen sie das alles? Der Kernel stellt sein Wissen in drei besonderen Verzeichnissen bereit. Wer die kennt, findet fast jede Information über die Hardware, auch auf einem Rechner, auf dem lspci gar nicht installiert ist. **Deine Mission: Erkunde /proc, /sys und /dev.** Lernziel 101.1.
+
+## Drei Verzeichnisse, die es nicht wirklich gibt
+
+<Karte nr={1} titel="/proc und /sys">
+Die Dateien in `/proc` und `/sys` liegen auf keiner Festplatte. Der Kernel erzeugt sie in dem Moment, in dem du sie liest. Man nennt das ein **virtuelles Dateisystem**.
+
+- **/proc** (Dateisystem **procfs**) ist das ältere. Es enthält für jeden laufenden Prozess ein Verzeichnis mit seiner Nummer und dazu allgemeine Kernel-Infos: `/proc/cpuinfo`, `/proc/meminfo`, `/proc/interrupts`, `/proc/partitions`, `/proc/modules`, `/proc/cmdline`.
+- **/sys** (Dateisystem **sysfs**) ist jünger und ordentlicher. Es zeigt alle Geräte, Treiber und Module als Baum: `/sys/bus/pci/devices`, `/sys/class/net`, `/sys/class/block`, `/sys/module`. Meist steht pro Datei genau ein Wert.
+</Karte>
+
+<Merke>/proc ist procfs, /sys ist sysfs. Beide erzeugt der Kernel beim Lesen, nichts davon liegt auf der Platte.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: /proc und /sys" fragen={[
+  { frage: 'Wo findest du die MAC-Adresse der Netzwerkschnittstelle enp0s31f6 als einzelnen Wert?', richtig: '/sys/class/net/enp0s31f6/address', falsch: ['/proc/net/enp0s31f6', '/dev/enp0s31f6'], erklaerung: 'sysfs ordnet Geräte nach Klassen. Unter /sys/class/net liegt jede Netzwerkschnittstelle mit ihren Eigenschaften.' },
+  { frage: 'Welches Dateisystem ist unter /proc eingehängt?', richtig: 'procfs', falsch: ['sysfs', 'ext4'], erklaerung: 'In der Ausgabe von mount steht dafür der Typ „proc“.' },
+]} />
+
+<Terminal id="erkunden" titel="Terminal: Erkunden" aufgaben={[
+  { text: 'Schau dir an, welcher Prozessor eingebaut ist.', befehl: '^cat /proc/cpuinfo', frage: 'Wie heißt das Prozessormodell? (model name, ohne Taktangabe reicht: z. B. i5-8500)', antwort: ['i5-8500', 'Intel(R) Core(TM) i5-8500 CPU @ 3.00GHz', 'Core i5-8500', 'intel core i5-8500'] },
+  { text: 'Lass dir die Netzwerkschnittstellen aus sysfs auflisten.', befehl: '^ls /sys/class/net/?$' },
+  { text: 'Lies die MAC-Adresse von <code>enp0s31f6</code> direkt aus sysfs.', befehl: '^cat /sys/class/net/enp0s31f6/address$', frage: 'Wie lautet die MAC-Adresse?', antwort: ['3c:7c:3f:1a:2b:4d'] },
+  { text: 'Finde heraus, ob <code>sda</code> ein Wechseldatenträger ist (Datei <code>removable</code>).', befehl: '^cat /sys/class/block/sda/removable$', frage: 'Was steht drin? (1 = ja, 0 = nein)', antwort: ['1'] },
+  { text: 'Lass dir die Partitionen aus <code>/proc/partitions</code> anzeigen.', befehl: '^cat /proc/partitions$' },
+]} />
+
+## /dev und udev
+
+<Karte nr={2} titel="Gerätedateien">
+In **/dev** liegen **Gerätedateien**. Über sie sprechen Programme mit der Hardware: Wer von `/dev/sda` liest, liest direkt von der ersten Platte. Früher lagen dort Tausende Dateien auf Vorrat. Heute legt sie **udev** nur für Geräte an, die wirklich da sind.
+
+So läuft das ab, wenn du einen USB-Stick einsteckst:
+
+1. Der Kernel erkennt das neue Gerät und schickt ein Ereignis (uevent).
+2. **udev** (unter systemd der Dienst `systemd-udevd`) empfängt es, lädt bei Bedarf den Treiber und legt die Gerätedatei an, hier `/dev/sdb` und `/dev/sdb1`. Was genau passiert, steht in Regeln unter `/lib/udev/rules.d` und `/etc/udev/rules.d`.
+3. Über **D-Bus**, einen Nachrichtenbus zwischen Programmen, erfährt die Desktop-Umgebung davon und zeigt ein Symbol für den Stick.
+</Karte>
+
+<Merke>Kernel meldet, udev legt die Gerätedatei an, D-Bus sagt es den Programmen.</Merke>
+
+<Karte nr={3} titel="Hotplug und Coldplug">
+**Hotplug**-Geräte darfst du im laufenden Betrieb anschließen und abziehen: USB, Thunderbolt, SD-Karten. **Coldplug**-Geräte nur bei ausgeschaltetem Rechner: Arbeitsspeicher, Prozessor, die meisten Steckkarten im Desktop-PC. Auch für Coldplug-Geräte erzeugt der Kernel beim Start Ereignisse, die udev abarbeitet. Deshalb gibt es auch für die fest eingebaute SSD eine Gerätedatei.
+</Karte>
+
+<Quiz id="k2" titel="Kurzcheck: udev" fragen={[
+  { frage: 'Du steckst einen USB-Stick ein. Wer legt /dev/sdb an?', richtig: 'udev', falsch: ['D-Bus', 'Der Benutzer mit mknod'], erklaerung: 'udev reagiert auf das Ereignis des Kernels. D-Bus informiert danach nur andere Programme.' },
+  { frage: 'Welches dieser Geräte ist kein Hotplug-Gerät?', richtig: 'Ein Arbeitsspeicher-Riegel', falsch: ['Eine USB-Maus', 'Eine SD-Karte'], erklaerung: 'Arbeitsspeicher wird nur bei ausgeschaltetem Rechner gewechselt.' },
+]} />
+
+## Wie Speicher heißt
+
+<Karte nr={4} titel="Massenspeicher und ihre Namen">
+Die Prüfung erwartet, dass du die Arten von **Massenspeicher** auseinanderhältst und ihre Namen kennst:
+
+| Art | Gerät | Erste Partition |
+| --- | --- | --- |
+| SATA-Festplatte oder -SSD, USB-Stick, SCSI | `/dev/sda`, `/dev/sdb` … | `/dev/sda1` |
+| NVMe-SSD | `/dev/nvme0n1` (Controller 0, Namespace 1) | `/dev/nvme0n1p1` |
+| SD-Karte, eMMC | `/dev/mmcblk0` | `/dev/mmcblk0p1` |
+| Optisches Laufwerk | `/dev/sr0` | – |
+| Virtuelle Platte in einer VM (virtio) | `/dev/vda` | `/dev/vda1` |
+
+Endet der Gerätename auf eine Ziffer, kommt vor der Partitionsnummer ein **p**. Darum `nvme0n1p1`, aber `sda1`.
+</Karte>
+
+<Merke>sd = SATA, USB, SCSI. nvme0n1p1 = NVMe. mmcblk = SD und eMMC. sr = optisch. vd = virtio.</Merke>
+
+<Zuordnung id="namen" titel="Zuordnung: Welcher Name passt?" aufgabe="Ordne jedem Gerät den passenden Namen der Gerätedatei zu."
+  paare={[
+    { links: 'dritte Partition der ersten NVMe-SSD', rechts: '/dev/nvme0n1p3' },
+    { links: 'zweiter USB-Stick (die ganze Platte)', rechts: '/dev/sdb' },
+    { links: 'erste Partition der SD-Karte', rechts: '/dev/mmcblk0p1' },
+    { links: 'erstes DVD-Laufwerk', rechts: '/dev/sr0' },
+    { links: 'erste Partition einer virtio-Platte in der VM', rechts: '/dev/vda1' },
+  ]}
+  extra={['/dev/nvme0p3', '/dev/sda2', '/dev/cd0', '/dev/mmcblk0-1']} />
+
+<Quiz id="k3" titel="Kurzcheck: Namen" fragen={[
+  { frage: 'Warum heißt die erste Partition einer NVMe-SSD nvme0n1p1 und nicht nvme0n11?', richtig: 'Weil der Gerätename auf eine Ziffer endet und deshalb ein p vor die Partitionsnummer kommt', falsch: ['Weil p für „primär“ steht', 'Weil NVMe-SSDs keine Partitionen haben'], erklaerung: 'Ohne das p wäre nicht klar, wo der Gerätename aufhört und die Partitionsnummer beginnt.' },
+]} />
+
+## Und in deinem Labor?
+
+<Labor id="labor" titel="Aufgabe im Labor: Netz und Platten deiner VM"
+  aufgabe="Führe in deiner Debian-VM beide Befehle aus (in einer Zeile, durch Semikolon getrennt) und füge die Ausgabe ein. Wie heißt die Platte deiner VM: sda oder vda?"
+  befehl="ls /sys/class/net; lsblk -d -o NAME,RM,SIZE,TYPE"
+  muster={['(^|\\s)lo(\\s|$)', '\\bdisk\\b']}
+  erfolg="Gefunden. Die Schnittstelle lo ist die Loopback-Schnittstelle, die jedes Linux hat." />

@@ -1,0 +1,42 @@
+---
+// Aufgabe im eigenen Labor: Befehl auf der eigenen VM ausführen und die Ausgabe einfügen.
+// muster: reguläre Ausdrücke, die alle in der Ausgabe vorkommen müssen (Mehrzeilenmodus).
+// nicht: reguläre Ausdrücke, die nicht vorkommen dürfen. hilfe: Hinweise, wenn ein Muster passt.
+import Station from './Station.astro';
+interface Hilfe { wenn: string; text: string; }
+interface Props { id: string; titel?: string; befehl: string; aufgabe: string; muster: string[]; nicht?: string[]; hilfe?: Hilfe[]; erfolg?: string; }
+const { id, titel = 'Aufgabe im Labor', befehl, aufgabe, muster, nicht = [], hilfe = [], erfolg = 'Passt. Das kommt von einem echten Linux.' } = Astro.props;
+---
+<Station id={id} titel={titel} art="Aufgabe" hardware>
+  <form class="labor" data-kw-labor data-muster={JSON.stringify(muster)} data-nicht={JSON.stringify(nicht)} data-hilfe={JSON.stringify(hilfe)} data-erfolg={erfolg}>
+    <p>{aufgabe}</p>
+    <pre><code>{befehl}</code></pre>
+    <label for={`lb-${id}`}>Ausgabe hier einfügen</label>
+    <textarea id={`lb-${id}`} rows="6" spellcheck="false" required></textarea>
+    <button class="knopf" type="submit">Ausgabe prüfen</button>
+  </form>
+</Station>
+
+<script>
+  import { station } from '../scripts/station';
+  document.querySelectorAll<HTMLFormElement>('[data-kw-labor]').forEach((form) => {
+    const s = station(form.closest('[data-kw-check]') as HTMLElement);
+    const muster = (JSON.parse(form.dataset.muster!) as string[]).map((m) => new RegExp(m, 'm'));
+    const nicht = (JSON.parse(form.dataset.nicht!) as string[]).map((m) => new RegExp(m, 'm'));
+    const hilfe = JSON.parse(form.dataset.hilfe!) as { wenn: string; text: string }[];
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const t = form.querySelector('textarea')!.value.replace(/\r/g, '');
+      const h = hilfe.find((x) => new RegExp(x.wenn, 'm').test(t));
+      if (nicht.some((r) => r.test(t)) || !muster.every((r) => r.test(t))) {
+        return s.fehl(h?.text ?? 'Das sieht nicht nach der erwarteten Ausgabe aus. Hast du den Befehl genau so ausgeführt und die ganze Ausgabe kopiert?');
+      }
+      s.bestehen(h?.text ? `${form.dataset.erfolg} ${h.text}` : form.dataset.erfolg);
+    });
+  });
+</script>
+
+<style>
+  .labor label { display: block; font-weight: 700; margin: 0.6rem 0 0.3rem; }
+  .labor textarea { width: 100%; font-family: var(--mono); font-size: 0.9rem; background: var(--tief); color: var(--text); border: 1px solid var(--flaeche); border-radius: var(--radius-klein); padding: 0.6rem; margin-bottom: 0.8rem; }
+</style>

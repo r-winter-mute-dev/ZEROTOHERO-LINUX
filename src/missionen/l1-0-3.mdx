@@ -1,0 +1,138 @@
+---
+id: l1-0-3
+checks:
+  - id: k1
+  - id: k2
+  - id: k3
+  - id: term
+spick:
+  - t: "Aufbau"
+    v: "befehl -optionen argumente"
+  - t: "Wo bin ich?"
+    v: "pwd"
+  - t: "Was liegt hier?"
+    v: "ls, ls -l"
+  - t: "Wechseln"
+    v: "cd /pfad, cd .. , cd ~"
+  - t: "Datei zeigen"
+    v: "cat datei, less datei (q beendet)"
+  - t: "Hilfe"
+    v: "man befehl, befehl --help"
+  - t: "Als Administrator"
+    v: "sudo befehl"
+  - t: "Tasten"
+    v: "Tab ergänzt, ↑ holt zurück, Strg+C bricht ab"
+karten:
+  - f: "Welcher Befehl zeigt, in welchem Verzeichnis du gerade bist?"
+    a: ["pwd"]
+  - f: "Mit welchem Befehl öffnest du die Handbuchseite zu lspci?"
+    a: ["man lspci"]
+  - f: "Woran erkennst du am Prompt, dass du als root arbeitest?"
+    a: ["#", "Am #", "Das Zeichen #"]
+    e: "Normale Benutzer haben am Ende ein $, root ein #."
+  - f: "Mit welcher Taste verlässt du man oder less?"
+    a: ["q"]
+  - f: "Welcher Befehl zeigt die Version des laufenden Kernels? (Befehl mit Option)"
+    a: ["uname -r"]
+  - f: "Was ist bei ls -l /etc die Option und was das Argument?"
+    a: ["-l ist die Option, /etc das Argument"]
+    aufdecken: true
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+
+Fast alles in der Prüfung passiert auf der Kommandozeile. Bevor es in Akt 1 an Hardware und Bootvorgang geht, brauchst du ein paar Grundgriffe. Gründlich kommt die Kommandozeile später in Akt 3 dran. **Deine Mission: Lerne die zehn Befehle, mit denen du dich im Terminal zurechtfindest.**
+
+## Der Prompt
+
+<Karte nr={1} titel="Was links vom Cursor steht">
+Wenn ein Terminal auf deine Eingabe wartet, zeigt es den **Prompt**, zum Beispiel:
+
+```
+lea@werkstatt:~$
+```
+
+Das heißt: Benutzer **lea** auf dem Rechner **werkstatt**, im Verzeichnis **~** (das ist dein persönliches Verzeichnis, hier `/home/lea`). Das **$** am Ende zeigt einen normalen Benutzer. Arbeitest du als Administrator **root**, steht dort ein **#**. Dann besonders aufpassen: root darf alles, auch das System zerstören.
+</Karte>
+
+<Merke>$ heißt normaler Benutzer, # heißt root. Die Tilde ~ ist dein persönliches Verzeichnis.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: Prompt" fragen={[
+  { frage: 'Was verrät dir dieser Prompt? root@server:/etc#', richtig: 'Du bist root auf dem Rechner server, im Verzeichnis /etc.', falsch: ['Du bist lea auf dem Rechner root.', 'Du bist im Verzeichnis server und hast keine Rechte.'], erklaerung: 'Vor dem @ steht der Benutzer, danach der Rechner, nach dem Doppelpunkt das Verzeichnis. Das # zeigt root.' },
+]} />
+
+## Befehle, Optionen, Argumente
+
+<Karte nr={2} titel="Ein Befehl in drei Teilen">
+```
+ls -l /etc
+```
+
+- **ls** ist der **Befehl**: Er listet Dateien auf.
+- **-l** ist eine **Option**: Sie verändert, wie der Befehl arbeitet, hier als ausführliche Liste.
+- **/etc** ist ein **Argument**: Es sagt, *womit* der Befehl arbeitet.
+
+Kurze Optionen haben einen Strich und einen Buchstaben und lassen sich zusammenfassen: `ls -l -a` ist dasselbe wie `ls -la`. Lange Optionen haben zwei Striche und ein Wort, etwa `ls --all`. Linux unterscheidet Groß- und Kleinschreibung: `-r` und `-R` sind zwei verschiedene Optionen.
+</Karte>
+
+<Merke>befehl -optionen argumente. Groß und klein ist nicht egal.</Merke>
+
+<Karte nr={3} titel="Hilfe ist immer eingebaut">
+Fast jeder Befehl hat eine Handbuchseite: `man ls`. Darin blätterst du mit den Pfeiltasten, suchst mit `/` und einem Suchwort und beendest mit **q**. Kürzer geht es oft mit `ls --help`. In der Prüfung hast du keine Handbuchseiten. Beim Üben sind sie aber der schnellste Weg, eine Option nachzuschlagen.
+</Karte>
+
+<Quiz id="k2" titel="Kurzcheck: Aufbau" fragen={[
+  { frage: 'Welcher Teil ist in „lspci -k -s 00:1f.6“ ein Argument zur Option -s?', richtig: '00:1f.6', falsch: ['-k', 'lspci'], erklaerung: 'Manche Optionen erwarten einen Wert. -s erwartet, welches Gerät gemeint ist.' },
+  { frage: 'Was ist gleichbedeutend mit „ls -l -a -h“?', richtig: 'ls -lah', falsch: ['ls -l-a-h', 'ls --lah'], erklaerung: 'Kurze Optionen kann man hinter einem einzigen Strich zusammenfassen.' },
+]} />
+
+## Die wichtigsten Griffe
+
+<Karte nr={4} titel="Bewegen und anschauen">
+| Befehl | Was er tut |
+| --- | --- |
+| `pwd` | zeigt, wo du bist (print working directory) |
+| `ls` | listet den Inhalt eines Verzeichnisses |
+| `cd /etc` | wechselt nach /etc, `cd ..` eine Ebene hoch, `cd` allein nach Hause |
+| `cat datei` | gibt eine Datei aus |
+| `less datei` | zeigt eine lange Datei seitenweise, **q** beendet |
+| `uname -r` | zeigt die Version des laufenden Kernels |
+
+Pfade, die mit `/` beginnen, sind **absolut** und gelten von überall. Alle anderen sind **relativ** zum aktuellen Verzeichnis.
+</Karte>
+
+<Karte nr={5} titel="Drei Tasten, die dir Zeit sparen">
+- **Tab** ergänzt Befehle und Pfade. Zweimal Tab zeigt alle Möglichkeiten.
+- **Pfeil nach oben** holt den letzten Befehl zurück. So musst du nach einem Tippfehler nicht alles neu schreiben.
+- **Strg+C** bricht einen laufenden Befehl ab.
+</Karte>
+
+<Karte nr={6} titel="sudo: kurz mal Administrator">
+Viele Befehle in diesem Kurs ändern das System und brauchen deshalb Administratorrechte. Statt dich als root anzumelden, setzt du `sudo` davor: `sudo modprobe -r pcspkr`. Beim ersten Mal fragt sudo nach *deinem* Passwort. Ohne sudo bekommst du Meldungen wie „Operation not permitted“ oder „Access denied“. Das ist kein Fehler des Befehls, sondern der Hinweis: Hier fehlen Rechte.
+</Karte>
+
+<Merke>Fehlt das Recht, kommt „Operation not permitted“ oder „Access denied“. Dann sudo davor.</Merke>
+
+<Hinweis titel="Der Simulator">
+Unten arbeitest du in einem simulierten Terminal. Es läuft komplett in deinem Browser, du kannst nichts kaputtmachen. Es kennt nicht alle Befehle, die es auf Linux gibt, aber alle aus diesen Missionen. `help` zeigt die Liste.
+</Hinweis>
+
+<Terminal id="term" titel="Terminal: Erste Schritte" aufgaben={[
+  { text: 'Finde heraus, in welchem Verzeichnis du gerade bist.', befehl: '^pwd$' },
+  { text: 'Lass dir den Inhalt von <code>/etc</code> auflisten.', befehl: '^ls( -\\w+)* /etc/?$' },
+  { text: 'Gib die Datei <code>/etc/os-release</code> aus.', befehl: '^cat /etc/os-release$', frage: 'Welche Version von Debian läuft? (VERSION_ID)', antwort: ['12'] },
+  { text: 'Lass dir die Version des laufenden Kernels anzeigen.', befehl: '^uname -r$', frage: 'Welche Kernelversion zeigt der Befehl?', antwort: ['6.1.0-27-amd64'] },
+  { text: 'Wechsle in das Verzeichnis <code>/proc</code>.', befehl: '^cd /proc/?$' },
+  { text: 'Öffne die Hilfe zum Befehl <code>lspci</code>.', befehl: '^man lspci$' },
+  { text: 'Führe <code>whoami</code> einmal normal und einmal mit <code>sudo</code> aus.', befehl: '^sudo whoami$', frage: 'Wer bist du mit sudo?', antwort: ['root'] },
+]} />
+
+<Quiz id="k3" titel="Kurzcheck: Griffe" fragen={[
+  { frage: 'Du bist in /home/lea und tippst „cd ..“. Wo bist du dann?', richtig: '/home', falsch: ['/', '/home/lea/..'], erklaerung: '.. ist immer das übergeordnete Verzeichnis.' },
+  { frage: 'Ein Befehl meldet „Operation not permitted“. Was ist die wahrscheinlichste Ursache?', richtig: 'Er braucht Administratorrechte, also sudo.', falsch: ['Der Befehl ist falsch geschrieben.', 'Die Datei ist zu groß.'], erklaerung: 'Bei einem Tippfehler käme „Befehl nicht gefunden“ (command not found).' },
+]} />
+
+Das reicht für Akt 1. Dort schaust du dir als Erstes an, welche Hardware in einem Rechner steckt und wie Linux sie erkennt.

@@ -1,0 +1,195 @@
+---
+// Tägliche Wiederholung: Karteikarten aus abgeschlossenen Missionen und falsch beantwortete Prüfungsfragen,
+// gemischt über alle Themen und in wachsenden Abständen.
+import Basis from '../layouts/Basis.astro';
+import { FRAGEN } from '../data/fragen';
+import { ALLE_MISSIONEN } from '../data/kampagne';
+import { url } from '../config';
+const dateien = import.meta.glob('../missionen/*.mdx', { eager: true }) as Record<string, { frontmatter: any }>;
+interface Karte { id: string; mid: string; quelle: string; f: string; a: string[]; e?: string; aufdecken?: boolean; }
+const karten: Karte[] = [];
+for (const [pfad, d] of Object.entries(dateien)) {
+  const mid = pfad.split('/').pop()!.replace('.mdx', '');
+  const m = ALLE_MISSIONEN.find((x) => x.id === mid);
+  (d.frontmatter?.karten ?? []).forEach((k: any, n: number) => karten.push({
+    id: `k:${mid}:${n}`, mid, quelle: m ? `Mission ${m.nr}: ${m.titel}` : mid, f: k.f, a: Array.isArray(k.a) ? k.a : [k.a], e: k.e, aufdecken: !!k.aufdecken,
+  }));
+}
+---
+<Basis titel="Wiederholen" beschreibung="Tägliche Wiederholung mit Karteikarten und Prüfungsfragen">
+  <section class="huelle text seite" data-wh data-karten={JSON.stringify(karten)} data-fragen={JSON.stringify(FRAGEN)}>
+    <h1>Wiederholen</h1>
+    <p>Hier kommt zurück, was du schon gelernt hast: Karten aus deinen abgeschlossenen Missionen und Prüfungsfragen, die du falsch beantwortet hast. Gemischt über alle Themen, jeden Tag ein paar Minuten.</p>
+    <p class="gross" data-wh-stand></p>
+
+    <div data-wh-start hidden>
+      <button class="knopf" type="button" data-wh-los>Wiederholung starten</button>
+      <label class="wh-anzahl">Höchstens <select data-wh-max><option>10</option><option selected>20</option><option>40</option><option value="999">alle</option></select> Karten heute</label>
+    </div>
+
+    <div class="wh-karte" data-wh-karte hidden>
+      <p class="leise klein" data-wh-quelle></p>
+      <p class="wh-frage" data-wh-frage></p>
+      <form data-wh-form class="wh-form"></form>
+      <div class="wh-loesung" data-wh-loesung hidden aria-live="polite"></div>
+      <p class="leise klein" data-wh-rest></p>
+    </div>
+
+    <div data-wh-fertig hidden>
+      <h2>Für heute geschafft</h2>
+      <p data-wh-bilanz></p>
+    </div>
+
+    <details class="warum">
+      <summary>Warum so?</summary>
+      <p><strong>Abrufen statt nochmal lesen.</strong> Wer Wissen aktiv aus dem Gedächtnis holt, behält es besser als jemand, der denselben Stoff noch einmal liest. Eine Meta-Analyse von 222 Studien in echten Klassenzimmern fand im Mittel einen mittleren Vorteil (Hedges' g ≈ 0,50) für Quizze gegenüber anderen Lernformen (Yang et al., 2021).</p>
+      <p><strong>Verteilen statt pauken.</strong> Dieselbe Wiederholung bringt mehr, wenn Pausen dazwischen liegen. Für verteiltes gegenüber geballtem Abrufen ergab eine Meta-Analyse g = 0,74 (Latimier et al., 2021, 29 Studien). Ob die Abstände wachsen oder gleich bleiben, machte dort keinen klaren Unterschied. Die Abstände hier (1, 3, 7, 14, 30, 60 Tage) sind deshalb ein üblicher Richtwert, kein Studienergebnis.</p>
+      <p><strong>Mischen statt Block.</strong> Karten aus verschiedenen Themen wechseln sich ab. Das hilft vor allem bei ähnlichen, leicht verwechselbaren Inhalten (Brunmair &amp; Richter, 2019, g ≈ 0,42). Und genau das sind viele Befehle und Optionen.</p>
+      <p><strong>Tippen statt Ankreuzen.</strong> Wo es geht, tippst du die Antwort selbst. Das ist anstrengender als Wiedererkennen, und die Prüfung hat ebenfalls Eingabefragen.</p>
+      <p class="leise klein">Quellen und Grenzen der Studien stehen auf der Seite <a href={url('ueber')}>Über</a>.</p>
+    </details>
+  </section>
+</Basis>
+
+<script>
+  import { aufnehmen, bewerten, heute, laden, plusTage, wiederholungen } from '../scripts/engine';
+  import { mischen } from '../scripts/station';
+  interface Karte { id: string; mid: string; quelle: string; f: string; a: string[]; e?: string; aufdecken?: boolean; }
+  interface Frage { id: string; ziel: string; typ: 'einfach' | 'mehrfach' | 'eingabe'; frage: string; optionen?: string[]; richtig: (number | string)[]; erklaerung: string; }
+  const box = document.querySelector<HTMLElement>('[data-wh]')!;
+  const karten = JSON.parse(box.dataset.karten!) as Karte[];
+  const fragen = Object.fromEntries((JSON.parse(box.dataset.fragen!) as Frage[]).map((f) => [f.id, f]));
+  const $ = <T extends HTMLElement = HTMLElement>(q: string) => box.querySelector<T>(q)!;
+  const norm = (x: string) => x.trim().replace(/\s+/g, ' ').replace(/\/$/, '').toLowerCase();
+
+  // Karten abgeschlossener Missionen aufnehmen: fällig am Tag nach dem Abschluss
+  const z = laden();
+  for (const [mid, info] of Object.entries(z.missionen)) {
+    const ids = karten.filter((k) => k.mid === mid).map((k) => k.id);
+    if (ids.length) aufnehmen(ids, plusTage(heute(new Date(info.am)), 1));
+  }
+
+  type Eintrag = { id: string; karte?: Karte; frage?: Frage };
+  function faellige(): Eintrag[] {
+    const w = wiederholungen(); const t = heute();
+    return Object.entries(w).filter(([, e]) => e.faellig <= t).map(([id]) => {
+      if (id.startsWith('k:')) { const k = karten.find((x) => x.id === id); return k ? { id, karte: k } : null; }
+      if (id.startsWith('f:')) { const f = fragen[id.slice(2)]; return f ? { id, frage: f } : null; }
+      return null;
+    }).filter(Boolean) as Eintrag[];
+  }
+
+  function stand() {
+    const w = wiederholungen();
+    const n = faellige().length;
+    const alle = Object.keys(w).length;
+    const naechst = Object.values(w).map((e) => e.faellig).filter((d) => d > heute()).sort()[0];
+    $('[data-wh-stand]').textContent = alle === 0
+      ? 'Noch nichts zu wiederholen. Sobald du die erste Mission abgeschlossen hast, kommen ihre Karten am nächsten Tag hierher.'
+      : n ? `Heute fällig: ${n} ${n === 1 ? 'Karte' : 'Karten'}. Insgesamt im System: ${alle}.`
+      : `Heute ist nichts fällig. Nächste Wiederholung: ${naechst ? new Date(naechst + 'T12:00:00').toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' }) : '–'}.`;
+    $('[data-wh-start]').hidden = !n;
+  }
+
+  let schlange: Eintrag[] = []; let nochmal = new Set<string>(); let gut = 0; let schlecht = 0;
+
+  function zeige() {
+    const e = schlange[0];
+    if (!e) return fertig();
+    $('[data-wh-karte]').hidden = false;
+    $('[data-wh-loesung]').hidden = true;
+    $('[data-wh-quelle]').textContent = e.karte ? e.karte.quelle : `Prüfungsfrage zu Lernziel ${e.frage!.ziel}`;
+    $('[data-wh-frage]').textContent = e.karte ? e.karte.f : e.frage!.frage;
+    $('[data-wh-rest]').textContent = `Noch ${schlange.length} in dieser Runde.`;
+    const form = $<HTMLFormElement>('[data-wh-form]'); form.innerHTML = '';
+    if (e.karte?.aufdecken) {
+      const b = knopf('Antwort zeigen'); b.type = 'submit'; form.append(b);
+    } else if (e.karte || e.frage!.typ === 'eingabe') {
+      const inp = document.createElement('input'); inp.type = 'text'; inp.className = 'wh-eingabe'; inp.spellcheck = false; inp.autocomplete = 'off'; inp.setAttribute('aria-label', 'Deine Antwort');
+      const b = knopf('Prüfen'); b.type = 'submit';
+      form.append(inp, b); setTimeout(() => inp.focus(), 0);
+    } else {
+      const f = e.frage!;
+      mischen(f.optionen!.map((_, k) => k)).forEach((k) => {
+        const lab = document.createElement('label'); const inp = document.createElement('input');
+        inp.type = f.typ === 'mehrfach' ? 'checkbox' : 'radio'; inp.name = 'wh'; inp.value = String(k);
+        lab.append(inp, document.createTextNode(' ' + f.optionen![k])); form.append(lab);
+      });
+      const b = knopf('Prüfen'); b.type = 'submit'; form.append(b);
+    }
+    form.onsubmit = (ev) => { ev.preventDefault(); auswerten(e, form); };
+  }
+
+  function knopf(t: string) { const b = document.createElement('button'); b.className = 'knopf'; b.textContent = t; return b; }
+
+  function auswerten(e: Eintrag, form: HTMLFormElement) {
+    const l = $('[data-wh-loesung]'); l.hidden = false; l.innerHTML = '';
+    form.querySelectorAll('input, button').forEach((x) => ((x as HTMLInputElement).disabled = true));
+    const zeile = (t: string, cls = '') => { const p = document.createElement('p'); p.textContent = t; if (cls) p.className = cls; l.append(p); };
+    if (e.karte?.aufdecken) {
+      zeile(e.karte.a.join(' / '), 'wh-antwort');
+      if (e.karte.e) zeile(e.karte.e, 'klein');
+      const w = document.createElement('div'); w.className = 'wh-knoepfe';
+      const ja = knopf('Gewusst'); const nein = knopf('Nicht gewusst'); nein.classList.add('zweit');
+      ja.onclick = () => weiter(e, true); nein.onclick = () => weiter(e, false);
+      w.append(ja, nein); l.append(w); ja.focus(); return;
+    }
+    let richtig: boolean; let loesung: string;
+    if (e.karte) { const v = form.querySelector<HTMLInputElement>('input')!.value; richtig = e.karte.a.some((a) => norm(a) === norm(v)); loesung = e.karte.a[0]; }
+    else {
+      const f = e.frage!;
+      if (f.typ === 'eingabe') { const v = form.querySelector<HTMLInputElement>('input')!.value; richtig = f.richtig.some((r) => norm(String(r)) === norm(v)); loesung = String(f.richtig[0]); }
+      else {
+        const w = [...form.querySelectorAll<HTMLInputElement>('input:checked')].map((x) => Number(x.value)).sort().join(',');
+        richtig = w === [...(f.richtig as number[])].sort().join(','); loesung = (f.richtig as number[]).map((k) => f.optionen![k]).join(' und ');
+      }
+    }
+    zeile(richtig ? 'Richtig.' : `Nicht ganz. Richtig ist: ${loesung}`, richtig ? 'gut' : 'fehler');
+    const erk = e.karte?.e ?? e.frage?.erklaerung; if (erk) zeile(erk, 'klein');
+    const w = document.createElement('div'); w.className = 'wh-knoepfe';
+    const b = knopf('Weiter'); b.onclick = () => weiter(e, richtig); w.append(b);
+    if (!richtig && (e.karte || e.frage?.typ === 'eingabe')) {
+      const doch = knopf('Meine Antwort meinte dasselbe'); doch.classList.add('zweit');
+      doch.onclick = () => weiter(e, true); w.append(doch);
+    }
+    l.append(w); b.focus();
+  }
+
+  function weiter(e: Eintrag, richtig: boolean) {
+    schlange.shift();
+    if (!nochmal.has(e.id)) bewerten(e.id, richtig);   // nur der erste Versuch zählt für den Abstand
+    if (richtig) gut++; else { schlecht++; if (!nochmal.has(e.id)) { nochmal.add(e.id); schlange.push(e); } }
+    zeige();
+  }
+
+  function fertig() {
+    $('[data-wh-karte]').hidden = true; $('[data-wh-fertig]').hidden = false;
+    $('[data-wh-bilanz]').textContent = `${gut} richtig, ${schlecht} daneben. Was danebenging, kommt morgen wieder. Was saß, kommt erst in ein paar Tagen.`;
+    stand();
+  }
+
+  $('[data-wh-los]').addEventListener('click', () => {
+    const max = Number($<HTMLSelectElement>('[data-wh-max]').value);
+    schlange = mischen(faellige()).slice(0, max); nochmal = new Set(); gut = 0; schlecht = 0;
+    $('[data-wh-start]').hidden = true; $('[data-wh-fertig]').hidden = true;
+    zeige();
+  });
+  stand();
+</script>
+
+<style>
+  .wh-anzahl { margin-left: 1rem; color: var(--leise); }
+  .wh-anzahl select { font: inherit; background: var(--tief); color: var(--text); border: 1px solid var(--flaeche); border-radius: var(--radius-klein); padding: 0.2rem; }
+  .wh-karte { border: 1px solid var(--flaeche); border-radius: var(--radius); padding: 1.2rem 1.4rem; background: var(--flaeche-leicht); margin: 1.5rem 0; }
+  .wh-frage { font-size: 1.2rem; font-weight: 700; }
+  .wh-form { display: flex; flex-direction: column; gap: 0.5rem; align-items: flex-start; }
+  .wh-form :global(label) { cursor: pointer; }
+  .wh-form :global(.wh-eingabe) { width: 100%; font-family: var(--mono); font-size: 1rem; padding: 0.5rem; background: var(--tief); color: var(--text); border: 1px solid var(--flaeche); border-radius: var(--radius-klein); }
+  .wh-loesung { margin-top: 1rem; }
+  .wh-loesung :global(.gut) { color: var(--gut); font-weight: 700; }
+  .wh-loesung :global(.fehler) { color: var(--warnung); font-weight: 700; }
+  .wh-loesung :global(.wh-antwort) { font-family: var(--mono); font-size: 1.1rem; }
+  .wh-loesung :global(.wh-knoepfe) { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-top: 0.6rem; }
+  .warum { margin-top: 2.5rem; }
+  .warum summary { cursor: pointer; font-weight: 700; color: var(--akzent-hell); }
+</style>
