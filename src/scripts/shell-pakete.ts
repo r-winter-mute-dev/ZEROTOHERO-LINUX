@@ -2,7 +2,7 @@
 // Bekommt die Hilfsfunktionen des Kerns übergeben, damit es keinen Import-Kreis gibt.
 import type { Welt } from './shell';
 
-export interface Ergebnis { out: string; code: number; }
+export interface Ergebnis { out: string; code: number; err?: string; }
 export type Befehl = (w: Welt, args: string[], stdin: string, root: boolean) => Ergebnis;
 export interface Helfer {
   ok: (out?: string) => Ergebnis;

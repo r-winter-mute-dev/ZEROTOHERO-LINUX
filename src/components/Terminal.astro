@@ -19,7 +19,9 @@ const { id, titel = 'Terminal', aufgaben, welt = {}, einleitung } = Astro.props;
     </div>
     <p class="leise klein" id={`th-${id}`}>Tippe einen Befehl und drücke Enter. Pfeil hoch holt frühere Befehle, Tab ergänzt. <code>help</code> zeigt, was der Simulator kann.</p>
     <p class="term-knoepfe">
-      <button type="button" class="knopf zweit klein" data-term-neustart>Neu starten</button>
+      <button type="button" class="knopf klein" data-term-taste="c" title="Bricht den Befehl im Vordergrund ab (wie Strg+C)">Strg+C</button>
+        <button type="button" class="knopf klein" data-term-taste="z" title="Hält den Befehl im Vordergrund an (wie Strg+Z)">Strg+Z</button>
+        <button type="button" class="knopf zweit klein" data-term-neustart>Neu starten</button>
       <button type="button" class="knopf zweit klein" data-term-reset>Alles zurücksetzen</button>
     </p>
   </div>
@@ -132,7 +134,21 @@ const { id, titel = 'Terminal', aufgaben, welt = {}, einleitung } = Astro.props;
       pruefen();
     });
 
+    // Strg+C und Strg+Z schicken Signale an den Befehl im Vordergrund
+    function taste(t: 'c' | 'z') {
+      if (s.gesperrt()) return;
+      const lief = !!w.vordergrund; const p = prompt(w);
+      const r = ausfuehren(w, t === 'c' ? '\u0003' : '\u001a');
+      if (lief) zeile(r.ausgabe, '');
+      else zeile(p + eingabe.value + (t === 'c' ? '^C' : '^Z'), 'cmd');
+      eingabe.value = '';
+      promptEl.textContent = prompt(w);
+      pruefen();
+    }
+    box.querySelectorAll<HTMLButtonElement>('[data-term-taste]').forEach((b) => b.addEventListener('click', () => { taste(b.dataset.termTaste as 'c' | 'z'); eingabe.focus({ preventScroll: true }); }));
+
     eingabe.addEventListener('keydown', (e) => {
+      if (e.ctrlKey && !e.altKey && (e.key === 'c' || e.key === 'z') && !(e.key === 'c' && eingabe.selectionStart !== eingabe.selectionEnd)) { e.preventDefault(); taste(e.key); return; }
       if (e.key === 'ArrowUp' && pos > 0) { e.preventDefault(); eingabe.value = verlauf[--pos]; }
       else if (e.key === 'ArrowDown') { e.preventDefault(); pos = Math.min(verlauf.length, pos + 1); eingabe.value = verlauf[pos] ?? ''; }
       else if (e.key === 'Tab') {
