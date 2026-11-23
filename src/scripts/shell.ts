@@ -147,12 +147,12 @@ const TARGET_ZU_RUNLEVEL: Record<string, string> = { 'poweroff.target': '0', 're
 
 function grundFs(): Record<string, string | null> {
   const fs: Record<string, string | null> = {
-    '/': null, '/home': null, '/home/lea': null, '/etc': null, '/etc/modprobe.d': null, '/etc/systemd': null, '/etc/systemd/system': null,
+    '/': null, '/home': null, '/home/lena': null, '/etc': null, '/etc/modprobe.d': null, '/etc/systemd': null, '/etc/systemd/system': null,
     '/usr': null, '/usr/lib': null, '/usr/lib/systemd': null, '/usr/lib/systemd/system': null, '/lib': null, '/lib/modules': null,
     [`/lib/modules/${KERNEL}`]: null, '/proc': null, '/sys': null, '/sys/bus': null, '/sys/bus/pci': null, '/sys/bus/pci/devices': null,
     '/sys/bus/usb': null, '/sys/bus/usb/devices': null, '/sys/class': null, '/sys/class/net': null, '/sys/class/block': null, '/sys/module': null,
     '/dev': null, '/dev/input': null, '/dev/disk': null, '/var': null, '/var/log': null, '/boot': null, '/run': null, '/tmp': null,
-    '/home/lea/notizen.txt': 'Labor-Notizen\nUSB-Stick nicht einfach abziehen!\n',
+    '/home/lena/notizen.txt': 'Labor-Notizen\nUSB-Stick nicht einfach abziehen!\n',
     '/etc/hostname': 'werkstatt\n',
     '/etc/os-release': 'PRETTY_NAME="Debian GNU/Linux 12 (bookworm)"\nNAME="Debian GNU/Linux"\nVERSION_ID="12"\nID=debian\n',
     '/etc/modprobe.d/alsa-base.conf': '# Autoloader aliases\noptions snd-hda-intel power_save=1\n',
@@ -203,13 +203,13 @@ export interface WeltOptionen { defaultTarget?: string; target?: string; ohne?: 
 export function neueWelt(o: WeltOptionen = {}): Welt {
   const verfuegbar = Object.fromEntries(MODULE.map((x) => [x.name, x]));
   const w: Welt = {
-    host: 'werkstatt', user: 'lea', root: !!o.root, cwd: '/home/lea', fs: grundFs(), verfuegbar, geladen: {}, inBenutzung: { usb_storage: 1, vfat: 1, snd: 2, i915: 3 },
+    host: 'werkstatt', user: 'lena', root: !!o.root, cwd: '/home/lena', fs: grundFs(), verfuegbar, geladen: {}, inBenutzung: { usb_storage: 1, vfat: 1, snd: 2, i915: 3 },
     defaultTarget: o.defaultTarget ?? 'graphical.target', target: o.target ?? o.defaultTarget ?? 'graphical.target', runlevelVorher: 'N',
     shutdown: null, aus: null, walls: [], verlauf: [], kernel: KERNEL, cmdline: `BOOT_IMAGE=/boot/vmlinuz-${KERNEL} root=UUID=3f1c0d6e-8a2b-4c51-9a0e-2d7b1e5c9f40 ro quiet`,
     prozesse: o.prozesse ?? [
       { pid: 1, user: 'root', cmd: '/sbin/init' }, { pid: 612, user: 'root', cmd: '/lib/systemd/systemd-logind' },
-      { pid: 845, user: 'root', cmd: '/usr/sbin/NetworkManager --no-daemon' }, { pid: 1203, user: 'lea', cmd: '-bash' },
-      { pid: 2210, user: 'lea', cmd: 'python3 backup.py' }, { pid: 2290, user: 'lea', cmd: 'vim bericht.txt' },
+      { pid: 845, user: 'root', cmd: '/usr/sbin/NetworkManager --no-daemon' }, { pid: 1203, user: 'lena', cmd: '-bash' },
+      { pid: 2210, user: 'lena', cmd: 'python3 backup.py' }, { pid: 2290, user: 'lena', cmd: 'vim bericht.txt' },
     ],
   };
   for (const n of START_GELADEN) if (!o.ohne?.includes(n)) w.geladen[n] = [];
@@ -255,7 +255,7 @@ function aufteilen(zeile: string, zeichen: string): string[] {
 const norm = (n: string) => n.replace(/-/g, '_');
 function pfad(w: Welt, p: string): string {
   if (!p) return w.cwd;
-  if (p === '~' || p.startsWith('~/')) p = '/home/lea' + p.slice(1);
+  if (p === '~' || p.startsWith('~/')) p = '/home/lena' + p.slice(1);
   const teile = (p.startsWith('/') ? p : `${w.cwd}/${p}`).split('/');
   const st: string[] = [];
   for (const t of teile) { if (!t || t === '.') continue; if (t === '..') st.pop(); else st.push(t); }
@@ -327,7 +327,7 @@ const befehle: Record<string, Befehl> = {
   hilfe: () => ok(HILFE),
   clear: () => ok('\u001bclear'),
   whoami: (w, _a, _i, root) => ok(root ? 'root' : w.user),
-  id: (w, _a, _i, root) => ok(root ? 'uid=0(root) gid=0(root) groups=0(root)' : 'uid=1000(lea) gid=1000(lea) groups=1000(lea),24(cdrom),27(sudo),46(plugdev)'),
+  id: (w, _a, _i, root) => ok(root ? 'uid=0(root) gid=0(root) groups=0(root)' : 'uid=1000(lena) gid=1000(lena) groups=1000(lena),24(cdrom),27(sudo),46(plugdev)'),
   hostname: (w) => ok(w.host),
   pwd: (w) => ok(w.cwd),
   history: (w) => ok(w.verlauf.map((v, i) => `${String(i + 1).padStart(5)}  ${v.zeile}`).join('\n')),
@@ -442,7 +442,7 @@ const befehle: Record<string, Befehl> = {
   },
   lsblk: () => ok(`NAME        MAJ:MIN RM   SIZE RO TYPE MOUNTPOINTS
 sda           8:0    1  28,6G  0 disk
-└─sda1        8:1    1  28,6G  0 part /media/lea/STICK
+└─sda1        8:1    1  28,6G  0 part /media/lena/STICK
 sr0          11:0    1  1024M  0 rom
 nvme0n1     259:0    0 476,9G  0 disk
 ├─nvme0n1p1 259:1    0   512M  0 part /boot/efi
@@ -582,7 +582,7 @@ nvme0n1     259:0    0 476,9G  0 disk
     }
   },
   runlevel: (w) => ok(`${w.runlevelVorher} ${TARGET_ZU_RUNLEVEL[w.target] ?? 'unknown'}`),
-  who: (w, a) => a.includes('-r') ? ok(`         run-level ${TARGET_ZU_RUNLEVEL[w.target] ?? '?'}  2026-11-23 08:12`) : ok('lea      tty2         2026-11-23 08:13 (tty2)\nlea      pts/0        2026-11-23 08:20 (:0)\nmax      pts/1        2026-11-23 08:31 (192.168.1.23)'),
+  who: (w, a) => a.includes('-r') ? ok(`         run-level ${TARGET_ZU_RUNLEVEL[w.target] ?? '?'}  2026-11-23 08:12`) : ok('lena     tty2         2026-11-23 08:13 (tty2)\nlena     pts/0        2026-11-23 08:20 (:0)\nmax      pts/1        2026-11-23 08:31 (192.168.1.23)'),
   telinit: (w, a, _i, root) => {
     const n = a[0];
     if (!n || !RUNLEVEL_ZU_TARGET[n]) return fehler('telinit: Unbekannter Runlevel. Erlaubt: 0 1 2 3 4 5 6 S');
@@ -613,11 +613,11 @@ nvme0n1     259:0    0 476,9G  0 disk
     const text = a.length ? a.join(' ') : stdin;
     if (!text) return fehler('wall: keine Nachricht');
     w.walls.push(text);
-    return ok(`Broadcast message from ${w.root ? 'root' : 'lea'}@${w.host} (pts/0) (Mon Nov 23 08:40:12 2026):\n\n${text}`);
+    return ok(`Broadcast message from ${w.root ? 'root' : 'lena'}@${w.host} (pts/0) (Mon Nov 23 08:40:12 2026):\n\n${text}`);
   },
   ps: (w, a) => {
     const lang = a.some((x) => /aux|-ef|-e/.test(x));
-    const liste = lang ? w.prozesse : w.prozesse.filter((p) => p.user === 'lea');
+    const liste = lang ? w.prozesse : w.prozesse.filter((p) => p.user === 'lena');
     return ok((lang ? 'USER         PID COMMAND\n' : '    PID TTY          TIME CMD\n') + liste.map((p) => lang ? `${p.user.padEnd(8)} ${String(p.pid).padStart(7)} ${p.cmd}` : `${String(p.pid).padStart(7)} pts/0    00:00:00 ${p.cmd.split(' ')[0].replace(/^-/, '')}`).join('\n'));
   },
   pgrep: (w, a) => { const r = w.prozesse.filter((p) => p.cmd.includes(a[a.length - 1] ?? '')); return { out: r.map((p) => String(p.pid)).join('\n'), code: r.length ? 0 : 1 }; },
@@ -650,7 +650,7 @@ nvme0n1     259:0    0 476,9G  0 disk
 function signal(w: Welt, pid: number, sig: number, root: boolean): string {
   const p = w.prozesse.find((x) => x.pid === pid);
   if (!p) return `bash: kill: (${pid}) - Kein passender Prozess gefunden`;
-  if (p.user !== 'lea' && !root) return `bash: kill: (${pid}) - Die Operation ist nicht erlaubt`;
+  if (p.user !== 'lena' && !root) return `bash: kill: (${pid}) - Die Operation ist nicht erlaubt`;
   w.verlauf.push({ zeile: `#signal ${pid} ${sig}`, code: 0, ausgabe: '' });
   if (pid === 1) return '';
   if (sig === 15 && p.ignoriertTerm) return '';
@@ -693,7 +693,7 @@ function schreiben(w: Welt, ziel: string, text: string, anhaengen: boolean, root
   const dir = p.slice(0, p.lastIndexOf('/')) || '/';
   if (!(dir in w.fs) || w.fs[dir] !== null) return 'Datei oder Verzeichnis nicht gefunden';
   if (w.fs[p] === null) return 'Ist ein Verzeichnis';
-  if (!root && !p.startsWith('/home/lea') && !p.startsWith('/tmp')) return 'Keine Berechtigung';
+  if (!root && !p.startsWith('/home/lena') && !p.startsWith('/tmp')) return 'Keine Berechtigung';
   const t = text.endsWith('\n') || !text ? text : text + '\n';
   w.fs[p] = anhaengen ? (w.fs[p] ?? '') + t : t;
   return null;
@@ -723,7 +723,7 @@ export function ausfuehren(w: Welt, zeile: string): Lauf {
     let root = w.root;
     if (t[0] === 'sudo') {
       t = t.slice(1);
-      if (t[0] === '-i' || (t[0] === 'su' && t.length <= 2)) { w.root = true; return { ausgabe: '[sudo] Passwort für lea: (im Simulator nicht nötig)\nDu bist jetzt root. Mit "exit" kommst du zurück.', code: 0 }; }
+      if (t[0] === '-i' || (t[0] === 'su' && t.length <= 2)) { w.root = true; return { ausgabe: '[sudo] Passwort für lena: (im Simulator nicht nötig)\nDu bist jetzt root. Mit "exit" kommst du zurück.', code: 0 }; }
       root = true;
     }
     const name = t[0];
@@ -749,8 +749,8 @@ export function ausfuehren(w: Welt, zeile: string): Lauf {
 }
 
 export function prompt(w: Welt) {
-  const ort = w.cwd === '/home/lea' ? '~' : w.cwd.startsWith('/home/lea/') ? '~' + w.cwd.slice(9) : w.cwd;
-  return w.root ? `root@${w.host}:${ort.replace(/^~/, '/home/lea')}# ` : `lea@${w.host}:${ort}$ `;
+  const ort = w.cwd === '/home/lena' ? '~' : w.cwd.startsWith('/home/lena/') ? '~' + w.cwd.slice('/home/lena'.length) : w.cwd;
+  return w.root ? `root@${w.host}:${ort.replace(/^~/, '/home/lena')}# ` : `lena@${w.host}:${ort}$ `;
 }
 
 export function neuStarten(w: Welt) {

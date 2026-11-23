@@ -13,7 +13,7 @@ const { id, titel = 'Terminal', aufgaben, welt = {}, einleitung } = Astro.props;
     <div class="term" data-term-fenster>
       <div class="term-ausgabe" data-term-ausgabe role="log" aria-label="Ausgabe des Terminals"></div>
       <form class="term-zeile" data-term-form autocomplete="off">
-        <label class="term-prompt" data-term-prompt for={`ti-${id}`}>lea@werkstatt:~$ </label>
+        <label class="term-prompt" data-term-prompt for={`ti-${id}`}>lena@werkstatt:~$ </label>
         <input id={`ti-${id}`} class="term-eingabe" data-term-eingabe type="text" spellcheck="false" autocapitalize="off" autocorrect="off" enterkeyhint="send" aria-describedby={`th-${id}`} />
       </form>
     </div>

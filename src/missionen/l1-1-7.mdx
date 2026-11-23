@@ -88,7 +88,7 @@ Unter systemd gibt es dafür `systemctl halt`, `systemctl poweroff` und `systemc
 ]} />
 
 <Terminal id="planen" titel="Terminal: Einen Neustart planen" aufgaben={[
-  { text: 'Schau nach, wer außer dir angemeldet ist.', befehl: '^who$', frage: 'Wer ist außer lea noch angemeldet?', antwort: ['max'] },
+  { text: 'Schau nach, wer außer dir angemeldet ist.', befehl: '^who$', frage: 'Wer ist außer lena noch angemeldet?', antwort: ['max'] },
   { text: 'Plane einen Neustart in 15 Minuten mit der Nachricht „Kernel-Update, bitte speichern“.', zustand: 'shutdown=reboot', befehl: '^shutdown (-r .*\\+15|\\+15 .*-r)' },
   { text: 'Lass dir anzeigen, ob und wann ein Shutdown geplant ist.', befehl: '^shutdown --show$' },
   { text: 'Max ruft an: Er braucht noch eine Stunde. Brich den Neustart ab.', befehl: '^shutdown -c$', zustand: 'shutdown=keiner' },
@@ -113,8 +113,8 @@ Beim Herunterfahren macht systemd genau das automatisch: Es schickt allen Dienst
 
 <Terminal id="prozesse" titel="Terminal: Ein hängendes Programm" welt={{ prozesse: [
     { pid: 1, user: 'root', cmd: '/sbin/init' }, { pid: 612, user: 'root', cmd: '/lib/systemd/systemd-logind' },
-    { pid: 845, user: 'root', cmd: '/usr/sbin/NetworkManager --no-daemon' }, { pid: 1203, user: 'lea', cmd: '-bash' },
-    { pid: 2210, user: 'lea', cmd: 'python3 backup.py', ignoriertTerm: true }, { pid: 2290, user: 'lea', cmd: 'vim bericht.txt' },
+    { pid: 845, user: 'root', cmd: '/usr/sbin/NetworkManager --no-daemon' }, { pid: 1203, user: 'lena', cmd: '-bash' },
+    { pid: 2210, user: 'lena', cmd: 'python3 backup.py', ignoriertTerm: true }, { pid: 2290, user: 'lena', cmd: 'vim bericht.txt' },
   ] }}
   einleitung="Das Skript backup.py hängt und blockiert den geplanten Neustart."
   aufgaben={[

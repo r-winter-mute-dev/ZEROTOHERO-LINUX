@@ -52,16 +52,16 @@ Fast alles in der Prüfung passiert auf der Kommandozeile. Bevor es in Akt 1 an 
 Wenn ein Terminal auf deine Eingabe wartet, zeigt es den **Prompt**, zum Beispiel:
 
 ```
-lea@werkstatt:~$
+lena@werkstatt:~$
 ```
 
-Das heißt: Benutzer **lea** auf dem Rechner **werkstatt**, im Verzeichnis **~** (das ist dein persönliches Verzeichnis, hier `/home/lea`). Das **$** am Ende zeigt einen normalen Benutzer. Arbeitest du als Administrator **root**, steht dort ein **#**. Dann besonders aufpassen: root darf alles, auch das System zerstören.
+Das heißt: Benutzer **lena** auf dem Rechner **werkstatt**, im Verzeichnis **~** (das ist dein persönliches Verzeichnis, hier `/home/lena`). Das **$** am Ende zeigt einen normalen Benutzer. Arbeitest du als Administrator **root**, steht dort ein **#**. Dann besonders aufpassen: root darf alles, auch das System zerstören.
 </Karte>
 
 <Merke>$ heißt normaler Benutzer, # heißt root. Die Tilde ~ ist dein persönliches Verzeichnis.</Merke>
 
 <Quiz id="k1" titel="Kurzcheck: Prompt" fragen={[
-  { frage: 'Was verrät dir dieser Prompt? root@server:/etc#', richtig: 'Du bist root auf dem Rechner server, im Verzeichnis /etc.', falsch: ['Du bist lea auf dem Rechner root.', 'Du bist im Verzeichnis server und hast keine Rechte.'], erklaerung: 'Vor dem @ steht der Benutzer, danach der Rechner, nach dem Doppelpunkt das Verzeichnis. Das # zeigt root.' },
+  { frage: 'Was verrät dir dieser Prompt? root@server:/etc#', richtig: 'Du bist root auf dem Rechner server, im Verzeichnis /etc.', falsch: ['Du bist lena auf dem Rechner root.', 'Du bist im Verzeichnis server und hast keine Rechte.'], erklaerung: 'Vor dem @ steht der Benutzer, danach der Rechner, nach dem Doppelpunkt das Verzeichnis. Das # zeigt root.' },
 ]} />
 
 ## Befehle, Optionen, Argumente
@@ -131,7 +131,7 @@ Unten arbeitest du in einem simulierten Terminal. Es läuft komplett in deinem B
 ]} />
 
 <Quiz id="k3" titel="Kurzcheck: Griffe" fragen={[
-  { frage: 'Du bist in /home/lea und tippst „cd ..“. Wo bist du dann?', richtig: '/home', falsch: ['/', '/home/lea/..'], erklaerung: '.. ist immer das übergeordnete Verzeichnis.' },
+  { frage: 'Du bist in /home/lena und tippst „cd ..“. Wo bist du dann?', richtig: '/home', falsch: ['/', '/home/lena/..'], erklaerung: '.. ist immer das übergeordnete Verzeichnis.' },
   { frage: 'Ein Befehl meldet „Operation not permitted“. Was ist die wahrscheinlichste Ursache?', richtig: 'Er braucht Administratorrechte, also sudo.', falsch: ['Der Befehl ist falsch geschrieben.', 'Die Datei ist zu groß.'], erklaerung: 'Bei einem Tippfehler käme „Befehl nicht gefunden“ (command not found).' },
 ]} />
 
