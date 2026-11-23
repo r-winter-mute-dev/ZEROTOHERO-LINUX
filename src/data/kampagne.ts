@@ -75,7 +75,22 @@ const LPIC1: Akt[] = [
       m('l1-1-probe', 'Probe 1', 'Probeprüfung Topic 101', 'Gemischte Fragen im Format der echten Prüfung, mit Zeitlimit.', 'Alles aus Topic 101', 'Prüfungssimulation', { probe: true, ziele: ['101.1', '101.2', '101.3'], bereit: true }),
     ],
   },
-  geplanterAkt('l1', 2, 'Installation und Pakete', '102', 'Festplatten planen, Bootloader installieren und Software mit dpkg, apt, rpm und dnf verwalten.', 'lpic1'),
+  {
+    nr: 2, titel: 'Installation und Pakete', teil: 'l1-2', teilName: 'Topic 102',
+    ziel: 'Platten sinnvoll aufteilen, GRUB einrichten, Bibliotheken finden und Software auf Debian, Red Hat und SUSE verwalten. 12 von 60 Fragen in Prüfung 101.',
+    missionen: [
+      m('l1-2-1', '2.1', 'Die Platte aufteilen', 'Partitionen und Einhängepunkte für einen Rechner planen.', '/, /boot, ESP, /home, /var, Swap, LVM-Grundlagen', 'Terminal-Simulator, Zuordnung, Ausgabe aus deiner VM', { ziele: ['102.1'], bereit: true }),
+      m('l1-2-2', '2.2', 'GRUB einrichten', 'Den Bootloader dauerhaft umstellen und installieren.', 'GRUB Legacy, GRUB 2, /etc/default/grub, grub-mkconfig, grub-install, Rückfalloptionen', 'Terminal-Simulator, Code-Puzzle, Quiz', { ziele: ['102.2'], bereit: true }),
+      m('l1-2-3', '2.3', 'Gemeinsame Bibliotheken', 'Herausfinden, welche Bibliotheken ein Programm braucht, und eine fehlende einbinden.', 'ldd, ldconfig, /etc/ld.so.conf, LD_LIBRARY_PATH', 'Terminal-Simulator und Quiz', { ziele: ['102.3'], bereit: true }),
+      m('l1-2-4', '2.4', 'Debian-Pakete mit dpkg', 'Paketdateien installieren, untersuchen und entfernen.', 'dpkg -i, -r, -P, -l, -L, -S, -s, -I, -c, -V, dpkg-reconfigure', 'Terminal-Simulator und Quiz', { ziele: ['102.4'], bereit: true }),
+      m('l1-2-5', '2.5', 'apt: Pakete aus dem Netz', 'Software aus Repositories suchen, installieren und aktuell halten.', 'sources.list, apt-get, apt-cache, apt-file, apt', 'Terminal-Simulator, Zuordnung, Ausgabe aus deiner VM', { ziele: ['102.4'], bereit: true }),
+      m('l1-2-6', '2.6', 'RPM-Pakete mit rpm', 'RPM-Dateien installieren, abfragen und prüfen.', 'rpm -i, -U, -F, -e, -q mit Varianten, -V, -K, rpm2cpio', 'Terminal-Simulator und Quiz', { ziele: ['102.5'], bereit: true }),
+      m('l1-2-7', '2.7', 'dnf, yum und zypper', 'Software auf Red-Hat- und SUSE-Systemen aus Repositories verwalten.', 'dnf und yum, /etc/yum.repos.d, EPEL, zypper', 'Terminal-Simulator, Zuordnung, Ausgabe aus deiner VM', { ziele: ['102.5'], bereit: true }),
+      m('l1-2-8', '2.8', 'Linux als Gast', 'Eine VM zur Vorlage machen und verstehen, was sich beim Klonen ändern muss.', 'VMs, Container, Cloud, Gasttreiber, machine-id, SSH-Host-Schlüssel, cloud-init', 'Terminal-Simulator und Quiz', { ziele: ['102.6'], bereit: true }),
+      m('l1-2-boss', 'Boss 2', 'Die Installation klemmt', 'Fünf kaputte Installationen anhand ihrer Meldungen reparieren.', 'Fehlersuche bei Paketen, Bibliotheken und Bootloader', 'Logdiagnose', { boss: true, ziele: ['102.1', '102.2', '102.3', '102.4', '102.5', '102.6'], bereit: true }),
+      m('l1-2-probe', 'Probe 2', 'Probeprüfung Topic 101 und 102', 'Gemischte Fragen aus beiden Topics, mit Zeitlimit.', 'Alles aus Topic 101 und 102', 'Prüfungssimulation', { probe: true, ziele: ['101.1', '101.2', '101.3', '102.1', '102.2', '102.3', '102.4', '102.5', '102.6'], bereit: true }),
+    ],
+  },
   geplanterAkt('l1', 3, 'GNU- und Unix-Befehle', '103', 'Der größte Block der Prüfung 101: Kommandozeile, Filter, Pipes, Prozesse, reguläre Ausdrücke und vi.', 'lpic1'),
   geplanterAkt('l1', 4, 'Geräte und Dateisysteme', '104', 'Partitionieren, formatieren, einhängen, Rechte vergeben und Dateien finden.', 'lpic1', [
     m('l1-4-probe', 'Probe 101', 'Generalprobe Prüfung 101', '60 Fragen, 90 Minuten, gewichtet wie die echte Prüfung 101-500.', 'Topics 101 bis 104', 'Prüfungssimulation', { probe: true }),

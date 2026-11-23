@@ -1,0 +1,141 @@
+---
+id: l1-2-1
+checks:
+  - id: k1
+  - id: ansehen
+  - id: k2
+  - id: plan
+  - id: k3
+  - id: labor
+    hardware: true
+spick:
+  - t: "/"
+    v: "Wurzeldateisystem, muss immer da sein"
+  - t: "/boot"
+    v: "Kernel und initramfs"
+  - t: "ESP"
+    v: "FAT, eingehängt unter /boot/efi, nur bei UEFI"
+  - t: "/home"
+    v: "Daten der Benutzer, überlebt eine Neuinstallation"
+  - t: "/var"
+    v: "Logs, Spool, Datenbanken: läuft auf Servern gern voll"
+  - t: "Swap"
+    v: "Auslagerung, Partition oder Datei"
+  - t: "LVM"
+    v: "PV → VG → LV, flexibel vergrößern"
+  - t: "Ansehen"
+    v: "lsblk, sudo fdisk -l, df -h, swapon --show"
+karten:
+  - f: "Unter welchem Pfad wird die EFI-Systempartition üblicherweise eingehängt?"
+    a: ["/boot/efi"]
+  - f: "Mit welchem Dateisystem ist die EFI-Systempartition formatiert?"
+    a: ["FAT", "FAT32", "vfat"]
+  - f: "Warum bekommt /var auf Servern oft eine eigene Partition?"
+    a: ["Damit volllaufende Logs, Mail-Warteschlangen oder Datenbanken nicht das Wurzeldateisystem füllen."]
+    aufdecken: true
+  - f: "Warum lohnt sich eine eigene Partition für /home?"
+    a: ["Man kann das System neu installieren, ohne die Daten der Benutzer zu verlieren."]
+    aufdecken: true
+  - f: "Nenne die drei Ebenen von LVM von unten nach oben."
+    a: ["Physical Volume, Volume Group, Logical Volume", "PV, VG, LV", "PV VG LV"]
+  - f: "Welcher Befehl zeigt die aktiven Swap-Bereiche?"
+    a: ["swapon --show", "swapon -s"]
+  - f: "Welcher Befehl zeigt die Belegung der eingehängten Dateisysteme in lesbaren Einheiten?"
+    a: ["df -h"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Zuordnung from '../components/Zuordnung.astro';
+import Labor from '../components/Labor.astro';
+
+Bevor Linux installiert wird, entscheidest du, wie die Platte aufgeteilt wird. Das lässt sich später nur mühsam ändern. Ein Laptop braucht eine andere Aufteilung als ein Mailserver. **Deine Mission: Lies die Aufteilung des Rechners „werkstatt“ und plane für drei andere Rechner eine passende.** Lernziel 102.1.
+
+## Was wohin gehört
+
+<Karte nr={1} titel="Einhängepunkte">
+Linux hat einen einzigen Verzeichnisbaum, der bei `/` beginnt. Jede Partition wird an einer Stelle dieses Baums **eingehängt**, an ihrem **Einhängepunkt** (mount point). Liegt `/home` auf einer eigenen Partition, landet alles unterhalb von `/home` auf ihr. Alles andere landet auf der Partition für `/`.
+
+| Bereich | Wozu eine eigene Partition? |
+| --- | --- |
+| `/` | Muss es immer geben. Enthält alles, was nicht woanders eingehängt ist. |
+| `/boot` | Kernel und initramfs. Eigene Partition, wenn der Bootloader das Wurzeldateisystem nicht lesen kann, etwa weil es verschlüsselt ist. |
+| `/home` | Daten der Benutzer. Übersteht eine Neuinstallation des Systems. |
+| `/var` | Logs, Mail-Warteschlangen, Datenbanken. Läuft auf Servern gern voll und soll dann nicht `/` mitreißen. |
+| Swap | Auslagerung, wenn der Arbeitsspeicher knapp wird. Auch als Datei möglich. |
+</Karte>
+
+<Merke>/ immer. /home für die Daten, /var für Server, /boot wenn der Bootloader / nicht lesen kann.</Merke>
+
+<Karte nr={2} titel="Was die Firmware verlangt">
+- **UEFI** braucht eine **EFI-Systempartition (ESP)**: mit **FAT** formatiert, unter Linux meist unter `/boot/efi` eingehängt. Ein paar hundert Megabyte reichen in der Regel.
+- **BIOS mit MBR-Partitionstabelle** braucht keine Extra-Partition. GRUB passt in den Bereich direkt hinter dem MBR.
+- **BIOS mit GPT-Partitionstabelle** braucht eine winzige **BIOS-Boot-Partition** (etwa 1 MiB) für GRUB, ohne Dateisystem.
+
+Das Lernziel nennt das „/boot passend zur Hardware-Architektur“. Gemeint ist genau dieser Unterschied.
+</Karte>
+
+<Merke>UEFI: ESP mit FAT unter /boot/efi. BIOS mit GPT: kleine BIOS-Boot-Partition.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: Aufteilung" fragen={[
+  { frage: 'Auf einem Mailserver ist / voll gelaufen, weil sich in /var/spool/mail Gigabytes angesammelt haben. Welche Aufteilung hätte das verhindert?', richtig: 'Eine eigene Partition für /var', falsch: ['Eine eigene Partition für /boot', 'Eine größere Swap-Partition'], erklaerung: 'Mit einer eigenen /var-Partition wäre nur /var voll, das restliche System liefe weiter.' },
+  { frage: 'Welche Partition braucht ein Rechner mit UEFI auf jeden Fall?', richtig: 'Eine EFI-Systempartition mit FAT-Dateisystem', falsch: ['Eine BIOS-Boot-Partition', 'Eine eigene /home-Partition'], erklaerung: 'UEFI lädt den Bootloader als Datei aus der ESP.' },
+]} />
+
+<Terminal id="ansehen" titel="Terminal: Wie ist „werkstatt“ aufgeteilt?" aufgaben={[
+  { text: 'Zeig alle Blockgeräte als Baum.', befehl: '^lsblk', frage: 'Welche Partition ist die Swap-Partition? (z. B. nvme0n1p2)', antwort: ['nvme0n1p3', '/dev/nvme0n1p3'] },
+  { text: 'Lass dir die Partitionstabellen ausgeben. Das geht nur mit Root-Rechten.', befehl: '^fdisk -l$', frage: 'Wie groß ist die EFI-Systempartition?', antwort: ['512M', '512 M', '512 MB', '512 MiB', '512'] },
+  { text: 'Schau dir an, wie voll die eingehängten Dateisysteme sind, in lesbaren Einheiten.', befehl: '^df -\\w*h', frage: 'Wie viel Prozent von / sind belegt?', antwort: ['9', '9%', '9 %'] },
+  { text: 'Lass dir die aktiven Swap-Bereiche zeigen.', befehl: '^swapon (--show|-s)$' },
+  { text: 'Lies <code>/etc/fstab</code>. Dort steht, was beim Start wo eingehängt wird.', befehl: '^cat /etc/fstab$', frage: 'Mit welchem Dateisystemtyp wird /boot/efi eingehängt?', antwort: ['vfat'] },
+]} />
+
+## LVM
+
+<Karte nr={3} titel="Flexibel statt fest">
+Feste Partitionen sind starr: Ist `/var` zu klein, kann man sie nur mühsam vergrößern. Der **Logical Volume Manager (LVM)** schiebt eine Schicht dazwischen:
+
+1. **Physical Volumes (PV):** Partitionen oder ganze Platten, die LVM übergeben werden.
+2. **Volume Group (VG):** ein Topf, in den der Platz aller PVs fließt.
+3. **Logical Volumes (LV):** Aus dem Topf geschnittene Bereiche, die wie Partitionen benutzt werden, etwa `/dev/vgdaten/var`.
+
+LVs lassen sich im laufenden Betrieb vergrößern, und kommt eine neue Platte dazu, wandert ihr Platz einfach in die VG. Außerdem kann LVM **Snapshots** anlegen, also eingefrorene Stände eines LV. Für LPIC-1 reichen diese Grundbegriffe. Anlegen und verwalten kommt in LPIC-2. Die Befehle `pvs`, `vgs` und `lvs` zeigen die drei Ebenen an.
+</Karte>
+
+<Merke>LVM: Platten werden zu PVs, PVs füllen eine VG, aus der VG schneidet man LVs.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: LVM" fragen={[
+  { frage: 'In welcher Reihenfolge baut LVM aufeinander auf?', richtig: 'Physical Volume → Volume Group → Logical Volume', falsch: ['Logical Volume → Volume Group → Physical Volume', 'Volume Group → Physical Volume → Logical Volume'], erklaerung: 'Unten die echten Platten (PV), in der Mitte der gemeinsame Topf (VG), oben die benutzbaren Bereiche (LV).' },
+  { frage: 'Was ist ein Vorteil von LVM gegenüber festen Partitionen?', richtig: 'Logical Volumes lassen sich nachträglich vergrößern, auch über mehrere Platten hinweg.', falsch: ['LVM macht Dateien schneller.', 'Mit LVM braucht man keine Datensicherung mehr.'], erklaerung: 'Ein Snapshot oder ein RAID ersetzt keine Datensicherung.' },
+]} />
+
+## Selbst planen
+
+<Karte nr={4} titel="Swap: wie groß?">
+Eine feste Regel gibt es nicht. Die alte Faustregel „doppelt so viel wie Arbeitsspeicher“ stammt aus Zeiten mit wenig RAM. Heute gilt: Soll der Rechner in den **Ruhezustand** (hibernate) gehen können, muss die Swap mindestens so groß sein wie der Arbeitsspeicher, denn dort wird sein Inhalt abgelegt. Sonst reicht oft wenig. Statt einer Partition geht auch eine **Swap-Datei**, die man leichter in der Größe ändern kann. Diese Angaben sind Richtwerte, keine Vorgabe des LPI.
+</Karte>
+
+<Zuordnung id="plan" titel="Zuordnung: Welche Aufteilung passt?" aufgabe="Welche Aufteilung passt am besten zum jeweiligen Rechner?"
+  paare={[
+    { links: 'Laptop mit UEFI, soll in den Ruhezustand gehen', rechts: 'ESP, /, /home, Swap so groß wie der RAM' },
+    { links: 'Mailserver mit viel Protokoll und Warteschlangen', rechts: 'ESP, /, eigenes /var auf LVM' },
+    { links: 'Alter PC mit BIOS und GPT-Platte', rechts: 'BIOS-Boot-Partition, /, Swap' },
+    { links: 'Rechner mit vollständig verschlüsseltem /', rechts: 'ESP, unverschlüsseltes /boot, verschlüsseltes /' },
+  ]}
+  extra={['Nur eine Partition für /, ohne Swap', 'ESP, / und /boot auf demselben FAT-Dateisystem']} />
+
+<Quiz id="k3" titel="Kurzcheck: Planen" fragen={[
+  { frage: 'Ein Desktop-PC soll in den Ruhezustand gehen können und hat 16 GB RAM. Was gilt für den Swap?', richtig: 'Er sollte mindestens 16 GB groß sein.', falsch: ['Er muss genau 32 GB groß sein.', 'Ohne Swap geht der Ruhezustand schneller.'], erklaerung: 'Beim Ruhezustand wird der Inhalt des Arbeitsspeichers in den Swap geschrieben.' },
+  { frage: 'Warum braucht ein Rechner mit vollständig verschlüsseltem / oft ein eigenes /boot?', richtig: 'Weil der Bootloader Kernel und initramfs lesen muss, bevor die Verschlüsselung aufgehoben ist', falsch: ['Weil /boot immer auf einer eigenen Platte liegen muss', 'Weil verschlüsselte Partitionen kein Swap haben'], erklaerung: 'Die initramfs fragt dann das Passwort ab und hängt danach das verschlüsselte / ein.' },
+]} />
+
+## Und in deinem Labor?
+
+<Labor id="labor" titel="Aufgabe im Labor: Wie hat der Installer geteilt?"
+  aufgabe="Führe in deiner Debian-VM diesen Befehl aus. Hat der Installer eine eigene Swap-Partition angelegt? Gibt es eine ESP?"
+  befehl="lsblk -o NAME,SIZE,FSTYPE,MOUNTPOINTS"
+  muster={['\\bdisk\\b|^[sv]d[a-z]|^nvme', '\\s/\\s*$']}
+  hilfe={[{ wenn: '/boot/efi', text: 'Deine VM startet mit UEFI, sie hat eine ESP.' }, { wenn: 'SWAP|swap', text: 'Der Installer hat eine Swap-Partition angelegt.' }]}
+  erfolg="Das ist die Aufteilung deiner VM." />

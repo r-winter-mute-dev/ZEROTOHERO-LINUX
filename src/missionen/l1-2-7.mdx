@@ -1,0 +1,169 @@
+---
+id: l1-2-7
+checks:
+  - id: k1
+  - id: dnf
+  - id: k2
+  - id: zypper
+  - id: vergleich
+  - id: k3
+  - id: labor
+    hardware: true
+spick:
+  - t: "dnf (früher yum)"
+    v: "install, remove, upgrade, search, info, provides, list, repolist"
+  - t: "Konfiguration"
+    v: "/etc/dnf/dnf.conf (früher /etc/yum.conf)"
+  - t: "Quellen"
+    v: "/etc/yum.repos.d/*.repo"
+  - t: "Mehr Pakete"
+    v: "dnf install epel-release"
+  - t: "Lokale Datei"
+    v: "dnf install ./datei.rpm"
+  - t: "zypper (SUSE)"
+    v: "in, rm, up, se, if, wp, ref, lr, ar"
+  - t: "Quellen bei SUSE"
+    v: "/etc/zypp/repos.d/"
+karten:
+  - f: "Wie heißt der Nachfolger von yum auf Red Hat Enterprise Linux 8 und neuer?"
+    a: ["dnf"]
+  - f: "In welchem Verzeichnis liegen die Repository-Dateien für yum und dnf?"
+    a: ["/etc/yum.repos.d", "/etc/yum.repos.d/"]
+  - f: "Wie hieß die Hauptkonfigurationsdatei von yum?"
+    a: ["/etc/yum.conf"]
+  - f: "Mit welchem dnf-Befehl findest du heraus, welches Paket /usr/bin/tree liefert?"
+    a: ["dnf provides /usr/bin/tree", "yum provides /usr/bin/tree", "dnf whatprovides /usr/bin/tree", "yum whatprovides /usr/bin/tree"]
+  - f: "Welcher zypper-Befehl entspricht apt-get install? (Kurzform)"
+    a: ["zypper in", "zypper install"]
+  - f: "Welcher zypper-Befehl lädt die Repository-Daten neu? (Kurzform)"
+    a: ["zypper ref", "zypper refresh"]
+  - f: "Welcher zypper-Befehl zeigt, welches Paket eine Datei liefert? (Kurzform)"
+    a: ["zypper wp", "zypper what-provides"]
+  - f: "Was ist die Vorgabe bei der Rückfrage „Is this ok [y/N]“ von dnf?"
+    a: ["Nein", "N", "no"]
+  - f: "Wie installierst du mit dnf die lokale Datei paket.rpm samt Abhängigkeiten aus den Quellen?"
+    a: ["dnf install ./paket.rpm", "sudo dnf install ./paket.rpm", "yum install ./paket.rpm"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Zuordnung from '../components/Zuordnung.astro';
+import Labor from '../components/Labor.astro';
+
+Was apt für Debian ist, ist **dnf** für Red Hat und seine Verwandten und **zypper** für SUSE: Sie holen Pakete aus Repositories und lösen Abhängigkeiten auf. Das Lernziel heißt noch „RPM und YUM“, weil yum der Vorgänger von dnf ist. **Deine Mission: Installiere Software auf AlmaLinux und auf openSUSE.** Lernziel 102.5.
+
+## yum und dnf
+
+<Karte nr={1} titel="Zwei Namen, eine Bedienung">
+**yum** war jahrelang das Werkzeug auf Red Hat Enterprise Linux und CentOS. Seit RHEL 8 ist **dnf** sein Nachfolger. Der Befehl `yum` ist dort nur noch ein anderer Name für dnf. Die Befehle sind fast gleich:
+
+| Befehl | Tut |
+| --- | --- |
+| `dnf install tree` | installiert samt Abhängigkeiten |
+| `dnf install ./datei.rpm` | installiert eine lokale Datei und holt fehlende Abhängigkeiten |
+| `dnf remove tree` | entfernt |
+| `dnf upgrade` (alt: `yum update`) | aktualisiert alles |
+| `dnf search begriff` | sucht in Namen und Beschreibungen |
+| `dnf info tree` | zeigt Infos |
+| `dnf provides /usr/bin/tree` | welches Paket liefert diese Datei, auch wenn es nicht installiert ist |
+| `dnf list installed` | installierte Pakete |
+| `dnf repolist` | aktive Repositories |
+
+Vorsicht bei der Rückfrage: dnf fragt „Is this ok [y/N]“. Der Großbuchstabe ist die Vorgabe, Enter heißt hier **Nein**. Mit `-y` fällt die Frage weg.
+</Karte>
+
+<Karte nr={2} titel="Wo die Quellen stehen">
+Jedes Repository steht in einer eigenen Datei unter **/etc/yum.repos.d/** mit der Endung .repo:
+
+```
+[baseos]
+name=AlmaLinux $releasever - BaseOS
+mirrorlist=https://mirrors.almalinux.org/mirrorlist/$releasever/baseos
+enabled=1
+gpgcheck=1
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-AlmaLinux-9
+```
+
+Allgemeine Einstellungen stehen in **/etc/yum.conf**, bei dnf in **/etc/dnf/dnf.conf**. Auf AlmaLinux 9 ist yum.conf nur ein Link auf dnf.conf. Viele beliebte Pakete fehlen in den offiziellen Quellen. Sie liegen in **EPEL** (Extra Packages for Enterprise Linux), das man mit `dnf install epel-release` einschaltet.
+</Karte>
+
+<Merke>dnf = Nachfolger von yum. Quellen in /etc/yum.repos.d/*.repo. Vorgabe bei [y/N] ist Nein.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: dnf" fragen={[
+  { frage: 'dnf meldet „No match for argument: htop“. htop gibt es aber für AlmaLinux. Was ist die wahrscheinlichste Ursache?', richtig: 'Das Repository, in dem htop liegt (EPEL), ist nicht eingeschaltet.', falsch: ['dnf braucht ein Update.', 'htop muss mit rpm -i installiert werden.'], erklaerung: 'dnf kennt nur Pakete aus aktiven Repositories. dnf repolist zeigt, welche das sind.' },
+  { frage: 'Welche Zeile in einer .repo-Datei sorgt dafür, dass Signaturen geprüft werden?', richtig: 'gpgcheck=1', falsch: ['enabled=1', 'mirrorlist=…'], erklaerung: 'gpgkey sagt dazu, welcher Schlüssel gilt.' },
+]} />
+
+<Terminal id="dnf" titel="Terminal: AlmaLinux" welt={{ distro: 'alma' }} aufgaben={[
+  { text: 'Lies die Repository-Datei für BaseOS.', befehl: '^cat /etc/yum\\.repos\\.d/almalinux-baseos\\.repo$', frage: 'Mit welchem Wert ist gpgcheck gesetzt?', antwort: ['1'] },
+  { text: 'Lass dir die aktiven Repositories anzeigen.', befehl: '^(dnf|yum) repolist' },
+  { text: 'Versuch, htop zu installieren.', befehl: '^(dnf|yum) (-y )?install( -y)? htop', auchFehler: true },
+  { text: 'Schalte EPEL ein, indem du das Paket epel-release installierst.', zustand: 'repo:epel=an' },
+  { text: 'Installiere htop jetzt, ohne -y. Beantworte die Rückfrage mit y.', zustand: 'paket:htop=an' },
+  { text: 'Finde heraus, welches Paket <code>/usr/bin/tree</code> liefert.', befehl: '^(dnf|yum) (provides|whatprovides) ', frage: 'Wie heißt das Paket?', antwort: ['tree'] },
+  { text: 'Installiere die Messsoftware aus <code>~/downloads</code> mit dnf, so dass ihre Abhängigkeit mitkommt.', zustand: 'paket:messsoft=an && paket:libmess=an' },
+]} />
+
+<Hinweis titel="Enter ist hier Nein">
+Wer von Debian kommt, drückt bei der Rückfrage gewohnheitsmäßig Enter und wundert sich über „Operation aborted“. Bei apt ist Y die Vorgabe, bei dnf N.
+</Hinweis>
+
+## zypper
+
+<Karte nr={3} titel="SUSE hat sein eigenes Werkzeug">
+openSUSE und SUSE Linux Enterprise nutzen ebenfalls RPM-Pakete, aber **zypper** statt dnf. Jeder Befehl hat eine Kurzform:
+
+| Befehl | Kurz | Tut |
+| --- | --- | --- |
+| `zypper refresh` | `ref` | Repository-Daten neu laden |
+| `zypper install` | `in` | installieren |
+| `zypper remove` | `rm` | entfernen |
+| `zypper update` | `up` | aktualisieren |
+| `zypper search` | `se` | suchen |
+| `zypper info` | `if` | Infos |
+| `zypper what-provides` | `wp` | welches Paket liefert eine Datei |
+| `zypper repos` | `lr` | Repositories anzeigen |
+| `zypper addrepo` | `ar` | Repository hinzufügen |
+
+Die Repositories stehen unter **/etc/zypp/repos.d/**.
+</Karte>
+
+<Merke>zypper: in, rm, up, se, if, wp, ref, lr, ar. Quellen in /etc/zypp/repos.d.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: zypper" fragen={[
+  { frage: 'Welcher Befehl entspricht auf openSUSE dem Befehl „dnf provides /usr/bin/tree“?', richtig: 'zypper wp /usr/bin/tree', falsch: ['zypper if /usr/bin/tree', 'zypper se --file /usr/bin/tree'], erklaerung: 'wp steht für what-provides.' },
+]} />
+
+<Terminal id="zypper" titel="Terminal: openSUSE" welt={{ distro: 'suse' }} aufgaben={[
+  { text: 'Lass dir die Repositories anzeigen.', befehl: '^zypper (lr|repos)' },
+  { text: 'Lade die Repository-Daten neu.', befehl: '^zypper (ref|refresh)$' },
+  { text: 'Such nach htop.', befehl: '^zypper (se|search) htop$' },
+  { text: 'Installiere htop.', zustand: 'paket:htop=an' },
+  { text: 'Finde heraus, welches Paket <code>/usr/bin/tree</code> liefert.', befehl: '^zypper (wp|what-provides) ', frage: 'Wie heißt das Paket?', antwort: ['tree'] },
+]} />
+
+<Zuordnung id="vergleich" titel="Zuordnung: Drei Familien" aufgabe="Welcher Befehl auf der rechten Seite entspricht dem Befehl für Debian?"
+  paare={[
+    { links: 'apt-get install nginx (auf AlmaLinux)', rechts: 'dnf install nginx' },
+    { links: 'apt-get install nginx (auf openSUSE)', rechts: 'zypper in nginx' },
+    { links: 'apt-get update (auf openSUSE)', rechts: 'zypper ref' },
+    { links: 'apt-file search /usr/bin/tree (auf AlmaLinux)', rechts: 'dnf provides /usr/bin/tree' },
+    { links: 'apt-cache search editor (auf openSUSE)', rechts: 'zypper se editor' },
+  ]}
+  extra={['yum get nginx', 'zypper update-lists', 'rpm -qf /usr/bin/tree']} />
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Auf einem älteren CentOS 7 gibt es kein dnf. Mit welchem Befehl installierst du dort tree?', richtig: 'yum install tree', falsch: ['apt-get install tree', 'zypper in tree'], erklaerung: 'yum war das Werkzeug bis RHEL 7 und CentOS 7.' },
+  { frage: 'Wo trägst du auf AlmaLinux ein neues Repository ein?', richtig: 'In einer .repo-Datei unter /etc/yum.repos.d/', falsch: ['In /etc/apt/sources.list', 'In /etc/zypp/repos.d/'], erklaerung: 'sources.list gehört zu apt, /etc/zypp zu SUSE.' },
+]} />
+
+## Und in deinem Labor?
+
+<Labor id="labor" titel="Aufgabe im Labor: Deine RPM-VM"
+  aufgabe="Führe in deiner AlmaLinux- oder Rocky-VM diesen Befehl aus und füge die Ausgabe ein."
+  befehl="dnf repolist"
+  muster={['repo id', '\\b(baseos|appstream)\\b']}
+  hilfe={[{ wenn: '\\bepel\\b', text: 'EPEL ist bei dir schon eingeschaltet.' }]}
+  erfolg="Das sind die Quellen deiner RPM-VM." />

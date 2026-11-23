@@ -113,7 +113,8 @@ const { id, titel = 'Terminal', aufgaben, welt = {}, einleitung } = Astro.props;
 
     function begruessen() {
       ausgabe.innerHTML = '';
-      zeile('Simulierter Rechner "werkstatt" (Debian 12). Nichts, was du hier tust, verändert deinen echten Computer.', 'info');
+      const os = w.distro === 'alma' ? 'AlmaLinux 9' : w.distro === 'suse' ? 'openSUSE Leap 15.6' : 'Debian 12';
+      zeile(`Simulierter Rechner "${w.host}" (${os}${w.virt !== 'none' ? ', virtuelle Maschine' : ''}). Nichts, was du hier tust, verändert deinen echten Computer.`, 'info');
       promptEl.textContent = prompt(w);
     }
 

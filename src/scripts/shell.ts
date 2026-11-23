@@ -3,6 +3,8 @@
 // Rechte (sudo), Pipes, Umleitungen, Kernelmodule mit Abhängigkeiten, systemd-Targets, geplanter Shutdown.
 // Der Rechner ist erfunden ("werkstatt"), die Ausgaben sind an echte Systeme angelehnt und gekürzt.
 
+import { paketBefehle, programmStarten, neustartPakete, startStand, zustandPakete, type PaketStand } from './shell-pakete';
+
 export interface Modul { name: string; groesse: number; abh: string[]; beschreibung: string; parameter?: Record<string, string>; datei?: string; }
 export interface Prozess { pid: number; user: string; cmd: string; ignoriertTerm?: boolean; }
 
@@ -25,6 +27,12 @@ export interface Welt {
   verlauf: { zeile: string; code: number; ausgabe: string }[];
   kernel: string;
   cmdline: string;
+  distro: 'debian' | 'alma' | 'suse';
+  virt: string;                  // Ausgabe von systemd-detect-virt, "none" = echte Hardware
+  env: Record<string, string>;   // exportierte Umgebungsvariablen
+  vars: Record<string, string>;  // Shell-Variablen (nicht exportiert)
+  pakete?: PaketStand;
+  wartet: null | { standardJa: boolean; aktion: () => { out: string; code: number } };   // offene Rückfrage [Y/n]
 }
 
 const KERNEL = '6.1.0-27-amd64';
@@ -154,6 +162,7 @@ function grundFs(): Record<string, string | null> {
     '/dev': null, '/dev/input': null, '/dev/disk': null, '/var': null, '/var/log': null, '/boot': null, '/run': null, '/tmp': null,
     '/home/lena/notizen.txt': 'Labor-Notizen\nUSB-Stick nicht einfach abziehen!\n',
     '/etc/hostname': 'werkstatt\n',
+    '/etc/fstab': '# /etc/fstab: static file system information.\n# <file system>                           <mount point> <type> <options>         <dump> <pass>\nUUID=3f1c0d6e-8a2b-4c51-9a0e-2d7b1e5c9f40 /             ext4   errors=remount-ro 0      1\nUUID=6A1F-2B3C                            /boot/efi     vfat   umask=0077        0      1\nUUID=9d8e7f60-1a2b-4c3d-8e9f-0a1b2c3d4e5f none          swap   sw                0      0\n',
     '/etc/os-release': 'PRETTY_NAME="Debian GNU/Linux 12 (bookworm)"\nNAME="Debian GNU/Linux"\nVERSION_ID="12"\nID=debian\n',
     '/etc/modprobe.d/alsa-base.conf': '# Autoloader aliases\noptions snd-hda-intel power_save=1\n',
     '/etc/modprobe.d/iwlwifi.conf': '# /etc/modprobe.d/iwlwifi.conf\nremove iwlwifi \\\n(/sbin/lsmod | grep -o -e ^iwlmvm -e ^iwldvm -e ^iwlwifi | xargs /sbin/rmmod) \\\n&& /sbin/modprobe -r mac80211\n',
@@ -198,7 +207,7 @@ function modulPfad(name: string) {
   return `${ordner[name] ?? 'kernel/drivers/misc'}/${name.replace(/_/g, name === 'usb_storage' ? '-' : '_')}.ko`;
 }
 
-export interface WeltOptionen { defaultTarget?: string; target?: string; ohne?: string[]; dateien?: Record<string, string>; prozesse?: Prozess[]; root?: boolean; }
+export interface WeltOptionen { defaultTarget?: string; target?: string; ohne?: string[]; dateien?: Record<string, string>; prozesse?: Prozess[]; root?: boolean; distro?: 'debian' | 'alma' | 'suse'; virt?: string; host?: string; aptVeraltet?: boolean; geaendert?: string[]; }
 
 export function neueWelt(o: WeltOptionen = {}): Welt {
   const verfuegbar = Object.fromEntries(MODULE.map((x) => [x.name, x]));
@@ -206,6 +215,7 @@ export function neueWelt(o: WeltOptionen = {}): Welt {
     host: 'werkstatt', user: 'lena', root: !!o.root, cwd: '/home/lena', fs: grundFs(), verfuegbar, geladen: {}, inBenutzung: { usb_storage: 1, vfat: 1, snd: 2, i915: 3 },
     defaultTarget: o.defaultTarget ?? 'graphical.target', target: o.target ?? o.defaultTarget ?? 'graphical.target', runlevelVorher: 'N',
     shutdown: null, aus: null, walls: [], verlauf: [], kernel: KERNEL, cmdline: `BOOT_IMAGE=/boot/vmlinuz-${KERNEL} root=UUID=3f1c0d6e-8a2b-4c51-9a0e-2d7b1e5c9f40 ro quiet`,
+    distro: o.distro ?? 'debian', virt: o.virt ?? 'none', env: { HOME: '/home/lena', USER: 'lena', PATH: '/usr/local/bin:/usr/bin:/bin:/usr/local/games:/usr/games', SHELL: '/bin/bash', LANG: 'de_DE.UTF-8' }, vars: {}, wartet: null,
     prozesse: o.prozesse ?? [
       { pid: 1, user: 'root', cmd: '/sbin/init' }, { pid: 612, user: 'root', cmd: '/lib/systemd/systemd-logind' },
       { pid: 845, user: 'root', cmd: '/usr/sbin/NetworkManager --no-daemon' }, { pid: 1203, user: 'lena', cmd: '-bash' },
@@ -213,6 +223,15 @@ export function neueWelt(o: WeltOptionen = {}): Welt {
     ],
   };
   for (const n of START_GELADEN) if (!o.ohne?.includes(n)) w.geladen[n] = [];
+  if (w.distro !== 'debian') {
+    w.fs['/etc/os-release'] = w.distro === 'alma'
+      ? 'NAME="AlmaLinux"\nVERSION="9.4 (Seafoam Ocelot)"\nID="almalinux"\nID_LIKE="rhel centos fedora"\nVERSION_ID="9.4"\nPRETTY_NAME="AlmaLinux 9.4 (Seafoam Ocelot)"\n'
+      : 'NAME="openSUSE Leap"\nVERSION="15.6"\nID="opensuse-leap"\nID_LIKE="suse opensuse"\nVERSION_ID="15.6"\nPRETTY_NAME="openSUSE Leap 15.6"\n';
+  }
+  startStand(w);
+  if (o.host) { w.host = o.host; w.fs['/etc/hostname'] = o.host + '\n'; }
+  if (o.aptVeraltet) w.pakete!.aptAktuell = false;
+  if (o.geaendert) w.pakete!.geaendert = o.geaendert;
   for (const [p, c] of Object.entries(o.dateien ?? {})) w.fs[p] = c;
   w.fs['/etc/systemd/system/default.target'] = `-> /usr/lib/systemd/system/${w.defaultTarget}`;
   benutzerBerechnen(w);
@@ -376,7 +395,9 @@ const befehle: Record<string, Befehl> = {
       if (z === '/proc/modules') { out.push(Object.keys(w.geladen).map((n) => `${n} ${w.verfuegbar[n].groesse} ${w.geladen[n].length + (w.inBenutzung[n] ?? 0)} ${w.geladen[n].join(',') || '-'}, Live 0x0000000000000000`).join('\n')); continue; }
       if (!(z in w.fs)) return fehler(`cat: ${r}: Datei oder Verzeichnis nicht gefunden`);
       if (w.fs[z] === null) return fehler(`cat: ${r}: Ist ein Verzeichnis`);
-      out.push((w.fs[z] as string).replace(/\n$/, ''));
+      let inhalt = w.fs[z] as string;
+      if (inhalt.startsWith('-> ')) { const ziel = inhalt.slice(3); inhalt = (w.fs[ziel] ?? `cat: ${r}: Datei oder Verzeichnis nicht gefunden`) as string; }
+      out.push(inhalt.replace(/\n$/, ''));
     }
     return ok(out.join('\n'));
   },
@@ -711,6 +732,29 @@ export function ausfuehren(w: Welt, zeile: string): Lauf {
     if (w.root) { w.root = false; return { ausgabe: 'abgemeldet', code: 0 }; }
     return { ausgabe: '(Im Simulator bleibst du angemeldet.)', code: 0 };
   }
+  // Offene Rückfrage wie „Do you want to continue? [Y/n]“
+  if (w.wartet) {
+    const { standardJa, aktion } = w.wartet; w.wartet = null;
+    const a = roh.toLowerCase();
+    const ja = a === 'y' || a === 'j' || a === 'yes' || a === 'ja' || (a === '' && standardJa);
+    const r = ja ? aktion() : { out: 'Abort.\n(Abgebrochen. Mit -y beantwortet der Befehl die Rückfrage selbst.)', code: 1 };
+    w.verlauf.push({ zeile: `#antwort ${ja ? 'ja' : 'nein'}`, code: r.code, ausgabe: r.out });
+    return { ausgabe: r.out, code: r.code };
+  }
+  if (/^export(\s|$)/.test(roh)) {
+    const teile = zerlegen(variablen(w, roh)).slice(1);
+    if (!teile.length) { w.verlauf.push({ zeile: roh, code: 0, ausgabe: '' }); return { ausgabe: Object.entries(w.env).map(([k, v]) => `declare -x ${k}="${v}"`).join('\n'), code: 0 }; }
+    for (const t of teile) { const m = t.match(/^([A-Za-z_]\w*)(?:=(.*))?$/); if (!m) continue; w.env[m[1]] = m[2] ?? w.vars[m[1]] ?? ''; delete w.vars[m[1]]; }
+    w.verlauf.push({ zeile: roh, code: 0, ausgabe: '' });
+    return { ausgabe: '', code: 0 };
+  }
+  const nurZuweisung = roh.match(/^([A-Za-z_]\w*)=(\S*)$/);
+  if (nurZuweisung) {
+    const wert = zerlegen(variablen(w, nurZuweisung[2]))[0] ?? '';
+    if (nurZuweisung[1] in w.env) w.env[nurZuweisung[1]] = wert; else w.vars[nurZuweisung[1]] = wert;
+    w.verlauf.push({ zeile: roh, code: 0, ausgabe: '' });
+    return { ausgabe: '', code: 0 };
+  }
   const stufen = aufteilen(roh, '|');
   let eingabe = ''; let code = 0; let ausgabe = ''; let clear = false; const fehlerText: string[] = [];
   for (const [i, stufe] of stufen.entries()) {
@@ -719,7 +763,10 @@ export function ausfuehren(w: Welt, zeile: string): Lauf {
     const um = cmd.match(/\s(\d?)(>>?)\s*(\S+)\s*$/);
     if (um && i === stufen.length - 1) { cmd = cmd.slice(0, um.index); if (um[1] !== '2') { ziel = um[3]; anh = um[2] === '>>'; } }
     cmd = cmd.replace(/\s2>\s*\/dev\/null/g, '');
-    let t = zerlegen(cmd);
+    let t = zerlegen(variablen(w, cmd)).flatMap((x) => wildcard(w, x));
+    // VAR=wert befehl: Variable nur für diesen Befehl
+    const tempEnv: Record<string, string> = {};
+    while (t.length > 1 && /^[A-Za-z_]\w*=/.test(t[0])) { const k = t[0].indexOf('='); tempEnv[t[0].slice(0, k)] = t[0].slice(k + 1); t = t.slice(1); }
     let root = w.root;
     if (t[0] === 'sudo') {
       t = t.slice(1);
@@ -727,7 +774,18 @@ export function ausfuehren(w: Welt, zeile: string): Lauf {
       root = true;
     }
     const name = t[0];
-    const f = befehle[name];
+    let f = befehle[name];
+    if (!f && name?.includes('/')) {
+      const z = pfad(w, name);
+      f = (welt) => {
+        const altEnv = welt.env; welt.env = { ...welt.env, ...tempEnv };
+        try {
+          if (!(z in welt.fs)) return fehler(`bash: ${name}: Datei oder Verzeichnis nicht gefunden`, 127);
+          if (welt.fs[z] === null) return fehler(`bash: ${name}: Ist ein Verzeichnis`, 126);
+          return programmStarten(welt, z) ?? fehler(`bash: ${name}: Keine Berechtigung`, 126);
+        } finally { welt.env = altEnv; }
+      };
+    }
     if (!f) { code = 127; ausgabe = `bash: ${name}: Befehl nicht gefunden${['nano', 'vi', 'vim'].includes(name) ? ' (Editoren gibt es im Simulator nicht. Nutze echo und tee.)' : ''}`; eingabe = ''; break; }
     const r = f(w, t.slice(1), eingabe, root);
     if (r.out === '\u001bclear') { clear = true; ausgabe = ''; code = 0; break; }
@@ -749,11 +807,48 @@ export function ausfuehren(w: Welt, zeile: string): Lauf {
 }
 
 export function prompt(w: Welt) {
+  if (w.wartet) return '';
   const ort = w.cwd === '/home/lena' ? '~' : w.cwd.startsWith('/home/lena/') ? '~' + w.cwd.slice('/home/lena'.length) : w.cwd;
+  const user = w.root ? 'root' : 'lena';
+  if (w.distro === 'alma') return `[${user}@${w.host} ${w.root && ort.startsWith('~') ? ort.replace(/^~/, '/home/lena').split('/').pop() : ort === '~' ? '~' : ort.split('/').pop() || '/'}]${w.root ? '#' : '$'} `;
+  if (w.distro === 'suse') return `${user}@${w.host}:${w.root ? ort.replace(/^~/, '/home/lena') : ort}${w.root ? ' #' : '>'} `;
   return w.root ? `root@${w.host}:${ort.replace(/^~/, '/home/lena')}# ` : `lena@${w.host}:${ort}$ `;
 }
 
+// $VAR und ${VAR} ersetzen, außer in einfachen Anführungszeichen
+function variablen(w: Welt, s: string): string {
+  let out = ''; let einfach = false;
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (c === "'") { einfach = !einfach; out += c; continue; }
+    if (c === '$' && !einfach) {
+      const m = s.slice(i + 1).match(/^\{(\w+)\}|^(\w+)|^\?/);
+      if (m) {
+        const n = m[1] ?? m[2];
+        out += m[0] === '?' ? String(w.verlauf.filter((v) => !v.zeile.startsWith('#')).slice(-1)[0]?.code ?? 0) : (w.env[n] ?? w.vars[n] ?? '');
+        i += m[0].length; continue;
+      }
+    }
+    out += c;
+  }
+  return out;
+}
+
+// Wildcards * und ? gegen das Dateisystem auflösen. Ohne Treffer bleibt das Wort stehen, wie in der Bash.
+function wildcard(w: Welt, wort: string): string[] {
+  if (wort === '~' || wort.startsWith('~/')) wort = '/home/lena' + wort.slice(1);
+  if (!/[*?]/.test(wort) || wort.includes('/^') || /^[-s]\//.test(wort)) return [wort];
+  const absolut = wort.startsWith('/');
+  const basis = absolut ? '' : w.cwd === '/' ? '' : w.cwd;
+  const muster = new RegExp('^' + (absolut ? '' : basis.replace(/[.+^${}()|[\]\\]/g, '\\$&') + '/') + wort.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '[^/]*').replace(/\?/g, '[^/]') + '$');
+  const treffer = Object.keys(w.fs).filter((p) => muster.test(p) && !p.split('/').pop()!.startsWith('.')).sort();
+  if (!treffer.length) return [wort];
+  return treffer.map((p) => absolut ? p : p.slice(basis.length + 1));
+}
+
 export function neuStarten(w: Welt) {
+  neustartPakete(w);
+  w.wartet = null;
   w.aus = null; w.shutdown = null; w.root = false;
   w.runlevelVorher = 'N'; w.target = w.defaultTarget;
   // Nach dem Neustart lädt udev die Module neu – außer gesperrten.
@@ -763,7 +858,102 @@ export function neuStarten(w: Welt) {
   benutzerBerechnen(w);
 }
 
-export const BEFEHLSNAMEN = Object.keys(befehle).concat(['sudo', 'exit']);
+Object.assign(befehle, paketBefehle({ ok, fehler, optionen, pfad, schreiben }));
+
+// Ein paar allgemeine Befehle, die ab Topic 102 gebraucht werden
+Object.assign(befehle, {
+  rm: (w: Welt, a: string[], _i: string, root: boolean) => {
+    const { flags, rest } = optionen(a);
+    if (!rest.length) return fehler('rm: Operand fehlt');
+    const out: string[] = [];
+    for (const r of rest) {
+      const z = pfad(w, r);
+      if (!(z in w.fs)) { if (!flags.has('-f')) out.push(`rm: das Entfernen von '${r}' ist nicht möglich: Datei oder Verzeichnis nicht gefunden`); continue; }
+      if (w.fs[z] === null && !flags.has('-r') && !flags.has('-R')) { out.push(`rm: das Entfernen von '${r}' ist nicht möglich: Ist ein Verzeichnis`); continue; }
+      if (!root && !z.startsWith('/home/lena') && !z.startsWith('/tmp')) { out.push(`rm: das Entfernen von '${r}' ist nicht möglich: Keine Berechtigung`); continue; }
+      for (const k of Object.keys(w.fs)) if (k === z || k.startsWith(z + '/')) delete w.fs[k];
+    }
+    return out.length ? fehler(out.join('\n')) : ok();
+  },
+  truncate: (w: Welt, a: string[], _i: string, root: boolean) => {
+    const si = a.indexOf('-s'); const groesse = si >= 0 ? a[si + 1] : undefined;
+    const dateien = a.filter((x, i) => !x.startsWith('-') && i !== si + 1);
+    if (groesse !== '0') return fehler('truncate: Im Simulator nur „truncate -s 0 datei“ (Datei leeren).');
+    for (const d of dateien) { const e = schreiben(w, d, '', false, root); if (e) return fehler(`truncate: '${d}' kann nicht zum Schreiben geöffnet werden: ${e}`); }
+    return ok();
+  },
+  sed: (w: Welt, a: string[], stdin: string, root: boolean) => sedBefehl(w, a, stdin, root),
+  env: (w: Welt) => ok(Object.entries(w.env).map(([k, v]) => `${k}=${v}`).join('\n')),
+  printenv: (w: Welt, a: string[]) => a[0] ? (w.env[a[0]] !== undefined ? ok(w.env[a[0]]) : fehler('', 1)) : ok(Object.entries(w.env).map(([k, v]) => `${k}=${v}`).join('\n')),
+  unset: (w: Welt, a: string[]) => { for (const n of a) { delete w.env[n]; delete w.vars[n]; } return ok(); },
+});
+
+function sedBefehl(w: Welt, a: string[], stdin: string, root: boolean): Ergebnis {
+  let inplace = false; let still = false; let ere = false; const skripte: string[] = []; const dateien: string[] = [];
+  for (let i = 0; i < a.length; i++) {
+    const x = a[i];
+    if (x === '-i' || x.startsWith('-i.')) inplace = true;
+    else if (x === '-n') still = true;
+    else if (x === '-E' || x === '-r') ere = true;
+    else if (x === '-e') skripte.push(a[++i] ?? '');
+    else if (/^-[nEri]+$/.test(x)) { if (x.includes('i')) inplace = true; if (x.includes('n')) still = true; if (/[Er]/.test(x)) ere = true; }
+    else if (!skripte.length) skripte.push(x);
+    else dateien.push(x);
+  }
+  if (!skripte.length) return fehler('Aufruf: sed [OPTION]… {Skript} [Eingabedatei]…');
+  const regex = (r: string, fl = '') => { let q = r; if (!ere) q = q.replace(/\\\(/g, '\u0001').replace(/\\\)/g, '\u0002').replace(/\(/g, '\\(').replace(/\)/g, '\\)').replace(/\u0001/g, '(').replace(/\u0002/g, ')').replace(/\\\{/g, '{').replace(/\\\}/g, '}').replace(/\\\+/g, '+').replace(/\\\?/g, '?'); return new RegExp(q, fl); };
+  type Cmd = { adr?: { re?: RegExp; nr?: number; bis?: number }; art: string; re?: RegExp; ersatz?: string; global?: boolean; druck?: boolean };
+  const cmds: Cmd[] = [];
+  for (const sk of skripte.flatMap((x) => x.split(/;(?=\s*(?:\/|\d|s|p|d|q))/))) {
+    let t = sk.trim(); let adr: Cmd['adr'];
+    let m = t.match(/^\/((?:\\\/|[^/])*)\//);
+    if (m) { adr = { re: regex(m[1].replace(/\\\//g, '/')) }; t = t.slice(m[0].length).trim(); }
+    else if ((m = t.match(/^(\d+)(?:,(\d+|\$))?/))) { adr = { nr: Number(m[1]), bis: m[2] === '$' ? Infinity : m[2] ? Number(m[2]) : undefined }; t = t.slice(m[0].length).trim(); }
+    if (t[0] === 's') {
+      const tr = t[1]; const teile: string[] = []; let cur = ''; let k = 2;
+      for (; k < t.length && teile.length < 2; k++) { if (t[k] === '\\' && t[k + 1] === tr) { cur += tr; k++; continue; } if (t[k] === tr) { teile.push(cur); cur = ''; continue; } cur += t[k]; }
+      if (teile.length < 2) return fehler(`sed: -e Ausdruck #1, Zeichen ${t.length}: nicht beendeter „s“-Befehl`);
+      const fl = t.slice(k);
+      cmds.push({ adr, art: 's', re: regex(teile[0], (fl.includes('g') ? 'g' : '') + (/[iI]/.test(fl) ? 'i' : '')), ersatz: teile[1].replace(/\\(\d)/g, '$$$1').replace(/(^|[^\\])&/g, '$1$$&').replace(/\\&/g, '&'), druck: fl.includes('p') });
+    } else if (t === 'd' || t === 'p' || t === 'q') cmds.push({ adr, art: t });
+    else return fehler(`sed: -e Ausdruck #1, Zeichen 1: unbekannter Befehl: „${t[0] ?? ''}“ (der Simulator kennt s, d, p und q)`);
+  }
+  const bearbeite = (text: string) => {
+    const aus: string[] = [];
+    const zeilen = text.replace(/\n$/, '').split('\n');
+    for (const [i, z0] of zeilen.entries()) {
+      let z = z0; let weg = false; let stop = false;
+      for (const c of cmds) {
+        const n = i + 1;
+        const passt = !c.adr || (c.adr.re ? c.adr.re.test(z) : c.adr.bis !== undefined ? n >= c.adr.nr! && n <= c.adr.bis : n === c.adr.nr);
+        if (!passt) continue;
+        if (c.art === 's') { const neu = z.replace(c.re!, c.ersatz!); if (neu !== z && c.druck) aus.push(neu); z = neu; }
+        else if (c.art === 'd') { weg = true; break; }
+        else if (c.art === 'p') aus.push(z);
+        else if (c.art === 'q') { stop = true; break; }
+      }
+      if (!weg && !still) aus.push(z);
+      if (stop) break;
+    }
+    return aus.join('\n');
+  };
+  if (!dateien.length) { if (inplace) return fehler('sed: keine Eingabedateien'); return ok(bearbeite(stdin)); }
+  const out: string[] = [];
+  for (const d of dateien) {
+    const z = pfad(w, d);
+    const inhalt = w.fs[z];
+    if (typeof inhalt !== 'string') return fehler(`sed: ${d} kann nicht gelesen werden: Datei oder Verzeichnis nicht gefunden`, 2);
+    const neu = bearbeite(inhalt);
+    if (inplace) {
+      if (!root && !z.startsWith('/home/lena') && !z.startsWith('/tmp')) return fehler(`sed: temporäre Datei ${z.replace(/[^/]+$/, '')}sedAbC12 konnte nicht geöffnet werden: Keine Berechtigung`, 4);
+      w.fs[z] = neu + '\n';
+      if (w.pakete && !w.pakete.geaendert.includes(z)) w.pakete.geaendert.push(z);
+    } else out.push(neu);
+  }
+  return ok(out.join('\n'));
+}
+
+export const BEFEHLSNAMEN = Object.keys(befehle).concat(['sudo', 'exit', 'export']);
 
 // ---------- Prüfen von Aufgaben ----------
 
@@ -794,6 +984,11 @@ export function zustandStimmt(w: Welt, z: string): boolean {
     if ((m = s.match(/^prozess:(\d+)=(weg|da)$/))) return (m[2] === 'weg') === !w.prozesse.some((p) => p.pid === Number(m![1]));
     if ((m = s.match(/^signal:(\d+)=(\d+)$/))) return w.verlauf.some((v) => v.zeile === `#signal ${m![1]} ${m![2]}`);
     if (s === 'root') return w.root;
+    if ((m = s.match(/^fehlt:(.+)$/))) { const re = new RegExp('^' + m[1].replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*') + '$'); return !Object.keys(w.fs).some((p) => re.test(p)); }
+    if ((m = s.match(/^leer:(.+)$/))) return w.fs[m[1]] === '';
+    if ((m = s.match(/^host=(.+)$/))) return w.host === m[1];
+    if (s === 'antwort:ja') return w.verlauf.some((v) => v.zeile === '#antwort ja');
+    const p = zustandPakete(w, s); if (p !== undefined) return p;
     if (s === 'neustart') return w.verlauf.some((v) => v.zeile === '#neustart');
     return false;
   });

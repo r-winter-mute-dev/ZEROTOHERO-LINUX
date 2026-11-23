@@ -1,0 +1,155 @@
+---
+id: l1-2-6
+checks:
+  - id: k1
+  - id: abfragen
+  - id: k2
+  - id: datei
+  - id: k3
+  - id: zuordnung
+spick:
+  - t: "Dateiname"
+    v: "name-version-release.arch.rpm"
+  - t: "Installieren / aktualisieren"
+    v: "rpm -ivh datei.rpm / rpm -Uvh datei.rpm"
+  - t: "Nur aktualisieren, wenn installiert"
+    v: "rpm -Fvh datei.rpm"
+  - t: "Entfernen"
+    v: "rpm -e paket"
+  - t: "Abfragen"
+    v: "rpm -q paket, -qa, -qi, -ql, -qc, -qR"
+  - t: "Zu welchem Paket?"
+    v: "rpm -qf /pfad/datei"
+  - t: "Paketdatei abfragen"
+    v: "rpm -qp… datei.rpm (z. B. -qpl, -qpi)"
+  - t: "Prüfen"
+    v: "rpm -V paket, Signatur: rpm -K datei.rpm"
+  - t: "Auspacken ohne Installation"
+    v: "rpm2cpio datei.rpm | cpio -idmv"
+karten:
+  - f: "Mit welchem Befehl installierst du paket.rpm mit Fortschrittsbalken und ausführlicher Ausgabe?"
+    a: ["rpm -ivh paket.rpm", "sudo rpm -ivh paket.rpm"]
+  - f: "Welche rpm-Option aktualisiert ein Paket nur dann, wenn es schon installiert ist?"
+    a: ["-F", "--freshen", "rpm -F"]
+  - f: "Welche rpm-Option installiert oder aktualisiert, je nachdem, ob das Paket schon da ist?"
+    a: ["-U", "--upgrade", "rpm -U"]
+  - f: "Mit welchem Befehl findest du heraus, zu welchem Paket /usr/bin/rpm gehört?"
+    a: ["rpm -qf /usr/bin/rpm"]
+  - f: "Mit welchem Befehl listest du alle installierten RPM-Pakete?"
+    a: ["rpm -qa"]
+  - f: "Welche Option brauchst du, um eine noch nicht installierte .rpm-Datei abzufragen?"
+    a: ["-p", "--package", "-qp"]
+  - f: "Welcher Befehl zeigt, wovon die installierte Software httpd abhängt?"
+    a: ["rpm -qR httpd", "rpm -q --requires httpd"]
+  - f: "Wie packst du die Dateien aus paket.rpm aus, ohne zu installieren?"
+    a: ["rpm2cpio paket.rpm | cpio -idmv", "rpm2cpio paket.rpm | cpio -idv", "rpm2cpio paket.rpm | cpio -id"]
+  - f: "Mit welchem Befehl prüfst du die Signatur von paket.rpm?"
+    a: ["rpm -K paket.rpm", "rpm --checksig paket.rpm", "rpmkeys --checksig paket.rpm"]
+  - f: "Was bedeutet die Zeile „S.5....T.  c /etc/httpd/conf/httpd.conf“ bei rpm -V?"
+    a: ["Größe (S), Prüfsumme (5) und Änderungszeit (T) der Konfigurationsdatei (c) weichen vom Paket ab: Sie wurde verändert."]
+    aufdecken: true
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Zuordnung from '../components/Zuordnung.astro';
+
+Jetzt wechselst du zur zweiten Familie: Red Hat, AlmaLinux, Rocky, Fedora und SUSE nutzen **RPM-Pakete**. Das Werkzeug **rpm** entspricht dpkg: Es arbeitet mit einzelnen Dateien und mit der Datenbank der installierten Pakete. **Deine Mission: Frag die RPM-Datenbank ab und untersuche eine Paketdatei, bevor du sie installierst.** Lernziel 102.5.
+
+## Pakete abfragen
+
+<Karte nr={1} titel="Der Dateiname verrät viel">
+```
+messsoft-1.2-1.el9.x86_64.rpm
+```
+
+Das ist **Name** (messsoft), **Version** (1.2), **Release** (1.el9, also erste Paketierung für Enterprise Linux 9) und **Architektur** (x86_64). `noarch` hieße: läuft überall, zum Beispiel ein Skript.
+
+Abfragen beginnen alle mit `-q` (query):
+
+| Befehl | Zeigt |
+| --- | --- |
+| `rpm -q bash` | ob bash installiert ist und in welcher Version |
+| `rpm -qa` | alle installierten Pakete |
+| `rpm -qi bash` | Informationen: Version, Größe, Signatur, Beschreibung |
+| `rpm -ql bash` | alle Dateien des Pakets |
+| `rpm -qc httpd` | nur die Konfigurationsdateien |
+| `rpm -qR bash` | Abhängigkeiten (requires) |
+| `rpm -qf /usr/bin/rpm` | zu welchem Paket die Datei gehört |
+</Karte>
+
+<Merke>rpm -q + Buchstabe: a alle, i Infos, l Dateien, c Konfiguration, R Abhängigkeiten, f welches Paket.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: Abfragen" fragen={[
+  { frage: 'Welche Entsprechung hat „dpkg -S /usr/sbin/sshd“ auf einem RPM-System?', richtig: 'rpm -qf /usr/sbin/sshd', falsch: ['rpm -ql /usr/sbin/sshd', 'rpm -qa /usr/sbin/sshd'], erklaerung: 'f steht für file: Zu welchem Paket gehört diese Datei?' },
+  { frage: 'Was ist im Paketnamen httpd-2.4.57-11.el9_4.1.x86_64 die Release?', richtig: '11.el9_4.1', falsch: ['2.4.57', 'x86_64'], erklaerung: 'Erst der Name, dann Version, dann Release, dann Architektur.' },
+]} />
+
+<Terminal id="abfragen" titel="Terminal: Die RPM-Datenbank" welt={{ distro: 'alma', geaendert: ['/etc/ssh/sshd_config'] }} aufgaben={[
+  { text: 'Lass dir alle installierten Pakete anzeigen.', befehl: '^rpm -qa' },
+  { text: 'Finde heraus, zu welchem Paket <code>/usr/bin/rpm</code> gehört.', befehl: '^rpm -qf /usr/bin/rpm$', frage: 'Wie heißt das Paket (nur der Name)?', antwort: ['rpm'] },
+  { text: 'Lass dir die Informationen zum Paket bash anzeigen.', befehl: '^rpm -qi bash$', frage: 'Welche Version von bash ist installiert?', antwort: ['5.1.8'] },
+  { text: 'Lass dir nur die Konfigurationsdateien von openssh-server zeigen.', befehl: '^rpm -qc openssh-server$' },
+  { text: 'Prüf mit <code>rpm -V</code>, ob an openssh-server etwas verändert wurde.', befehl: '^rpm -V openssh-server$', frage: 'Welche Datei wurde verändert?', antwort: ['/etc/ssh/sshd_config'] },
+]} />
+
+<Hinweis titel="Die Buchstaben von rpm -V">
+rpm -V zeigt nur, was abweicht. Jede Stelle steht für eine Eigenschaft, ein Punkt heißt „unverändert“: S Größe, M Rechte, 5 Prüfsumme, D Gerätenummer, L Link, U Besitzer, G Gruppe, T Änderungszeit. Das c markiert eine Konfigurationsdatei. Mit rpm -Va prüfst du alle Pakete auf einmal.
+</Hinweis>
+
+## Eine Paketdatei
+
+<Karte nr={2} titel="Installieren, aktualisieren, entfernen">
+| Befehl | Tut |
+| --- | --- |
+| `rpm -ivh datei.rpm` | **i**nstalliert, **v**erbose, mit **h**ash-Fortschrittsbalken |
+| `rpm -Uvh datei.rpm` | **U**pgrade: aktualisiert, oder installiert, wenn es noch nicht da ist |
+| `rpm -Fvh datei.rpm` | **F**reshen: aktualisiert nur, wenn eine ältere Version installiert ist |
+| `rpm -e name` | **e**rase: entfernt das Paket (hier der Name, nicht die Datei) |
+| `rpm --reinstall datei.rpm` | installiert dieselbe Version noch einmal |
+
+Eine Datei, die noch **nicht** installiert ist, fragst du mit zusätzlichem **-p** ab: `rpm -qpi datei.rpm`, `rpm -qpl datei.rpm`, `rpm -qpR datei.rpm`.
+
+Wie dpkg löst rpm **keine** Abhängigkeiten aus dem Netz auf. Fehlt etwas, bricht es mit „Failed dependencies“ ab. Das erledigt dnf (nächste Mission).
+</Karte>
+
+<Karte nr={3} titel="Signatur und Auspacken">
+Pakete aus den offiziellen Quellen sind mit einem GPG-Schlüssel **signiert**. `rpm -K datei.rpm` (gleichbedeutend `rpmkeys --checksig`) prüft Prüfsummen und Signatur. Schlüssel importiert man mit `rpm --import schluesseldatei`, sie liegen meist unter `/etc/pki/rpm-gpg/`.
+
+Willst du nur eine einzelne Datei aus einem Paket, ohne es zu installieren: `rpm2cpio datei.rpm | cpio -idmv`. rpm2cpio wandelt das Paket in ein cpio-Archiv, cpio packt es ins aktuelle Verzeichnis aus (i auspacken, d Verzeichnisse anlegen, m Zeitstempel behalten, v ausführlich).
+</Karte>
+
+<Merke>-U installiert oder aktualisiert, -F nur aktualisieren. -p fragt Dateien ab. rpm2cpio | cpio -idmv packt aus.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: Paketdatei" fragen={[
+  { frage: 'Du hast zwanzig neue .rpm-Dateien und willst nur die Pakete aktualisieren, die auf diesem Server schon installiert sind. Welche Option?', richtig: 'rpm -Fvh *.rpm', falsch: ['rpm -Uvh *.rpm', 'rpm -ivh *.rpm'], erklaerung: '-U würde auch Pakete neu installieren, die noch fehlen. -F (freshen) nicht.' },
+  { frage: 'Wie entfernst du das Paket, das aus messsoft-1.2-1.el9.x86_64.rpm installiert wurde?', richtig: 'rpm -e messsoft', falsch: ['rpm -e messsoft-1.2-1.el9.x86_64.rpm', 'rpm -r messsoft'], erklaerung: 'Zum Entfernen gibst du den Paketnamen an, nicht die Datei. -r gibt es bei rpm nicht, das ist dpkg.' },
+]} />
+
+<Terminal id="datei" titel="Terminal: Die Messsoftware als RPM" welt={{ distro: 'alma' }} einleitung="Im Ordner ~/downloads liegt messsoft-1.2-1.el9.x86_64.rpm."
+  aufgaben={[
+    { text: 'Lass dir die Informationen der Datei anzeigen, ohne sie zu installieren.', befehl: '^rpm -qpi (~/|/home/lena/)?downloads/messsoft', frage: 'Was steht bei Signature?', antwort: ['(none)', 'none'] },
+    { text: 'Lass dir die Abhängigkeiten der Datei anzeigen.', befehl: '^rpm -qpR (~/|/home/lena/)?downloads/messsoft', frage: 'Welche Bibliothek braucht sie? (Name bis .so.1)', antwort: ['libmess.so.1', 'libmess.so.1()(64bit)'] },
+    { text: 'Prüf die Prüfsummen der Datei mit <code>rpm -K</code>.', befehl: '^rpm (-K|--checksig) ' },
+    { text: 'Versuch, die Datei mit <code>rpm -ivh</code> zu installieren.', befehl: '^rpm -ivh ', auchFehler: true },
+    { text: 'Wechsle nach <code>/tmp</code> und pack die Datei dort aus, ohne sie zu installieren.', befehl: '^rpm2cpio .*messsoft.* \\| cpio -i' },
+    { text: 'Schau nach, welche Dateien jetzt unter <code>/tmp/usr/bin</code> liegen.', befehl: '^ls (/tmp/)?usr/bin/?$', frage: 'Wie heißt das Programm?', antwort: ['messsoft'] },
+    { text: 'Entferne zum Schluss das Paket pciutils mit rpm.', zustand: 'paket:pciutils=aus' },
+  ]} />
+
+<Zuordnung id="zuordnung" titel="Zuordnung: dpkg und rpm" aufgabe="Welcher rpm-Befehl entspricht dem dpkg-Befehl?"
+  paare={[
+    { links: 'dpkg -i datei.deb', rechts: 'rpm -i datei.rpm' },
+    { links: 'dpkg -r paket', rechts: 'rpm -e paket' },
+    { links: 'dpkg -l', rechts: 'rpm -qa' },
+    { links: 'dpkg -L paket', rechts: 'rpm -ql paket' },
+    { links: 'dpkg -S /pfad/datei', rechts: 'rpm -qf /pfad/datei' },
+    { links: 'dpkg -I datei.deb', rechts: 'rpm -qpi datei.rpm' },
+  ]}
+  extra={['rpm -r paket', 'rpm -qs /pfad/datei', 'rpm -ql datei.rpm']} />
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'rpm -ivh meldet „Failed dependencies: libmess.so.1()(64bit) is needed by …“. Was tust du?', richtig: 'Das Paket mit dnf installieren, das die Abhängigkeit aus den Quellen holt', falsch: ['rpm -ivh --force verwenden', 'Die Datei umbenennen'], erklaerung: '--nodeps oder --force würden das Paket installieren, aber es liefe nicht, weil die Bibliothek fehlt.' },
+]} />

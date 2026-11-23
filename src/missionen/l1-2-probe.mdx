@@ -1,0 +1,21 @@
+---
+id: l1-2-probe
+abzeichen: "Topic 102 bestanden"
+checks:
+  - id: probe
+---
+import Probe from '../components/Probe.astro';
+import Karte from '../components/Karte.astro';
+import Hinweis from '../components/Hinweis.astro';
+
+Diese Probe mischt Topic 101 und Topic 102, so wie die echte Prüfung auch nicht nach Themen sortiert. Zusammen bringen die beiden Topics ungefähr **20 von 60 Fragen** in Prüfung 101. **Deine Mission: Bestehe die Probe mit mindestens 80 %.**
+
+<Karte nr={1} titel="Warum schon wieder Topic 101?">
+Weil Mischen und Wiederholen dauerhafter wirken als ein Thema abzuhaken. Fragen aus Topic 101 tauchen hier auf, obwohl du den Akt schon geschafft hast. Genau so wird es in der Prüfung sein: Du weißt nie, was als Nächstes kommt.
+</Karte>
+
+<Hinweis titel="Zum Tempo">
+30 Fragen in 45 Minuten, also 90 Sekunden pro Frage wie in der echten Prüfung. Die Gewichtung folgt den offiziellen Lernzielen: Paketverwaltung bringt mehr Fragen als Shared Libraries.
+</Hinweis>
+
+<Probe id="probe" titel="Probeprüfung: Topic 101 und 102" ziele={['101.1', '101.2', '101.3', '102.1', '102.2', '102.3', '102.4', '102.5', '102.6']} anzahl={30} />

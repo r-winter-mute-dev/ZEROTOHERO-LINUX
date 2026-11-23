@@ -1,0 +1,163 @@
+---
+id: l1-2-8
+checks:
+  - id: k1
+  - id: k2
+  - id: vorlage
+  - id: k3
+  - id: zuordnung
+  - id: k4
+spick:
+  - t: "VM"
+    v: "eigener Kernel, simulierte Hardware"
+  - t: "Container"
+    v: "teilt den Kernel des Hosts"
+  - t: "Bin ich virtuell?"
+    v: "systemd-detect-virt"
+  - t: "Beim Klonen ändern"
+    v: "Hostname, SSH-Host-Schlüssel, machine-id, MAC/Netz"
+  - t: "machine-id"
+    v: "/etc/machine-id (und /var/lib/dbus/machine-id)"
+  - t: "SSH-Host-Schlüssel"
+    v: "/etc/ssh/ssh_host_*, neu mit ssh-keygen -A"
+  - t: "Gasttreiber"
+    v: "virtio, Guest Additions, open-vm-tools, qemu-guest-agent"
+  - t: "Erster Start in der Cloud"
+    v: "cloud-init mit user-data"
+karten:
+  - f: "Was unterscheidet einen Container grundlegend von einer virtuellen Maschine?"
+    a: ["Ein Container teilt sich den Kernel mit dem Host, eine VM hat einen eigenen Kernel."]
+    aufdecken: true
+  - f: "Was ist der Unterschied zwischen einem System-Container und einem Anwendungs-Container?"
+    a: ["Ein System-Container enthält ein ganzes System mit Init und Diensten, ein Anwendungs-Container nur eine einzelne Anwendung."]
+    aufdecken: true
+  - f: "In welcher Datei steht die eindeutige Maschinen-ID eines systemd-Systems?"
+    a: ["/etc/machine-id"]
+  - f: "Wo liegen die SSH-Host-Schlüssel?"
+    a: ["/etc/ssh", "/etc/ssh/", "/etc/ssh/ssh_host_*"]
+  - f: "Mit welchem Befehl erzeugst du fehlende SSH-Host-Schlüssel neu?"
+    a: ["ssh-keygen -A", "sudo ssh-keygen -A"]
+  - f: "Welcher Befehl zeigt, ob und unter welcher Virtualisierung ein System läuft?"
+    a: ["systemd-detect-virt"]
+  - f: "Nenne drei Dinge, die bei einem Klon einer VM-Vorlage einmalig sein müssen."
+    a: ["Hostname, SSH-Host-Schlüssel, machine-id (außerdem MAC-Adresse und Netzwerkeinstellungen)"]
+    aufdecken: true
+  - f: "Welches Werkzeug richtet eine Cloud-Instanz beim ersten Start anhand von user-data ein?"
+    a: ["cloud-init"]
+  - f: "Nenne drei Bausteine einer IaaS-Cloud."
+    a: ["Recheninstanzen, Blockspeicher, Netzwerk"]
+    aufdecken: true
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Zuordnung from '../components/Zuordnung.astro';
+
+Dein Labor besteht aus virtuellen Maschinen, und die meisten Server heute auch. Wer zehn gleiche Server braucht, installiert nicht zehnmal, sondern klont eine **Vorlage**. Dabei lauern Fallen: Zehn Server mit demselben SSH-Schlüssel und derselben Maschinen-ID sind ein Problem. **Deine Mission: Mach aus einer VM eine saubere Vorlage.** Lernziel 102.6.
+
+## Virtuelle Maschinen und Container
+
+<Karte nr={1} titel="Zwei Arten, Systeme zu teilen">
+- Eine **virtuelle Maschine** bekommt vom **Hypervisor** (zum Beispiel KVM, VirtualBox, VMware, Xen) simulierte Hardware: Prozessor, Speicher, Platte, Netzwerkkarte. Darauf läuft ein vollständiges Betriebssystem mit **eigenem Kernel**. Du kannst also Windows auf Linux betreiben.
+- Ein **Container** hat keinen eigenen Kernel. Er **teilt sich den Kernel des Hosts** und ist nur ein abgeschotteter Bereich mit eigenen Prozessen, Dateien und Netz. Das ist leichter und schneller, aber es laufen nur Linux-Programme auf einem Linux-Host.
+  - Ein **System-Container** (etwa LXC) enthält ein ganzes System mit Init-System und Diensten, fast wie eine VM.
+  - Ein **Anwendungs-Container** (etwa Docker oder Podman) enthält nur eine einzige Anwendung und was sie braucht.
+</Karte>
+
+<Merke>VM = eigener Kernel. Container = Kernel des Hosts. System-Container = ganzes System, Anwendungs-Container = eine Anwendung.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: VM oder Container" fragen={[
+  { frage: 'Du willst ein Windows-Programm auf einem Linux-Server betreiben. Was brauchst du?', richtig: 'Eine virtuelle Maschine', falsch: ['Einen Anwendungs-Container', 'Einen System-Container'], erklaerung: 'Container teilen sich den Linux-Kernel des Hosts. Windows braucht seinen eigenen Kernel.' },
+  { frage: 'Was enthält ein Anwendungs-Container typischerweise?', richtig: 'Eine einzelne Anwendung mit ihren Bibliotheken', falsch: ['Ein vollständiges Betriebssystem mit eigenem Kernel', 'Nur die Konfigurationsdateien einer Anwendung'], erklaerung: 'Ein ganzes System mit Init steckt in einem System-Container.' },
+]} />
+
+<Karte nr={2} titel="In der Cloud">
+Bei einer **IaaS-Cloud** (Infrastructure as a Service) mietest du solche Bausteine:
+
+- **Recheninstanzen** (compute instances): virtuelle Maschinen in verschiedenen Größen.
+- **Blockspeicher** (block storage): virtuelle Platten, die man an Instanzen hängt und wieder abhängt.
+- **Netzwerk**: virtuelle Netze, öffentliche IP-Adressen und Firewallregeln.
+
+Instanzen startet man aus **Images**: fertigen Abbildern eines Systems. Dasselbe Prinzip gibt es bei Containern (Container-Images) und bei VMs im eigenen Rechenzentrum (Vorlagen, templates).
+</Karte>
+
+<Karte nr={3} titel="Gasttreiber">
+Ein System in einer VM läuft schneller und bequemer mit Treibern, die wissen, dass sie virtuell sind. **virtio** sind solche Treiber für Platte und Netz unter KVM. Für VirtualBox gibt es die **Guest Additions**, für VMware **open-vm-tools**, für KVM den **qemu-guest-agent**. Sie liefern zum Beispiel gemeinsame Zwischenablage und Ordner, eine bessere Bildschirmauflösung, Zeitabgleich und ein sauberes Herunterfahren auf Befehl des Hypervisors. `systemd-detect-virt` verrät, ob und unter welcher Virtualisierung ein System läuft.
+</Karte>
+
+<Quiz id="k2" titel="Kurzcheck: Cloud und Treiber" fragen={[
+  { frage: 'Eine Instanz braucht mehr Speicherplatz. Welchen Cloud-Baustein hängst du an?', richtig: 'Blockspeicher', falsch: ['Eine weitere Recheninstanz', 'Ein Container-Image'], erklaerung: 'Blockspeicher verhält sich wie eine zusätzliche Platte.' },
+  { frage: 'Wofür installiert man die VirtualBox Guest Additions in einer VM?', richtig: 'Für bessere Integration: Auflösung, Zwischenablage, gemeinsame Ordner, Zeitabgleich', falsch: ['Damit die VM überhaupt starten kann', 'Damit Container darin laufen'], erklaerung: 'Die VM läuft auch ohne, aber unbequemer und langsamer.' },
+]} />
+
+## Eine Vorlage bauen
+
+<Karte nr={4} titel="Was jeder Klon für sich braucht">
+Klonst du eine VM, entstehen exakte Kopien. Diese Dinge müssen danach aber **einmalig** sein:
+
+- **Hostname** in `/etc/hostname`, sonst heißen alle Server gleich.
+- **SSH-Host-Schlüssel** in `/etc/ssh/ssh_host_*`. Mit ihnen weist sich der Server gegenüber Clients aus. Haben alle Klone denselben Schlüssel, kann einer sich als der andere ausgeben.
+- **machine-id** in `/etc/machine-id` (D-Bus liest sie über `/var/lib/dbus/machine-id`). Viele Dienste unterscheiden Rechner daran. Manche DHCP-Clients (etwa systemd-networkd) leiten ihre Kennung daraus ab, gleiche IDs können dann zu gleichen IP-Adressen führen.
+- **MAC-Adressen** und Netzwerkeinstellungen. Die MAC vergibt meist der Hypervisor neu.
+
+Deshalb **verallgemeinert** man die Vorlage, bevor man sie klont: Host-Schlüssel löschen, machine-id leeren. Ist `/etc/machine-id` beim Start leer, erzeugt systemd eine neue. Die SSH-Schlüssel erzeugt `ssh-keygen -A` neu, auf Debian auch `dpkg-reconfigure openssh-server`.
+</Karte>
+
+<Merke>Vor dem Klonen: SSH-Host-Schlüssel löschen, machine-id leeren. Nach dem Klonen: Hostname setzen, Schlüssel neu erzeugen.</Merke>
+
+<Hinweis art="sicherheit" titel="Leer, nicht gelöscht">
+Bei /etc/machine-id gilt: leeren, nicht löschen. Eine leere Datei erzeugt systemd beim nächsten Start neu. Fehlt die Datei ganz, kann es je nach System beim Start Probleme geben.
+</Hinweis>
+
+<Quiz id="k3" titel="Kurzcheck: Klonen" fragen={[
+  { frage: 'Nach dem Klonen bekommen alle VMs vom DHCP-Server dieselbe IP-Adresse, obwohl ihre MAC-Adressen verschieden sind. Was ist die wahrscheinlichste Ursache?', richtig: 'Alle Klone haben dieselbe machine-id.', falsch: ['Alle Klone haben denselben SSH-Host-Schlüssel.', 'Der Kernel ist zu alt.'], erklaerung: 'Manche DHCP-Clients leiten ihre Kennung aus der machine-id ab.' },
+]} />
+
+<Terminal id="vorlage" titel="Terminal: Die Vorlage verallgemeinern" welt={{ virt: 'kvm', host: 'vorlage' }}
+  einleitung="Diese VM soll die Vorlage für neue Webserver werden."
+  aufgaben={[
+    { text: 'Prüf, unter welcher Virtualisierung das System läuft.', befehl: '^systemd-detect-virt$', frage: 'Welche ist es?', antwort: ['kvm'] },
+    { text: 'Lies die machine-id.', befehl: '^(cat /etc/machine-id|hostnamectl)$' },
+    { text: 'Lass dir die SSH-Host-Schlüssel anzeigen.', befehl: '^ls( -\\w+)* /etc/ssh' },
+    { text: 'Lösche alle SSH-Host-Schlüssel (Tipp: <code>/etc/ssh/ssh_host_*</code>).', zustand: 'fehlt:/etc/ssh/ssh_host_*' },
+    { text: 'Leere die machine-id, ohne die Datei zu löschen: <code>sudo truncate -s 0 /etc/machine-id</code>', zustand: 'leer:/etc/machine-id' },
+    { text: 'Jetzt stell dir vor, die VM wurde geklont. Gib dem Klon den Hostnamen <code>web01</code>.', zustand: 'host=web01' },
+    { text: 'Erzeuge neue SSH-Host-Schlüssel.', zustand: 'datei:/etc/ssh/ssh_host_ed25519_key~neu' },
+    { text: 'Starte den Klon neu (Knopf unter dem Terminal) und prüf, dass er eine neue machine-id hat.', zustand: 'neustart && maschinenid=neu' },
+  ]} />
+
+## cloud-init
+
+<Karte nr={5} titel="Einrichten beim ersten Start">
+In der Cloud geht das noch weiter: Images enthalten meist **cloud-init**. Beim ersten Start holt es sich vom Cloud-Anbieter die **user-data** und richtet die Instanz danach ein, zum Beispiel so:
+
+```
+#cloud-config
+hostname: web01
+users:
+  - name: lena
+    ssh_authorized_keys:
+      - ssh-ed25519 AAAA… lena@laptop
+packages:
+  - nginx
+```
+
+Hostname, Benutzer, Schlüssel und Pakete stehen dann nicht im Image, sondern kommen beim Start dazu. Für LPIC-1 reicht es, cloud-init und seinen Zweck zu kennen.
+</Karte>
+
+<Zuordnung id="zuordnung" titel="Zuordnung: Was gehört wozu?" aufgabe="Ordne jedem Begriff die passende Beschreibung zu."
+  paare={[
+    { links: '/etc/machine-id', rechts: 'eindeutige Kennung des Systems, beim Klonen leeren' },
+    { links: '/etc/ssh/ssh_host_*', rechts: 'Ausweis des Servers gegenüber SSH-Clients, je Klon neu' },
+    { links: 'cloud-init', rechts: 'richtet eine Instanz beim ersten Start nach user-data ein' },
+    { links: 'virtio', rechts: 'Treiber für virtuelle Platten und Netzwerkkarten unter KVM' },
+    { links: 'Anwendungs-Container', rechts: 'eine einzelne Anwendung, teilt den Kernel des Hosts' },
+  ]}
+  extra={['vergibt IP-Adressen im Netz', 'eigener Kernel mit simulierter Hardware']} />
+
+<Quiz id="k4" titel="Abschluss" fragen={[
+  { frage: 'Ein Kollege hat zehn Klone einer Vorlage gebaut. SSH-Clients warnen beim Wechsel zwischen den Servern nie. Was stimmt hier nicht?', richtig: 'Alle Klone haben dieselben SSH-Host-Schlüssel.', falsch: ['Die Klone haben verschiedene Hostnamen.', 'Die Klone laufen unter KVM.'], erklaerung: 'Gleiche Host-Schlüssel heißen: Ein Angreifer mit dem Schlüssel eines Servers kann sich als jeder andere ausgeben.' },
+  { frage: 'Wie erzeugst du nach dem Löschen alle fehlenden SSH-Host-Schlüssel neu?', richtig: 'ssh-keygen -A', falsch: ['ssh-keygen -R', 'systemd-machine-id-setup'], erklaerung: '-A erzeugt alle fehlenden Host-Schlüssel mit den üblichen Pfaden.' },
+]} />

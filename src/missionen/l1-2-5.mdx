@@ -1,0 +1,163 @@
+---
+id: l1-2-5
+checks:
+  - id: k1
+  - id: suchen
+  - id: k2
+  - id: installieren
+  - id: befehle
+  - id: k3
+  - id: labor
+    hardware: true
+spick:
+  - t: "Quellen"
+    v: "/etc/apt/sources.list, /etc/apt/sources.list.d/"
+  - t: "Paketlisten holen"
+    v: "apt-get update"
+  - t: "Installieren / entfernen"
+    v: "apt-get install, remove, purge"
+  - t: "Alles aktualisieren"
+    v: "apt-get upgrade, dist-upgrade"
+  - t: "Unnötiges weg"
+    v: "apt-get autoremove"
+  - t: "Suchen und zeigen"
+    v: "apt-cache search, show, depends, rdepends, policy"
+  - t: "Welches Paket hat Datei X?"
+    v: "apt-file update, apt-file search X"
+  - t: "Ohne Rückfrage"
+    v: "-y"
+karten:
+  - f: "In welcher Datei stehen die Paketquellen von apt?"
+    a: ["/etc/apt/sources.list"]
+  - f: "Welcher Befehl lädt die aktuellen Paketlisten aus den Quellen?"
+    a: ["apt-get update", "sudo apt-get update", "apt update"]
+  - f: "Welcher apt-get-Befehl darf beim Aktualisieren auch Pakete neu installieren oder entfernen?"
+    a: ["apt-get dist-upgrade", "dist-upgrade", "apt-get full-upgrade"]
+  - f: "Mit welchem Befehl suchst du in den Paketbeschreibungen nach „editor“?"
+    a: ["apt-cache search editor", "apt search editor"]
+  - f: "Welcher Befehl zeigt, welche Pakete von htop abhängen (Rückwärts-Abhängigkeiten)?"
+    a: ["apt-cache rdepends htop"]
+  - f: "Wie findest du heraus, welches nicht installierte Paket die Datei /usr/bin/tree liefert?"
+    a: ["apt-file search /usr/bin/tree"]
+  - f: "Welcher apt-get-Befehl entfernt Abhängigkeiten, die kein Paket mehr braucht?"
+    a: ["apt-get autoremove", "sudo apt-get autoremove"]
+  - f: "Wo legt apt heruntergeladene .deb-Dateien ab?"
+    a: ["/var/cache/apt/archives", "/var/cache/apt/archives/"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Zuordnung from '../components/Zuordnung.astro';
+import Labor from '../components/Labor.astro';
+
+dpkg arbeitet mit Dateien, die du schon hast. Meistens willst du aber einfach sagen „installier htop“, und der Rest soll von selbst gehen: Paket finden, herunterladen, Abhängigkeiten auflösen. Das ist die Aufgabe von **apt**. **Deine Mission: Such, installiere und entferne Software aus den Debian-Repositories.** Lernziel 102.4.
+
+## Die Quellen
+
+<Karte nr={1} titel="sources.list">
+apt holt Pakete aus **Repositories**, Servern mit Tausenden Paketen. Welche, steht in **/etc/apt/sources.list** und in Dateien unter **/etc/apt/sources.list.d/**:
+
+```
+deb http://deb.debian.org/debian bookworm main non-free-firmware
+```
+
+- **deb** heißt fertige Pakete, **deb-src** wäre Quellcode.
+- Dann die **Adresse** des Servers,
+- die **Version** der Distribution (bookworm ist Debian 12),
+- und die **Bereiche** (main, contrib, non-free, non-free-firmware).
+
+Neuere Systeme nutzen dafür manchmal das Format `*.sources` unter sources.list.d. Der Inhalt ist derselbe, nur anders geschrieben.
+
+`apt-get update` lädt die **Paketlisten** aller Quellen neu. Es installiert nichts. Danach weiß apt, welche Versionen es gibt.
+</Karte>
+
+<Merke>sources.list sagt, woher. apt-get update holt die Listen, installiert aber nichts.</Merke>
+
+<Karte nr={2} titel="apt-cache: suchen und nachschauen">
+| Befehl | Zeigt |
+| --- | --- |
+| `apt-cache search begriff` | Pakete, deren Name oder Beschreibung passt |
+| `apt-cache show htop` | Version, Größe, Abhängigkeiten, Beschreibung |
+| `apt-cache depends htop` | wovon htop abhängt |
+| `apt-cache rdepends htop` | welche Pakete von htop abhängen |
+| `apt-cache policy htop` | installierte und verfügbare Version, aus welcher Quelle |
+
+`apt-cache` braucht keine Root-Rechte, es liest nur.
+</Karte>
+
+<Quiz id="k1" titel="Kurzcheck: Quellen" fragen={[
+  { frage: 'Du hast eine neue Zeile in sources.list eingetragen. Was musst du tun, bevor du Pakete daraus installieren kannst?', richtig: 'apt-get update', falsch: ['apt-get upgrade', 'dpkg-reconfigure apt'], erklaerung: 'Erst update holt die Paketliste der neuen Quelle.' },
+  { frage: 'Welcher Befehl zeigt, welche Version von htop installiert ist und welche verfügbar wäre?', richtig: 'apt-cache policy htop', falsch: ['apt-cache rdepends htop', 'apt-get update htop'], erklaerung: 'policy zeigt „Installed“ und „Candidate“.' },
+]} />
+
+<Terminal id="suchen" titel="Terminal: Suchen" aufgaben={[
+  { text: 'Lies <code>/etc/apt/sources.list</code>.', befehl: '^cat /etc/apt/sources\\.list$', frage: 'Welcher Codename der Debian-Version steht darin?', antwort: ['bookworm'] },
+  { text: 'Such nach einem Paket, das Prozesse anzeigt (Suchbegriff „process“).', befehl: '^apt(-cache)? search process', frage: 'Wie heißt das Paket?', antwort: ['htop'] },
+  { text: 'Lass dir die Abhängigkeiten von htop anzeigen.', befehl: '^apt-cache depends htop$', frage: 'Welches Paket außer libc6 braucht htop?', antwort: ['libncursesw6'] },
+  { text: 'Lass dir für htop die installierte und die verfügbare Version zeigen.', befehl: '^apt(-cache)? policy htop$' },
+]} />
+
+## Installieren, aktualisieren, entfernen
+
+<Karte nr={3} titel="apt-get">
+| Befehl | Tut |
+| --- | --- |
+| `apt-get install htop` | installiert htop samt Abhängigkeiten |
+| `apt-get remove htop` | entfernt htop, Konfiguration bleibt |
+| `apt-get purge htop` | entfernt htop samt Konfiguration |
+| `apt-get autoremove` | entfernt Abhängigkeiten, die niemand mehr braucht |
+| `apt-get upgrade` | aktualisiert alle Pakete, installiert und entfernt dabei **nie** etwas |
+| `apt-get dist-upgrade` | aktualisiert auch dann, wenn dafür Pakete hinzukommen oder wegfallen |
+| `apt-get download htop` | lädt nur die .deb-Datei herunter |
+
+Kommen zusätzliche Pakete dazu, fragt apt-get „Do you want to continue? [Y/n]“. Der Großbuchstabe ist die Vorgabe: Enter heißt hier Ja. Mit `-y` fällt die Frage weg, praktisch in Skripten. Heruntergeladene Pakete liegen in `/var/cache/apt/archives`.
+</Karte>
+
+<Karte nr={4} titel="apt, das neuere Werkzeug">
+`apt` fasst die wichtigsten Befehle von apt-get und apt-cache zusammen (`apt install`, `apt search`, `apt show`) und zeigt einen Fortschrittsbalken. Für die Arbeit am Terminal ist es bequemer. In Skripten nimmt man weiter apt-get, weil sich die Ausgabe von apt ändern darf. Das Lernziel verlangt für apt nur, dass du es kennst.
+</Karte>
+
+<Merke>upgrade nimmt nie etwas weg, dist-upgrade schon. apt ist bequem, apt-get für Skripte.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: apt-get" fragen={[
+  { frage: 'Ein Update braucht ein neues Paket als Abhängigkeit. apt-get upgrade hält das Update deshalb zurück. Welcher Befehl spielt es ein?', richtig: 'apt-get dist-upgrade', falsch: ['apt-get update', 'apt-get autoremove'], erklaerung: 'Nur dist-upgrade (bei apt: full-upgrade) darf dafür Pakete neu installieren.' },
+]} />
+
+<Terminal id="installieren" titel="Terminal: htop installieren" aufgaben={[
+  { text: 'Hol die aktuellen Paketlisten.', befehl: '^apt(-get)? update$' },
+  { text: 'Installiere htop. Lass <code>-y</code> weg und beantworte die Rückfrage selbst.', zustand: 'paket:htop=an' },
+  { text: 'Welches Paket liefert eigentlich <code>/usr/bin/tree</code>? Versuch es mit <code>apt-file search /usr/bin/tree</code>.', befehl: '^apt-file search', auchFehler: true },
+  { text: 'apt-file fehlt noch. Installiere es und lade seinen Index mit <code>sudo apt-file update</code>.', zustand: 'paket:apt-file=an', befehl: '^apt-file update$' },
+  { text: 'Such jetzt noch einmal mit apt-file.', befehl: '^apt-file (search|find) .*tree', frage: 'Welches Paket liefert /usr/bin/tree?', antwort: ['tree'] },
+  { text: 'Entferne htop wieder (mit <code>-y</code>) und danach die nicht mehr gebrauchten Abhängigkeiten.', zustand: 'paket:htop=aus && paket:libncursesw6=aus' },
+]} />
+
+<Zuordnung id="befehle" titel="Zuordnung: Welcher Befehl?" aufgabe="Welcher Befehl erledigt die jeweilige Aufgabe?"
+  paare={[
+    { links: 'Neue Paketlisten von allen Quellen holen', rechts: 'apt-get update' },
+    { links: 'Alle Pakete aktualisieren, ohne etwas zu entfernen', rechts: 'apt-get upgrade' },
+    { links: 'Paket samt Konfiguration entfernen', rechts: 'apt-get purge' },
+    { links: 'Welche Pakete hängen von libssl3 ab?', rechts: 'apt-cache rdepends libssl3' },
+    { links: 'Welches Paket enthält /usr/bin/convert?', rechts: 'apt-file search /usr/bin/convert' },
+  ]}
+  extra={['dpkg -S /usr/bin/convert', 'apt-get dist-upgrade', 'apt-cache depends libssl3']} />
+
+<Hinweis titel="dpkg -S oder apt-file?">
+Beide finden das Paket zu einer Datei. dpkg -S sucht nur unter den installierten Paketen, apt-file search in allen Paketen der Quellen. Steht in der Prüfung „auch wenn es nicht installiert ist“, ist apt-file gemeint.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Was macht „apt-get install -y htop“ anders als ohne -y?', richtig: 'Es beantwortet die Rückfrage automatisch mit Ja.', falsch: ['Es installiert eine neuere Version.', 'Es installiert ohne Abhängigkeiten.'], erklaerung: '-y steht für yes.' },
+  { frage: 'Was macht apt-get autoremove?', richtig: 'Es entfernt automatisch installierte Abhängigkeiten, die kein Paket mehr braucht.', falsch: ['Es entfernt alle Pakete, die länger nicht benutzt wurden.', 'Es leert den Ordner /var/cache/apt/archives.'], erklaerung: 'Den Cache leert apt-get clean.' },
+]} />
+
+## Und in deinem Labor?
+
+<Labor id="labor" titel="Aufgabe im Labor: Woher kommt dein SSH-Server?"
+  aufgabe="Führe in deiner Debian-VM diesen Befehl aus. Er zeigt die installierte Version, die verfügbare und aus welcher Quelle sie kommt."
+  befehl="apt-cache policy openssh-server"
+  muster={['Installed: ', 'Candidate: ']}
+  hilfe={[{ wenn: 'Installed: \\(none\\)', text: 'Der SSH-Server ist bei dir nicht installiert. Mit „sudo apt-get install openssh-server“ holst du ihn nach.' }]}
+  erfolg="So sieht apt deine Quellen." />

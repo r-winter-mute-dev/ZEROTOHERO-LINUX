@@ -1,0 +1,80 @@
+---
+id: l1-2-boss
+abzeichen: "Paketmeister"
+checks:
+  - id: boss
+spick:
+  - t: "Paket kaputt (Debian)"
+    v: "apt-get -f install"
+  - t: "Paket nicht gefunden"
+    v: "apt-get update, Quellen prüfen, Repository aktiv?"
+  - t: "Bibliothek fehlt"
+    v: "ldd, dann ld.so.conf.d + ldconfig"
+  - t: "GRUB-Änderung wirkt nicht"
+    v: "grub-mkconfig -o … vergessen?"
+  - t: "Klone verhalten sich gleich"
+    v: "machine-id, SSH-Host-Schlüssel"
+karten:
+  - f: "apt-get meldet „Unable to locate package“ für ein Paket, das es geben müsste. Was ist der erste Schritt?"
+    a: ["apt-get update ausführen und die Quellen in /etc/apt/sources.list prüfen"]
+    aufdecken: true
+  - f: "apt-get meldet, dass die Sperre /var/lib/dpkg/lock-frontend nicht zu bekommen ist. Was sind die zwei häufigsten Ursachen?"
+    a: ["Fehlende Root-Rechte oder ein anderer Paketvorgang läuft gerade (z. B. automatische Updates)."]
+    aufdecken: true
+---
+import Logdiagnose from '../components/Logdiagnose.astro';
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+
+Die IT hat übers Wochenende zwanzig Rechner neu aufgesetzt. Montag liegen die Tickets auf deinem Tisch. **Deine Mission: Finde in fünf Fällen die Ursache.**
+
+<Karte nr={1} titel="Wo suchen?">
+Bei Installationsproblemen hilft fast immer die Fehlermeldung selbst. Lies sie bis zum Ende: Paketwerkzeuge nennen meist das fehlende Paket, die fehlende Datei oder die gesperrte Ressource beim Namen. Danach fragst du dich: Ist es ein Problem der **Quellen** (Repository fehlt oder veraltet), der **Abhängigkeiten**, der **Rechte**, oder hat jemand einen **zweiten Schritt vergessen** (ldconfig, grub-mkconfig)?
+</Karte>
+
+<Merke>Meldung bis zum Ende lesen. Quellen, Abhängigkeiten, Rechte oder vergessener zweiter Schritt?</Merke>
+
+<Logdiagnose id="boss" titel="Bosskampf: Fünf Tickets" anzahl={5} faelle={[
+  {
+    symptom: 'Ticket 1: „Ich kann auf dem neuen Debian-Server nginx nicht installieren.“',
+    log: '$ sudo apt-get install nginx\nReading package lists... Done\nBuilding dependency tree... Done\nReading state information... Done\nE: Unable to locate package nginx\n$ cat /etc/apt/sources.list\n#deb cdrom:[Debian GNU/Linux 12.8.0 _Bookworm_ - Official amd64 DVD Binary-1]/ bookworm main\n$ ls /etc/apt/sources.list.d/\n$',
+    richtig: 'Es ist keine Netzwerkquelle eingetragen. Eine deb-Zeile für deb.debian.org ergänzen und apt-get update ausführen.',
+    falsch: ['nginx gibt es für Debian nicht.', 'apt-get braucht hier die Option -f.', 'Das Paket muss mit dpkg -i installiert werden.'],
+    erklaerung: 'Die einzige Zeile ist auskommentiert und zeigt auf die Installations-DVD. Ohne Quelle kennt apt keine Pakete.',
+  },
+  {
+    symptom: 'Ticket 2: „Auf dem Laptop kann ich gar nichts installieren, egal was.“',
+    log: '$ sudo apt-get install tree\nE: Could not get lock /var/lib/dpkg/lock-frontend. It is held by process 1873 (unattended-upgr)\nN: Be aware that removing the lock file is not a solution and may break your system.\nE: Unable to acquire the dpkg frontend lock (/var/lib/dpkg/lock-frontend), is another process using it?',
+    richtig: 'Im Hintergrund laufen gerade die automatischen Updates. Warten, bis sie fertig sind.',
+    falsch: ['Die Sperrdatei löschen.', 'Es fehlen Root-Rechte.', 'Die Paketdatenbank ist beschädigt.'],
+    erklaerung: 'Die Meldung nennt den Prozess sogar: unattended-upgr. Die Sperrdatei zu löschen ist gefährlich, wie apt selbst warnt. sudo war ja dabei, an Rechten liegt es nicht.',
+  },
+  {
+    symptom: 'Ticket 3: „Das neue Analyseprogramm startet nicht. Der Hersteller sagt, die Bibliothek liegt unter /opt/analyse/lib und wir hätten sie eingetragen.“',
+    log: '$ /opt/analyse/bin/analyse\n/opt/analyse/bin/analyse: error while loading shared libraries: libanalyse.so.3: cannot open shared object file: No such file or directory\n$ cat /etc/ld.so.conf.d/analyse.conf\n/opt/analyse/lib\n$ ldconfig -p | grep analyse\n$',
+    richtig: 'Nach dem Eintrag wurde ldconfig nicht ausgeführt, die Bibliothek steht nicht im Cache.',
+    falsch: ['Die Bibliothek muss nach /etc/ld.so.conf.d kopiert werden.', 'LD_LIBRARY_PATH darf nie verwendet werden.', 'Das Programm braucht Root-Rechte.'],
+    erklaerung: 'Der Eintrag ist richtig, aber ldconfig -p findet nichts. Der Linker liest nur den Cache. sudo ldconfig behebt es.',
+  },
+  {
+    symptom: 'Ticket 4: „Ich habe in /etc/default/grub die Wartezeit auf 0 gesetzt, damit der Server schneller startet. Er wartet aber immer noch 5 Sekunden.“',
+    log: '$ grep TIMEOUT /etc/default/grub\nGRUB_TIMEOUT=0\n$ grep timeout /boot/grub/grub.cfg\nset timeout=5\n$ ls -l /etc/default/grub /boot/grub/grub.cfg\n-rw-r--r-- 1 root root 1234 Nov 23 09:14 /etc/default/grub\n-r--r--r-- 1 root root 5021 Nov 02 11:40 /boot/grub/grub.cfg',
+    richtig: 'grub.cfg wurde nach der Änderung nicht neu erzeugt. Abhilfe: sudo update-grub (oder grub-mkconfig -o /boot/grub/grub.cfg).',
+    falsch: ['GRUB_TIMEOUT=0 ist nicht erlaubt.', 'GRUB muss mit grub-install neu installiert werden.', 'Die Firmware überschreibt die Wartezeit.'],
+    erklaerung: 'grub.cfg ist älter als die Änderung und enthält noch timeout=5. GRUB liest beim Start nur grub.cfg.',
+  },
+  {
+    symptom: 'Ticket 5: „Auf dem AlmaLinux-Server lässt sich unser Monitoring-Agent nicht installieren.“',
+    log: '$ sudo rpm -ivh monitor-agent-4.2-1.el9.x86_64.rpm\nerror: Failed dependencies:\n\tlibyaml-0.so.2()(64bit) is needed by monitor-agent-4.2-1.el9.x86_64\n\tpython3-requests is needed by monitor-agent-4.2-1.el9.x86_64',
+    richtig: 'rpm löst keine Abhängigkeiten auf. Mit „sudo dnf install ./monitor-agent-4.2-1.el9.x86_64.rpm“ installieren, dann holt dnf die fehlenden Pakete.',
+    falsch: ['rpm -ivh --nodeps verwenden, dann läuft alles.', 'Die Datei ist beschädigt, rpm -K prüfen.', 'Der Agent braucht ein Debian-System.'],
+    erklaerung: 'Mit --nodeps wäre das Paket zwar installiert, aber es fehlten die Bibliothek und das Python-Modul. dnf mit lokaler Datei löst beides.',
+  },
+  {
+    symptom: 'Ticket 6: „Die zehn neuen Webserver aus der Vorlage verhalten sich seltsam: Das Monitoring zeigt nur einen einzigen Rechner, und SSH warnt nie beim Wechsel zwischen ihnen.“',
+    log: '$ for h in web01 web02 web03; do ssh $h cat /etc/machine-id; done\n4f0c2a91d3b84e6fa2c71e0b9d5a8c31\n4f0c2a91d3b84e6fa2c71e0b9d5a8c31\n4f0c2a91d3b84e6fa2c71e0b9d5a8c31\n$ for h in web01 web02 web03; do ssh $h ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub; done\n256 SHA256:q3T8vXk2mZ0bH1yR7nC4wL9pF6sD5aE2uJ8iK0oV3gQ root@vorlage (ED25519)\n256 SHA256:q3T8vXk2mZ0bH1yR7nC4wL9pF6sD5aE2uJ8iK0oV3gQ root@vorlage (ED25519)\n256 SHA256:q3T8vXk2mZ0bH1yR7nC4wL9pF6sD5aE2uJ8iK0oV3gQ root@vorlage (ED25519)',
+    richtig: 'Die Vorlage wurde vor dem Klonen nicht verallgemeinert: machine-id und SSH-Host-Schlüssel sind auf allen Klonen gleich.',
+    falsch: ['Die Server haben dieselbe MAC-Adresse.', 'Das Monitoring ist falsch eingerichtet.', 'Die Klone laufen auf demselben Hypervisor.'],
+    erklaerung: 'Das Monitoring unterscheidet Rechner offenbar an der machine-id. Abhilfe auf jedem Klon: machine-id leeren und neu starten, Host-Schlüssel löschen und mit ssh-keygen -A neu erzeugen.',
+  },
+]} />

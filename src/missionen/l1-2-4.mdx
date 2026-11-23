@@ -1,0 +1,141 @@
+---
+id: l1-2-4
+checks:
+  - id: k1
+  - id: abfragen
+  - id: k2
+  - id: datei
+  - id: k3
+  - id: entfernen
+  - id: k4
+spick:
+  - t: "Installieren"
+    v: "dpkg -i datei.deb"
+  - t: "Entfernen / ganz entfernen"
+    v: "dpkg -r paket / dpkg -P paket"
+  - t: "Was ist installiert?"
+    v: "dpkg -l [muster]"
+  - t: "Dateien eines Pakets"
+    v: "dpkg -L paket"
+  - t: "Zu welchem Paket gehört?"
+    v: "dpkg -S /pfad/datei"
+  - t: "Status eines Pakets"
+    v: "dpkg -s paket"
+  - t: "In eine .deb-Datei schauen"
+    v: "dpkg -I datei.deb (Infos), dpkg -c datei.deb (Inhalt)"
+  - t: "Prüfen"
+    v: "dpkg -V paket"
+  - t: "Neu einrichten"
+    v: "dpkg-reconfigure paket"
+karten:
+  - f: "Mit welchem Befehl installierst du die Datei paket.deb?"
+    a: ["dpkg -i paket.deb", "sudo dpkg -i paket.deb", "dpkg --install paket.deb"]
+  - f: "Welcher Befehl zeigt alle Dateien, die das installierte Paket nano mitgebracht hat?"
+    a: ["dpkg -L nano", "dpkg --listfiles nano"]
+  - f: "Mit welchem Befehl findest du heraus, zu welchem installierten Paket /usr/bin/lspci gehört?"
+    a: ["dpkg -S /usr/bin/lspci", "dpkg --search /usr/bin/lspci"]
+  - f: "Was unterscheidet dpkg -r von dpkg -P?"
+    a: ["-r entfernt das Paket, lässt aber die Konfigurationsdateien liegen. -P (purge) entfernt auch die Konfiguration."]
+    aufdecken: true
+  - f: "Was bedeutet der Status „rc“ in der Ausgabe von dpkg -l?"
+    a: ["Das Paket ist entfernt, aber seine Konfigurationsdateien sind noch da."]
+    aufdecken: true
+  - f: "Mit welchem Befehl zeigst du die Steuerinformationen (z. B. Abhängigkeiten) einer .deb-Datei, ohne sie zu installieren?"
+    a: ["dpkg -I datei.deb", "dpkg --info datei.deb", "dpkg -I"]
+  - f: "Mit welchem Befehl stellst du die Fragen eines bereits installierten Pakets erneut, zum Beispiel für tzdata?"
+    a: ["dpkg-reconfigure tzdata", "sudo dpkg-reconfigure tzdata"]
+  - f: "Welcher Befehl prüft, ob die Dateien eines Pakets verändert wurden?"
+    a: ["dpkg -V", "dpkg --verify"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+
+Auf Debian und Ubuntu kommt Software als **.deb-Paket**: ein Archiv mit Programmdateien, Konfiguration und einer Liste von Abhängigkeiten. Das Werkzeug darunter heißt **dpkg**. Es arbeitet mit einzelnen Dateien und mit der Datenbank der installierten Pakete. **Deine Mission: Frag die Paketdatenbank ab, installier eine Paketdatei und räum wieder auf.** Lernziel 102.4.
+
+## Was ist installiert?
+
+<Karte nr={1} titel="dpkg fragt die Datenbank">
+| Befehl | Zeigt |
+| --- | --- |
+| `dpkg -l` | alle Pakete mit Status, Version und Beschreibung. Mit Muster: `dpkg -l 'pci*'` |
+| `dpkg -s nano` | Status, Version und Abhängigkeiten eines Pakets |
+| `dpkg -L nano` | alle Dateien, die das Paket installiert hat |
+| `dpkg -S /usr/bin/lspci` | zu welchem Paket eine Datei gehört |
+
+Die ersten zwei Buchstaben in `dpkg -l` sind der Status: **ii** heißt „soll installiert sein, ist installiert“. **rc** heißt „entfernt, aber die Konfigurationsdateien sind noch da“. **iU** heißt „ausgepackt, aber noch nicht eingerichtet“.
+
+`dpkg -S` kennt nur **installierte** Pakete. Welches noch nicht installierte Paket eine Datei liefern würde, sagt `apt-file` (nächste Mission).
+</Karte>
+
+<Merke>dpkg -l: was ist da. -s: Status. -L: welche Dateien. -S: welches Paket.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: Abfragen" fragen={[
+  { frage: 'Du findest auf einem Server /usr/sbin/sshd und willst wissen, aus welchem Paket die Datei stammt. Welcher Befehl?', richtig: 'dpkg -S /usr/sbin/sshd', falsch: ['dpkg -L /usr/sbin/sshd', 'dpkg -s /usr/sbin/sshd'], erklaerung: '-S sucht nach einer Datei, -L listet die Dateien eines Pakets, -s zeigt den Status eines Pakets.' },
+  { frage: 'In dpkg -l steht vor nano „rc“. Was heißt das?', richtig: 'nano ist entfernt, seine Konfigurationsdateien sind aber noch da.', falsch: ['nano ist installiert und läuft.', 'nano ist beschädigt und muss neu installiert werden.'], erklaerung: 'r = removed, c = config-files.' },
+]} />
+
+<Terminal id="abfragen" titel="Terminal: Die Paketdatenbank" aufgaben={[
+  { text: 'Lass dir alle installierten Pakete anzeigen, deren Name mit „pci“ beginnt.', befehl: '^dpkg -l .*pci', frage: 'Welche Version von pciutils ist installiert?', antwort: ['1:3.9.0-4'] },
+  { text: 'Zeig alle Dateien des Pakets pciutils.', befehl: '^dpkg (-L|--listfiles) pciutils$', frage: 'Wo liegt das Programm lspci? (Pfad)', antwort: ['/usr/bin/lspci'] },
+  { text: 'Finde heraus, zu welchem Paket <code>/usr/sbin/sshd</code> gehört.', befehl: '^dpkg (-S|--search) /usr/sbin/sshd$', frage: 'Welches Paket ist es?', antwort: ['openssh-server'] },
+  { text: 'Lass dir den Status von openssh-server anzeigen.', befehl: '^dpkg (-s|--status) openssh-server$', frage: 'Von welchem anderen Paket außer libc6 hängt es ab?', antwort: ['openssh-client'] },
+  { text: 'Prüf mit <code>dpkg -V</code>, ob Dateien von openssh-server verändert wurden.', befehl: '^dpkg (-V|--verify) openssh-server$', frage: 'Welche Datei wurde geändert? (Pfad)', antwort: ['/etc/ssh/sshd_config'] },
+]} welt={{ geaendert: ['/etc/ssh/sshd_config'] }} />
+
+<Hinweis titel="Was bedeutet „??5?????? c“?">
+dpkg -V zeigt nur Dateien, die von der Paketversion abweichen. Die 5 an dritter Stelle heißt: Die Prüfsumme (MD5) stimmt nicht mehr, der Inhalt wurde also geändert. Das c markiert eine Konfigurationsdatei. Bei einer Konfigurationsdatei ist das meist gewollt. Bei einem Programm wie /usr/bin/ls wäre es ein Alarmzeichen.
+</Hinweis>
+
+## Eine Paketdatei installieren
+
+<Karte nr={2} titel="dpkg -i und seine Grenze">
+Mit `dpkg -I datei.deb` siehst du die Steuerinformationen einer Paketdatei, darunter die Abhängigkeiten. `dpkg -c datei.deb` zeigt, welche Dateien sie enthält. `sudo dpkg -i datei.deb` installiert sie.
+
+dpkg kennt aber nur die Datei, die du ihm gibst. Fehlt eine Abhängigkeit, holt dpkg sie **nicht** aus dem Netz. Es packt das Paket aus, richtet es nicht ein und bricht mit „dependency problems“ ab. Das Paket steht dann auf **iU**. Die Lücke füllt `sudo apt-get -f install`: Es holt die fehlenden Pakete und richtet alles fertig ein.
+</Karte>
+
+<Merke>dpkg -i löst keine Abhängigkeiten auf. Danach hilft apt-get -f install.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: Installieren" fragen={[
+  { frage: 'dpkg -i meldet „dependency problems - leaving unconfigured“. Was ist passiert?', richtig: 'Das Paket wurde ausgepackt, aber nicht eingerichtet, weil eine Abhängigkeit fehlt.', falsch: ['Das Paket ist beschädigt.', 'Das Paket wurde vollständig installiert, nur mit einer Warnung.'], erklaerung: 'dpkg holt keine Pakete aus dem Netz. apt-get -f install erledigt das.' },
+]} />
+
+<Terminal id="datei" titel="Terminal: Die Paketdatei der Messsoftware" einleitung="Im Ordner ~/downloads liegt messsoft_1.2-1_amd64.deb."
+  aufgaben={[
+    { text: 'Schau dir die Steuerinformationen der Datei an, ohne sie zu installieren.', befehl: '^dpkg (-I|--info) (~/|/home/lena/)?downloads/messsoft', frage: 'Welches Paket braucht sie außer libc6?', antwort: ['libmess1'] },
+    { text: 'Lass dir den Inhalt der Paketdatei zeigen.', befehl: '^dpkg (-c|--contents) (~/|/home/lena/)?downloads/messsoft' },
+    { text: 'Installiere die Datei mit dpkg und lies die Fehlermeldung.', befehl: '^dpkg (-i|--install) ', auchFehler: true },
+    { text: 'Schau dir den Status von messsoft an.', befehl: '^dpkg (-l|-s) messsoft$', frage: 'Was steht im Status? (zwei Buchstaben aus dpkg -l oder das letzte Wort aus dpkg -s)', antwort: ['iU', 'unpacked'] },
+    { text: 'Lass apt die fehlende Abhängigkeit holen und die Installation abschließen.', zustand: 'paket:messsoft=an && paket:libmess1=an' },
+  ]} />
+
+## Entfernen und neu einrichten
+
+<Karte nr={3} titel="-r, -P und dpkg-reconfigure">
+- `sudo dpkg -r nano` entfernt das Paket, **lässt aber seine Konfigurationsdateien liegen**. Installierst du es später wieder, sind deine Einstellungen noch da.
+- `sudo dpkg -P nano` (purge) entfernt **alles**, auch die Konfiguration.
+- Braucht ein anderes installiertes Paket das, was du entfernen willst, weigert sich dpkg.
+- `sudo dpkg-reconfigure tzdata` stellt die Fragen, die ein Paket bei der Installation gestellt hat, noch einmal. Bei tzdata ist das die Zeitzone.
+</Karte>
+
+<Merke>-r lässt die Konfiguration liegen, -P löscht alles. dpkg-reconfigure fragt neu.</Merke>
+
+<Quiz id="k3" titel="Kurzcheck: Entfernen" fragen={[
+  { frage: 'Du willst den Webserver nginx-common samt seiner Konfiguration vollständig loswerden. Welche Option?', richtig: 'dpkg -P nginx-common', falsch: ['dpkg -r nginx-common', 'dpkg -L nginx-common'], erklaerung: '-P steht für purge.' },
+]} />
+
+<Terminal id="entfernen" titel="Terminal: Aufräumen" aufgaben={[
+  { text: 'Versuch, openssh-client mit dpkg zu entfernen.', befehl: '^dpkg (-r|--remove) openssh-client$', auchFehler: true, frage: 'Welches Paket hängt davon ab?', antwort: ['openssh-server'] },
+  { text: 'Entferne nano mit <code>dpkg -r</code>.', zustand: 'paket:nano=rc' },
+  { text: 'Prüf mit <code>dpkg -l nano</code> den Status.', befehl: '^dpkg -l nano$', frage: 'Welche zwei Buchstaben stehen vorne?', antwort: ['rc'] },
+  { text: 'Entferne jetzt auch die Konfiguration von nano.', zustand: 'paket:nano=aus' },
+  { text: 'Lass dir die Fragen zur Zeitzone noch einmal stellen.', befehl: '^dpkg-reconfigure tzdata$' },
+]} />
+
+<Quiz id="k4" titel="Abschluss" fragen={[
+  { frage: 'Welche Datei liefert dpkg -S /usr/bin/tree, wenn das Paket tree nicht installiert ist?', richtig: 'Keine. dpkg -S kennt nur installierte Pakete.', falsch: ['Das Paket tree', 'Alle Pakete mit „tree“ im Namen'], erklaerung: 'Für nicht installierte Pakete gibt es apt-file search.' },
+  { frage: 'Was macht dpkg -c paket.deb?', richtig: 'Es listet die Dateien in der Paketdatei, ohne zu installieren.', falsch: ['Es konfiguriert das Paket neu.', 'Es prüft die Signatur.'], erklaerung: '-c steht für contents.' },
+]} />

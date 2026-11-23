@@ -1,0 +1,119 @@
+---
+id: l1-2-3
+checks:
+  - id: k1
+  - id: anschauen
+  - id: k2
+  - id: reparieren
+  - id: k3
+spick:
+  - t: "Was braucht ein Programm?"
+    v: "ldd /pfad/programm"
+  - t: "Was kennt der Linker?"
+    v: "ldconfig -p"
+  - t: "Cache neu bauen"
+    v: "sudo ldconfig"
+  - t: "Dauerhaft eintragen"
+    v: "/etc/ld.so.conf oder /etc/ld.so.conf.d/*.conf"
+  - t: "Nur für einen Aufruf"
+    v: "LD_LIBRARY_PATH=/pfad programm"
+  - t: "Typische Orte"
+    v: "/lib, /usr/lib, /lib64, /usr/lib64, /usr/local/lib"
+karten:
+  - f: "Welcher Befehl zeigt, welche gemeinsamen Bibliotheken ein Programm braucht?"
+    a: ["ldd"]
+  - f: "Welcher Befehl baut den Cache des dynamischen Linkers neu auf?"
+    a: ["ldconfig", "sudo ldconfig"]
+  - f: "Wie heißt die Datei mit dem Cache des dynamischen Linkers?"
+    a: ["/etc/ld.so.cache"]
+  - f: "In welcher Datei (oder welchem Verzeichnis) trägst du zusätzliche Bibliotheksverzeichnisse dauerhaft ein?"
+    a: ["/etc/ld.so.conf", "/etc/ld.so.conf.d", "/etc/ld.so.conf.d/"]
+  - f: "Welche Umgebungsvariable gibt zusätzliche Bibliotheksverzeichnisse für einen Aufruf an?"
+    a: ["LD_LIBRARY_PATH"]
+  - f: "Welcher Befehl listet alle Bibliotheken im Cache des Linkers?"
+    a: ["ldconfig -p"]
+  - f: "Woran erkennst du eine gemeinsame Bibliothek am Dateinamen?"
+    a: [".so", "an der Endung .so", "Endung .so"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+
+Die Firma hat für die Werkstatt ein Messprogramm gekauft. Es liegt unter `/opt/messsoft`. Wer es startet, bekommt nur eine Fehlermeldung. **Deine Mission: Finde heraus, welche Bibliothek fehlt, und bring das Programm zum Laufen.** Lernziel 102.3.
+
+## Gemeinsame Bibliotheken
+
+<Karte nr={1} titel="Code, den sich alle teilen">
+Viele Programme brauchen dieselben Funktionen: Text ausgeben, Dateien öffnen, Netzwerk. Statt dass jedes Programm diesen Code selbst mitbringt, liegt er einmal in einer **gemeinsamen Bibliothek** (shared library, „shared object“). Du erkennst sie an der Endung **.so**, oft mit einer Versionsnummer: `libc.so.6`.
+
+Startet ein Programm, sucht der **dynamische Linker** (`ld-linux.so`) die nötigen Bibliotheken und lädt sie dazu. Typische Orte sind `/lib` und `/usr/lib`, auf 64-Bit-Systemen von Red Hat `/lib64` und `/usr/lib64`, auf Debian `/lib/x86_64-linux-gnu`. Selbst installierte Bibliotheken liegen meist in `/usr/local/lib`.
+
+`ldd /usr/bin/ls` zeigt, welche Bibliotheken ein Programm braucht und wo der Linker sie findet. Steht dort **not found**, fehlt eine.
+</Karte>
+
+<Merke>.so = gemeinsame Bibliothek. ldd zeigt, was ein Programm braucht. „not found“ heißt: fehlt.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: Bibliotheken" fragen={[
+  { frage: 'Was zeigt „ldd /usr/bin/ls“?', richtig: 'Welche gemeinsamen Bibliotheken ls braucht und wo sie liegen', falsch: ['Welche Dateien ls gerade geöffnet hat', 'Zu welchem Paket ls gehört'], erklaerung: 'Für das Paket fragst du die Paketverwaltung, etwa dpkg -S oder rpm -qf.' },
+]} />
+
+<Terminal id="anschauen" titel="Terminal: Bibliotheken ansehen" aufgaben={[
+  { text: 'Lass dir anzeigen, welche Bibliotheken <code>/usr/bin/ls</code> braucht.', befehl: '^ldd /usr/bin/ls$', frage: 'Wie heißt die Bibliothek mit der C-Standardbibliothek? (Dateiname)', antwort: ['libc.so.6'] },
+  { text: 'Starte das Messprogramm: <code>/opt/messsoft/bin/messprog</code>', befehl: '^/opt/messsoft/bin/messprog$', auchFehler: true },
+  { text: 'Finde mit ldd heraus, was dem Messprogramm fehlt.', befehl: '^ldd /opt/messsoft/bin/messprog$', frage: 'Welche Bibliothek wird nicht gefunden?', antwort: ['libmess.so.1'] },
+  { text: 'Schau nach, wo die Bibliothek liegt: <code>ls /opt/messsoft/lib</code>', befehl: '^ls /opt/messsoft/lib/?$' },
+]} />
+
+## Den Linker informieren
+
+<Karte nr={2} titel="ldconfig und /etc/ld.so.conf">
+Der Linker durchsucht nicht bei jedem Start die ganze Platte, sondern liest einen **Cache**: **/etc/ld.so.cache**. Den baut **ldconfig** auf. Es durchsucht die Standardverzeichnisse und alle Verzeichnisse, die in **/etc/ld.so.conf** stehen. Diese Datei bindet meist nur **/etc/ld.so.conf.d/*.conf** ein, so dass jedes Programm seine eigene kleine Datei mitbringen kann.
+
+Eine neue Bibliothek dauerhaft bekannt machen, in zwei Schritten:
+
+```
+echo /opt/messsoft/lib | sudo tee /etc/ld.so.conf.d/messsoft.conf
+sudo ldconfig
+```
+
+`ldconfig -p` zeigt danach, was im Cache steht.
+</Karte>
+
+<Merke>Verzeichnis in /etc/ld.so.conf.d/*.conf eintragen, dann sudo ldconfig.</Merke>
+
+<Karte nr={3} titel="LD_LIBRARY_PATH: nur für diesen Aufruf">
+Willst du nur kurz etwas ausprobieren, sagst du dem Linker das Verzeichnis über die Umgebungsvariable **LD_LIBRARY_PATH**:
+
+```
+LD_LIBRARY_PATH=/opt/messsoft/lib /opt/messsoft/bin/messprog
+```
+
+So gilt sie nur für diesen einen Aufruf. Mit `export LD_LIBRARY_PATH=/opt/messsoft/lib` gilt sie für alle weiteren Befehle in dieser Shell, bis du sie schließt. Für den Dauerbetrieb ist der Weg über ldconfig besser: Er gilt für alle Benutzer und übersteht einen Neustart.
+</Karte>
+
+<Merke>LD_LIBRARY_PATH zum Ausprobieren, ld.so.conf.d plus ldconfig für immer.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: Linker" fragen={[
+  { frage: 'Du hast /opt/messsoft/lib in /etc/ld.so.conf.d/messsoft.conf eingetragen, aber das Programm findet die Bibliothek immer noch nicht. Was fehlt?', richtig: 'sudo ldconfig', falsch: ['Ein Neustart', 'export LD_LIBRARY_PATH'], erklaerung: 'Der Linker liest nur den Cache. ldconfig baut ihn aus den Einträgen neu.' },
+  { frage: 'Was ist der Nachteil von LD_LIBRARY_PATH gegenüber ldconfig?', richtig: 'Die Variable gilt nur in der aktuellen Shell und muss überall gesetzt werden, wo das Programm läuft.', falsch: ['Sie funktioniert nur für root.', 'Sie verändert den Cache dauerhaft.'], erklaerung: 'Für Tests praktisch, für den Dauerbetrieb unpraktisch.' },
+]} />
+
+<Terminal id="reparieren" titel="Terminal: Das Messprogramm reparieren" aufgaben={[
+  { text: 'Starte das Programm einmalig mit <code>LD_LIBRARY_PATH</code>, ohne etwas dauerhaft zu ändern.', befehl: '^LD_LIBRARY_PATH=/opt/messsoft/lib/? /opt/messsoft/bin/messprog$' },
+  { text: 'Versuch, den Cache ohne sudo neu zu bauen, und lies die Meldung.', befehl: '^ldconfig$', auchFehler: true },
+  { text: 'Trag <code>/opt/messsoft/lib</code> dauerhaft in eine neue Datei unter <code>/etc/ld.so.conf.d/</code> ein.', zustand: 'datei:/etc/ld.so.conf.d/*~^/opt/messsoft/lib/?$' },
+  { text: 'Bau den Cache neu.', zustand: 'ldcache:/opt/messsoft/lib' },
+  { text: 'Prüf mit <code>ldconfig -p</code> und grep, ob libmess jetzt im Cache steht.', befehl: '^ldconfig -p \\| grep ' },
+  { text: 'Starte das Messprogramm ganz normal.', befehl: '^/opt/messsoft/bin/messprog$', frage: 'Welche Temperatur meldet Kanal 1?', antwort: ['23,4 °C', '23,4', '23,4°C', '23.4'] },
+]} />
+
+<Hinweis titel="Prüfungstipp">
+Die Prüfung fragt gern nach der Reihenfolge: Erst die Datei in /etc/ld.so.conf.d, dann ldconfig. Und danach, was ldd zeigt (Bibliotheken eines Programms), was ldconfig -p zeigt (den Cache) und wofür LD_LIBRARY_PATH da ist.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Welche Datei liest der dynamische Linker, um Bibliotheken schnell zu finden?', richtig: '/etc/ld.so.cache', falsch: ['/etc/ld.so.conf', '/proc/modules'], erklaerung: '/etc/ld.so.conf liest nur ldconfig, um den Cache zu bauen.' },
+  { frage: 'Ein Programm meldet „error while loading shared libraries: libfoo.so.2: cannot open shared object file“. Welcher erste Befehl zeigt dir das Problem genauer?', richtig: 'ldd auf das Programm', falsch: ['lsmod', 'dmesg'], erklaerung: 'ldd listet alle Bibliotheken und markiert fehlende mit „not found“.' },
+]} />
