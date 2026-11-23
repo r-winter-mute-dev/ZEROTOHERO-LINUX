@@ -362,6 +362,8 @@ export function textBefehle(h: TextHelfer): Record<string, Befehl> {
     const lang = flags.has('-l') || flags.has('-n'); const alle = flags.has('-a'); const fast = flags.has('-A');
     const ziele = rest.length ? rest : ['.'];
     const out: string[] = []; const err: string[] = [];
+    // ls LINK folgt einem Link auf ein Verzeichnis, ls -l LINK und ls -d LINK zeigen den Link selbst
+    const echt = (r: string) => { let p = pfad(w, r); if (!lang && !flags.has('-d')) for (let i = 0; i < 40 && typeof w.fs[p] === 'string' && w.fs[p]!.startsWith('-> '); i++) { const t = w.fs[p]!.slice(3); const q = pfad(w, t.startsWith('/') ? t : (p.slice(0, p.lastIndexOf('/')) || '/') + '/' + t); if (w.fs[q] === undefined) break; p = q; } return p; };
     // ls -l: Felder sammeln, dann wie GNU ls je Block in Spalten ausrichten
     const felder = (p: string, name: string) => {
       const m = meta(w, p); const c = w.fs[p];
@@ -395,11 +397,11 @@ export function textBefehle(h: TextHelfer): Record<string, Befehl> {
       else out.push(eintraege.map((e) => (flags.has('-i') ? inode(w, e.p) + ' ' : '') + e.n + (flags.has('-F') && w.fs[e.p] === null ? '/' : '')).join(flags.has('-1') || !w.stdoutTty ? '\n' : '  '));
       if (flags.has('-R')) for (const e of eintraege) if (w.fs[e.p] === null && e.n !== '.' && e.n !== '..') { out.push(''); ordner(e.p, `${anzeige === '.' ? '.' : anzeige}/${e.n}`, true); }
     };
-    const dateien = ziele.filter((r) => { const p = pfad(w, r); return p in w.fs && (w.fs[p] !== null || flags.has('-d')); }).sort((x, y) => x.localeCompare(y, 'de'));
-    const ordnerZiele = ziele.filter((r) => { const p = pfad(w, r); return p in w.fs && w.fs[p] === null && !flags.has('-d'); });
+    const dateien = ziele.filter((r) => { const p = echt(r); return p in w.fs && (w.fs[p] !== null || flags.has('-d')); }).sort((x, y) => x.localeCompare(y, 'de'));
+    const ordnerZiele = ziele.filter((r) => { const p = echt(r); return p in w.fs && w.fs[p] === null && !flags.has('-d'); });
     for (const r of ziele) if (!(pfad(w, r) in w.fs)) err.push(`ls: Zugriff auf '${r}' nicht möglich: Datei oder Verzeichnis nicht gefunden`);
     if (dateien.length) { if (lang) out.push(...ausrichten(dateien.map((r) => felder(pfad(w, r), r)))); else out.push(dateien.map((r) => (flags.has('-i') ? inode(w, pfad(w, r)) + ' ' : '') + r).join(flags.has('-1') || !w.stdoutTty ? '\n' : '  ')); }
-    for (const [i, r] of ordnerZiele.entries()) { if (dateien.length || i > 0) out.push(''); ordner(pfad(w, r), r, ziele.length > 1 || flags.has('-R')); }
+    for (const [i, r] of ordnerZiele.entries()) { if (dateien.length || i > 0) out.push(''); ordner(echt(r), r, ziele.length > 1 || flags.has('-R')); }
     return { out: out.join('\n'), err: err.length ? err.join('\n') : undefined, code: err.length ? 2 : 0 };
   };
 

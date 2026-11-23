@@ -1,0 +1,126 @@
+---
+id: l1-4-6
+checks:
+  - id: k1
+  - id: besitz
+  - id: k2
+  - id: team
+  - id: k3
+spick:
+  - t: "Besitzer ändern (nur root)"
+    v: "chown max datei, chown max:users datei, chown -R …"
+  - t: "Gruppe ändern"
+    v: "chgrp users datei  oder  chown :users datei"
+  - t: "SUID (4)"
+    v: "chmod u+s, 4755 → rwsr-xr-x"
+  - t: "SGID (2)"
+    v: "chmod g+s, 2775 → rwxrwsr-x"
+  - t: "Sticky (1)"
+    v: "chmod +t, 1777 → rwxrwxrwt"
+  - t: "Großes S oder T"
+    v: "Bit gesetzt, aber x fehlt"
+  - t: "SUID-Programme finden"
+    v: "find / -perm -4000 2>/dev/null"
+karten:
+  - f: "Wer darf den Besitzer einer Datei ändern?"
+    a: ["nur root", "root"]
+  - f: "Wie setzt du Besitzer max und Gruppe users in einem Befehl?"
+    a: ["chown max:users datei", "chown max:users"]
+  - f: "Welcher Befehl ändert nur die Gruppe einer Datei?"
+    a: ["chgrp"]
+  - f: "Welche Oktalziffer steht für SUID?"
+    a: ["4", "4000"]
+  - f: "Was bewirkt SUID bei einem Programm?"
+    a: ["es läuft mit den rechten des besitzers", "läuft mit den rechten des dateibesitzers"]
+  - f: "Was bewirkt SGID bei einem Verzeichnis?"
+    a: ["neue dateien erben die gruppe des verzeichnisses", "neue dateien bekommen die gruppe des verzeichnisses"]
+  - f: "Was bewirkt das Sticky Bit bei einem Verzeichnis?"
+    a: ["nur der besitzer darf seine dateien löschen", "nur besitzer dürfen ihre eigenen dateien löschen oder umbenennen"]
+  - f: "Welches Verzeichnis hat auf jedem Linux das Sticky Bit?"
+    a: ["/tmp"]
+  - f: "Was bedeutet ein großes S in ls -l, etwa rwSr--r--?"
+    a: ["suid gesetzt aber kein x", "das bit ist gesetzt, aber x fehlt"]
+  - f: "Wie findest du alle SUID-Dateien im System?"
+    a: ["find / -perm -4000", "find / -perm -u=s", "find / -perm /4000"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+
+lena und max sollen gemeinsam in einem Verzeichnis arbeiten. Jede neue Datei soll dem Team gehören, und niemand soll versehentlich die Dateien des anderen löschen können. **Deine Mission: Richte ein Team-Verzeichnis mit Besitz, Gruppe und den besonderen Bits ein.** Lernziel 104.5.
+
+## Besitz
+
+<Karte nr={1} titel="chown und chgrp">
+Jede Datei hat einen **Besitzer** und eine **Gruppe**. `ls -l` zeigt beide in Spalte drei und vier.
+
+- `chown max datei` macht max zum Besitzer. `chown max:users datei` setzt beides, `chown max: datei` setzt die Hauptgruppe von max, `chown :users datei` nur die Gruppe. `-R` geht rekursiv.
+- `chgrp users datei` ändert nur die Gruppe.
+
+Den **Besitzer** ändern darf nur **root**. Sonst könnte jeder anderen Dateien unterschieben oder Speicherkontingente umgehen. Die **Gruppe** darf der Besitzer ändern, aber nur auf eine Gruppe, in der er selbst Mitglied ist. Welche das sind, zeigt `id` oder `groups`.
+</Karte>
+
+<Merke>chown nur als root. chgrp darf der Besitzer, aber nur auf eigene Gruppen. chown user:gruppe setzt beides.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: Besitz" fragen={[
+  { frage: 'lena will ihre Datei max schenken: „chown max bericht.txt“. Was passiert?', richtig: 'Vorgang nicht zulässig, denn nur root darf den Besitzer ändern.', falsch: ['Die Datei gehört danach max.', 'Die Datei gehört danach beiden.'], erklaerung: 'Auch für eigene Dateien darf ein normaler Benutzer den Besitzer nicht ändern.' },
+]} />
+
+<Terminal id="besitz" titel="Terminal: Besitzer und Gruppen" welt={{ dateien: { '/home/lena/bericht.txt': 'Quartalsbericht\n', '/home/lena/plan.txt': 'Plan\n' } }} aufgaben={[
+  { text: 'Finde heraus, in welchen Gruppen du bist.', befehl: '^(id|groups)$', frage: 'Bist du in der Gruppe users? (ja/nein)', antwort: ['ja'] },
+  { text: 'Versuch, <code>bericht.txt</code> an max zu übergeben, und lies die Meldung.', befehl: '^chown max bericht\\.txt$', auchFehler: true },
+  { text: 'Mach es mit root-Rechten und setze dabei auch die Gruppe users.', zustand: 'besitzer:/home/lena/bericht.txt=max:users' },
+  { text: 'Setze die Gruppe von <code>plan.txt</code> auf users, ohne sudo.', zustand: 'gruppe:/home/lena/plan.txt=users', befehl: '^(chgrp users|chown :users) plan\\.txt$' },
+  { text: 'Versuch, die Gruppe von plan.txt auf max zu setzen.', befehl: '^(chgrp max|chown :max) plan\\.txt$', auchFehler: true, frage: 'Warum klappt das nicht? (Bist du in der Gruppe max? ja/nein)', antwort: ['nein'] },
+]} />
+
+## Die besonderen Bits
+
+<Karte nr={2} titel="SUID, SGID und Sticky Bit">
+Vor den drei Ziffern gibt es eine vierte: Sie steht für drei besondere Bits.
+
+| Bit | Wert | Bei Programmen | Bei Verzeichnissen | ls -l |
+|---|---|---|---|---|
+| **SUID** | 4 | läuft mit den Rechten des **Besitzers** | (ohne Wirkung unter Linux) | `rws` beim Besitzer |
+| **SGID** | 2 | läuft mit den Rechten der **Gruppe** | neue Dateien **erben die Gruppe** des Verzeichnisses, neue Unterverzeichnisse auch das SGID-Bit | `rws` bei der Gruppe |
+| **Sticky** | 1 | (ohne Wirkung) | nur der **Besitzer** einer Datei (und root) darf sie löschen oder umbenennen | `t` bei den anderen |
+
+Beispiele aus jedem System:
+
+- `/usr/bin/passwd` hat SUID root (`-rwsr-xr-x`). Nur so kann ein normaler Benutzer sein Passwort in `/etc/shadow` ändern.
+- `/tmp` hat das Sticky Bit (`drwxrwxrwt`, 1777): Alle dürfen dort schreiben, aber keiner löscht die Dateien der anderen.
+- Ein Team-Verzeichnis mit SGID (`2775` oder `2770`) sorgt dafür, dass alle Dateien der Team-Gruppe gehören.
+
+Setzen: `chmod u+s`, `chmod g+s`, `chmod +t` oder als vierte Ziffer, etwa `chmod 2775`. Ein **großes** `S` oder `T` in ls -l heißt: Das Bit ist gesetzt, aber das x darunter fehlt. Das ist fast immer ein Fehler.
+
+SUID-Programme sind ein beliebtes Angriffsziel. `find / -perm -4000 2>/dev/null` listet sie auf. Auf Shell-Skripte wirkt SUID unter Linux übrigens nicht.
+</Karte>
+
+<Merke>4 SUID (Rechte des Besitzers), 2 SGID (Gruppe erben), 1 Sticky (nur eigene löschen). /tmp ist 1777, passwd ist 4755.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: Bits" fragen={[
+  { frage: 'Welche Rechte zeigt ls -l für ein Verzeichnis mit 1777?', richtig: 'drwxrwxrwt', falsch: ['drwsrwxrwx', 'drwxrwsrwx'], erklaerung: 'Das Sticky Bit erscheint als t an der letzten Stelle.' },
+  { frage: 'Warum hat /usr/bin/passwd das SUID-Bit?', richtig: 'Damit normale Benutzer ihr Passwort in die nur für root schreibbare /etc/shadow eintragen können', falsch: ['Damit nur root es starten kann', 'Damit es schneller startet'], erklaerung: 'Das Programm läuft mit den Rechten seines Besitzers root.' },
+]} />
+
+<Terminal id="team" titel="Terminal: Das Team-Verzeichnis" aufgaben={[
+  { text: 'Lege als root das Verzeichnis <code>/srv/team</code> an.', zustand: 'ordner:/srv/team' },
+  { text: 'Gib es der Gruppe users.', zustand: 'gruppe:/srv/team=users' },
+  { text: 'Setze die Rechte so, dass Besitzer und Gruppe alles dürfen, alle anderen nichts, und neue Dateien die Gruppe erben. Eine Zahl genügt.', zustand: 'modus:/srv/team=2770' },
+  { text: 'Lege als lena (ohne sudo) die Datei <code>/srv/team/liste.txt</code> an und schau, welcher Gruppe sie gehört.', zustand: 'gruppe:/srv/team/liste.txt=users' },
+  { text: 'Setze zusätzlich das Sticky Bit.', zustand: 'modus:/srv/team=3770' },
+  { text: 'Schau dir die Rechte von <code>/tmp</code> und <code>/usr/bin/passwd</code> an.', befehl: '^ls -\\w*l\\w* ', frage: 'Welche Oktalzahl hat /tmp?', antwort: ['1777'] },
+  { text: 'Finde alle Programme mit SUID-Bit und wirf die Fehlermeldungen weg.', auchFehler: true, befehl: '^find / -perm (-4000|/4000|-u=s|-u\\+s) .*2> ?/dev/null|^find / .*-perm (-4000|/4000|-u=s) 2> ?/dev/null', frage: 'Nenne eines davon, außer passwd (nur der Name).', antwort: ['sudo', 'su', 'mount', 'umount', 'chsh', 'chfn', 'newgrp', 'gpasswd'] },
+]} />
+
+<Hinweis titel="Prüfungstipp">
+Lerne die Werte 4, 2, 1 für SUID, SGID, Sticky und erkenne sie in ls -l: s beim Besitzer, s bei der Gruppe, t bei den anderen. Gefragt wird auch, wer chown benutzen darf (nur root) und was SGID bei Verzeichnissen bewirkt.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Welcher Befehl setzt das SGID-Bit für /srv/projekt?', richtig: 'chmod g+s /srv/projekt', falsch: ['chmod u+s /srv/projekt', 'chmod +t /srv/projekt'], erklaerung: 'u+s ist SUID, +t das Sticky Bit.' },
+  { frage: 'ls -l zeigt -rwSr--r--. Was stimmt?', richtig: 'SUID ist gesetzt, aber der Besitzer hat kein Ausführrecht.', falsch: ['SUID ist gesetzt und die Datei ist ausführbar.', 'Die Datei ist ein Socket.'], erklaerung: 'Großes S: Bit da, x fehlt. Dann ist SUID wirkungslos.' },
+  { frage: 'Welche Oktalzahl ergibt rwsr-xr-x?', richtig: '4755', falsch: ['2755', '7755'], erklaerung: 's beim Besitzer ist SUID mit x, also 4 vor 755.' },
+]} />

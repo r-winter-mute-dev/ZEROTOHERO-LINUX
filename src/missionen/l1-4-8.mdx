@@ -1,0 +1,135 @@
+---
+id: l1-4-8
+checks:
+  - id: k1
+  - id: zuordnung
+  - id: k2
+  - id: suchen
+  - id: k3
+spick:
+  - t: "Konfiguration"
+    v: "/etc"
+  - t: "Veränderliche Daten, Logs"
+    v: "/var, /var/log"
+  - t: "Programme"
+    v: "/usr/bin, /usr/sbin (/bin und /sbin zeigen dorthin)"
+  - t: "Selbst Installiertes"
+    v: "/usr/local, /opt"
+  - t: "Schnell suchen (Datenbank)"
+    v: "locate name, sudo updatedb, /etc/updatedb.conf"
+  - t: "Gründlich suchen (live)"
+    v: "find / -name name 2>/dev/null"
+  - t: "Wo ist das Programm?"
+    v: "which, type, whereis"
+karten:
+  - f: "In welchem Verzeichnis liegen systemweite Konfigurationsdateien?"
+    a: ["/etc"]
+  - f: "In welchem Verzeichnis liegen Protokolldateien?"
+    a: ["/var/log"]
+  - f: "Wohin gehört Software, die du selbst aus dem Quelltext übersetzt hast?"
+    a: ["/usr/local"]
+  - f: "Wohin gehören in sich geschlossene Zusatzpakete von Drittanbietern?"
+    a: ["/opt"]
+  - f: "Wo liegen Daten, die ein Dienst wie ein Webserver anbietet?"
+    a: ["/srv"]
+  - f: "Wo liegen Laufzeitdaten wie PID-Dateien seit FHS 3.0?"
+    a: ["/run"]
+  - f: "Welche zwei Verzeichnisse stellt der Kernel virtuell bereit?"
+    a: ["/proc und /sys", "/proc /sys", "proc und sys"]
+  - f: "Welcher Befehl aktualisiert die Datenbank von locate?"
+    a: ["updatedb", "sudo updatedb"]
+  - f: "In welcher Datei legst du fest, welche Pfade updatedb auslässt?"
+    a: ["/etc/updatedb.conf"]
+  - f: "Welcher Befehl zeigt Programm und Handbuchseiten eines Befehls?"
+    a: ["whereis"]
+  - f: "Warum findet locate eine eben angelegte Datei nicht?"
+    a: ["die datenbank ist noch nicht aktualisiert", "updatedb ist noch nicht gelaufen"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Zuordnung from '../components/Zuordnung.astro';
+
+Ein neuer Kollege fragt: Wo liegt eigentlich die Konfiguration von SSH? Wohin mit dem Tool, das ich selbst übersetzt habe? Und warum findet locate meine Datei nicht? **Deine Mission: Lerne die Ordnung im Verzeichnisbaum und finde jede Datei.** Lernziel 104.7.
+
+## Der Filesystem Hierarchy Standard
+
+<Karte nr={1} titel="Jedes Ding an seinem Ort">
+Der **FHS** (Filesystem Hierarchy Standard, aktuell 3.0) legt fest, wofür die Verzeichnisse unter `/` da sind. Fast alle Distributionen halten sich daran.
+
+| Verzeichnis | Inhalt |
+|---|---|
+| `/bin`, `/sbin` | Programme für alle bzw. für die Verwaltung. Auf Debian 12 Verweise auf `/usr/bin` und `/usr/sbin` |
+| `/boot` | Kernel, initramfs, Bootloader |
+| `/dev` | Gerätedateien |
+| `/etc` | Konfiguration des Systems, nur Textdateien, keine Programme |
+| `/home` | Heimatverzeichnisse der Benutzer, `/root` das von root |
+| `/lib` | Bibliotheken und Kernelmodule |
+| `/media` | automatisch eingehängte Wechselmedien |
+| `/mnt` | vorübergehend von Hand eingehängte Dateisysteme |
+| `/opt` | in sich geschlossene Zusatzsoftware, etwa `/opt/messsoft` |
+| `/proc`, `/sys` | virtuelle Dateisysteme des Kernels |
+| `/run` | Laufzeitdaten seit dem Start (PID-Dateien, Sockets), im Arbeitsspeicher |
+| `/srv` | Daten, die Dienste anbieten, etwa Webseiten oder Freigaben |
+| `/tmp` | temporäre Dateien, oft beim Start geleert |
+| `/usr` | der große, nur lesbare Teil: Programme, Bibliotheken, Dokumentation (`/usr/share`) |
+| `/usr/local` | selbst installierte Software, die die Paketverwaltung nicht kennt |
+| `/var` | veränderliche Daten: `/var/log` Protokolle, `/var/spool` Warteschlangen, `/var/cache`, `/var/lib` Zustand von Programmen |
+
+Merke dir die Unterscheidung: **statisch** (`/usr`, `/opt`) gegen **veränderlich** (`/var`), und **lokal** (`/etc`, `/var`) gegen **teilbar** (`/usr` könnte von mehreren Rechnern gemeinsam benutzt werden).
+</Karte>
+
+<Merke>/etc Konfiguration, /var veränderlich, /usr Programme, /usr/local selbst gebaut, /opt Zusatzpakete, /srv Dienstdaten, /run Laufzeit.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: FHS" fragen={[
+  { frage: 'Ein Hersteller liefert sein Programm als Ordner mit eigenen Bibliotheken. Wohin gehört er?', richtig: '/opt', falsch: ['/usr/bin', '/etc'], erklaerung: '/opt/hersteller/ hält alles zusammen. /usr/local ist für einzelne selbst installierte Programme.' },
+  { frage: 'Wo landen Druckaufträge und ausgehende Mails, bis sie verarbeitet sind?', richtig: '/var/spool', falsch: ['/tmp', '/usr/spool'], erklaerung: 'Warteschlangen sind veränderliche Daten, also /var.' },
+]} />
+
+<Zuordnung id="zuordnung" titel="Was liegt wo?" aufgabe="Ordne jedem Inhalt das richtige Verzeichnis zu." paare={[
+  { links: 'Die Konfiguration von sshd', rechts: '/etc' },
+  { links: 'Das Systemprotokoll eines Dienstes', rechts: '/var/log' },
+  { links: 'Ein selbst übersetztes Programm', rechts: '/usr/local/bin' },
+  { links: 'Der Kernel und die initramfs', rechts: '/boot' },
+  { links: 'Die Webseiten, die ein Webserver ausliefert', rechts: '/srv' },
+  { links: 'Die PID-Datei eines laufenden Dienstes', rechts: '/run' },
+]} />
+
+## Dateien finden
+
+<Karte nr={2} titel="find, locate und die anderen">
+- **find** durchsucht das Dateisystem live (Mission 3.6). Gründlich und immer aktuell, aber langsam auf großen Platten.
+- **locate** sucht in einer **Datenbank**, die **updatedb** anlegt. Das geht in Millisekunden. Auf Debian 12 liefert das Paket `plocate` beides. updatedb läuft automatisch einmal am Tag. Was danach angelegt wurde, findet locate erst nach `sudo updatedb`. Welche Pfade und Dateisysteme updatedb auslässt, steht in **/etc/updatedb.conf** (`PRUNEPATHS`, `PRUNEFS`). Nützliche Optionen: `-i` ohne Groß/klein, `-c` nur zählen, `-b` nur im Dateinamen suchen.
+- **which programm** zeigt den Pfad, unter dem die Shell ein Programm aus PATH starten würde.
+- **type name** sagt zusätzlich, ob es ein Alias oder eingebauter Befehl ist.
+- **whereis programm** zeigt Programm, Quelltext und Handbuchseiten, unabhängig von PATH.
+</Karte>
+
+<Merke>locate: schnell, aber nur so aktuell wie updatedb. find: langsam, aber live. which/type: was die Shell startet. whereis: Programm plus man-Seite.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: Suchen" fragen={[
+  { frage: 'Du hast vor einer Minute /etc/meinprogramm.conf angelegt. locate meinprogramm findet nichts. Warum?', richtig: 'Die Datenbank wurde seitdem nicht mit updatedb aktualisiert.', falsch: ['locate durchsucht /etc nicht.', 'locate findet nur Programme.'], erklaerung: 'find / -name meinprogramm.conf fände sie sofort.' },
+]} />
+
+<Terminal id="suchen" titel="Terminal: Suchen und finden" welt={{ dateien: { '/etc/updatedb.conf': 'PRUNE_BIND_MOUNTS="yes"\n# PRUNENAMES=".git .bzr .hg .svn"\nPRUNEPATHS="/tmp /var/spool /media /var/lib/os-prober /var/lib/ceph /home/.ecryptfs /var/lib/schroot"\nPRUNEFS="NFS afs autofs binfmt_misc ceph cgroup cgroup2 cifs coda configfs debugfs devpts devtmpfs ecryptfs fuse.sshfs iso9660 nfs nfs4 proc sysfs tmpfs udf usbfs"\n', '/tmp/notiz-tmp.txt': 'tmp\n' } }} aufgaben={[
+  { text: 'Finde mit locate die Konfigurationsdatei von sshd.', befehl: '^(locate|plocate) (-\\w+ )?sshd_config$', frage: 'In welchem Verzeichnis liegt sie?', antwort: ['/etc/ssh', '/etc/ssh/'] },
+  { text: 'Lege die Datei <code>~/messprotokoll.txt</code> an und such sie mit locate.', befehl: '^(locate|plocate) (-\\w+ )?messprotokoll', auchFehler: true, zustand: 'da:/home/lena/messprotokoll.txt' },
+  { text: 'Aktualisiere die Datenbank und such noch einmal.', zustand: 'updatedb', befehl: '^(locate|plocate) (-\\w+ )?messprotokoll' },
+  { text: 'Such <code>notiz-tmp.txt</code> mit locate.', befehl: '^(locate|plocate) (-\\w+ )?notiz-tmp', auchFehler: true },
+  { text: 'Lies <code>/etc/updatedb.conf</code>, um herauszufinden, warum locate die Datei nicht kennt.', befehl: '^(cat|less|grep \\S+) /etc/updatedb\\.conf$', frage: 'Welches Verzeichnis lässt updatedb aus, in dem die Datei liegt?', antwort: ['/tmp', 'tmp'] },
+  { text: 'Finde sie stattdessen mit find, ohne Fehlermeldungen.', auchFehler: true, befehl: '^find / .*notiz-tmp.*2> ?/dev/null$|^find /tmp .*notiz-tmp' },
+  { text: 'Zeig mit whereis, wo das Programm ls und seine Handbuchseite liegen.', befehl: '^whereis ls$' },
+  { text: 'Vergleiche <code>which ls</code> mit <code>type ls</code>.', befehl: '^type ls$', frage: 'Was erwähnt type, which aber nicht?', antwort: ['den alias', 'alias', 'dass ls ein alias ist'] },
+]} />
+
+<Hinweis titel="Prüfungstipp">
+Rechne mit Fragen wie „Wo gehört X hin?“ zu /etc, /var, /usr/local, /opt, /srv, /run und /tmp. Zu locate: updatedb aktualisiert, /etc/updatedb.conf steuert. Zu whereis: findet auch Handbuchseiten.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Welches Verzeichnis enthält laut FHS keine ausführbaren Programme, nur Konfiguration?', richtig: '/etc', falsch: ['/usr/local', '/opt'], erklaerung: 'Programme gehören nach /usr/bin, /usr/sbin oder /opt.' },
+  { frage: 'Welche Variable in /etc/updatedb.conf bestimmt, welche Verzeichnisse übersprungen werden?', richtig: 'PRUNEPATHS', falsch: ['SKIPDIRS', 'EXCLUDE'], erklaerung: 'PRUNEFS schließt ganze Dateisystemtypen aus.' },
+  { frage: 'Welcher Befehl durchsucht immer den aktuellen Stand der Platte?', richtig: 'find', falsch: ['locate', 'whereis -l'], erklaerung: 'locate kennt nur den Stand des letzten updatedb.' },
+]} />

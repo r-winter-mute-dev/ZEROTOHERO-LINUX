@@ -1,0 +1,99 @@
+---
+id: l1-4-2
+checks:
+  - id: k1
+  - id: formatieren
+  - id: zuordnung
+  - id: k2
+spick:
+  - t: "Ext4 anlegen"
+    v: "mkfs.ext4 -L name /dev/sdb1  (gleich: mkfs -t ext4, mke2fs -t ext4)"
+  - t: "XFS anlegen"
+    v: "mkfs.xfs -L name /dev/sdb3  (-f überschreibt)"
+  - t: "FAT und exFAT"
+    v: "mkfs.vfat -n NAME, mkfs.exfat"
+  - t: "Swap"
+    v: "mkswap /dev/sdb2, swapon /dev/sdb2, swapon --show"
+  - t: "Ergebnis ansehen"
+    v: "lsblk -f, blkid"
+karten:
+  - f: "Mit welchem Befehl legst du ein ext4-Dateisystem auf /dev/sdb1 an?"
+    a: ["mkfs.ext4 /dev/sdb1", "mkfs -t ext4 /dev/sdb1", "mke2fs -t ext4 /dev/sdb1"]
+  - f: "Welche Option setzt bei mkfs.ext4 und mkfs.xfs einen Namen (Label)?"
+    a: ["-L"]
+  - f: "Welche Option setzt bei mkfs.vfat einen Namen?"
+    a: ["-n"]
+  - f: "Welcher Befehl bereitet eine Partition als Swap vor?"
+    a: ["mkswap"]
+  - f: "Welcher Befehl aktiviert einen Swap-Bereich?"
+    a: ["swapon"]
+  - f: "Welches Dateisystem lässt sich nicht verkleinern?"
+    a: ["xfs"]
+  - f: "Wie groß darf eine einzelne Datei auf FAT32 höchstens sein?"
+    a: ["4 gib", "4 gb", "4gib", "knapp 4 gib"]
+  - f: "Welches Dateisystem bietet Snapshots, Subvolumes und Copy-on-Write?"
+    a: ["btrfs"]
+  - f: "Welcher Befehl zeigt UUID und Typ aller Dateisysteme?"
+    a: ["blkid", "lsblk -f"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Zuordnung from '../components/Zuordnung.astro';
+
+Die SSD ist aufgeteilt, aber die Partitionen sind noch leer. Ohne Dateisystem kann Linux darauf keine Dateien ablegen. **Deine Mission: Lege auf jeder Partition das passende Dateisystem an und schalte den Swap ein.** Lernziel 104.1.
+
+## Dateisysteme
+
+<Karte nr={1} titel="Welches Dateisystem wofür?">
+Ein **Dateisystem** organisiert die Blöcke einer Partition zu Dateien und Verzeichnissen. Angelegt wird es mit **mkfs** („make filesystem“). `mkfs -t ext4 /dev/sdb1` ruft nur `mkfs.ext4 /dev/sdb1` auf. Für die ext-Familie gibt es zusätzlich `mke2fs -t ext4`.
+
+| Dateisystem | Typisch für | Merkmale |
+|---|---|---|
+| **ext4** | Standard auf Debian und Ubuntu | Journal, vergrößern und (ausgehängt) verkleinern, ausgereift. Vorgänger ext3 (mit Journal) und ext2 (ohne) |
+| **XFS** | Standard auf Red Hat und SUSE (für Daten) | sehr schnell bei großen Dateien, Journal, lässt sich **nicht verkleinern** |
+| **Btrfs** | Standard auf SUSE für das System | Copy-on-Write, Snapshots, Subvolumes, Kompression, eingebaute Prüfsummen |
+| **VFAT** (FAT32) | USB-Sticks, EFI-Systempartition | überall lesbar, keine Linux-Rechte, Dateien höchstens 4 GiB |
+| **exFAT** | SD-Karten, große USB-Laufwerke | wie FAT ohne 4-GiB-Grenze |
+| **Swap** | Auslagerung von Arbeitsspeicher | kein Dateisystem für Dateien. Vorbereiten mit `mkswap`, einschalten mit `swapon` |
+
+Ein **Label** (Name) setzt du bei ext4 und XFS mit `-L`, bei VFAT mit `-n`. Jedes Dateisystem bekommt außerdem eine eindeutige **UUID**. `lsblk -f` und `blkid` zeigen beides.
+
+mkfs löscht ohne Papierkorb. Findet mke2fs schon ein Dateisystem, fragt es nach. mkfs.xfs verweigert die Arbeit und verlangt `-f`.
+</Karte>
+
+<Merke>mkfs.TYP /dev/sdXN. -L Label (bei vfat -n). Swap: mkswap, dann swapon. XFS wächst, schrumpft aber nie.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: Dateisysteme" fragen={[
+  { frage: 'Ein USB-Stick soll an Windows, macOS und Linux funktionieren und 8-GiB-Videodateien aufnehmen. Was passt?', richtig: 'exFAT', falsch: ['FAT32', 'ext4'], erklaerung: 'FAT32 erlaubt höchstens 4 GiB pro Datei, ext4 lesen Windows und macOS ohne Zusatzsoftware nicht.' },
+  { frage: 'Was macht „mkfs -t xfs /dev/sdb3“?', richtig: 'Es ruft mkfs.xfs /dev/sdb3 auf.', falsch: ['Es prüft das XFS-Dateisystem auf sdb3.', 'Es wandelt das vorhandene Dateisystem nach XFS um, ohne Daten zu löschen.'], erklaerung: 'mkfs legt immer neu an. Vorhandene Daten sind danach weg.' },
+]} />
+
+<Terminal id="formatieren" titel="Terminal: Dateisysteme anlegen" welt={{ neuePlatte: 'partitioniert' }} aufgaben={[
+  { text: 'Lass dir die Partitionen von <code>/dev/sdb</code> mit Dateisysteminformationen anzeigen.', befehl: '^lsblk -f( /dev/sdb)?$' },
+  { text: 'Lege auf <code>/dev/sdb1</code> ein ext4-Dateisystem mit dem Label <code>daten</code> an.', zustand: 'fs:/dev/sdb1=ext4 && fslabel:/dev/sdb1=daten' },
+  { text: 'Mach aus <code>/dev/sdb2</code> einen Swap-Bereich.', zustand: 'fs:/dev/sdb2=swap' },
+  { text: 'Schalte ihn ein und prüf mit <code>swapon --show</code>, dass er aktiv ist.', zustand: 'swapan:/dev/sdb2', befehl: '^swapon (--show|-s)$' },
+  { text: 'Lege auf <code>/dev/sdb3</code> ein XFS-Dateisystem mit dem Label <code>archiv</code> an.', zustand: 'fs:/dev/sdb3=xfs && fslabel:/dev/sdb3=archiv' },
+  { text: 'Versuch jetzt, auf <code>/dev/sdb3</code> ein ext4 anzulegen, und brich bei der Rückfrage mit <code>n</code> ab.', befehl: '^mkfs(\\.ext4| -t ext4) /dev/sdb3$', zustand: 'fs:/dev/sdb3=xfs' },
+  { text: 'Lass dir alle Dateisysteme mit UUID anzeigen.', befehl: '^(blkid|lsblk -f)', frage: 'Welchen Typ meldet blkid für sdb2?', antwort: ['swap'] },
+]} />
+
+<Zuordnung id="zuordnung" titel="Welches Dateisystem?" aufgabe="Ordne jeder Eigenschaft das passende Dateisystem zu." paare={[
+  { links: 'Lässt sich vergrößern, aber nie verkleinern', rechts: 'XFS' },
+  { links: 'Snapshots und Subvolumes eingebaut', rechts: 'Btrfs' },
+  { links: 'Standard auf Debian, Nachfolger von ext3', rechts: 'ext4' },
+  { links: 'EFI-Systempartition, Dateien höchstens 4 GiB', rechts: 'VFAT' },
+  { links: 'Wird mit swapon eingeschaltet', rechts: 'Swap' },
+]} />
+
+<Hinweis titel="Prüfungstipp">
+Lerne die Paare Befehl und Option: `mkfs.ext4 -L`, `mkfs.vfat -n`, `mkswap` plus `swapon`. Und die Eigenschaften: XFS nicht verkleinerbar, Btrfs mit Snapshots, FAT mit 4-GiB-Grenze, ext3 als ext2 mit Journal.
+</Hinweis>
+
+<Quiz id="k2" titel="Abschluss" fragen={[
+  { frage: 'Welcher Befehl zeigt die aktiven Swap-Bereiche?', richtig: 'swapon --show', falsch: ['mkswap -l', 'swapoff -s'], erklaerung: 'Auch cat /proc/swaps und free zeigen den Swap.' },
+  { frage: 'Was unterscheidet ext3 von ext2?', richtig: 'ext3 hat ein Journal.', falsch: ['ext3 kann Dateien über 4 GiB speichern, ext2 nicht.', 'ext3 ist Copy-on-Write.'], erklaerung: 'Das Journal sorgt nach einem Absturz für eine schnelle Prüfung.' },
+]} />

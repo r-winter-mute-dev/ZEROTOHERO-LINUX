@@ -193,6 +193,7 @@ export function rechteBefehle(h: RechteHelfer): Record<string, Befehl> {
   };
 
   // ---------- locate und updatedb (plocate) ----------
+  void 0;
   const PRUNE = (w: Welt) => ((w.fs['/etc/updatedb.conf'] ?? '').match(/^PRUNEPATHS="([^"]*)"/m)?.[1] ?? '/tmp /var/spool /media').split(/\s+/).filter(Boolean);
   b.updatedb = (w, _a, _i, root) => {
     if (!root) return fehler('updatedb: /var/lib/plocate/plocate.db: Keine Berechtigung\n(updatedb läuft auf Debian als root, normalerweise einmal am Tag über einen systemd-Timer.)');
@@ -219,6 +220,12 @@ export function rechteBefehle(h: RechteHelfer): Record<string, Befehl> {
   };
   b.plocate = b.locate;
   return b;
+}
+
+/** Die Datenbank von locate: Stand vom letzten nächtlichen updatedb, also beim Start der Welt. */
+export function locateDbAnlegen(w: Welt) {
+  const prune = ((w.fs['/etc/updatedb.conf'] ?? '').match(/^PRUNEPATHS="([^"]*)"/m)?.[1] ?? '/tmp /var/spool /media').split(/\s+/).filter(Boolean);
+  w.locateDb = Object.keys(w.fs).filter((p) => !prune.some((x) => p === x || p.startsWith(x + '/'))).sort();
 }
 
 export function zustandRechte(w: Welt, s: string, pfad: (w: Welt, p: string) => string): boolean | undefined {

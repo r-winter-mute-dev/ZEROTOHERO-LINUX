@@ -1,0 +1,23 @@
+---
+id: l1-4-probe
+abzeichen: "Bereit für Prüfung 101"
+checks:
+  - id: probe
+---
+import Probe from '../components/Probe.astro';
+import Karte from '../components/Karte.astro';
+import Hinweis from '../components/Hinweis.astro';
+
+Das ist die Generalprobe. Sie hat das Format der echten Prüfung 101-500: **60 Fragen in 90 Minuten**, gemischt aus allen vier Topics und gewichtet wie die offiziellen Lernziele. **Deine Mission: Bestehe die Generalprobe mit mindestens 80 %.**
+
+<Karte nr={1} titel="Wie aussagekräftig ist das?">
+Die echte Prüfung bewertet auf einer Skala von 200 bis 800, bestanden ist ab 500. Wie das LPI Fragen in Punkte umrechnet, ist nicht öffentlich. 80 % hier ist deshalb ein selbst gesetzter, eher strenger Richtwert, keine Vorhersage deines Ergebnisses.
+
+Die Fragen hier sind selbst geschrieben. Echte Prüfungsfragen sind vertraulich, und wer sie weitergibt, verstößt gegen die Regeln des LPI. Wenn du hier sicher bestehst, kennst du den Stoff. Auswendig gelernte Antworten würden dir in der Prüfung nichts nützen.
+</Karte>
+
+<Hinweis titel="So nutzt du die Generalprobe">
+Mach sie unter echten Bedingungen: ohne Spickzettel, ohne Pause, Zeit im Blick. Danach zeigt die Auswertung, welche Lernziele schwach sind. Geh in diese Missionen zurück und wiederhole die Spickzettel. Falsch beantwortete Fragen landen automatisch in deiner Wiederholung. Mach die Generalprobe frühestens am nächsten Tag noch einmal: Sie zieht dann andere Fragen.
+</Hinweis>
+
+<Probe id="probe" titel="Generalprobe Prüfung 101" ziele={['101.1', '101.2', '101.3', '102.1', '102.2', '102.3', '102.4', '102.5', '102.6', '103.1', '103.2', '103.3', '103.4', '103.5', '103.6', '103.7', '103.8', '104.1', '104.2', '104.3', '104.5', '104.6', '104.7']} anzahl={60} />

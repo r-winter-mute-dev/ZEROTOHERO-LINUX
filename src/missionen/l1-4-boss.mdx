@@ -1,0 +1,42 @@
+---
+id: l1-4-boss
+abzeichen: "Plattenmeisterin"
+checks:
+  - id: einrichten
+  - id: freigeben
+---
+import Karte from '../components/Karte.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+
+Die zweite SSD in der Werkstatt soll zur gemeinsamen Ablage des Teams werden. Die Chefin hat dir einen Zettel hingelegt und ist dann in den Urlaub gefahren. **Deine Mission: Erfülle alle Punkte auf dem Zettel.** Diesmal stehen nur die Ziele da, den Weg findest du selbst. Die Spickzettel von Mission 4.1 bis 4.8 helfen.
+
+<Karte nr={1} titel="Der Zettel">
+- Die neue Platte bekommt eine GPT-Tabelle und eine Partition mit **100 GiB**. Der Rest bleibt frei für später.
+- Darauf kommt **ext4** mit dem Namen **team**. Für root reicht **1 Prozent** Reserve.
+- Die Partition hängt **dauerhaft** unter **/srv/team**, eingetragen in der fstab über Label oder UUID. Der erste Test erfolgt ohne Neustart.
+- /srv/team gehört der Gruppe **users**. Besitzer und Gruppe dürfen alles, andere nichts. Neue Dateien sollen automatisch der Gruppe gehören, und niemand soll die Dateien der anderen löschen können.
+- lena bekommt in ihrem Heimatverzeichnis einen Verweis **team**, der auf /srv/team zeigt.
+- locate soll die neue Ablage kennen.
+</Karte>
+
+<Terminal id="einrichten" titel="Terminal: Platte einrichten" welt={{ neuePlatte: true }} aufgaben={[
+  { text: 'GPT-Tabelle mit einer Partition von 100 GiB auf der neuen Platte', zustand: 'tabelle:sdb=gpt && partitionen:sdb=1 && partgroesse:/dev/sdb1=99-101G' },
+  { text: 'ext4 mit dem Namen team', zustand: 'fs:/dev/sdb1=ext4 && fslabel:/dev/sdb1=team' },
+  { text: '1 Prozent Reserve für root', zustand: 'reserviert:/dev/sdb1=1' },
+  { text: 'Eintrag in /etc/fstab über Label oder UUID, Einhängepunkt /srv/team', zustand: 'datei:/etc/fstab~^(LABEL=team|UUID=\\S+)\\s+/srv/team/?\\s+ext4\\s' },
+  { text: 'Eingehängt über die fstab, ohne Neustart, und systemd kennt die neue fstab', zustand: 'eingehaengt:/dev/sdb1=/srv/team', befehl: '^systemctl daemon-reload$' },
+]} />
+
+<Terminal id="freigeben" titel="Terminal: Für das Team freigeben" welt={{ neuePlatte: 'formatiert', dateien: { '/srv/team': '/' } }} einleitung="Zur Sicherheit startet diese Station mit einem frischen System, auf dem die Partition schon eingerichtet ist. Häng /dev/sdb1 zuerst unter /srv/team ein." aufgaben={[
+  { text: '/dev/sdb1 ist unter /srv/team eingehängt', zustand: 'eingehaengt:/dev/sdb1=/srv/team' },
+  { text: '/srv/team gehört der Gruppe users, Rechte 3770', zustand: 'gruppe:/srv/team=users && modus:/srv/team=3770' },
+  { text: 'lena legt ohne sudo /srv/team/willkommen.txt an, und die Datei gehört der Gruppe users', zustand: 'gruppe:/srv/team/willkommen.txt=users' },
+  { text: 'Der Verweis ~/team zeigt auf /srv/team', zustand: 'symlink:/home/lena/team=/srv/team' },
+  { text: 'Über den Verweis gelangst du in die Ablage', befehl: '^(cd|ls( -\\w+)?) (~/|/home/lena/|\\./)?team/?$' },
+  { text: 'locate findet willkommen.txt', befehl: '^(locate|plocate) (-\\w+ )?willkommen', frage: 'Unter welchem Pfad meldet locate die Datei?', antwort: ['/srv/team/willkommen.txt'] },
+]} />
+
+<Hinweis titel="Was hier fehlt">
+Auf einem echten Server kämen noch Kontingente (Quotas) dazu, damit niemand die Platte allein füllt, und eine Sicherung. Kontingente waren früher Teil der Prüfung und sind seit Version 5.0 nicht mehr gefordert.
+</Hinweis>

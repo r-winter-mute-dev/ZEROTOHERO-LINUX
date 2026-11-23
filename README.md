@@ -25,7 +25,7 @@
 
 | Kampagne | Zertifikat | Prüfungen | Lernziele | Stand |
 | :---: | --- | --- | :---: | :---: |
-| 1 | LPIC-1 Linux Administrator | 101-500, 102-500 | v5.0 | Akt 0 bis 3 (Topic 101 bis 103) spielbar |
+| 1 | LPIC-1 Linux Administrator | 101-500, 102-500 | v5.0 | Prüfung 101 komplett spielbar (Akt 0 bis 4) |
 | 2 | LPIC-2 Linux Engineer | 201-450, 202-450 | v4.5 | Lehrplan steht |
 | 3 | LPIC-3 Security | 303-300 | v3.0 | Lehrplan steht |
 
@@ -42,7 +42,7 @@ Jede Prüfung hat 60 Fragen in 90 Minuten. Bestanden ist ab 500 auf einer Skala 
 | 1 | 101 | Hardware (lspci, lsusb, /proc, /sys, /dev, udev), Kernelmodule, Bootvorgang, Kernelparameter, dmesg und journalctl, Runlevel und Targets, Herunterfahren, Bosskampf, Probeprüfung | ✅ |
 | 2 | 102 | Partitionierung, GRUB, Shared Libraries, dpkg und apt, rpm, dnf und zypper, Linux als VM-Gast, Bosskampf, Probeprüfung | ✅ |
 | 3 | 103 | Shell und Variablen, Verlauf und man, Textfilter, Dateien und Platzhalter, find und Archive, Umleitungen und Pipes, Prozesse, Jobs, Prioritäten, reguläre Ausdrücke, vi im Simulator, Bosskampf, Probeprüfung | ✅ |
-| 4 | 104 | Partitionen, Dateisysteme, Mounten, Rechte, Links, FHS, Generalprobe 101 | 📝 |
+| 4 | 104 | Partitionieren mit fdisk, Dateisysteme, mount und fstab, systemd-Mount-Units, fsck und tune2fs, Rechte und umask, SUID/SGID/Sticky, harte und symbolische Links, FHS und locate, Bosskampf, **Generalprobe 101** | ✅ |
 | 5–10 | 105–110 | Shell und Skripte, X11, Benutzer und Jobs, Systemdienste, Netzwerk, Sicherheit, Generalprobe 102 | 📝 |
 
 ✅ spielbar · 📝 Lehrplan steht, Missionen folgen
@@ -88,7 +88,7 @@ Am meisten hilft gerade:
 
 - [ ] **Feedback von Einsteigern.** Wo bist du hängen geblieben?
 - [ ] **Prüfungserfahrung.** Wer die Prüfung abgelegt hat: Welche Themen kamen stärker dran als gedacht? (Bitte keine Prüfungsfragen weitergeben, das verbieten die Regeln des LPI.)
-- [ ] **Missionen für Topic 104**, damit Prüfung 101 komplett wird.
+- [ ] **Missionen für Prüfung 102** (Topic 105 bis 110).
 - [ ] **Labor-Aufgaben testen** auf anderen Distributionen und mit anderen Virtualisierern.
 
 ## Entstehung

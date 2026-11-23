@@ -412,7 +412,7 @@ export function plattenBefehle(h: PlattenHelfer): Record<string, Befehl> {
       return ok(`btrfs-progs v6.2\nSee http://btrfs.wiki.kernel.org for more information.\n\nLabel:              ${label ?? '(null)'}\nUUID:               ${p.fs.uuid}\nNode size:          16384\nSector size:        4096\nFilesystem size:    ${menschGroesse(fsBytes(p)).replace(',', '.')}iB\nBlock group profiles:\n  Data:             single            8.00MiB\n  Metadata:         DUP             256.00MiB\n  System:           DUP               8.00MiB`);
     };
     if (p.fs && p.fs.art !== art && !force && art.startsWith('ext')) {
-      w.wartet = { standardJa: false, aktion: anlegen };
+      w.wartet = { standardJa: false, aktion: anlegen, nein: '' };
       return ok(`mke2fs 1.47.0 (5-Feb-2023)\n${dev} hat ein ${p.fs.art}-Dateisystem${p.fs.label ? ` mit Namen „${p.fs.label}“` : ''}\nTrotzdem fortfahren? (j,n) `);
     }
     if (p.fs && art === 'xfs' && !force) return fehler(`mkfs.xfs: ${dev} appears to contain an existing filesystem (${p.fs.art}).\nmkfs.xfs: Use the -f option to force overwrite.`);
@@ -675,7 +675,7 @@ export function zustandPlatten(w: Welt, s: string): boolean | undefined {
   let m;
   if ((m = s.match(/^tabelle:(\w+)=(gpt|dos|keine)$/))) { const pl = w.platten!.platten.find((p) => p.name === m![1]); return (pl?.label ?? 'keine') === m[2]; }
   if ((m = s.match(/^partitionen:(\w+)=(\d+)$/))) return w.platten!.platten.find((p) => p.name === m![1])?.partitionen.length === Number(m[2]);
-  if ((m = s.match(/^partgroesse:(\/dev\/\w+)=(\d+)-(\d+)G$/))) { const t = finden(w, m[1]); if (!t?.p) return false; const g = fsBytes(t.p) / GIB; return g >= Number(m[2]) - 0.01 && g <= Number(m[3]) + 0.01; }
+  if ((m = s.match(/^partgroesse:(\/dev\/\w+)=([\d.]+)-([\d.]+)G$/))) { const t = finden(w, m[1]); if (!t?.p) return false; const g = fsBytes(t.p) / GIB; return g >= Number(m[2]) - 0.01 && g <= Number(m[3]) + 0.01; }
   if ((m = s.match(/^parttyp:(\/dev\/\w+)~(.+)$/))) { const t = finden(w, m[1]); return !!t?.p && new RegExp(m[2], 'i').test(t.p.typ); }
   if ((m = s.match(/^fs:(\/dev\/\w+)=(\w+)$/))) return finden(w, m[1])?.p?.fs?.art === m[2];
   if ((m = s.match(/^fslabel:(\/dev\/\w+)=(.+)$/))) return finden(w, m[1])?.p?.fs?.label === m[2];

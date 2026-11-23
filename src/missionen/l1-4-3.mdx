@@ -1,0 +1,188 @@
+---
+id: l1-4-3
+checks:
+  - id: k1
+  - id: hand
+  - id: k2
+  - id: fstab
+  - id: luecke
+  - id: k3
+  - id: unit
+  - id: k4
+spick:
+  - t: "Einhängen"
+    v: "mount /dev/sdb1 /mnt/daten  (-t Typ, -o Optionen)"
+  - t: "Aushängen"
+    v: "umount /mnt/daten  oder  umount /dev/sdb1"
+  - t: "Was ist eingehängt?"
+    v: "mount, findmnt, df -h, lsblk"
+  - t: "Kennungen"
+    v: "blkid, lsblk -f, UUID=… oder LABEL=…"
+  - t: "fstab-Spalten"
+    v: "Gerät  Einhängepunkt  Typ  Optionen  dump  pass"
+  - t: "Alles aus fstab einhängen"
+    v: "mount -a"
+  - t: "Optionen ändern"
+    v: "mount -o remount,ro /mnt/daten"
+  - t: "Nach Änderungen an fstab oder Units"
+    v: "systemctl daemon-reload"
+  - t: "Unit-Name"
+    v: "/mnt/archiv → mnt-archiv.mount (systemd-escape -p --suffix=mount)"
+karten:
+  - f: "Wie hängst du /dev/sdb1 unter /mnt/daten ein?"
+    a: ["mount /dev/sdb1 /mnt/daten", "sudo mount /dev/sdb1 /mnt/daten"]
+  - f: "Was meldet umount, wenn noch jemand im Einhängepunkt arbeitet?"
+    a: ["das ziel wird gerade benutzt", "target is busy"]
+  - f: "In welcher Datei stehen die Dateisysteme, die beim Start eingehängt werden?"
+    a: ["/etc/fstab"]
+  - f: "Welcher Befehl hängt alle Einträge aus /etc/fstab ein, die noch nicht eingehängt sind?"
+    a: ["mount -a"]
+  - f: "Was bedeutet die letzte Spalte (pass) in /etc/fstab mit dem Wert 2?"
+    a: ["nach dem wurzeldateisystem prüfen", "wird nach / geprüft", "fsck nach dem root-dateisystem"]
+  - f: "Welche fstab-Option verhindert, dass ein Dateisystem beim Start eingehängt wird?"
+    a: ["noauto"]
+  - f: "Welche fstab-Option erlaubt normalen Benutzern das Einhängen?"
+    a: ["user", "users"]
+  - f: "Warum ist UUID= in der fstab besser als /dev/sdb1?"
+    a: ["gerätenamen können sich ändern", "die namen können sich beim start ändern", "die reihenfolge der platten kann sich ändern"]
+  - f: "Wie muss die Mount-Unit für /srv/team heißen?"
+    a: ["srv-team.mount"]
+  - f: "Welche Option hängt ein Dateisystem ohne Aushängen nur lesbar neu ein?"
+    a: ["remount,ro", "-o remount,ro", "mount -o remount,ro"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Lueckentext from '../components/Lueckentext.astro';
+
+Die Dateisysteme auf der neuen SSD sind fertig, aber noch unsichtbar. Unter Linux gibt es keine Laufwerksbuchstaben: Jedes Dateisystem wird an einer Stelle in den einen großen Verzeichnisbaum **eingehängt**. **Deine Mission: Häng die Partitionen ein, von Hand, dauerhaft über fstab und als systemd-Unit.** Lernziel 104.3.
+
+## Von Hand
+
+<Karte nr={1} titel="mount und umount">
+`sudo mount /dev/sdb1 /mnt/daten` hängt das Dateisystem von sdb1 im Verzeichnis `/mnt/daten` ein. Dieses Verzeichnis heißt **Einhängepunkt** und muss vorher existieren. Den Typ erkennt mount meist selbst, sonst gibst du ihn mit `-t ext4` an. Optionen folgen nach `-o`, etwa `-o ro` für nur lesbar.
+
+Was vorher im Einhängepunkt lag, ist nicht weg, sondern **verdeckt**. Nach dem Aushängen taucht es wieder auf.
+
+`sudo umount /mnt/daten` (oder `umount /dev/sdb1`) hängt wieder aus. Das klappt nur, wenn niemand das Dateisystem benutzt. Steht eine Shell mit `cd` darin oder hat ein Programm eine Datei offen, meldet umount **„das Ziel wird gerade benutzt“**. Wer es benutzt, verraten `lsof /mnt/daten` und `fuser -m /mnt/daten`.
+
+Was gerade eingehängt ist, zeigen `mount` ohne Argumente, `findmnt`, `df -h` und `lsblk`.
+
+Konventionen: `/mnt` für vorübergehend von Hand eingehängte Dateisysteme, `/media` für Wechselmedien, die der Desktop automatisch einhängt (`/media/lena/STICK`).
+</Karte>
+
+<Merke>mount GERÄT VERZEICHNIS. Der Einhängepunkt muss existieren. umount scheitert, solange jemand darin arbeitet.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: mount" fragen={[
+  { frage: 'In /mnt/daten lag die Datei alt.txt. Dann hängst du /dev/sdb1 dort ein. Was passiert mit alt.txt?', richtig: 'Sie ist verdeckt und nach dem Aushängen wieder da.', falsch: ['Sie wird gelöscht.', 'Sie wird auf sdb1 kopiert.'], erklaerung: 'Darum sollten Einhängepunkte leer sein, sonst sucht man später Dateien, die „verschwunden“ sind.' },
+  { frage: 'umount /mnt/daten meldet „das Ziel wird gerade benutzt“. Was ist die häufigste Ursache?', richtig: 'Eine Shell steht noch in diesem Verzeichnis.', falsch: ['Das Dateisystem ist beschädigt.', 'Man muss erst /dev/sdb1 löschen.'], erklaerung: 'cd hinaus, oder mit lsof herausfinden, welches Programm noch eine Datei offen hat.' },
+]} />
+
+<Terminal id="hand" titel="Terminal: Einhängen von Hand" welt={{ neuePlatte: 'formatiert' }} aufgaben={[
+  { text: 'Lege den Einhängepunkt <code>/mnt/daten</code> an.', zustand: 'ordner:/mnt/daten' },
+  { text: 'Versuch zuerst, <code>/dev/sdb1</code> ohne sudo dort einzuhängen, und lies die Meldung.', befehl: '^mount /dev/sdb1 /mnt/daten/?$', auchFehler: true },
+  { text: 'Häng es jetzt richtig ein.', zustand: 'eingehaengt:/dev/sdb1=/mnt/daten' },
+  { text: 'Schau dir den Inhalt an.', befehl: '^ls (-\\w+ )?/mnt/daten/?$', frage: 'Welches Verzeichnis legt ext4 von selbst an?', antwort: ['lost+found'] },
+  { text: 'Prüf mit df, wie viel Platz frei ist.', befehl: '^df (-\\w*h\\w* )?/mnt/daten/?$' },
+  { text: 'Wechsle nach <code>/mnt/daten</code> und versuch von dort aus, das Dateisystem auszuhängen.', befehl: '^umount /mnt/daten/?$', auchFehler: true, zustand: 'cwd=/mnt/daten', frage: 'Was meldet umount?', antwort: ['das ziel wird gerade benutzt', 'das Ziel wird gerade benutzt.', 'target is busy'] },
+  { text: 'Geh zurück ins Heimatverzeichnis und häng es aus.', befehl: '^umount (/mnt/daten|/dev/sdb1)/?$', zustand: 'ausgehaengt:/dev/sdb1' },
+]} />
+
+## Dauerhaft: /etc/fstab
+
+<Karte nr={2} titel="Die Datei /etc/fstab">
+Was beim Start eingehängt werden soll, steht in **/etc/fstab**, eine Zeile pro Dateisystem mit sechs Spalten:
+
+```
+# Gerät                                    Einhängepunkt  Typ   Optionen  dump  pass
+UUID=b7e1c2d3-4f5a-4b6c-9d7e-8f9a0b1c2d3e  /mnt/daten     ext4  defaults  0     2
+```
+
+1. **Gerät**: besser `UUID=…` oder `LABEL=…` als `/dev/sdb1`, denn Gerätenamen können sich ändern, wenn eine Platte dazukommt. UUID und Label zeigen `blkid` und `lsblk -f`.
+2. **Einhängepunkt**, bei Swap `none`.
+3. **Typ**: ext4, xfs, vfat, swap …
+4. **Optionen**, durch Komma getrennt: `defaults` (rw, suid, dev, exec, auto, nouser, async), `noauto` (nicht beim Start), `user` (normale Benutzer dürfen einhängen), `ro`, `noexec`, `nosuid`, `nodev`, `noatime`.
+5. **dump**: 1 heißt, das alte Programm dump soll sichern. Heute fast immer 0.
+6. **pass**: Reihenfolge für fsck beim Start. 1 für `/`, 2 für alle anderen, 0 für nie (Swap, vfat oft).
+
+`sudo mount -a` hängt alles aus der fstab ein, was noch fehlt, außer `noauto`. Damit testest du eine neue Zeile, bevor du neu startest. Ein Tippfehler in der fstab kann sonst den Start in den Notfallmodus schicken.
+
+`mount /mnt/daten` mit nur einer Angabe holt sich den Rest aus der fstab. `mount -o remount,ro /mnt/daten` ändert die Optionen, ohne auszuhängen.
+</Karte>
+
+<Merke>fstab: Gerät, Punkt, Typ, Optionen, dump, pass. UUID statt /dev/sdX. Neue Zeile mit mount -a testen.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: fstab" fragen={[
+  { frage: 'Welcher pass-Wert gehört zum Wurzeldateisystem /?', richtig: '1', falsch: ['2', '0'], erklaerung: '/ wird zuerst geprüft, danach alle mit 2. 0 heißt: nie prüfen.' },
+  { frage: 'Ein USB-Laufwerk soll in der fstab stehen, aber nur auf Wunsch eingehängt werden, auch von lena. Welche Optionen passen?', richtig: 'noauto,user', falsch: ['auto,nouser', 'defaults,ro'], erklaerung: 'user setzt zusätzlich noexec, nosuid und nodev.' },
+]} />
+
+<Terminal id="fstab" titel="Terminal: Beim Start einhängen" welt={{ neuePlatte: 'formatiert', dateien: { '/mnt/daten': '/', '/mnt/archiv': '/' } }} aufgaben={[
+  { text: 'Finde die UUID von <code>/dev/sdb1</code>.', befehl: '^(blkid( /dev/sdb1)?|lsblk -f( /dev/sdb)?)$', frage: 'Mit welchen acht Zeichen beginnt sie?', antwort: ['b7e1c2d3'] },
+  { text: 'Häng eine Zeile an <code>/etc/fstab</code> an: sdb1 per UUID unter <code>/mnt/daten</code>, ext4, defaults, dump 0, pass 2. Tipp: <code>echo "…" | sudo tee -a /etc/fstab</code> oder <code>sudo vi /etc/fstab</code>.', zustand: 'datei:/etc/fstab~^UUID="?b7e1c2d3-4f5a-4b6c-9d7e-8f9a0b1c2d3e"?\\s+/mnt/daten/?\\s+ext4\\s+defaults\\s+0\\s+2\\s*$' },
+  { text: 'Teste die Zeile, ohne neu zu starten.', zustand: 'eingehaengt:/dev/sdb1=/mnt/daten', befehl: '^mount -a$' },
+  { text: 'mount hat dir einen Hinweis gegeben. Folge ihm.', befehl: '^systemctl daemon-reload$' },
+  { text: 'Ergänze eine Zeile für das Archiv: <code>LABEL=archiv</code> unter <code>/mnt/archiv</code>, xfs, Optionen <code>defaults,noauto</code>, dump 0, pass 0.', zustand: 'datei:/etc/fstab~^LABEL="?archiv"?\\s+/mnt/archiv/?\\s+xfs\\s+defaults,noauto\\s+0\\s+0\\s*$' },
+  { text: 'Häng das Archiv ein, indem du nur den Einhängepunkt angibst.', befehl: '^mount /mnt/archiv/?$', zustand: 'eingehaengt:/dev/sdb3=/mnt/archiv' },
+  { text: 'Häng das Archiv nur lesbar neu ein, ohne es auszuhängen.', zustand: 'mountopt:/dev/sdb3~^ro' },
+]} />
+
+<Lueckentext id="luecke" titel="Code-Puzzle: Eine fstab-Zeile" aufgabe="Ergänze die Zeile: Die Swap-Partition soll per UUID beim Start aktiviert und nie von fsck geprüft werden."
+  code={`UUID=e4d3c2b1-a090-4f8e-9d7c-6b5a4f3e2d1c  ___  ___  sw  0  ___`}
+  luecken={[
+    { loesungen: ['none'], tipp: 'Swap hat keinen Einhängepunkt.' },
+    { loesungen: ['swap'], tipp: 'Der Typ.' },
+    { loesungen: ['0'], tipp: 'Nie prüfen.' },
+  ]} />
+
+## systemd-Mount-Units
+
+<Karte nr={3} titel="Einhängen als systemd-Unit">
+systemd liest die fstab beim Start und macht aus jeder Zeile intern eine **Mount-Unit**. Du kannst solche Units auch selbst schreiben, unter `/etc/systemd/system/`:
+
+```
+[Unit]
+Description=Archiv auf der zweiten SSD
+
+[Mount]
+What=/dev/disk/by-uuid/5a6b7c8d-9e0f-4a1b-8c2d-3e4f5a6b7c8d
+Where=/mnt/archiv
+Type=xfs
+Options=defaults
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Die wichtigste Regel: Der **Dateiname muss zum Einhängepunkt passen**. Aus `/mnt/archiv` wird `mnt-archiv.mount`, die Schrägstriche werden zu Bindestrichen. `systemd-escape -p --suffix=mount /mnt/archiv` rechnet das aus. Passt der Name nicht, verweigert systemd die Unit.
+
+Danach: `systemctl daemon-reload` (systemd liest Unit-Dateien neu), `systemctl start mnt-archiv.mount` (jetzt einhängen) und `systemctl enable mnt-archiv.mount` (beim Start). Eine `.automount`-Unit mit gleichem Namen hängt erst beim ersten Zugriff ein.
+
+`daemon-reload` brauchst du auch nach Änderungen an der fstab, damit systemd die neue Fassung kennt. Darum hat dich mount oben daran erinnert.
+</Karte>
+
+<Merke>Unit-Name = Pfad mit Bindestrichen: /mnt/archiv → mnt-archiv.mount. daemon-reload, start, enable.</Merke>
+
+<Quiz id="k3" titel="Kurzcheck: Mount-Units" fragen={[
+  { frage: 'Wie muss die Unit-Datei für den Einhängepunkt /srv/backup heißen?', richtig: 'srv-backup.mount', falsch: ['backup.mount', 'srv/backup.mount'], erklaerung: 'Der ganze Pfad, Schrägstriche als Bindestriche, ohne führenden Strich.' },
+]} />
+
+<Terminal id="unit" titel="Terminal: Das Archiv per systemd" welt={{ neuePlatte: 'formatiert' }} aufgaben={[
+  { text: 'Lass dir von <code>systemd-escape</code> den Unit-Namen für <code>/mnt/archiv</code> ausrechnen.', befehl: '^systemd-escape (-p|--path) --suffix=mount /mnt/archiv$|^systemd-escape --suffix=mount (-p|--path) /mnt/archiv$', frage: 'Wie heißt die Unit?', antwort: ['mnt-archiv.mount'] },
+  { text: 'Schreib die Unit-Datei wie auf der Karte nach <code>/etc/systemd/system/</code>, etwa mit <code>sudo vi</code>. Das Archiv ist <code>/dev/sdb3</code>, seine UUID zeigt dir blkid.', zustand: 'datei:/etc/systemd/system/mnt-archiv.mount~^Where=/mnt/archiv && datei:/etc/systemd/system/mnt-archiv.mount~^Type=xfs' },
+  { text: 'Lass systemd die Unit-Dateien neu einlesen.', befehl: '^systemctl daemon-reload$' },
+  { text: 'Starte die Unit und prüf ihren Status.', zustand: 'eingehaengt:/dev/sdb3=/mnt/archiv', befehl: '^systemctl status mnt-archiv\\.mount$' },
+  { text: 'Sorg dafür, dass sie beim Start eingehängt wird.', zustand: 'unitaktiv:mnt-archiv.mount' },
+]} />
+
+<Hinweis titel="Prüfungstipp">
+Die fstab kommt in jeder Prüfung 101 vor: Reihenfolge der Spalten, Bedeutung von pass, Optionen wie noauto, user, ro. Dazu UUID und LABEL mit blkid. Bei systemd genügt meist, dass Mount-Units nach dem Einhängepunkt benannt sind und auf `.mount` enden.
+</Hinweis>
+
+<Quiz id="k4" titel="Abschluss" fragen={[
+  { frage: 'Welcher Befehl zeigt UUID, Label und Typ aller Blockgeräte?', richtig: 'blkid', falsch: ['mount -u', 'df -T'], erklaerung: 'lsblk -f zeigt dasselbe als Baum.' },
+  { frage: 'Wo hängt ein Desktop-System einen eingesteckten USB-Stick üblicherweise ein?', richtig: 'Unter /media', falsch: ['Unter /mnt', 'Unter /dev'], erklaerung: '/mnt ist für vorübergehende Einhängungen von Hand gedacht.' },
+  { frage: 'Was bewirkt die Option noexec?', richtig: 'Programme auf diesem Dateisystem dürfen nicht gestartet werden.', falsch: ['Das Dateisystem wird nicht beim Start eingehängt.', 'Niemand darf darauf schreiben.'], erklaerung: 'Nicht beim Start: noauto. Nicht schreiben: ro.' },
+]} />

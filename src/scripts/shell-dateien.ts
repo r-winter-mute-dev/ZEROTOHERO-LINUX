@@ -24,7 +24,10 @@ function standard(w: Welt, p: string): Meta {
   else if (p === '/etc/sudoers') mode = 0o440;
   else if (/^\/etc\/ssh\/ssh_host_.*_key$/.test(p)) mode = 0o600;
   else if (p.startsWith('/var/log/')) { group = 'adm'; mode = 0o640; }
-  if (p === '/usr/bin/passwd') mode = 0o4755;
+  // SUID- und SGID-Programme wie auf Debian 12
+  if (['/usr/bin/passwd', '/usr/bin/sudo', '/usr/bin/su', '/usr/bin/mount', '/usr/bin/umount', '/usr/bin/chsh', '/usr/bin/chfn', '/usr/bin/newgrp', '/usr/bin/gpasswd'].includes(p)) mode = 0o4755;
+  if (['/usr/bin/chage', '/usr/bin/expiry'].includes(p)) { mode = 0o2755; group = 'shadow'; }
+  if (p === '/usr/bin/crontab') { mode = 0o2755; group = 'crontab'; }
   if (p.startsWith('/proc/') || p.startsWith('/sys/')) mode = dir ? 0o555 : 0o444;
   if (p.startsWith('/dev/')) { mode = 0o660; group = p.startsWith('/dev/tty') ? 'tty' : 'disk'; if (['/dev/null', '/dev/zero', '/dev/random', '/dev/urandom'].includes(p)) mode = 0o666; }
   return { mode, owner, group, mtime: imHome ? SYSTEMZEIT + 2 * 86400000 : SYSTEMZEIT };

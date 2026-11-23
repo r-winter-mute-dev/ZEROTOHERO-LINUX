@@ -1,0 +1,144 @@
+---
+id: l1-4-1
+checks:
+  - id: k1
+  - id: ansehen
+  - id: k2
+  - id: fdisk
+  - id: zuordnung
+  - id: k3
+spick:
+  - t: "Platten und Partitionen ansehen"
+    v: "lsblk, sudo fdisk -l"
+  - t: "fdisk starten"
+    v: "sudo fdisk /dev/sdb   (ganze Platte, ohne Nummer)"
+  - t: "fdisk: neue Tabelle"
+    v: "g GPT, o MBR"
+  - t: "fdisk: Partitionen"
+    v: "n neu, d löschen, t Typ ändern, p anzeigen, l Typen"
+  - t: "fdisk: Ende"
+    v: "w schreiben und beenden, q ohne Speichern"
+  - t: "Größe angeben"
+    v: "Letzter Sektor: +50G"
+  - t: "Nur GPT"
+    v: "gdisk (Bedienung wie fdisk)"
+  - t: "Skriptbar"
+    v: "parted -s /dev/sdb mklabel gpt mkpart …  (schreibt sofort!)"
+karten:
+  - f: "Wie viele primäre Partitionen erlaubt eine MBR-Partitionstabelle?"
+    a: ["4", "vier"]
+  - f: "Wie viele Partitionen erlaubt GPT standardmäßig?"
+    a: ["128"]
+  - f: "Bis zu welcher Plattengröße reicht MBR (mit 512-Byte-Sektoren)?"
+    a: ["2 tib", "2 tb", "2tib", "2 terabyte"]
+  - f: "Mit welcher Taste schreibt fdisk die Änderungen auf die Platte?"
+    a: ["w"]
+  - f: "Mit welcher Taste legt fdisk eine neue GPT-Partitionstabelle an?"
+    a: ["g"]
+  - f: "Mit welcher Taste ändert fdisk den Typ einer Partition?"
+    a: ["t"]
+  - f: "Welches Programm bearbeitet nur GPT-Tabellen und wird wie fdisk bedient?"
+    a: ["gdisk"]
+  - f: "Welches Partitionierungsprogramm schreibt jede Änderung sofort, ohne w?"
+    a: ["parted"]
+  - f: "Wie heißt die erweiterbare Partition im MBR-Schema, die logische Partitionen enthält?"
+    a: ["erweiterte partition", "extended", "erweiterte"]
+  - f: "Wo hält GPT eine Sicherungskopie seiner Tabelle?"
+    a: ["am ende der platte", "am ende der festplatte", "am plattenende"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Zuordnung from '../components/Zuordnung.astro';
+
+In die Werkstatt ist eine zweite SSD eingebaut worden. Sie ist fabrikneu: keine Partitionstabelle, nichts. Darauf sollen später Messdaten, ein Swap-Bereich und ein Archiv liegen. **Deine Mission: Teile die Platte mit fdisk in drei Partitionen auf.** Lernziel 104.1.
+
+## MBR und GPT
+
+<Karte nr={1} titel="Zwei Arten, eine Platte aufzuteilen">
+Am Anfang jeder Platte steht eine **Partitionstabelle**. Sie sagt, wo welche Partition beginnt und endet. Es gibt zwei Formate:
+
+| | MBR (DOS) | GPT |
+|---|---|---|
+| Alter | seit 1983 | Teil von UEFI, seit etwa 2000 |
+| Partitionen | 4 primäre, oder 3 primäre plus 1 erweiterte mit beliebig vielen logischen | 128 |
+| Plattengröße | bis 2 TiB (bei 512-Byte-Sektoren) | praktisch unbegrenzt |
+| Sicherheit | eine Tabelle im ersten Sektor | Tabelle am Anfang **und** Kopie am Ende, mit Prüfsummen |
+| Kennung | Typcode wie 83 (Linux), 82 (Swap) | Typ-GUID, in fdisk mit Namen wie „Linux-Dateisystem“ |
+
+Unter MBR heißen die Partitionen 1 bis 4 primär. Logische Partitionen in der erweiterten beginnen bei 5. GPT legt im ersten Sektor zusätzlich einen **Schutz-MBR** (protective MBR) ab, damit alte Programme die Platte nicht für leer halten.
+
+Heute ist GPT der Normalfall. MBR begegnet dir noch auf alten Rechnern, die nur im BIOS-Modus starten, und auf USB-Sticks.
+</Karte>
+
+<Merke>MBR: 4 primär, bis 2 TiB, Typcodes. GPT: 128 Partitionen, Kopie am Ende, Standard mit UEFI.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: MBR und GPT" fragen={[
+  { frage: 'Eine 4-TiB-Platte soll komplett genutzt werden. Welche Partitionstabelle brauchst du?', richtig: 'GPT', falsch: ['MBR', 'MBR mit einer erweiterten Partition'], erklaerung: 'MBR kann mit 512-Byte-Sektoren nur 2 TiB adressieren, auch mit erweiterter Partition.' },
+  { frage: 'Auf einer MBR-Platte gibt es /dev/sda1 bis /dev/sda3 und eine logische Partition. Welchen Namen hat sie?', richtig: '/dev/sda5', falsch: ['/dev/sda4', '/dev/sda1l'], erklaerung: 'Logische Partitionen zählen immer ab 5, die Nummern 1 bis 4 sind für primäre und erweiterte reserviert.' },
+]} />
+
+<Terminal id="ansehen" titel="Terminal: Die neue Platte finden" welt={{ neuePlatte: true }} aufgaben={[
+  { text: 'Lass dir alle Blockgeräte anzeigen.', befehl: '^lsblk$', frage: 'Wie heißt die neue Platte ohne Partitionen? (nur der Name)', antwort: ['sdb', '/dev/sdb'] },
+  { text: 'Lass dir die Partitionstabelle von <code>/dev/sdb</code> anzeigen.', befehl: '^fdisk -l /dev/sdb$', frage: 'Hat die Platte schon eine Partitionstabelle? (ja/nein)', antwort: ['nein'] },
+  { text: 'Und die der Systemplatte <code>/dev/nvme0n1</code>.', befehl: '^fdisk -l /dev/nvme0n1$', frage: 'Welcher Bezeichnungstyp steht dort?', antwort: ['gpt'] },
+]} />
+
+## fdisk
+
+<Karte nr={2} titel="Partitionieren mit fdisk">
+`sudo fdisk /dev/sdb` öffnet die **ganze Platte**, nicht eine Partition. fdisk fragt dann nach Befehlen, jeweils ein Buchstabe:
+
+| Taste | Bedeutung |
+|---|---|
+| `m` | Hilfe |
+| `p` | Tabelle anzeigen |
+| `g` / `o` | neue leere GPT- / MBR-Tabelle |
+| `n` | neue Partition: Nummer, erster Sektor, letzter Sektor |
+| `d` | Partition löschen |
+| `t` | Typ ändern, etwa `swap`, `linux`, `uefi` oder bei MBR `82` |
+| `l` | bekannte Typen zeigen |
+| `w` | schreiben und beenden |
+| `q` | beenden, ohne zu schreiben |
+
+Fragen, die du nur mit Enter beantwortest, nehmen den Standardwert in Klammern. Den letzten Sektor gibst du am bequemsten als Größe an: `+50G`.
+
+Wichtig: Alles bleibt im Speicher, bis du `w` drückst. Vertippt? Dann `q`, und nichts ist passiert.
+
+Zwei Verwandte: **gdisk** kann nur GPT und wird genauso bedient (das G steht für GPT). **parted** arbeitet auch ohne Rückfragen, etwa `parted -s /dev/sdb mklabel gpt mkpart daten ext4 1MiB 50GiB`. Achtung: parted schreibt **jede Änderung sofort**.
+</Karte>
+
+<Merke>fdisk /dev/sdb (ohne Nummer). g, n, t, p, w. Bis w passiert nichts. parted schreibt sofort.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: fdisk" fragen={[
+  { frage: 'Du hast in fdisk aus Versehen die falsche Partition gelöscht, aber noch nicht w gedrückt. Was tust du?', richtig: 'q drücken. Dann wird nichts geschrieben.', falsch: ['Strg+C und hoffen', 'Die Partition sofort neu anlegen'], erklaerung: 'fdisk ändert die Platte erst mit w.' },
+  { frage: 'Welche Eingabe beim letzten Sektor legt eine 20-GiB-Partition an?', richtig: '+20G', falsch: ['20G', '-20G'], erklaerung: 'Das Plus heißt: so viel ab dem ersten Sektor.' },
+]} />
+
+<Terminal id="fdisk" titel="Terminal: Die SSD aufteilen" welt={{ neuePlatte: true }} aufgaben={[
+  { text: 'Starte fdisk für <code>/dev/sdb</code> und lege eine neue GPT-Partitionstabelle an.', befehl: '^fdisk /dev/sdb$' },
+  { text: 'Lege Partition 1 mit 50 GiB an (Standardwerte mit Enter, als letzten Sektor <code>+50G</code>).', zustand: 'partgroesse:/dev/sdb1=49-51G' },
+  { text: 'Lege Partition 2 mit 4 GiB an und gib ihr mit <code>t</code> den Typ <code>swap</code>.', zustand: 'partgroesse:/dev/sdb2=3.9-4.1G && parttyp:/dev/sdb2~swap' },
+  { text: 'Lege Partition 3 mit 100 GiB an. Den Rest der Platte lässt du frei.', zustand: 'partgroesse:/dev/sdb3=99-101G' },
+  { text: 'Zeig die Tabelle mit <code>p</code> an und schreib sie mit <code>w</code>. (Die Aufgaben oben zählen erst nach dem Schreiben.)', zustand: 'tabelle:sdb=gpt && partitionen:sdb=3' },
+  { text: 'Kontrolliere das Ergebnis mit lsblk.', befehl: '^lsblk( /dev/sdb)?$' },
+  { text: 'Und mit parted.', befehl: '^parted (-s )?/dev/sdb( print)?$', frage: 'Welche Tabelle meldet parted?', antwort: ['gpt'] },
+]} />
+
+<Zuordnung id="zuordnung" titel="Welches Werkzeug?" aufgabe="Ordne jeder Aussage das passende Werkzeug zu." paare={[
+  { links: 'Bearbeitet MBR und GPT, schreibt erst mit w', rechts: 'fdisk' },
+  { links: 'Bearbeitet nur GPT, wird wie fdisk bedient', rechts: 'gdisk' },
+  { links: 'Schreibt jede Änderung sofort und lässt sich gut in Skripten nutzen', rechts: 'parted' },
+  { links: 'Zeigt Platten und Partitionen als Baum, ohne root', rechts: 'lsblk' },
+]} />
+
+<Hinweis titel="Prüfungstipp">
+Gefragt wird nach den Grenzen (4 primäre, 2 TiB, 128 bei GPT), nach den fdisk-Tasten und danach, dass fdisk mit der ganzen Platte arbeitet: `/dev/sdb`, nicht `/dev/sdb1`. Merke dir auch, dass logische Partitionen bei 5 beginnen.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Welche Typnummer hat eine Linux-Swap-Partition in einer MBR-Tabelle?', richtig: '82', falsch: ['83', '8e'], erklaerung: '83 ist Linux, 8e Linux LVM.' },
+  { frage: 'Was liegt im ersten Sektor einer GPT-Platte?', richtig: 'Ein Schutz-MBR, damit alte Werkzeuge die Platte nicht für leer halten', falsch: ['Nichts, GPT beginnt erst bei Sektor 2048', 'Die Kopie der GPT-Tabelle'], erklaerung: 'Die Kopie der GPT liegt am Ende der Platte.' },
+]} />

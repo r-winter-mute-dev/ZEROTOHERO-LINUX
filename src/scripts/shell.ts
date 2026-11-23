@@ -6,7 +6,7 @@
 import { paketBefehle, programmStarten, neustartPakete, startStand, zustandPakete, type PaketStand } from './shell-pakete';
 import { textBefehle } from './shell-text';
 import { SEITEN, EINGEBAUT_OHNE_SEITE, whatis, apropos } from './shell-man';
-import { rechteBefehle, linksAbgleichen, nurLesbar, zustandRechte, inode, linkZahl } from './shell-rechte';
+import { locateDbAnlegen, rechteBefehle, linksAbgleichen, nurLesbar, zustandRechte, inode, linkZahl } from './shell-rechte';
 import { START_FSTAB, plattenBefehle, startPlatten, zustandPlatten, plattenKaputt, type PlattenStand } from './shell-platten';
 import { START_UHR, beruehren, darf, darfImOrdner, meta, neuMeta, type Meta } from './shell-dateien';
 
@@ -38,7 +38,7 @@ export interface Welt {
   env: Record<string, string>;   // exportierte Umgebungsvariablen
   vars: Record<string, string>;  // Shell-Variablen (nicht exportiert)
   pakete?: PaketStand;
-  wartet: null | { standardJa: boolean; aktion: () => { out: string; code: number; err?: string } };   // offene Rückfrage [Y/n]
+  wartet: null | { standardJa: boolean; aktion: () => { out: string; code: number; err?: string }; nein?: string };   // offene Rückfrage [Y/n]
   meta?: Record<string, Meta>;   // Rechte, Besitzer, Zeit
   umask: number;
   uhr: number;                   // simulierte Zeit in ms
@@ -290,6 +290,7 @@ export function neueWelt(o: WeltOptionen = {}): Welt {
   if (w.distro === 'debian') for (const d of ['/mnt', '/media', '/srv', '/opt', '/usr/local', '/usr/local/bin', '/usr/local/sbin', '/usr/share', '/usr/share/doc', '/usr/share/man', '/usr/lib', '/usr/include', '/var/tmp', '/var/lib', '/var/cache', '/var/spool', '/var/mail', '/run', '/boot', '/proc', '/sys', '/lib', '/home', '/root', '/etc/default', '/etc/opt']) if (!(d in w.fs)) w.fs[d] = null;
   w.platten = startPlatten({ neuePlatte: o.neuePlatte }, START_UHR);
   START_FSTAB.set(w, w.fs['/etc/fstab'] ?? undefined);
+  locateDbAnlegen(w);
   for (const d of o.kaputt ?? []) plattenKaputt(w, d);
   if (o.neuePlatte) { w.fs['/dev/sdb'] = ''; for (const p of w.platten.platten.find((x) => x.name === 'sdb')!.partitionen) w.fs['/dev/sdb' + p.nr] = ''; }
   w.fs['/etc/systemd/system/default.target'] = `-> /usr/lib/systemd/system/${w.defaultTarget}`;
@@ -298,7 +299,7 @@ export function neueWelt(o: WeltOptionen = {}): Welt {
 }
 
 // Die wichtigsten Programme liegen als Platzhalter in /usr/bin und /usr/sbin, damit ls, file, find und which sie finden.
-const PROGRAMME = ['mount', 'umount', 'df', 'du', 'findmnt', 'lsblk', 'ln', 'chgrp', 'locate', 'plocate', 'bash', 'cat', 'cp', 'mv', 'rm', 'ls', 'mkdir', 'rmdir', 'touch', 'ln', 'chmod', 'chown', 'head', 'tail', 'wc', 'sort', 'uniq', 'cut', 'paste', 'tr', 'od', 'split', 'nl', 'tac', 'sed', 'grep', 'find', 'xargs', 'tar', 'gzip', 'gunzip', 'zcat', 'bzip2', 'bunzip2', 'bzcat', 'xz', 'unxz', 'xzcat', 'cpio', 'dd', 'md5sum', 'sha256sum', 'sha512sum', 'file', 'ps', 'top', 'free', 'uptime', 'pgrep', 'pkill', 'killall', 'kill', 'watch', 'nice', 'renice', 'nohup', 'sleep', 'tee', 'env', 'printenv', 'uname', 'which', 'whereis', 'man', 'date', 'echo', 'printf', 'pwd', 'less', 'more', 'vim.tiny', 'nano', 'screen', 'tmux', 'basename', 'dirname', 'id', 'whoami', 'hostname', 'sudo', 'lspci', 'lsusb', 'lsblk', 'dmesg', 'journalctl', 'systemctl', 'apt', 'apt-get', 'apt-cache', 'dpkg', 'ldd'];
+const PROGRAMME = ['passwd', 'su', 'chsh', 'chfn', 'newgrp', 'gpasswd', 'chage', 'expiry', 'crontab', 'stat', 'readlink', 'mount', 'umount', 'df', 'du', 'findmnt', 'lsblk', 'ln', 'chgrp', 'locate', 'plocate', 'bash', 'cat', 'cp', 'mv', 'rm', 'ls', 'mkdir', 'rmdir', 'touch', 'ln', 'chmod', 'chown', 'head', 'tail', 'wc', 'sort', 'uniq', 'cut', 'paste', 'tr', 'od', 'split', 'nl', 'tac', 'sed', 'grep', 'find', 'xargs', 'tar', 'gzip', 'gunzip', 'zcat', 'bzip2', 'bunzip2', 'bzcat', 'xz', 'unxz', 'xzcat', 'cpio', 'dd', 'md5sum', 'sha256sum', 'sha512sum', 'file', 'ps', 'top', 'free', 'uptime', 'pgrep', 'pkill', 'killall', 'kill', 'watch', 'nice', 'renice', 'nohup', 'sleep', 'tee', 'env', 'printenv', 'uname', 'which', 'whereis', 'man', 'date', 'echo', 'printf', 'pwd', 'less', 'more', 'vim.tiny', 'nano', 'screen', 'tmux', 'basename', 'dirname', 'id', 'whoami', 'hostname', 'sudo', 'lspci', 'lsusb', 'lsblk', 'dmesg', 'journalctl', 'systemctl', 'apt', 'apt-get', 'apt-cache', 'dpkg', 'ldd'];
 const SBIN_PROGRAMME = ['mkfs', 'mkfs.ext2', 'mkfs.ext3', 'mkfs.ext4', 'mkfs.xfs', 'mkfs.vfat', 'mkfs.fat', 'mkfs.exfat', 'mkswap', 'swapoff', 'blkid', 'e2fsck', 'fsck', 'fsck.ext4', 'tune2fs', 'xfs_repair', 'xfs_fsr', 'xfs_db', 'parted', 'gdisk', 'fdisk', 'modprobe', 'insmod', 'rmmod', 'lsmod', 'modinfo', 'shutdown', 'reboot', 'poweroff', 'halt', 'ldconfig', 'update-grub', 'grub-install', 'swapon', 'dpkg-reconfigure', 'sshd', 'telinit', 'runlevel'];
 function programmeAblegen(w: Welt) {
   if (w.distro !== 'debian') return;
@@ -452,9 +453,10 @@ const befehle: Record<string, Befehl> = {
   hilfe: () => ok(HILFE),
   clear: () => ok('\u001bclear'),
   whoami: (w, _a, _i, root) => ok(root ? 'root' : w.user),
-  id: (w, _a, _i, root) => ok(root ? 'uid=0(root) gid=0(root) groups=0(root)' : 'uid=1000(lena) gid=1000(lena) groups=1000(lena),24(cdrom),27(sudo),46(plugdev)'),
+  id: (w, _a, _i, root) => ok(root ? 'uid=0(root) gid=0(root) Gruppen=0(root)' : 'uid=1000(lena) gid=1000(lena) Gruppen=1000(lena),24(cdrom),27(sudo),46(plugdev),100(users)'),
   hostname: (w) => ok(w.host),
   pwd: (w) => ok(w.cwd),
+  groups: (_w, a, _i, root) => ok(a[0] && a[0] !== 'lena' ? `${a[0]} : ${a[0]}` : root ? 'root' : 'lena cdrom sudo plugdev users'),
   history: (w) => ok(w.verlauf.map((v, i) => `${String(i + 1).padStart(5)}  ${v.zeile}`).join('\n')),
   echo: (_w, a) => ok(a.filter((x) => x !== '-e').join(' ')),
   man: (_w, a) => {
@@ -1042,7 +1044,9 @@ const EINGEBAUT: Record<string, (w: Welt, a: string[], stdin: string, root: bool
     if (a.length > 1) return fehler('bash: cd: Zu viele Argumente.');
     let ziel = a[0] ?? w.env.HOME;
     if (ziel === '-') { ziel = w.env.OLDPWD; if (!ziel) return fehler('bash: cd: OLDPWD ist nicht zugewiesen.'); }
-    const z = pfad(w, ziel);
+    let z = pfad(w, ziel);
+    // Symbolischen Link auf ein Verzeichnis folgen (der Simulator wechselt in das echte Ziel, wie cd -P)
+    for (let i = 0; i < 40 && typeof w.fs[z] === 'string' && w.fs[z]!.startsWith('-> '); i++) { const t = w.fs[z]!.slice(3); z = pfad(w, t.startsWith('/') ? t : (z.slice(0, z.lastIndexOf('/')) || '/') + '/' + t); }
     if (!(z in w.fs)) return fehler(`bash: cd: ${ziel}: Datei oder Verzeichnis nicht gefunden`);
     if (w.fs[z] !== null) return fehler(`bash: cd: ${ziel}: Ist kein Verzeichnis`);
     if (!darf(w, z, 'x', root || w.root)) return fehler(`bash: cd: ${ziel}: Keine Berechtigung`);
@@ -1132,7 +1136,7 @@ const PROGRAMME_SHELL: Record<string, Befehl> = {
     for (const n of a.filter((x) => !x.startsWith('-'))) { const f = n.includes('/') ? (typeof w.fs[pfad(w, n)] === 'string' ? [n] : []) : imPath(w, n); if (!f.length) code = 1; out.push(...(alle ? f : f.slice(0, 1))); }
     return { out: out.join('\n'), code };
   },
-  whereis: (w: Welt, a: string[]) => ok(a.filter((x) => !x.startsWith('-')).map((n) => { const p = befehle[n] || EINGEBAUT[n] ? [ortVon(n) + '/' + n, ...(MAN[n] ? [`/usr/share/man/man${SBIN.has(n) ? 8 : 1}/${n}.${SBIN.has(n) ? 8 : 1}.gz`] : [])] : []; return `${n}:${p.map((x) => ' ' + x).join('')}`; }).join('\n')),
+  whereis: (w: Welt, a: string[]) => ok(a.filter((x) => !x.startsWith('-')).map((n) => { const p = befehle[n] ? [ortVon(n) + '/' + n, ...(SEITEN[n] ?? (MAN[n] ? [{ sek: SBIN.has(n) ? 8 : 1 }] : [])).map((x) => `/usr/share/man/man${x.sek}/${n}.${x.sek}.gz`)] : []; return `${n}:${p.map((x) => ' ' + x).join('')}`; }).join('\n')),
 };
 
 /** Ein Skript Zeile für Zeile ausführen. source/. laufen in der aktuellen Shell, sonst in einer Kopie der Variablen. */
@@ -1443,10 +1447,10 @@ export function ausfuehren(w: Welt, zeile: string): Lauf {
   if (w.aus) return { ausgabe: `Das System ist ${w.aus === 'reboot' ? 'gerade beim Neustart' : 'heruntergefahren'}. Mit "Neu starten" unter dem Terminal geht es weiter.`, code: 1 };
   // Offene Rückfrage wie „Do you want to continue? [Y/n]“
   if (w.wartet) {
-    const { standardJa, aktion } = w.wartet; w.wartet = null;
+    const { standardJa, aktion, nein } = w.wartet; w.wartet = null;
     const a = roh.trim().toLowerCase();
     const ja = a === 'y' || a === 'j' || a === 'yes' || a === 'ja' || (a === '' && standardJa);
-    const r = ja ? aktion() : { out: 'Abort.\n(Abgebrochen. Mit -y beantwortet der Befehl die Rückfrage selbst.)', code: 1 };
+    const r = ja ? aktion() : { out: nein ?? 'Abort.\n(Abgebrochen. Mit -y beantwortet der Befehl die Rückfrage selbst.)', code: 1 };
     const text = [r.err, r.out].filter(Boolean).join('\n');
     w.verlauf.push({ zeile: `#antwort ${ja ? 'ja' : 'nein'}`, code: r.code, ausgabe: text });
     return { ausgabe: text, code: r.code };

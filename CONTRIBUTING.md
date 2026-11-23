@@ -69,11 +69,13 @@ Zustände (mehrere mit `&&` verbinden, `nicht:` davor kehrt einen um):
 - Shell: `var:NAME~regex`, `export:NAME`, `alias:NAME~regex`, `umask=0027`, `historie~regex`, `roh~regex` (Eingabe vor der Verlaufserweiterung, etwa `!!`), `ohneVerlauf:BEFEHL`, `ausgabe~regex`
 - Prozesse und Jobs: `prozess:PID=weg|da`, `signal:PID=NR`, `laeuft:regex`, `ni:PID|regex=WERT`, `nohup:regex`, `job:regex=Running|Stopped|weg`, `strg-c`, `strg-z`
 - vi: `vi:gespeichert|verworfen|unveraendert|ohne[:/pfad]`
+- Platten: `tabelle:sdb=gpt|dos|keine`, `partitionen:sdb=N`, `partgroesse:/dev/sdb1=49-51G`, `parttyp:/dev/sdb2~regex`, `fs:/dev/sdb1=ext4`, `fslabel:/dev/sdb1=NAME`, `eingehaengt:/dev/sdb1=/pfad`, `ausgehaengt:/dev/sdb1`, `mountopt:/dev/sdb1~regex`, `swapan:/dev/sdb2`, `fsdatei:/dev/sdb1:/datei`, `maxmount:…=N`, `reserviert:…=N`, `heil:/dev/sdb1`, `unitaktiv:mnt-x.mount`
+- Rechte und Links: `modus:/pfad=2770`, `besitzer:/pfad=user[:gruppe]`, `gruppe:/pfad=NAME`, `symlink:/pfad=ziel`, `hardlink:/a=/b`, `updatedb`
 - Pakete: siehe `zustandPakete` in `src/scripts/shell-pakete.ts`
 
-Startzustand einer Station (`welt`): `dateien` (Inhalt `'/'` legt ein Verzeichnis an), `rechte` (`'/pfad': '755 besitzer gruppe'`), `zeiten` (Alter in Tagen), `extraProzesse`, `pathStandard` (Debian-PATH ohne /usr/sbin), `cwd`, `host`, `distro`, `virt`.
+Startzustand einer Station (`welt`): `dateien` (Inhalt `'/'` legt ein Verzeichnis an), `rechte` (`'/pfad': '755 besitzer gruppe'`), `zeiten` (Alter in Tagen), `extraProzesse`, `pathStandard` (Debian-PATH ohne /usr/sbin), `cwd`, `host`, `distro`, `virt`, `neuePlatte` (`true` leer, `'partitioniert'`, `'formatiert'`), `kaputt` (Liste von Partitionen mit Dateisystemfehlern).
 
-Aufbau des Simulators: `shell.ts` (Parser, Umleitungen, PATH, Jobs, Systembefehle), `shell-text.ts` (Textfilter, Dateien, Archive, Prozesse), `shell-pakete.ts` (Pakete, Platten, Bootloader), `shell-dateien.ts` (Rechte, Zeiten, Prüfsummen), `shell-man.ts` (Handbuchseiten), `vi.ts` (der Editor). Fehlermeldungen folgen den deutschen Übersetzungskatalogen der GNU-Werkzeuge (`LANG=de_DE.UTF-8`). Wo Debian keine Übersetzung mitliefert (vim.tiny, gzip), bleiben sie englisch.
+Aufbau des Simulators: `shell.ts` (Parser, Umleitungen, PATH, Jobs, Systembefehle), `shell-text.ts` (Textfilter, Dateien, Archive, Prozesse), `shell-pakete.ts` (Pakete, Platten, Bootloader), `shell-dateien.ts` (Rechte, Zeiten, Prüfsummen), `shell-man.ts` (Handbuchseiten), `shell-platten.ts` (Platten, Dateisysteme, mount), `shell-rechte.ts` (chmod, chown, Links, locate), `vi.ts` (der Editor). Fehlermeldungen folgen den deutschen Übersetzungskatalogen der GNU-Werkzeuge (`LANG=de_DE.UTF-8`). Wo Debian keine Übersetzung mitliefert (vim.tiny, gzip), bleiben sie englisch.
 
 Der Simulator (`src/scripts/shell.ts`) kennt nur die Befehle, die in Missionen vorkommen. Neue Befehle dort ergänzen und dabei das Verhalten eines echten Debian nachbilden, auch die Fehlermeldungen. Testen lässt sich der Simulator auch ohne Browser:
 

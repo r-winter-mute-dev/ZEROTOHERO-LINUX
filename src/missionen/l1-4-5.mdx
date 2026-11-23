@@ -1,0 +1,140 @@
+---
+id: l1-4-5
+checks:
+  - id: k1
+  - id: lesen
+  - id: luecke
+  - id: k2
+  - id: setzen
+  - id: k3
+spick:
+  - t: "Drei Gruppen"
+    v: "u Besitzer, g Gruppe, o alle anderen, a alle drei"
+  - t: "Drei Rechte"
+    v: "r = 4, w = 2, x = 1"
+  - t: "Oktal"
+    v: "chmod 640 datei  (rw- r-- ---)"
+  - t: "Symbolisch"
+    v: "chmod u+x,g-w,o=r datei"
+  - t: "Rekursiv"
+    v: "chmod -R g+rX ordner"
+  - t: "Verzeichnisse"
+    v: "r Namen lesen, w anlegen/löschen, x betreten"
+  - t: "umask"
+    v: "Dateien 666 minus umask, Verzeichnisse 777 minus umask"
+karten:
+  - f: "Welchen Zahlenwert hat das Recht w?"
+    a: ["2"]
+  - f: "Welche Oktalzahl entspricht rwxr-x---?"
+    a: ["750"]
+  - f: "Welche Oktalzahl entspricht rw-r--r--?"
+    a: ["644"]
+  - f: "Wie gibst du dem Besitzer von skript.sh das Ausführrecht, symbolisch?"
+    a: ["chmod u+x skript.sh"]
+  - f: "Was bedeutet das Recht x bei einem Verzeichnis?"
+    a: ["betreten", "das verzeichnis betreten", "hineinwechseln und auf dateien zugreifen"]
+  - f: "Was bedeutet das Recht w bei einem Verzeichnis?"
+    a: ["dateien anlegen und löschen", "dateien darin anlegen, umbenennen und löschen"]
+  - f: "Welche Rechte bekommt eine neue Datei bei umask 027?"
+    a: ["640", "rw-r-----"]
+  - f: "Welche Rechte bekommt ein neues Verzeichnis bei umask 022?"
+    a: ["755", "rwxr-xr-x"]
+  - f: "Was bewirkt X (groß) in chmod a+X?"
+    a: ["x nur für verzeichnisse und schon ausführbare dateien", "ausführrecht nur für verzeichnisse und ausführbare dateien"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Lueckentext from '../components/Lueckentext.astro';
+
+Im Projektordner liegt eine vertrauliche Kalkulation, die jeder lesen kann. Ein Skript lässt sich nicht starten. Und neue Dateien sind für alle lesbar. **Deine Mission: Lies Rechte, setze sie richtig und sorge dafür, dass neue Dateien von Anfang an passen.** Lernziel 104.5.
+
+## Rechte lesen
+
+<Karte nr={1} titel="rwx für drei Gruppen">
+`ls -l` zeigt vor jeder Datei zehn Zeichen, etwa `-rw-r-----`:
+
+- Das erste Zeichen ist der **Typ**: `-` Datei, `d` Verzeichnis, `l` symbolischer Link, `b` und `c` Gerätedateien.
+- Dann drei Dreiergruppen: **Besitzer** (u, user), **Gruppe** (g, group), **alle anderen** (o, others).
+- In jeder Gruppe: **r** lesen, **w** schreiben, **x** ausführen. Ein `-` heißt: dieses Recht fehlt.
+
+Jedes Recht hat einen Zahlenwert: **r = 4, w = 2, x = 1**. Die Summe je Gruppe ergibt eine Ziffer, die drei Ziffern zusammen die **Oktalschreibweise**: `rw-r-----` ist 6, 4, 0, also **640**. Gängige Werte: 644 (Dateien), 600 (privat), 755 (Programme und Verzeichnisse), 700 (private Verzeichnisse).
+
+Bei **Verzeichnissen** bedeuten die Rechte etwas anderes:
+
+| Recht | Datei | Verzeichnis |
+|---|---|---|
+| r | Inhalt lesen | Namen auflisten |
+| w | Inhalt ändern | Dateien darin anlegen, umbenennen, löschen |
+| x | als Programm starten | betreten (cd) und auf Dateien darin zugreifen |
+
+Darum entscheidet über das **Löschen** einer Datei nicht ihr eigenes w, sondern das w des Verzeichnisses. Und ohne x am Verzeichnis kommst du an keine Datei darin heran, selbst wenn du sie lesen dürftest.
+
+Linux prüft genau eine Gruppe: Bist du der Besitzer, gelten nur die Besitzerrechte. Sonst die Gruppenrechte, wenn du in der Gruppe bist, sonst die für alle anderen. root darf fast alles.
+</Karte>
+
+<Merke>r 4, w 2, x 1. Besitzer, Gruppe, andere. Löschen erlaubt das w des Verzeichnisses. x am Verzeichnis heißt betreten.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: Rechte lesen" fragen={[
+  { frage: 'Welche Oktalzahl hat rwxr-x--x?', richtig: '751', falsch: ['761', '571'], erklaerung: 'rwx = 7, r-x = 5, --x = 1.' },
+  { frage: 'Eine Datei gehört lena und hat ---rw-rw-. lena ist in der Gruppe der Datei. Darf lena sie lesen?', richtig: 'Nein, für den Besitzer gelten nur die Besitzerrechte.', falsch: ['Ja, über die Gruppe.', 'Ja, über die anderen.'], erklaerung: 'Linux nimmt die erste passende Gruppe und schaut nicht weiter.' },
+]} />
+
+<Terminal id="lesen" titel="Terminal: Rechte lesen" welt={{ dateien: { '/home/lena/projekt/kalkulation.ods': '\u0007BIN:52344', '/home/lena/projekt/start.sh': '#!/bin/bash\necho "Projekt startet"\n', '/home/lena/projekt/notizen.txt': 'Termine\n' }, rechte: { '/home/lena/projekt/start.sh': '644', '/home/lena/projekt/kalkulation.ods': '644' } }} aufgaben={[
+  { text: 'Lass dir den Inhalt von <code>projekt</code> mit Rechten anzeigen.', befehl: '^ls -\\w*l\\w* (\\./)?projekt/?$', frage: 'Welche Rechte hat kalkulation.ods in Oktalschreibweise?', antwort: ['644', '0644'] },
+  { text: 'Versuch, <code>projekt/start.sh</code> zu starten.', befehl: '^(\\./)?projekt/start\\.sh$', auchFehler: true },
+  { text: 'Lass dir die Rechte des Verzeichnisses selbst zeigen, nicht seines Inhalts.', befehl: '^ls -\\w*d\\w* (\\./)?projekt/?$|^ls -\\w*l\\w*d\\w* (\\./)?projekt/?$', frage: 'Welches Zeichen steht ganz vorne?', antwort: ['d'] },
+  { text: 'Schau dir die Rechte von <code>/etc/shadow</code> an.', befehl: '^ls -\\w*l\\w* /etc/shadow$', frage: 'Welcher Gruppe gehört die Datei?', antwort: ['shadow'] },
+]} />
+
+<Lueckentext id="luecke" titel="Code-Puzzle: Oktal und symbolisch" aufgabe="Ergänze jeweils die Oktalzahl, die zu den Rechten links passt."
+  code={`rwxr-xr-x   ___
+rw-r-----   ___
+rw-------   ___
+rwxrwx---   ___`}
+  luecken={[
+    { loesungen: ['755'] }, { loesungen: ['640'] }, { loesungen: ['600'] }, { loesungen: ['770'] },
+  ]} />
+
+## Rechte setzen
+
+<Karte nr={2} titel="chmod und umask">
+**chmod** ändert Rechte. Nur der Besitzer und root dürfen das.
+
+- **Oktal**: `chmod 640 kalkulation.ods` setzt alle drei Gruppen auf einmal.
+- **Symbolisch**: wer (`u`, `g`, `o`, `a`), Operator (`+` dazu, `-` weg, `=` genau so), Rechte. `chmod u+x start.sh`, `chmod go-w datei`, `chmod u=rw,g=r,o= datei`. Mehrere Angaben mit Komma.
+- `-R` ändert rekursiv. Praktisch ist `chmod -R g+rX ordner`: Das große **X** setzt x nur bei Verzeichnissen und bei Dateien, die schon ausführbar sind.
+
+Welche Rechte **neue** Dateien bekommen, bestimmt die **umask**. Sie zieht Rechte ab: Programme legen Dateien mit 666 und Verzeichnisse mit 777 an, die umask nimmt davon weg. Mit der Debian-Voreinstellung 022 entstehen 644 und 755. Mit `umask 027` entstehen 640 und 750: Die Gruppe darf lesen, alle anderen nichts. Neue Dateien bekommen also nie von selbst das Ausführrecht.
+
+`umask` zeigt den aktuellen Wert, `umask -S` symbolisch. Dauerhaft setzt du ihn in `~/.profile` oder `~/.bashrc`, systemweit in `/etc/login.defs` oder über PAM.
+</Karte>
+
+<Merke>chmod 640 oder chmod u+x,g-w. umask zieht ab: 666/777 minus umask. 022 ergibt 644/755, 027 ergibt 640/750.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: chmod und umask" fragen={[
+  { frage: 'Welche Rechte hat eine Datei mit 644 nach „chmod g+w,o-r“?', richtig: '660', falsch: ['664', '620'], erklaerung: 'Gruppe bekommt w (4+2 = 6), andere verlieren r (4-4 = 0).' },
+  { frage: 'Bei welcher umask entstehen neue Dateien mit 600?', richtig: '077', falsch: ['600', '022'], erklaerung: 'Die umask zieht ab: 666 minus 077 ergibt 600, und Verzeichnisse bekommen 700. 022 ergibt 644.' },
+]} />
+
+<Terminal id="setzen" titel="Terminal: Rechte setzen" welt={{ dateien: { '/home/lena/projekt/kalkulation.ods': '\u0007BIN:52344', '/home/lena/projekt/start.sh': '#!/bin/bash\necho "Projekt startet"\n', '/home/lena/projekt/notizen.txt': 'Termine\n', '/home/lena/projekt/bilder/a.png': '\u0007BIN:1000', '/home/lena/projekt/bilder/b.png': '\u0007BIN:2000' }, rechte: { '/home/lena/projekt/start.sh': '644', '/home/lena/projekt/kalkulation.ods': '644', '/home/lena/projekt/bilder': '700', '/home/lena/projekt/bilder/a.png': '600', '/home/lena/projekt/bilder/b.png': '600' } }} aufgaben={[
+  { text: 'Mach die Kalkulation nur für dich lesbar und schreibbar, in Oktalschreibweise.', zustand: 'modus:/home/lena/projekt/kalkulation.ods=600', befehl: '^chmod 0?600 ' },
+  { text: 'Gib dem Besitzer das Ausführrecht für <code>start.sh</code>, symbolisch, und starte das Skript.', zustand: 'modus:/home/lena/projekt/start.sh=744', befehl: '^(\\./)?projekt/start\\.sh$|^\\./start\\.sh$' },
+  { text: 'Erlaube der Gruppe, <code>notizen.txt</code> zu ändern, und nimm allen anderen das Leserecht. Ein einziger chmod-Befehl.', zustand: 'modus:/home/lena/projekt/notizen.txt=660', befehl: '^chmod (g\\+w,o-r|o-r,g\\+w|0?660) ' },
+  { text: 'Der Ordner <code>bilder</code> soll für die Gruppe lesbar und betretbar werden, die Bilder darin lesbar, aber nicht ausführbar. Nutze <code>-R</code> und das große X.', zustand: 'modus:/home/lena/projekt/bilder=750 && modus:/home/lena/projekt/bilder/a.png=640' },
+  { text: 'Lass dir deine umask anzeigen, auch symbolisch.', befehl: '^umask -S$', frage: 'Welchen Wert zeigt umask ohne Option?', antwort: ['0022', '022'] },
+  { text: 'Setze die umask so, dass neue Dateien 640 und neue Verzeichnisse 750 bekommen.', zustand: 'umask=027' },
+  { text: 'Lege die Datei <code>neu.txt</code> und das Verzeichnis <code>neuordner</code> an und prüf die Rechte.', zustand: 'modus:/home/lena/neu.txt=640 && modus:/home/lena/neuordner=750' },
+]} />
+
+<Hinweis titel="Prüfungstipp">
+Rechne in der Prüfung schnell zwischen Oktal und Buchstaben um und wende symbolische Änderungen Schritt für Schritt an. Bei der umask: Dateien starten bei 666, Verzeichnisse bei 777. Eine Datei bekommt durch die umask nie ein x.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Was bewirkt „chmod a=r datei“?', richtig: 'Alle drei Gruppen haben danach nur noch Leserecht (444).', falsch: ['Alle bekommen zusätzlich Leserecht.', 'Nur die anderen bekommen Leserecht.'], erklaerung: '= setzt genau, + fügt hinzu.' },
+  { frage: 'lena hat Schreibrecht für eine Datei, aber kein Schreibrecht für das Verzeichnis. Was kann sie?', richtig: 'Die Datei ändern, aber nicht löschen oder umbenennen', falsch: ['Die Datei löschen, aber nicht ändern', 'Nichts davon'], erklaerung: 'Löschen und Umbenennen ändern das Verzeichnis, nicht die Datei.' },
+  { frage: 'Welche Rechte bekommt ein neues Verzeichnis bei umask 007?', richtig: '770', falsch: ['660', '777'], erklaerung: '777 minus 007.' },
+]} />

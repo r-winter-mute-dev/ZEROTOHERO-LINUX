@@ -1,0 +1,124 @@
+---
+id: l1-4-7
+checks:
+  - id: k1
+  - id: links
+  - id: k2
+  - id: grenzen
+  - id: k3
+spick:
+  - t: "Harter Link"
+    v: "ln ziel name"
+  - t: "Symbolischer Link"
+    v: "ln -s ziel name"
+  - t: "Inodes anzeigen"
+    v: "ls -li, stat datei"
+  - t: "Wohin zeigt der Link?"
+    v: "ls -l link, readlink -f link"
+  - t: "Überschreiben"
+    v: "ln -sf neuesziel name"
+  - t: "Harte Links gehen nicht"
+    v: "für Verzeichnisse, über Dateisystemgrenzen"
+karten:
+  - f: "Was speichert ein Inode?"
+    a: ["metadaten einer datei", "rechte, besitzer, zeiten und wo die daten liegen", "alles außer dem namen"]
+  - f: "Was speichert ein Inode nicht?"
+    a: ["den dateinamen", "den namen"]
+  - f: "Mit welchem Befehl legst du einen symbolischen Link an?"
+    a: ["ln -s"]
+  - f: "Welche ls-Option zeigt die Inode-Nummer?"
+    a: ["-i", "ls -i"]
+  - f: "Was passiert mit einem symbolischen Link, wenn du sein Ziel löschst?"
+    a: ["er zeigt ins leere", "er ist kaputt", "er verweist auf nichts mehr"]
+  - f: "Was passiert mit einem harten Link, wenn du den ursprünglichen Namen löschst?"
+    a: ["nichts, die daten bleiben erhalten", "die datei bleibt über den link erreichbar"]
+  - f: "Darf ein harter Link auf ein Verzeichnis zeigen?"
+    a: ["nein"]
+  - f: "Darf ein harter Link auf eine Datei in einem anderen Dateisystem zeigen?"
+    a: ["nein"]
+  - f: "Welche Rechte zeigt ls -l für einen symbolischen Link?"
+    a: ["lrwxrwxrwx", "rwxrwxrwx"]
+  - f: "Wann wird der Speicher einer Datei wirklich freigegeben?"
+    a: ["wenn der letzte harte link gelöscht ist", "wenn der linkzähler null ist"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+
+Die aktuelle Konfiguration des Messprogramms liegt mal hier, mal dort, und alle Skripte sollen sie unter einem festen Namen finden. Eine Sicherung soll außerdem keinen zusätzlichen Platz kosten. **Deine Mission: Verstehe Inodes und nutze harte und symbolische Links.** Lernziel 104.6.
+
+## Inodes und harte Links
+
+<Karte nr={1} titel="Ein Name ist nur ein Eintrag im Verzeichnis">
+Ein Dateisystem speichert zu jeder Datei einen **Inode**: Typ, Rechte, Besitzer, Größe, Zeitstempel und wo die Daten auf der Platte liegen. Nur eins steht nicht darin: der **Name**. Den kennt das **Verzeichnis**: Es ist eine Liste aus Name und Inode-Nummer.
+
+Ein **harter Link** ist einfach ein zweiter Name für denselben Inode: `ln original.txt zweitname.txt`. Beide Namen sind völlig gleichberechtigt. Es gibt kein „Original“ mehr. `ls -li` zeigt vorne die Inode-Nummer (bei beiden gleich) und in der zweiten Spalte den **Linkzähler**. Erst wenn der letzte Name gelöscht ist, gibt das Dateisystem die Daten frei.
+
+Was über einen Namen geändert wird, sieht man unter allen. Auch Rechte und Besitzer gehören zum Inode und gelten für alle Namen.
+
+Grenzen: Harte Links gehen **nicht auf Verzeichnisse** und **nicht über Dateisystemgrenzen**, denn eine Inode-Nummer gilt nur innerhalb eines Dateisystems.
+
+`mv` innerhalb eines Dateisystems ändert nur den Namen, der Inode bleibt. `cp` legt einen neuen Inode an.
+</Karte>
+
+<Merke>Name → Inode → Daten. Harter Link = zweiter Name, gleiche Inode-Nummer. Weg erst, wenn der letzte Name weg ist.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: Inodes" fragen={[
+  { frage: 'ls -li zeigt bei zwei Dateien dieselbe Inode-Nummer. Was heißt das?', richtig: 'Es sind zwei harte Links auf dieselben Daten.', falsch: ['Eine ist eine Kopie der anderen.', 'Eine ist ein symbolischer Link auf die andere.'], erklaerung: 'Ein symbolischer Link hat einen eigenen Inode.' },
+]} />
+
+## Symbolische Links
+
+<Karte nr={2} titel="Ein Wegweiser mit eigenem Inode">
+Ein **symbolischer Link** (Symlink, Softlink) ist eine kleine eigene Datei, in der nur ein **Pfad** steht: `ln -s ziel name`. Programme, die ihn öffnen, folgen dem Pfad.
+
+- `ls -l` zeigt ihn als `lrwxrwxrwx … name -> ziel`. Die Rechte des Links sind bedeutungslos, es zählen die des Ziels.
+- Er darf auf **Verzeichnisse** zeigen und über **Dateisystemgrenzen** hinweg.
+- Wird das Ziel gelöscht oder verschoben, zeigt er **ins Leere** (dangling link).
+- Ein relativer Pfad im Link gilt vom Ort des Links aus, nicht vom aktuellen Verzeichnis.
+
+`readlink -f name` zeigt, wo der Link am Ende hinführt. `ln -sf neu name` lässt einen vorhandenen Link auf ein neues Ziel zeigen. Auf jedem Debian findest du Beispiele: `/bin` zeigt auf `usr/bin`, und `/etc/alternatives` ist voller Symlinks.
+
+| | harter Link | symbolischer Link |
+|---|---|---|
+| eigener Inode | nein | ja |
+| auf Verzeichnisse | nein | ja |
+| über Dateisysteme | nein | ja |
+| Ziel gelöscht | Daten bleiben | Link zeigt ins Leere |
+</Karte>
+
+<Merke>ln -s ZIEL NAME. Symlink: eigener Inode, darf auf Ordner und über Grenzen, bricht, wenn das Ziel verschwindet.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: Symlinks" fragen={[
+  { frage: 'Welche Reihenfolge haben die Argumente bei ln -s?', richtig: 'Erst das Ziel, dann der Name des neuen Links', falsch: ['Erst der Name des Links, dann das Ziel', 'Egal, ln erkennt es selbst'], erklaerung: 'Wie bei cp: erst Quelle, dann Ziel.' },
+]} />
+
+<Terminal id="links" titel="Terminal: Zwei Arten von Links" welt={{ dateien: { '/home/lena/messung/config-v2.conf': 'kanal=1\nintervall=60\n', '/home/lena/messung/config-v3.conf': 'kanal=1\nintervall=30\n' } }} aufgaben={[
+  { text: 'Wechsle nach <code>messung</code> und lege einen symbolischen Link <code>aktuell.conf</code> an, der auf <code>config-v2.conf</code> zeigt.', zustand: 'symlink:/home/lena/messung/aktuell.conf=config-v2.conf' },
+  { text: 'Lege einen harten Link <code>sicherung.conf</code> auf <code>config-v2.conf</code> an.', zustand: 'hardlink:/home/lena/messung/sicherung.conf=/home/lena/messung/config-v2.conf' },
+  { text: 'Lass dir alle drei mit Inode-Nummern anzeigen.', befehl: '^ls -\\w*i\\w*', frage: 'Welchen Linkzähler hat config-v2.conf jetzt?', antwort: ['2'] },
+  { text: 'Häng über den harten Link eine Zeile <code>einheit=C</code> an und prüf mit cat, ob sie auch in config-v2.conf steht.', zustand: 'datei:/home/lena/messung/config-v2.conf~einheit=C' },
+  { text: 'Lösche <code>config-v2.conf</code>. Versuch dann, <code>aktuell.conf</code> und <code>sicherung.conf</code> zu lesen.', befehl: '^cat (\\./)?aktuell\\.conf$', auchFehler: true, zustand: 'fehlt:/home/lena/messung/config-v2.conf', frage: 'Welcher der beiden Links funktioniert noch?', antwort: ['sicherung.conf', 'sicherung', 'der harte', 'der harte link'] },
+  { text: 'Lass <code>aktuell.conf</code> jetzt auf <code>config-v3.conf</code> zeigen. Ersetze den alten Link mit einer Option.', zustand: 'symlink:/home/lena/messung/aktuell.conf=config-v3.conf', befehl: '^ln -s?f?s?f? ' },
+  { text: 'Prüf mit readlink, wohin er führt.', befehl: '^readlink (-f )?(\\./)?aktuell\\.conf$' },
+]} />
+
+<Terminal id="grenzen" titel="Terminal: Wo harte Links aufhören" welt={{ neuePlatte: 'formatiert', dateien: { '/mnt/daten': '/', '/home/lena/handbuch.txt': 'Handbuch\n' } }} aufgaben={[
+  { text: 'Versuch, einen harten Link <code>docs</code> auf das Verzeichnis <code>/usr/share/doc</code> anzulegen.', befehl: '^ln /usr/share/doc (\\./)?docs$', auchFehler: true },
+  { text: 'Mach es mit einem symbolischen Link.', zustand: 'symlink:/home/lena/docs=/usr/share/doc' },
+  { text: 'Häng <code>/dev/sdb1</code> unter <code>/mnt/daten</code> ein und gib lena das Verzeichnis.', zustand: 'eingehaengt:/dev/sdb1=/mnt/daten && besitzer:/mnt/daten=lena' },
+  { text: 'Versuch, einen harten Link <code>/mnt/daten/handbuch.txt</code> auf <code>~/handbuch.txt</code> anzulegen.', befehl: '^ln (~|/home/lena)/handbuch\\.txt /mnt/daten/?(handbuch\\.txt)?$|^ln handbuch\\.txt /mnt/daten/?(handbuch\\.txt)?$', auchFehler: true, frage: 'Was meldet ln? (die Begründung nach dem Doppelpunkt)', antwort: ['ungültiger link über gerätegrenzen hinweg', 'Ungültiger Link über Gerätegrenzen hinweg'] },
+  { text: 'Lege stattdessen einen symbolischen Link an.', zustand: 'symlink:/mnt/daten/handbuch.txt=/home/lena/handbuch.txt' },
+]} />
+
+<Hinweis titel="Prüfungstipp">
+Die Prüfung fragt die Tabelle von Karte 2 in allen Varianten ab: Was passiert, wenn das Ziel gelöscht wird? Welcher Link geht über Partitionen? Woran erkennt man harte Links (gleiche Inode-Nummer, Linkzähler größer als 1)? Und die Reihenfolge: `ln -s ziel name`.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Eine Datei hat in ls -l den Linkzähler 3. Was heißt das?', richtig: 'Es gibt drei Namen (harte Links) für denselben Inode.', falsch: ['Es gibt drei symbolische Links auf sie.', 'Sie wurde dreimal geändert.'], erklaerung: 'Symbolische Links zählen hier nicht mit.' },
+  { frage: 'Warum kann man keinen harten Link von /home auf eine Datei in /mnt/usb anlegen, wenn dort ein USB-Stick eingehängt ist?', richtig: 'Inode-Nummern gelten nur innerhalb eines Dateisystems.', falsch: ['Weil /mnt nur root gehört.', 'Weil USB-Sticks keine Links erlauben.'], erklaerung: 'Ein symbolischer Link geht.' },
+  { frage: 'Was gibt „ls -l /bin“ auf Debian 12 aus?', richtig: 'lrwxrwxrwx … /bin -> usr/bin', falsch: ['drwxr-xr-x … /bin', 'hrwxrwxrwx … /bin => /usr/bin'], erklaerung: 'Seit „merged /usr“ ist /bin ein symbolischer Link.' },
+]} />

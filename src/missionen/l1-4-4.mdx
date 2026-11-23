@@ -1,0 +1,126 @@
+---
+id: l1-4-4
+checks:
+  - id: k1
+  - id: platz
+  - id: k2
+  - id: reparieren
+  - id: k3
+spick:
+  - t: "Platz je Dateisystem"
+    v: "df -h, df -hT (mit Typ), df -i (Inodes)"
+  - t: "Platz je Verzeichnis"
+    v: "du -sh ordner, du -h --max-depth=1 ordner"
+  - t: "Prüfen (nur ausgehängt!)"
+    v: "fsck /dev/sdb1, e2fsck -f /dev/sdb1"
+  - t: "Nur schauen, nichts ändern"
+    v: "e2fsck -n, xfs_repair -n"
+  - t: "Alles mit ja beantworten"
+    v: "e2fsck -y, automatisch sicher: e2fsck -p"
+  - t: "ext-Einstellungen"
+    v: "tune2fs -l (anzeigen), -c Einhängungen, -i Abstand, -m Reserve %, -L Label"
+  - t: "XFS"
+    v: "xfs_repair, xfs_db -c frag -r, xfs_fsr (defragmentieren)"
+karten:
+  - f: "Welcher Befehl zeigt den belegten und freien Platz aller eingehängten Dateisysteme?"
+    a: ["df", "df -h"]
+  - f: "Welcher Befehl zeigt, wie viel Platz ein Verzeichnis samt Inhalt belegt?"
+    a: ["du", "du -sh"]
+  - f: "Welche df-Option zeigt die Belegung der Inodes?"
+    a: ["-i", "df -i"]
+  - f: "Warum darf man ein Dateisystem nicht im eingehängten Zustand reparieren?"
+    a: ["weil gleichzeitig geschrieben werden kann und es beschädigt wird", "es wird dabei beschädigt", "schwere schäden"]
+  - f: "Welche e2fsck-Option prüft nur und ändert nichts?"
+    a: ["-n"]
+  - f: "Welche e2fsck-Option erzwingt eine Prüfung, auch wenn das Dateisystem sauber ist?"
+    a: ["-f"]
+  - f: "Mit welchem Befehl repariert man XFS?"
+    a: ["xfs_repair"]
+  - f: "Wie viel Prozent der Blöcke reserviert ext4 standardmäßig für root?"
+    a: ["5", "5%", "5 %"]
+  - f: "Welcher Befehl zeigt die Einstellungen eines ext4-Dateisystems an?"
+    a: ["tune2fs -l", "dumpe2fs -h"]
+  - f: "Welches Programm defragmentiert XFS?"
+    a: ["xfs_fsr"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+
+Nachts ist in der Werkstatt der Strom ausgefallen. Seitdem lässt sich die Datenpartition der neuen SSD nicht mehr einhängen, und lena beschwert sich, ihr Heimatverzeichnis sei zu voll. **Deine Mission: Finde heraus, wo der Platz bleibt, und repariere das Dateisystem.** Lernziel 104.2.
+
+## Platz finden
+
+<Karte nr={1} titel="df und du">
+**df** (disk free) zeigt für jedes eingehängte Dateisystem Größe, belegten und freien Platz. `-h` macht die Zahlen lesbar, `-T` zeigt den Typ, `-i` die **Inodes**. Jede Datei braucht genau einen Inode. Ein Dateisystem mit Millionen winziger Dateien kann voll sein, obwohl df -h noch freien Platz zeigt: Dann sind die Inodes verbraucht.
+
+Bei ext4 fällt dir etwas auf: Größe minus Benutzt ist mehr als Verfügbar. Der Unterschied sind die **reservierten Blöcke**, standardmäßig 5 Prozent. Sie bleiben root vorbehalten, damit das System auch bei voller Platte noch Protokolle schreiben kann.
+
+**du** (disk usage) geht den umgekehrten Weg: Es rechnet für Verzeichnisse aus, wie viel ihr Inhalt belegt. `du -sh ordner` zeigt nur die Summe, `du -h --max-depth=1 ordner` eine Zeile pro Unterordner. Zusammen mit `sort -h` findest du schnell den größten: `du -h --max-depth=1 ~ | sort -h`.
+</Karte>
+
+<Merke>df pro Dateisystem, du pro Verzeichnis. df -i für Inodes. ext4 reserviert 5 % für root.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: df und du" fragen={[
+  { frage: 'Eine Partition meldet beim Anlegen von Dateien „Kein Platz auf dem Gerät“, obwohl df -h 40 % frei zeigt. Was prüfst du als Nächstes?', richtig: 'df -i, ob die Inodes aufgebraucht sind', falsch: ['du -sh /, ob die Zahlen stimmen', 'fsck, weil die Partition kaputt sein muss'], erklaerung: 'Viele kleine Dateien verbrauchen Inodes, bevor der Platz ausgeht.' },
+]} />
+
+<Terminal id="platz" titel="Terminal: Wo bleibt der Platz?" welt={{ neuePlatte: 'formatiert', dateien: { '/home/lena/videos/werkstatt-rundgang.mp4': '\u0007BIN:1932735283', '/home/lena/videos/messe-2025.mp4': '\u0007BIN:2684354560', '/home/lena/downloads/debian-12.iso': '\u0007BIN:658505728', '/home/lena/dokumente/bericht.odt': '\u0007BIN:48211' } }} aufgaben={[
+  { text: 'Lass dir alle eingehängten Dateisysteme mit Typ und lesbaren Größen anzeigen.', befehl: '^df -(hT|Th|h -T|T -h)$', frage: 'Welchen Typ hat das Dateisystem auf /boot/efi?', antwort: ['vfat'] },
+  { text: 'Wie stark sind die Inodes auf / belegt?', befehl: '^df -i( /)?$' },
+  { text: 'Zeig, wie viel dein Heimatverzeichnis insgesamt belegt.', befehl: '^du -sh (~|/home/lena|\\.)/?$' },
+  { text: 'Lass dir die Belegung je Unterordner deines Heimatverzeichnisses anzeigen, sortiert nach Größe.', befehl: '^du -h (--max-depth=1|-d ?1) (~|/home/lena|\\.)/? \\| sort -h', frage: 'Welcher Ordner ist der größte?', antwort: ['videos', '/home/lena/videos', './videos'] },
+]} />
+
+## Prüfen und reparieren
+
+<Karte nr={2} titel="fsck, e2fsck und tune2fs">
+**fsck** ist ein Verteiler: `fsck /dev/sdb1` erkennt den Typ und ruft das passende Prüfprogramm auf, bei ext4 also **e2fsck**. Beim Start prüft systemd automatisch alle Dateisysteme, deren pass-Spalte in der fstab nicht 0 ist.
+
+Die goldene Regel: **Nur ausgehängte Dateisysteme reparieren.** Würde fsck reparieren, während das System gleichzeitig schreibt, entstünde neuer Schaden. e2fsck verweigert das darum.
+
+| Option | Wirkung |
+|---|---|
+| `-n` | nur prüfen, alle Fragen mit nein beantworten (auch eingehängt erlaubt) |
+| `-f` | prüfen, auch wenn das Dateisystem als sauber gilt |
+| `-y` | alle Fragen mit ja beantworten |
+| `-p` | „preen“: harmlose Fehler automatisch beheben, bei ernsten abbrechen |
+
+e2fsck geht in fünf **Durchgängen** vor: Inodes und Blöcke, Verzeichnisse, Verknüpfungen, Referenzzähler, Gruppen. Verlorene Dateien landen in **lost+found**.
+
+**tune2fs** stellt ext-Dateisysteme ein: `-l` zeigt alle Werte (wie `dumpe2fs -h`), `-c 30` erzwingt alle 30 Einhängungen eine Prüfung, `-i 1m` jeden Monat, `-m 1` senkt die Reserve auf 1 Prozent, `-L` ändert das Label, `-j` macht aus ext2 ein ext3. **mke2fs** legt ext-Dateisysteme neu an, ist also kein Reparaturwerkzeug.
+</Karte>
+
+<Karte nr={3} titel="Die XFS-Werkzeuge">
+Für XFS tut `fsck.xfs` bewusst nichts. XFS repariert sich nach einem Absturz beim Einhängen selbst aus dem Journal. Für echte Schäden gibt es **xfs_repair** (ausgehängt, `-n` nur prüfen). **xfs_db** ist ein Debugger, der zum Beispiel mit `xfs_db -r -c frag /dev/sdb3` die Fragmentierung zeigt. **xfs_fsr** defragmentiert, sogar im eingehängten Zustand.
+</Karte>
+
+<Merke>Erst aushängen, dann prüfen. -n schaut nur, -f erzwingt, -y sagt ja. XFS: xfs_repair, xfs_db, xfs_fsr.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: Reparieren" fragen={[
+  { frage: 'Was macht „fsck /dev/sdb3“, wenn darauf XFS liegt?', richtig: 'Nichts außer einem Hinweis auf xfs_repair', falsch: ['Es repariert XFS wie e2fsck.', 'Es wandelt XFS in ext4 um.'], erklaerung: 'fsck.xfs ist absichtlich wirkungslos.' },
+  { frage: 'Welcher Befehl ist kein Werkzeug zum Prüfen oder Einstellen, sondern legt ein Dateisystem neu an?', richtig: 'mke2fs', falsch: ['e2fsck', 'tune2fs'], erklaerung: 'mke2fs ist das ext-Gegenstück zu mkfs.' },
+]} />
+
+<Terminal id="reparieren" titel="Terminal: Nach dem Stromausfall" welt={{ neuePlatte: 'formatiert', kaputt: ['/dev/sdb1'], dateien: { '/mnt/daten': '/' } }} aufgaben={[
+  { text: 'Versuch, <code>/dev/sdb1</code> unter <code>/mnt/daten</code> einzuhängen.', befehl: '^mount (/dev/sdb1|LABEL=daten) /mnt/daten/?$', auchFehler: true },
+  { text: 'Prüf das Dateisystem, ohne etwas zu ändern.', befehl: '^(e2fsck|fsck|fsck\\.ext4) -n /dev/sdb1$', auchFehler: true, frage: 'In wie vielen Durchgängen arbeitet e2fsck?', antwort: ['5', 'fünf'] },
+  { text: 'Repariere es jetzt. Beantworte die Frage mit j, oder nimm gleich <code>-y</code>.', zustand: 'heil:/dev/sdb1' },
+  { text: 'Häng es ein und prüf, ob die Messdaten noch da sind.', zustand: 'eingehaengt:/dev/sdb1=/mnt/daten && fsdatei:/dev/sdb1:/messung-2026.csv', befehl: '^ls ' },
+  { text: 'Versuch, das eingehängte Dateisystem mit e2fsck zu reparieren, und lies die Meldung.', befehl: '^(e2fsck|fsck) (-f )?/dev/sdb1$', auchFehler: true },
+  { text: 'Lass dir die Einstellungen von sdb1 mit tune2fs anzeigen.', befehl: '^(tune2fs -l|dumpe2fs -h) /dev/sdb1', frage: 'Welchen Wert hat „Maximum mount count“?', antwort: ['-1'] },
+  { text: 'Lass ab jetzt alle 30 Einhängungen prüfen und senke die Reserve für root auf 1 Prozent.', zustand: 'maxmount:/dev/sdb1=30 && reserviert:/dev/sdb1=1' },
+  { text: 'Prüf das XFS auf <code>/dev/sdb3</code>, ohne etwas zu ändern.', befehl: '^xfs_repair -n /dev/sdb3$' },
+  { text: 'Versuch dasselbe mit fsck und lies, was passiert.', befehl: '^fsck /dev/sdb3$' },
+]} />
+
+<Hinweis titel="Prüfungstipp">
+Gefragt wird oft: Welches Werkzeug für welches Dateisystem (e2fsck für ext, xfs_repair für XFS)? Was macht tune2fs? Warum nur ausgehängt prüfen? Und der Unterschied zwischen df (Dateisystem) und du (Verzeichnis).
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Welche Zeile prüft ein ext4-Dateisystem und beantwortet alle Fragen automatisch mit ja?', richtig: 'e2fsck -y /dev/sdb1', falsch: ['e2fsck -n /dev/sdb1', 'tune2fs -y /dev/sdb1'], erklaerung: '-n beantwortet alles mit nein.' },
+  { frage: 'Welcher Befehl zeigt die fünf größten Unterverzeichnisse von /var?', richtig: 'du -h --max-depth=1 /var | sort -h | tail -5', falsch: ['df -h /var | sort | head -5', 'du -sh /var | tail -5'], erklaerung: 'du -sh /var ergibt nur eine Zeile, die Summe.' },
+]} />
