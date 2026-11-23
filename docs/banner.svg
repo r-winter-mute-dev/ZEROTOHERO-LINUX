@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 300" width="1200" height="300">
   <rect width="1200" height="300" fill="#121212"/>
   <g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="22" fill="#6c7086">
-    <text x="60" y="70">lea@werkstatt:~$ systemctl get-default</text>
+    <text x="60" y="70">lena@werkstatt:~$ systemctl get-default</text>
     <text x="60" y="100" fill="#a6adc8">graphical.target</text>
   </g>
   <path d="M60 150 L105 185 L60 220" fill="none" stroke="#cba6f7" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
