@@ -4,6 +4,8 @@ checks:
   - id: k1
   - id: formatieren
   - id: zuordnung
+  - id: labor
+    hardware: true
   - id: k2
 spick:
   - t: "Ext4 anlegen"
@@ -41,6 +43,7 @@ import Merke from '../components/Merke.astro';
 import Quiz from '../components/Quiz.astro';
 import Hinweis from '../components/Hinweis.astro';
 import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
 import Zuordnung from '../components/Zuordnung.astro';
 
 Die SSD ist aufgeteilt, aber die Partitionen sind noch leer. Ohne Dateisystem kann Linux darauf keine Dateien ablegen. **Deine Mission: Lege auf jeder Partition das passende Dateisystem an und schalte den Swap ein.** Lernziel 104.1.
@@ -88,6 +91,12 @@ mkfs löscht ohne Papierkorb. Findet mke2fs schon ein Dateisystem, fragt es nach
   { links: 'EFI-Systempartition, Dateien höchstens 4 GiB', rechts: 'VFAT' },
   { links: 'Wird mit swapon eingeschaltet', rechts: 'Swap' },
 ]} />
+
+<Labor id="labor" titel="Aufgabe im Labor: Partition und Dateisystem"
+  aufgabe="Lege in deiner VM mit fdisk eine Partition auf der zweiten Platte an und darauf ein ext4 mit dem Label daten: sudo mkfs.ext4 -L daten /dev/sdb1. Füge dann die Ausgabe von lsblk -f ein."
+  befehl={"lsblk -f"}
+  muster={["[sv]db1\\s+ext4.*daten"]}
+  erfolg="Dein erstes selbst angelegtes Dateisystem." />
 
 <Hinweis titel="Prüfungstipp">
 Lerne die Paare Befehl und Option: `mkfs.ext4 -L`, `mkfs.vfat -n`, `mkswap` plus `swapon`. Und die Eigenschaften: XFS nicht verkleinerbar, Btrfs mit Snapshots, FAT mit 4-GiB-Grenze, ext3 als ext2 mit Journal.

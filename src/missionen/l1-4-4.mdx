@@ -5,6 +5,8 @@ checks:
   - id: platz
   - id: k2
   - id: reparieren
+  - id: labor
+    hardware: true
   - id: k3
 spick:
   - t: "Platz je Dateisystem"
@@ -48,6 +50,7 @@ import Merke from '../components/Merke.astro';
 import Quiz from '../components/Quiz.astro';
 import Hinweis from '../components/Hinweis.astro';
 import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
 
 Nachts ist in der Werkstatt der Strom ausgefallen. Seitdem lässt sich die Datenpartition der neuen SSD nicht mehr einhängen, und lena beschwert sich, ihr Heimatverzeichnis sei zu voll. **Deine Mission: Finde heraus, wo der Platz bleibt, und repariere das Dateisystem.** Lernziel 104.2.
 
@@ -115,6 +118,12 @@ Für XFS tut `fsck.xfs` bewusst nichts. XFS repariert sich nach einem Absturz be
   { text: 'Prüf das XFS auf <code>/dev/sdb3</code>, ohne etwas zu ändern.', befehl: '^xfs_repair -n /dev/sdb3$' },
   { text: 'Versuch dasselbe mit fsck und lies, was passiert.', befehl: '^fsck /dev/sdb3$' },
 ]} />
+
+<Labor id="labor" titel="Aufgabe im Labor: Ein echter Prüflauf"
+  aufgabe="Häng die Partition in deiner VM aus, prüf sie gründlich und häng sie wieder ein. Steht deine Shell in /mnt/daten, wechsle vorher heraus."
+  befehl={"sudo umount /mnt/daten && sudo e2fsck -f /dev/sdb1; sudo mount /mnt/daten"}
+  muster={["(Durchgang|Pass) 5"]}
+  erfolg="Fünf Durchgänge, keine Fehler." />
 
 <Hinweis titel="Prüfungstipp">
 Gefragt wird oft: Welches Werkzeug für welches Dateisystem (e2fsck für ext, xfs_repair für XFS)? Was macht tune2fs? Warum nur ausgehängt prüfen? Und der Unterschied zwischen df (Dateisystem) und du (Verzeichnis).

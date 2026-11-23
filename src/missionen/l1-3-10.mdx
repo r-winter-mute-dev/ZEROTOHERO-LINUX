@@ -5,6 +5,8 @@ checks:
   - id: nice
   - id: k2
   - id: renice
+  - id: labor
+    hardware: true
   - id: k3
 spick:
   - t: "Bereich der Nettigkeit"
@@ -44,6 +46,7 @@ import Merke from '../components/Merke.astro';
 import Quiz from '../components/Quiz.astro';
 import Hinweis from '../components/Hinweis.astro';
 import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
 
 Das Rendern läuft, aber jetzt ruckelt die Videokonferenz. Das Rendern muss nicht schnell sein, nur irgendwann fertig. **Deine Mission: Sag dem Kernel, welcher Prozess Vorrang hat.** Lernziel 103.6.
 
@@ -104,6 +107,12 @@ Die Regeln für normale Benutzer sind streng: Sie dürfen nur **eigene** Prozess
   { text: 'Gib dem Backup von lena (python3 backup.py, PID 2210) als root die Nettigkeit -5.', zustand: 'ni:2210=-5' },
   { text: 'Prüf beide Werte mit ps.', befehl: '^ps .*ni' },
 ]} />
+
+<Labor id="labor" titel="Aufgabe im Labor: Nett starten"
+  aufgabe="Starte in deiner VM einen Prozess mit Nettigkeit 15 und prüf sie. $! ist die PID des zuletzt gestarteten Hintergrundprozesses."
+  befehl={"nice -n 15 sleep 60 &\nps -o pid,ni,comm -p $!"}
+  muster={["\\b15\\s+sleep"]}
+  erfolg="Die Spalte NI zeigt 15." />
 
 <Hinweis titel="Prüfungstipp">
 Typische Fragen: Welcher Wertebereich gilt? Was ist der Standard? Was macht nice ohne Wert? Wer darf negative Werte setzen? Achte auf die Schreibweise `nice -10`: Das ist +10.

@@ -5,6 +5,8 @@ checks:
   - id: suchen
   - id: k2
   - id: sichern
+  - id: labor
+    hardware: true
   - id: k3
 spick:
   - t: "Nach Name"
@@ -56,6 +58,7 @@ import Merke from '../components/Merke.astro';
 import Quiz from '../components/Quiz.astro';
 import Hinweis from '../components/Hinweis.astro';
 import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
 
 Das Projekt des Messprogramms wächst. Darin liegen alte Sicherungskopien, riesige Messdaten und Quelltext, der unbedingt gesichert werden muss. **Deine Mission: Finde, was weg kann, und pack den Rest in ein Archiv.** Lernziel 103.3.
 
@@ -141,6 +144,12 @@ Suchst du als normaler Benutzer in `/`, meldet find „Keine Berechtigung“ fü
   { text: 'Sammle alle .c-Dateien aus projekt mit find und cpio im Archiv <code>quellen.cpio</code>.', befehl: '^find (\\./)?projekt/? .*\\| cpio -o\\w* > quellen\\.cpio$', zustand: 'da:/home/lena/quellen.cpio' },
   { text: 'Erzeuge mit dd die Datei <code>leer.img</code> aus 10 Blöcken zu 1 MiB Nullen.', befehl: '^dd if=/dev/zero of=(\\./)?leer\\.img bs=1M count=10$' },
 ]} />
+
+<Labor id="labor" titel="Aufgabe im Labor: /etc sichern"
+  aufgabe="Pack in deiner VM das Verzeichnis /etc in ein Archiv und zähle die Einträge. Die Fehler für Dateien, die nur root lesen darf, werden verworfen."
+  befehl={"tar czf /tmp/etc.tar.gz -C / etc 2>/dev/null; ls -lh /tmp/etc.tar.gz; tar tzf /tmp/etc.tar.gz | wc -l"}
+  muster={["/tmp/etc\\.tar\\.gz", "^\\d{2,}$"]}
+  erfolg="Eine Sicherung deiner Konfiguration in einer Datei." />
 
 <Hinweis titel="Prüfungstipp">
 Lerne die tar-Buchstaben als Paare: c anlegen, x auspacken, t ansehen, f Datei. Dazu z, j, J für gzip, bzip2, xz. Und bei find die Vorzeichen: +30 heißt mehr als 30, -30 weniger als 30.

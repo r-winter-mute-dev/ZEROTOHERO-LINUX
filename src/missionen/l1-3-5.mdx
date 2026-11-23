@@ -5,6 +5,8 @@ checks:
   - id: muster
   - id: k2
   - id: ordnen
+  - id: labor
+    hardware: true
   - id: k3
 spick:
   - t: "Auflisten"
@@ -48,6 +50,7 @@ import Merke from '../components/Merke.astro';
 import Quiz from '../components/Quiz.astro';
 import Hinweis from '../components/Hinweis.astro';
 import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
 
 Im Ordner `fotos` hat sich alles angesammelt: Bilder, temporäre Dateien und eine Rechnung, die gar kein PDF ist. **Deine Mission: Räum auf, ohne jede Datei einzeln abzutippen.** Lernziel 103.3.
 
@@ -115,6 +118,12 @@ Verwandt, aber kein Globbing: Die Bash erweitert `{a,b,c}` zu drei Wörtern und 
   { text: 'Lege eine Sicherung des ganzen Ordners fotos als <code>fotos-sicherung</code> an.', zustand: 'da:/home/lena/fotos-sicherung/IMG_0012.jpg && da:/home/lena/fotos-sicherung/.thumbnails/IMG_0001.jpg' },
   { text: 'Setz die Zeit von <code>notizen.txt</code> auf den 1. Januar 2026, 12:00 Uhr, und prüf sie mit ls -l.', befehl: '^touch -t (2026)?01011200 (\\./)?notizen\\.txt$' },
 ]} />
+
+<Labor id="labor" titel="Aufgabe im Labor: Ordner mit Klammern"
+  aufgabe="Lass die Bash in deiner VM mit Klammererweiterung Ordner und Dateien anlegen."
+  befehl={"mkdir -p ~/test/{a,b,c} && touch ~/test/a/x{1..3}.txt && ls -R ~/test"}
+  muster={["x1\\.txt", "x3\\.txt", "test/b:"]}
+  erfolg="Drei Ordner und drei Dateien mit zwei Befehlen." />
 
 <Hinweis titel="Prüfungstipp">
 Fragen zu Platzhaltern zeigen meist eine Liste von Dateien und ein Muster. Geh jede Datei durch und prüf Zeichen für Zeichen. Bei `cp` und `mv` lohnt die Frage: Existiert das Ziel schon als Ordner? Dann landet alles darin.

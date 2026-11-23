@@ -6,6 +6,8 @@ checks:
   - id: luecke
   - id: k2
   - id: setzen
+  - id: labor
+    hardware: true
   - id: k3
 spick:
   - t: "Drei Gruppen"
@@ -47,6 +49,7 @@ import Merke from '../components/Merke.astro';
 import Quiz from '../components/Quiz.astro';
 import Hinweis from '../components/Hinweis.astro';
 import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
 import Lueckentext from '../components/Lueckentext.astro';
 
 Im Projektordner liegt eine vertrauliche Kalkulation, die jeder lesen kann. Ein Skript lässt sich nicht starten. Und neue Dateien sind für alle lesbar. **Deine Mission: Lies Rechte, setze sie richtig und sorge dafür, dass neue Dateien von Anfang an passen.** Lernziel 104.5.
@@ -128,6 +131,12 @@ Welche Rechte **neue** Dateien bekommen, bestimmt die **umask**. Sie zieht Recht
   { text: 'Setze die umask so, dass neue Dateien 640 und neue Verzeichnisse 750 bekommen.', zustand: 'umask=027' },
   { text: 'Lege die Datei <code>neu.txt</code> und das Verzeichnis <code>neuordner</code> an und prüf die Rechte.', zustand: 'modus:/home/lena/neu.txt=640 && modus:/home/lena/neuordner=750' },
 ]} />
+
+<Labor id="labor" titel="Aufgabe im Labor: Die umask wirkt"
+  aufgabe="Leg in deiner VM eine Datei und ein Verzeichnis an und vergleiche ihre Rechte mit der umask."
+  befehl={"umask; touch ~/r1; mkdir ~/r2; ls -ld ~/r1 ~/r2"}
+  muster={["^0?0[0-7]{2}$", "^-rw", "^drwx"]}
+  erfolg="Die Rechte ergeben sich aus 666 und 777 minus umask." />
 
 <Hinweis titel="Prüfungstipp">
 Rechne in der Prüfung schnell zwischen Oktal und Buchstaben um und wende symbolische Änderungen Schritt für Schritt an. Bei der umask: Dateien starten bei 666, Verzeichnisse bei 777. Eine Datei bekommt durch die umask nie ein x.

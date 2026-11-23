@@ -6,6 +6,8 @@ checks:
   - id: k2
   - id: fdisk
   - id: zuordnung
+  - id: labor
+    hardware: true
   - id: k3
 spick:
   - t: "Platten und Partitionen ansehen"
@@ -51,6 +53,7 @@ import Merke from '../components/Merke.astro';
 import Quiz from '../components/Quiz.astro';
 import Hinweis from '../components/Hinweis.astro';
 import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
 import Zuordnung from '../components/Zuordnung.astro';
 
 In die Werkstatt ist eine zweite SSD eingebaut worden. Sie ist fabrikneu: keine Partitionstabelle, nichts. Darauf sollen später Messdaten, ein Swap-Bereich und ein Archiv liegen. **Deine Mission: Teile die Platte mit fdisk in drei Partitionen auf.** Lernziel 104.1.
@@ -133,6 +136,12 @@ Zwei Verwandte: **gdisk** kann nur GPT und wird genauso bedient (das G steht fü
   { links: 'Schreibt jede Änderung sofort und lässt sich gut in Skripten nutzen', rechts: 'parted' },
   { links: 'Zeigt Platten und Partitionen als Baum, ohne root', rechts: 'lsblk' },
 ]} />
+
+<Labor id="labor" titel="Aufgabe im Labor: Eine zweite Platte für die VM"
+  aufgabe="Füge deiner Debian-VM im Virtualisierungsprogramm eine zweite virtuelle Festplatte mit 10 GB hinzu (bei VirtualBox unter Ändern, Massenspeicher). Starte die VM und führe die Befehle aus. Heißt die Platte bei dir vdb statt sdb, nimm vdb."
+  befehl={"lsblk\nsudo fdisk -l /dev/sdb"}
+  muster={["^[sv]db\\s"]}
+  erfolg="Die leere Platte für die nächsten Missionen ist da." />
 
 <Hinweis titel="Prüfungstipp">
 Gefragt wird nach den Grenzen (4 primäre, 2 TiB, 128 bei GPT), nach den fdisk-Tasten und danach, dass fdisk mit der ganzen Platte arbeitet: `/dev/sdb`, nicht `/dev/sdb1`. Merke dir auch, dass logische Partitionen bei 5 beginnen.

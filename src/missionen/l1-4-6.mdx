@@ -5,6 +5,8 @@ checks:
   - id: besitz
   - id: k2
   - id: team
+  - id: labor
+    hardware: true
   - id: k3
 spick:
   - t: "Besitzer ändern (nur root)"
@@ -48,6 +50,7 @@ import Merke from '../components/Merke.astro';
 import Quiz from '../components/Quiz.astro';
 import Hinweis from '../components/Hinweis.astro';
 import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
 
 lena und max sollen gemeinsam in einem Verzeichnis arbeiten. Jede neue Datei soll dem Team gehören, und niemand soll versehentlich die Dateien des anderen löschen können. **Deine Mission: Richte ein Team-Verzeichnis mit Besitz, Gruppe und den besonderen Bits ein.** Lernziel 104.5.
 
@@ -114,6 +117,12 @@ SUID-Programme sind ein beliebtes Angriffsziel. `find / -perm -4000 2>/dev/null`
   { text: 'Schau dir die Rechte von <code>/tmp</code> und <code>/usr/bin/passwd</code> an.', befehl: '^ls -\\w*l\\w* ', frage: 'Welche Oktalzahl hat /tmp?', antwort: ['1777'] },
   { text: 'Finde alle Programme mit SUID-Bit und wirf die Fehlermeldungen weg.', auchFehler: true, befehl: '^find / -perm (-4000|/4000|-u=s|-u\\+s) .*2> ?/dev/null|^find / .*-perm (-4000|/4000|-u=s) 2> ?/dev/null', frage: 'Nenne eines davon, außer passwd (nur der Name).', antwort: ['sudo', 'su', 'mount', 'umount', 'chsh', 'chfn', 'newgrp', 'gpasswd'] },
 ]} />
+
+<Labor id="labor" titel="Aufgabe im Labor: Besondere Bits im echten System"
+  aufgabe="Schau dir in deiner VM die beiden bekanntesten Beispiele für besondere Bits an."
+  befehl={"ls -l /usr/bin/passwd; ls -ld /tmp"}
+  muster={["^-rwsr-xr-x .*/usr/bin/passwd", "^drwxrwxrwt .*/tmp"]}
+  erfolg="SUID bei passwd, Sticky Bit bei /tmp." />
 
 <Hinweis titel="Prüfungstipp">
 Lerne die Werte 4, 2, 1 für SUID, SGID, Sticky und erkenne sie in ls -l: s beim Besitzer, s bei der Gruppe, t bei den anderen. Gefragt wird auch, wer chown benutzen darf (nur root) und was SGID bei Verzeichnissen bewirkt.

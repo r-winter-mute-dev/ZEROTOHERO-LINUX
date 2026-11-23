@@ -6,6 +6,8 @@ checks:
   - id: k2
   - id: reihe
   - id: verketten
+  - id: labor
+    hardware: true
   - id: k3
 spick:
   - t: "Die drei Kanäle"
@@ -55,6 +57,7 @@ import Merke from '../components/Merke.astro';
 import Quiz from '../components/Quiz.astro';
 import Hinweis from '../components/Hinweis.astro';
 import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
 import Reihenfolge from '../components/Reihenfolge.astro';
 
 Bisher erschien jede Ausgabe auf dem Bildschirm. Für Skripte, Protokolle und Fehlersuche willst du sie aber in Dateien, getrennt nach Erfolg und Fehler, oder direkt im nächsten Befehl. **Deine Mission: Lenke Datenströme dorthin, wo du sie brauchst.** Lernziel 103.4.
@@ -129,6 +132,12 @@ tee löst auch ein klassisches Problem: `sudo echo text > /etc/motd` scheitert, 
   { text: 'Gib mit echo und Befehlsersetzung den Satz <code>Heute ist</code> und das heutige Datum aus.', befehl: '^echo "?Heute ist (\\$\\(date( \\+%F)?\\)|`date( \\+%F)?`)"?$' },
   { text: 'Lege mit touch die Datei <code>bericht-</code>plus Datum im Format JJJJ-MM-TT<code>.txt</code> an.', zustand: 'da:/home/lena/bericht-2026-11-23.txt' },
 ]} />
+
+<Labor id="labor" titel="Aufgabe im Labor: Beides in eine Datei"
+  aufgabe="Leite in deiner VM Ausgabe und Fehler in dieselbe Datei und zähle, wie oft der Fehler darin steht."
+  befehl={"ls /etc /gibtsnicht > /tmp/out.txt 2>&1; grep -c gibtsnicht /tmp/out.txt"}
+  muster={["^1$"]}
+  erfolg="Die Fehlermeldung steht in der Datei, nicht auf dem Bildschirm." />
 
 <Hinweis titel="Prüfungstipp">
 Die Reihenfolge von `> datei 2>&1` wird fast sicher abgefragt. Merke: Von links nach rechts lesen, `2>&1` kopiert das Ziel von Kanal 1 in diesem Moment. Ebenso beliebt: das sudo-Problem mit Umleitungen und die Frage, welcher Kanal durch eine Pipe geht.

@@ -5,6 +5,8 @@ checks:
   - id: zuordnung
   - id: k2
   - id: suchen
+  - id: labor
+    hardware: true
   - id: k3
 spick:
   - t: "Konfiguration"
@@ -50,6 +52,7 @@ import Merke from '../components/Merke.astro';
 import Quiz from '../components/Quiz.astro';
 import Hinweis from '../components/Hinweis.astro';
 import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
 import Zuordnung from '../components/Zuordnung.astro';
 
 Ein neuer Kollege fragt: Wo liegt eigentlich die Konfiguration von SSH? Wohin mit dem Tool, das ich selbst übersetzt habe? Und warum findet locate meine Datei nicht? **Deine Mission: Lerne die Ordnung im Verzeichnisbaum und finde jede Datei.** Lernziel 104.7.
@@ -123,6 +126,12 @@ Merke dir die Unterscheidung: **statisch** (`/usr`, `/opt`) gegen **veränderlic
   { text: 'Zeig mit whereis, wo das Programm ls und seine Handbuchseite liegen.', befehl: '^whereis ls$' },
   { text: 'Vergleiche <code>which ls</code> mit <code>type ls</code>.', befehl: '^type ls$', frage: 'Was erwähnt type, which aber nicht?', antwort: ['den alias', 'alias', 'dass ls ein alias ist'] },
 ]} />
+
+<Labor id="labor" titel="Aufgabe im Labor: merged /usr und locate"
+  aufgabe="Prüf in deiner VM, ob /bin ein Verweis ist, und probier locate. Meldet die Shell, dass locate fehlt, installiere es mit sudo apt install plocate."
+  befehl={"ls -ld /bin; whereis ls; locate -c bin/ls"}
+  muster={["/bin -> usr/bin", "^ls: /usr/bin/ls"]}
+  erfolg="Debian 12 hat /bin und /usr/bin zusammengelegt." />
 
 <Hinweis titel="Prüfungstipp">
 Rechne mit Fragen wie „Wo gehört X hin?“ zu /etc, /var, /usr/local, /opt, /srv, /run und /tmp. Zu locate: updatedb aktualisiert, /etc/updatedb.conf steuert. Zu whereis: findet auch Handbuchseiten.

@@ -5,6 +5,8 @@ checks:
   - id: variablen
   - id: k2
   - id: zitate
+  - id: labor
+    hardware: true
   - id: k3
 spick:
   - t: "Variable setzen (ohne Leerzeichen!)"
@@ -54,6 +56,7 @@ import Merke from '../components/Merke.astro';
 import Quiz from '../components/Quiz.astro';
 import Hinweis from '../components/Hinweis.astro';
 import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
 
 Ab jetzt arbeitest du fast nur noch in der Shell. Bevor ein Befehl überhaupt startet, hat die Shell deine Zeile schon zerlegt, Variablen ersetzt und Anführungszeichen ausgewertet. Wer das nicht weiß, wundert sich über leere Ausgaben und Dateien, die angeblich nicht existieren. **Deine Mission: Verstehe, was die Shell mit deiner Eingabe macht, und nutze Variablen gezielt.** Lernziel 103.1.
 
@@ -139,6 +142,12 @@ Ein Dateiname mit Leerzeichen braucht einen dieser Schutzmechanismen. `ls mein b
   { text: 'Zeig sie jetzt richtig an, mit Anführungszeichen oder Backslash.', befehl: "^ls (\"mein bericht\\.txt\"|'mein bericht\\.txt'|mein\\\\ bericht\\.txt)$" },
   { text: 'Leg das Verzeichnis <code>projekt</code> an und wechsle nur dann hinein, wenn das geklappt hat. Beides in einer Zeile.', befehl: '^mkdir projekt && cd projekt$' },
 ]} />
+
+<Labor id="labor" titel="Aufgabe im Labor: Deine Umgebung"
+  aufgabe="Führe in deiner Debian-VM diesen Befehl aus und füge die Ausgabe ein."
+  befehl={"env | grep -E '^(HOME|USER|SHELL|LANG)='"}
+  muster={["^HOME=/", "^SHELL=/"]}
+  erfolg="Das sind Umgebungsvariablen deiner echten Shell." />
 
 <Hinweis titel="Prüfungstipp">
 Die Prüfung liebt kleine Zeilen mit `echo`, Variablen und Anführungszeichen und fragt nach der Ausgabe. Geh sie im Kopf wie die Shell durch: erst zerlegen, dann ersetzen, dann ausführen. Und achte auf `export`: Ohne export sieht ein Kindprozess die Variable nicht.

@@ -5,6 +5,8 @@ checks:
   - id: links
   - id: k2
   - id: grenzen
+  - id: labor
+    hardware: true
   - id: k3
 spick:
   - t: "Harter Link"
@@ -46,6 +48,7 @@ import Merke from '../components/Merke.astro';
 import Quiz from '../components/Quiz.astro';
 import Hinweis from '../components/Hinweis.astro';
 import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
 
 Die aktuelle Konfiguration des Messprogramms liegt mal hier, mal dort, und alle Skripte sollen sie unter einem festen Namen finden. Eine Sicherung soll außerdem keinen zusätzlichen Platz kosten. **Deine Mission: Verstehe Inodes und nutze harte und symbolische Links.** Lernziel 104.6.
 
@@ -112,6 +115,12 @@ Ein **symbolischer Link** (Symlink, Softlink) ist eine kleine eigene Datei, in d
   { text: 'Versuch, einen harten Link <code>/mnt/daten/handbuch.txt</code> auf <code>~/handbuch.txt</code> anzulegen.', befehl: '^ln (~|/home/lena)/handbuch\\.txt /mnt/daten/?(handbuch\\.txt)?$|^ln handbuch\\.txt /mnt/daten/?(handbuch\\.txt)?$', auchFehler: true, frage: 'Was meldet ln? (die Begründung nach dem Doppelpunkt)', antwort: ['ungültiger link über gerätegrenzen hinweg', 'Ungültiger Link über Gerätegrenzen hinweg'] },
   { text: 'Lege stattdessen einen symbolischen Link an.', zustand: 'symlink:/mnt/daten/handbuch.txt=/home/lena/handbuch.txt' },
 ]} />
+
+<Labor id="labor" titel="Aufgabe im Labor: Inodes selbst sehen"
+  aufgabe="Lege in deiner VM einen harten und einen symbolischen Link an und vergleiche die Inode-Nummern."
+  befehl={"cd /tmp && echo hi > a && ln a b && ln -s a c && ls -li a b c"}
+  muster={["^\\d+ -rw.* 2 .* a$", "-> a$"]}
+  erfolg="a und b haben dieselbe Nummer, c hat eine eigene." />
 
 <Hinweis titel="Prüfungstipp">
 Die Prüfung fragt die Tabelle von Karte 2 in allen Varianten ab: Was passiert, wenn das Ziel gelöscht wird? Welcher Link geht über Partitionen? Woran erkennt man harte Links (gleiche Inode-Nummer, Linkzähler größer als 1)? Und die Reihenfolge: `ln -s ziel name`.

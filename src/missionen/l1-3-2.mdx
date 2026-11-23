@@ -7,6 +7,8 @@ checks:
   - id: verlauf
   - id: handbuch
   - id: zuordnung
+  - id: labor
+    hardware: true
   - id: k3
 spick:
   - t: "Wo sucht die Shell?"
@@ -56,6 +58,7 @@ import Merke from '../components/Merke.astro';
 import Quiz from '../components/Quiz.astro';
 import Hinweis from '../components/Hinweis.astro';
 import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
 import Zuordnung from '../components/Zuordnung.astro';
 
 Ein neuer Kollege meldet sich: Auf seinem frisch installierten Debian gibt es angeblich kein `fdisk`. Und sein Skript im eigenen Ordner startet nur manchmal. **Deine Mission: Finde heraus, wo die Shell nach Befehlen sucht, wie du Befehle wiederholst und wo du Hilfe bekommst.** Lernziel 103.1.
@@ -177,6 +180,12 @@ Für eingebaute Befehle wie `cd` gibt es keine eigene Seite. Hilfe gibt `help cd
   { links: 'Überblick über reguläre Ausdrücke', rechts: 'Abschnitt 7' },
   { links: 'Die C-Funktion printf', rechts: 'Abschnitt 3' },
 ]} />
+
+<Labor id="labor" titel="Aufgabe im Labor: Was ist was?"
+  aufgabe="Führe die Zeile in deiner Debian-VM aus, einmal als normaler Benutzer. Achte darauf, ob /usr/sbin im PATH steht."
+  befehl={"type ls cd; echo \"$PATH\""}
+  muster={["^ls ", "^cd ", "/usr/bin"]}
+  erfolg="Steht /usr/sbin nicht drin, hast du die Debian-Falle aus Karte 2 selbst gesehen." />
 
 <Hinweis titel="Prüfungstipp">
 Gefragt wird gern: Welcher Abschnitt enthält Konfigurationsdateien (5), welcher Verwaltungsbefehle (8)? Wie holt man gezielt einen Abschnitt (`man 5 passwd`)? Was ist der Unterschied zwischen type und which? Und wie startet man ein Programm, das nicht in PATH liegt?

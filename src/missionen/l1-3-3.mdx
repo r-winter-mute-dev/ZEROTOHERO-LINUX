@@ -5,6 +5,8 @@ checks:
   - id: lesen
   - id: k2
   - id: zaehlen
+  - id: labor
+    hardware: true
   - id: k3
 spick:
   - t: "Anfang und Ende"
@@ -52,6 +54,7 @@ import Merke from '../components/Merke.astro';
 import Quiz from '../components/Quiz.astro';
 import Hinweis from '../components/Hinweis.astro';
 import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
 
 Der Webserver der Werkstatt meldet seit heute früh merkwürdig viele Fehler. Im Zugriffsprotokoll stehen Hunderte Zeilen. Niemand will die alle lesen. **Deine Mission: Schneide das Protokoll mit Filtern so zurecht, dass die Antwort von selbst herausfällt.** Lernziel 103.2.
 
@@ -116,6 +119,12 @@ Erstes Feld ausschneiden, sortieren, zählen, nach Anzahl rückwärts sortieren,
   { text: 'Wie viele Kunden gibt es je Ort? Schneide den Ort aus und zähle.', befehl: '^cut -d ?(,|\',\'|",") -f ?3 (\\./)?kunden\\.csv \\| sort \\| uniq -c', frage: 'Wie viele Kunden sitzen in Kassel?', antwort: ['3'] },
   { text: 'Setze <code>orte.txt</code> und <code>vorwahl.txt</code> nebeneinander.', befehl: '^paste (-d ?\\S+ )?(\\./)?orte\\.txt (\\./)?vorwahl\\.txt$', frage: 'Welche Vorwahl steht neben Fulda?', antwort: ['0661'] },
 ]} />
+
+<Labor id="labor" titel="Aufgabe im Labor: Welche Shells werden benutzt?"
+  aufgabe="Zähle in deiner VM, wie oft jede Login-Shell in /etc/passwd vorkommt."
+  befehl={"cut -d: -f7 /etc/passwd | sort | uniq -c | sort -rn"}
+  muster={["^\\s*\\d+ /"]}
+  erfolg="Die meisten Systemkonten haben nologin als Shell. So kann sich niemand mit ihnen anmelden." />
 
 <Hinweis titel="Prüfungstipp">
 Achte in Prüfungsfragen auf zwei Fallen: uniq ohne vorheriges sort, und sort ohne -n bei Zahlen. Und merke dir den Standard-Trenner von cut: Tabulator. Für Leerzeichen brauchst du `-d' '`.

@@ -5,6 +5,8 @@ checks:
   - id: beobachten
   - id: k2
   - id: beenden
+  - id: labor
+    hardware: true
   - id: k3
 spick:
   - t: "Alle Prozesse"
@@ -48,6 +50,7 @@ import Merke from '../components/Merke.astro';
 import Quiz from '../components/Quiz.astro';
 import Hinweis from '../components/Hinweis.astro';
 import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
 
 Der Lüfter der Werkstatt dröhnt, alles reagiert zäh. Irgendetwas frisst Rechenzeit. **Deine Mission: Finde den Übeltäter und beende ihn, ohne die Arbeit der anderen zu zerstören.** Lernziel 103.5.
 
@@ -128,6 +131,12 @@ Der richtige Weg: erst SIGTERM, ein paar Sekunden warten, erst dann SIGKILL. Son
   { text: 'Beende mit killall alle Prozesse, die genau <code>python3</code> heißen, und lies die Ausgabe genau.', befehl: '^killall python3$', auchFehler: true, frage: 'Welcher python3-Prozess läuft danach noch? (PID)', antwort: ['3602'] },
   { text: 'Starte <code>watch -n 5 uptime</code> und beende es wieder mit Strg+C (Knopf unter dem Terminal).', befehl: '^watch -n ?5 uptime$', zustand: 'strg-c' },
 ]} />
+
+<Labor id="labor" titel="Aufgabe im Labor: Wer rechnet gerade?"
+  aufgabe="Schau in deiner VM nach, welche Prozesse am meisten Rechenzeit brauchen, und wie hoch die Last ist."
+  befehl={"ps -eo pid,user,%cpu,comm --sort=-%cpu | head -5; uptime"}
+  muster={["PID", "load average"]}
+  erfolg="In einer VM im Leerlauf ist die Last meist nahe 0." />
 
 <Hinweis titel="Prüfungstipp">
 Lerne die Signalnummern 1, 2, 9, 15 auswendig, dazu 18, 19 und 20. Gefragt wird oft, welches Signal kill standardmäßig schickt (15) und welches sich nicht abfangen lässt (9, und auch 19). Und der Unterschied zwischen killall (genauer Name) und pkill (Muster).

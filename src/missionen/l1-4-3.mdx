@@ -8,6 +8,8 @@ checks:
   - id: luecke
   - id: k3
   - id: unit
+  - id: labor
+    hardware: true
   - id: k4
 spick:
   - t: "Einhängen"
@@ -55,6 +57,7 @@ import Merke from '../components/Merke.astro';
 import Quiz from '../components/Quiz.astro';
 import Hinweis from '../components/Hinweis.astro';
 import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
 import Lueckentext from '../components/Lueckentext.astro';
 
 Die Dateisysteme auf der neuen SSD sind fertig, aber noch unsichtbar. Unter Linux gibt es keine Laufwerksbuchstaben: Jedes Dateisystem wird an einer Stelle in den einen großen Verzeichnisbaum **eingehängt**. **Deine Mission: Häng die Partitionen ein, von Hand, dauerhaft über fstab und als systemd-Unit.** Lernziel 104.3.
@@ -176,6 +179,12 @@ Danach: `systemctl daemon-reload` (systemd liest Unit-Dateien neu), `systemctl s
   { text: 'Starte die Unit und prüf ihren Status.', zustand: 'eingehaengt:/dev/sdb3=/mnt/archiv', befehl: '^systemctl status mnt-archiv\\.mount$' },
   { text: 'Sorg dafür, dass sie beim Start eingehängt wird.', zustand: 'unitaktiv:mnt-archiv.mount' },
 ]} />
+
+<Labor id="labor" titel="Aufgabe im Labor: Dauerhaft eingehängt"
+  aufgabe="Trag die Partition in deiner VM per UUID in die fstab ein (Einhängepunkt /mnt/daten), teste mit sudo mount -a und füge die Ausgabe ein."
+  befehl={"findmnt /mnt/daten; grep /mnt/daten /etc/fstab"}
+  muster={["^/mnt/daten\\s", "^\\S+\\s+/mnt/daten\\s+ext4"]}
+  erfolg="Ab jetzt hängt die Platte bei jedem Start ein. Prüf es mit einem Neustart." />
 
 <Hinweis titel="Prüfungstipp">
 Die fstab kommt in jeder Prüfung 101 vor: Reihenfolge der Spalten, Bedeutung von pass, Optionen wie noauto, user, ro. Dazu UUID und LABEL mit blkid. Bei systemd genügt meist, dass Mount-Units nach dem Einhängepunkt benannt sind und auf `.mount` enden.

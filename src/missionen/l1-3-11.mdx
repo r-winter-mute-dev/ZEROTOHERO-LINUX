@@ -6,6 +6,8 @@ checks:
   - id: k2
   - id: luecke
   - id: sed
+  - id: labor
+    hardware: true
   - id: k3
 spick:
   - t: "Anker"
@@ -57,6 +59,7 @@ import Merke from '../components/Merke.astro';
 import Quiz from '../components/Quiz.astro';
 import Hinweis from '../components/Hinweis.astro';
 import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
 import Lueckentext from '../components/Lueckentext.astro';
 
 Die Kundendatei ist über Jahre gewachsen. Darin stecken falsche Postleitzahlen, kaputte Mail-Adressen und uneinheitliche Telefonnummern. Mit festen Suchwörtern findest du die Fehler nicht, denn du weißt ja nicht, wie sie aussehen. **Deine Mission: Beschreib, wie richtige Daten aussehen, und lass grep den Rest finden.** Lernziel 103.7.
@@ -147,6 +150,12 @@ grep -E '[0-9]___' datei`}
   { text: 'Druck mit sed nur die Zeilen aus Fulda.', befehl: "^sed -n ['\"]/Fulda/p['\"] (\\./)?daten\\.txt$" },
   { text: 'Lösch in der Datei selbst die Testzeile, die mit # beginnt.', zustand: 'datei:/home/lena/daten.txt~^Druckerei' , befehl: "^sed -i ['\"]/\\^#/d['\"] (\\./)?daten\\.txt$" },
 ]} />
+
+<Labor id="labor" titel="Aufgabe im Labor: Muster in /etc/passwd"
+  aufgabe="Zähle in deiner VM die Konten mit einer mindestens vierstelligen UID und zeig alle Konten mit einer echten Shell."
+  befehl={"grep -cE '^[^:]+:[^:]*:[0-9]{4,}:' /etc/passwd; grep -E '/bin/(ba)?sh$' /etc/passwd"}
+  muster={["^\\d+$", ":/bin/(ba)?sh$"]}
+  erfolg="Ab UID 1000 beginnen auf Debian die Benutzer aus Fleisch und Blut." />
 
 <Hinweis titel="Prüfungstipp">
 Die Prüfung zeigt dir einen Ausdruck und vier Zeilen und fragt, welche passen. Geh Zeichen für Zeichen vor und achte darauf, ob BRE oder ERE gemeint ist. Merke dir auch, dass egrep und fgrep nur alte Namen für grep -E und grep -F sind.

@@ -6,6 +6,8 @@ checks:
   - id: k2
   - id: sitzung
   - id: zuordnung
+  - id: labor
+    hardware: true
   - id: k3
 spick:
   - t: "Im Hintergrund starten"
@@ -51,6 +53,7 @@ import Merke from '../components/Merke.astro';
 import Quiz from '../components/Quiz.astro';
 import Hinweis from '../components/Hinweis.astro';
 import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
 import Zuordnung from '../components/Zuordnung.astro';
 
 Das Rendern des Werbevideos dauert zehn Minuten. So lange willst du nicht auf ein blockiertes Terminal starren, und ausloggen sollte die Arbeit auch nicht beenden. **Deine Mission: Schick lange Befehle in den Hintergrund und lass sie das Abmelden überleben.** Lernziel 103.5.
@@ -132,6 +135,12 @@ Beide können ein Fenster teilen und mehrere Fenster in einer Sitzung halten. sc
   { links: 'bg', rechts: 'Angehaltenen Job im Hintergrund fortsetzen' },
   { links: 'nohup', rechts: 'SIGHUP ignorieren' },
 ]} />
+
+<Labor id="labor" titel="Aufgabe im Labor: Ein echter Job"
+  aufgabe="Tippe die vier Zeilen nacheinander in deiner VM und füge die gesamte Ausgabe ein."
+  befehl={"sleep 300 &\njobs -l\nkill %1\njobs"}
+  muster={["sleep 300"]}
+  erfolg="So sieht Jobsteuerung auf einem echten System aus." />
 
 <Hinweis titel="Prüfungstipp">
 Die Prüfung mischt gern Jobsteuerung und Signale: Strg+Z schickt SIGTSTP, Strg+C schickt SIGINT, das Schließen des Terminals SIGHUP. Und sie fragt, wo nohup die Ausgabe ablegt.

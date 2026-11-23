@@ -5,6 +5,8 @@ checks:
   - id: zeichen
   - id: k2
   - id: pruefen
+  - id: labor
+    hardware: true
   - id: k3
 spick:
   - t: "Zeichen ersetzen"
@@ -52,6 +54,7 @@ import Merke from '../components/Merke.astro';
 import Quiz from '../components/Quiz.astro';
 import Hinweis from '../components/Hinweis.astro';
 import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
 
 Drei Probleme auf einmal: Eine Bestellung aus dem Windows-Büro zeigt merkwürdige Zeichen, ein heruntergeladenes ISO-Abbild soll geprüft werden, und in alten, gepackten Logs steckt ein Sensorfehler. **Deine Mission: Mach Unsichtbares sichtbar, prüfe Downloads und lies gepackte Logs, ohne sie auszupacken.** Lernziel 103.2.
 
@@ -120,6 +123,12 @@ sed gibt das Ergebnis aus und lässt die Datei in Ruhe. Erst `sed -i` schreibt d
   { text: 'Schreib die Änderung jetzt in die Datei.', zustand: 'datei:/home/lena/server.conf~^url=https://werkstatt' },
   { text: 'Gib die Datei ohne Kommentarzeilen aus.', befehl: "^sed '/\\^#/d' (\\./)?server\\.conf$" },
 ]} />
+
+<Labor id="labor" titel="Aufgabe im Labor: Echte Prüfsummen"
+  aufgabe="Berechne in deiner VM die SHA-256-Summen zweier Dateien."
+  befehl={"sha256sum /etc/os-release /etc/hostname"}
+  muster={["^[0-9a-f]{64}  /etc/os-release", "^[0-9a-f]{64}  /etc/hostname"]}
+  erfolg="Deine Summen sind andere als bei allen anderen, weil dein Rechnername anders ist." />
 
 <Hinweis titel="Prüfungstipp">
 Die Prüfung fragt nach Paaren: Welches Programm liest welche Endung (zcat, bzcat, xzcat)? Welche Prüfsumme gehört zu welchem Befehl? Und sie lockt mit „tr datei“, das es so nicht gibt.

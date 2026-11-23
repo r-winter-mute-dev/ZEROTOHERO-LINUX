@@ -7,6 +7,8 @@ checks:
   - id: bearbeiten
   - id: k3
   - id: system
+  - id: labor
+    hardware: true
   - id: k4
 spick:
   - t: "Modi"
@@ -62,6 +64,7 @@ import Merke from '../components/Merke.astro';
 import Quiz from '../components/Quiz.astro';
 import Hinweis from '../components/Hinweis.astro';
 import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
 
 Auf jedem Linux-Server, auch dem kleinsten Rettungssystem, gibt es vi. Oft ist er der einzige Editor. Viele, die ihn das erste Mal öffnen, kommen nicht mehr heraus. **Deine Mission: Öffne eine Datei in vi, ändere sie, speichere sie und komm wieder heraus. Ohne Panik.** Lernziel 103.8.
 
@@ -164,6 +167,12 @@ Andere Editoren, die du kennen solltest:
   { text: 'Leg mit vi die neue Datei <code>idee.txt</code> mit einer Zeile Text an.', zustand: 'datei:/home/lena/idee.txt~\\S' },
   { text: 'Mach vi zum Standard-Editor für diese Shell.', zustand: 'export:EDITOR && var:EDITOR~^(/usr/bin/)?(vi|vim\\.tiny)$' },
 ]} />
+
+<Labor id="labor" titel="Aufgabe im Labor: vi in echt"
+  aufgabe="Öffne in deiner VM die Datei mit vi, tippe i, dann den Text „Hallo vi“, dann Esc und :wq. Füge danach die Ausgabe von cat ein."
+  befehl={"vi ~/vi-test.txt\ncat ~/vi-test.txt"}
+  muster={["Hallo vi"]}
+  erfolg="Du bist aus vi herausgekommen. Gratulation." />
 
 <Hinweis titel="Prüfungstipp">
 Gefragt werden fast immer dieselben Dinge: Wie kommt man ohne Speichern heraus (`:q!`)? Wie speichert man und beendet (`:wq`, `:x`, `ZZ`)? Was machen dd, yy, p, o, a, i? Wie sucht man (`/` vorwärts, `?` rückwärts)? Und welche Variable legt den Editor fest (EDITOR)?
