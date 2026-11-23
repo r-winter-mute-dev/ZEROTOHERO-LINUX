@@ -1,0 +1,128 @@
+---
+id: l1-3-3
+checks:
+  - id: k1
+  - id: lesen
+  - id: k2
+  - id: zaehlen
+  - id: k3
+spick:
+  - t: "Anfang und Ende"
+    v: "head -n 5 datei, tail -n 5 datei, tail -f log"
+  - t: "Blättern"
+    v: "less datei (q beendet, /muster sucht)"
+  - t: "Zählen"
+    v: "wc -l Zeilen, -w Wörter, -c Bytes"
+  - t: "Nummerieren"
+    v: "nl datei, cat -n datei"
+  - t: "Sortieren"
+    v: "sort -n numerisch, -r rückwärts, -t, -k2 Feld 2"
+  - t: "Doppelte"
+    v: "sort | uniq -c, uniq -d"
+  - t: "Spalten ausschneiden"
+    v: "cut -d, -f2   cut -c1-5"
+  - t: "Nebeneinander"
+    v: "paste a b, paste -d, a b"
+  - t: "Die Häufigkeitsliste"
+    v: "… | sort | uniq -c | sort -rn | head"
+karten:
+  - f: "Welcher Befehl zeigt die letzten 20 Zeilen einer Datei?"
+    a: ["tail -n 20", "tail -20", "tail -n 20 datei"]
+  - f: "Welche Option lässt tail eine Datei weiter beobachten?"
+    a: ["-f", "tail -f"]
+  - f: "Wie zählst du die Zeilen einer Datei?"
+    a: ["wc -l", "wc -l datei"]
+  - f: "Warum steht vor uniq fast immer sort?"
+    a: ["uniq fasst nur benachbarte gleiche zeilen zusammen", "weil uniq nur aufeinanderfolgende doppelte zeilen erkennt", "uniq erkennt nur benachbarte duplikate"]
+  - f: "Welche Option von uniq schreibt die Anzahl vor jede Zeile?"
+    a: ["-c", "uniq -c"]
+  - f: "Wie sortierst du Zahlen der Größe nach statt alphabetisch?"
+    a: ["sort -n"]
+  - f: "Wie schneidest du das zweite Feld einer CSV-Datei mit Komma als Trenner aus?"
+    a: ["cut -d, -f2", "cut -d ',' -f2", "cut -d, -f 2", "cut -f2 -d,"]
+  - f: "Welcher Feldtrenner gilt bei cut, wenn du -d weglässt?"
+    a: ["tab", "tabulator", "das tabulatorzeichen"]
+  - f: "Welcher Befehl setzt die Zeilen zweier Dateien nebeneinander?"
+    a: ["paste"]
+  - f: "Welcher Befehl nummeriert Zeilen und lässt leere dabei standardmäßig aus?"
+    a: ["nl"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+
+Der Webserver der Werkstatt meldet seit heute früh merkwürdig viele Fehler. Im Zugriffsprotokoll stehen Hunderte Zeilen. Niemand will die alle lesen. **Deine Mission: Schneide das Protokoll mit Filtern so zurecht, dass die Antwort von selbst herausfällt.** Lernziel 103.2.
+
+## Filter: kleine Werkzeuge, die zusammenarbeiten
+
+<Karte nr={1} titel="Lesen: cat, less, head, tail">
+Ein **Filter** liest Text, verändert ihn und gibt ihn wieder aus. Er liest aus einer Datei oder, wenn du keine angibst, von der **Standardeingabe**. Darum kannst du Filter mit einer Pipe `|` verketten: Die Ausgabe des einen ist die Eingabe des nächsten. Mehr dazu in Mission 3.7.
+
+- `cat datei` gibt alles aus. `cat a b` hängt mehrere Dateien aneinander (daher der Name, concatenate). `cat -n` nummeriert.
+- `less datei` blättert: Leertaste vor, `b` zurück, `/wort` sucht, `q` beendet. `more` ist der ältere, einfachere Vorgänger.
+- `head datei` zeigt die ersten 10 Zeilen, `head -n 3` die ersten drei.
+- `tail datei` zeigt die letzten 10 Zeilen, `tail -n 3` die letzten drei, `tail -n +5` alles ab Zeile 5. `tail -f` bleibt offen und zeigt neue Zeilen, sobald sie dazukommen. Ideal für Logs, beenden mit Strg+C.
+- `nl datei` nummeriert die Zeilen und lässt leere aus. `cat -n` zählt auch leere Zeilen mit.
+</Karte>
+
+<Merke>head Anfang, tail Ende, tail -f live, less blättern, q beendet.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: Lesen" fragen={[
+  { frage: 'Wie zeigst du Zeile 5 bis zum Ende einer Datei?', richtig: 'tail -n +5 datei', falsch: ['tail -n 5 datei', 'head -n -5 datei'], erklaerung: 'Mit Pluszeichen zählt tail ab dem Anfang. tail -n 5 wären die letzten fünf Zeilen.' },
+  { frage: 'Ein Dienst schreibt laufend in /var/log/app.log. Wie siehst du neue Zeilen in Echtzeit?', richtig: 'tail -f /var/log/app.log', falsch: ['cat -f /var/log/app.log', 'less -n /var/log/app.log'], erklaerung: 'tail -f folgt der Datei, bis du Strg+C drückst.' },
+]} />
+
+<Terminal id="lesen" titel="Terminal: Das Protokoll ansehen" welt={{ dateien: {"/home/lena/logs/zugriff.log": "10.0.0.5 - - [23/Nov/2026:07:02:46 +0100] \"GET /index.html HTTP/1.1\" 200 5120\n192.168.1.23 - - [23/Nov/2026:07:03:25 +0100] \"GET /bilder/logo.png HTTP/1.1\" 200 431\n203.0.113.77 - - [23/Nov/2026:07:04:00 +0100] \"GET /login HTTP/1.1\" 403 196\n192.168.1.23 - - [23/Nov/2026:07:04:51 +0100] \"GET /index.html HTTP/1.1\" 200 2048\n192.168.1.23 - - [23/Nov/2026:07:06:31 +0100] \"GET /index.html HTTP/1.1\" 200 5120\n198.51.100.9 - - [23/Nov/2026:07:06:51 +0100] \"GET /login HTTP/1.1\" 200 431\n10.0.0.5 - - [23/Nov/2026:07:08:45 +0100] \"GET /bilder/logo.png HTTP/1.1\" 200 880\n203.0.113.77 - - [23/Nov/2026:07:10:22 +0100] \"GET /wp-login.php HTTP/1.1\" 404 196\n198.51.100.9 - - [23/Nov/2026:07:11:13 +0100] \"GET /kontakt.html HTTP/1.1\" 404 196\n203.0.113.77 - - [23/Nov/2026:07:12:34 +0100] \"GET /login HTTP/1.1\" 403 196\n10.0.0.5 - - [23/Nov/2026:07:14:06 +0100] \"GET /preise.html HTTP/1.1\" 200 5120\n203.0.113.77 - - [23/Nov/2026:07:14:41 +0100] \"GET /login HTTP/1.1\" 403 196\n192.168.1.40 - - [23/Nov/2026:07:15:28 +0100] \"GET /bilder/logo.png HTTP/1.1\" 200 880\n203.0.113.77 - - [23/Nov/2026:07:17:20 +0100] \"GET /admin HTTP/1.1\" 404 196\n192.168.1.23 - - [23/Nov/2026:07:17:44 +0100] \"GET /login HTTP/1.1\" 200 15360\n192.168.1.23 - - [23/Nov/2026:07:19:16 +0100] \"GET /bilder/logo.png HTTP/1.1\" 200 431\n192.168.1.40 - - [23/Nov/2026:07:21:17 +0100] \"GET /index.html HTTP/1.1\" 200 15360\n203.0.113.77 - - [23/Nov/2026:07:23:23 +0100] \"GET /login HTTP/1.1\" 404 196\n192.168.1.40 - - [23/Nov/2026:07:23:44 +0100] \"GET /index.html HTTP/1.1\" 200 15360\n10.0.0.5 - - [23/Nov/2026:07:25:43 +0100] \"GET /bilder/logo.png HTTP/1.1\" 200 15360\n192.168.1.23 - - [23/Nov/2026:07:25:53 +0100] \"GET /preise.html HTTP/1.1\" 200 431\n192.168.1.40 - - [23/Nov/2026:07:26:27 +0100] \"GET /preise.html HTTP/1.1\" 404 196\n192.168.1.23 - - [23/Nov/2026:07:27:45 +0100] \"GET /kontakt.html HTTP/1.1\" 200 880\n192.168.1.23 - - [23/Nov/2026:07:29:30 +0100] \"GET /preise.html HTTP/1.1\" 404 196\n203.0.113.77 - - [23/Nov/2026:07:31:29 +0100] \"GET /wp-login.php HTTP/1.1\" 404 196\n10.0.0.5 - - [23/Nov/2026:07:32:45 +0100] \"GET /kontakt.html HTTP/1.1\" 200 431\n192.168.1.23 - - [23/Nov/2026:07:34:01 +0100] \"GET /preise.html HTTP/1.1\" 200 880\n10.0.0.5 - - [23/Nov/2026:07:35:05 +0100] \"GET /kontakt.html HTTP/1.1\" 404 196\n", "/home/lena/kunden.csv": "nr,name,ort,umsatz\n1001,Bäckerei Krume,Kassel,4200\n1002,Elektro Funke,Göttingen,12800\n1003,Café Bohne,Kassel,950\n1004,Schreinerei Span,Fulda,7300\n1005,Fahrrad Speiche,Göttingen,3100\n1006,Blumen Blüte,Kassel,1800\n1007,Druckerei Letter,Fulda,15600\n", "/home/lena/orte.txt": "Kassel\nGöttingen\nFulda\n", "/home/lena/vorwahl.txt": "0561\n0551\n0661\n"} }} aufgaben={[
+  { text: 'Zeig die ersten 5 Zeilen von <code>logs/zugriff.log</code>.', befehl: '^head (-n ?5|-5) (\\./)?logs/zugriff\\.log$' },
+  { text: 'Zeig die letzten 3 Zeilen.', befehl: '^tail (-n ?3|-3) (\\./)?logs/zugriff\\.log$', frage: 'Um wie viel Uhr kam der letzte Zugriff? (hh:mm:ss)', antwort: ['07:35:05'] },
+  { text: 'Lass dir die Datei <code>kunden.csv</code> mit Zeilennummern ausgeben.', befehl: '^(nl|cat -n) (\\./)?kunden\\.csv$' },
+  { text: 'Zähle die Zeilen des Protokolls.', befehl: '^wc -l (\\./)?logs/zugriff\\.log$|^cat (\\./)?logs/zugriff\\.log \\| wc -l$|^wc -l < (\\./)?logs/zugriff\\.log$', frage: 'Wie viele Zugriffe sind es?', antwort: ['28'] },
+]} />
+
+## Sortieren, zählen, ausschneiden
+
+<Karte nr={2} titel="sort, uniq, cut und paste">
+**sort** sortiert Zeilen alphabetisch. Mit `-n` nach Zahlenwert (sonst kommt 10 vor 9), mit `-r` rückwärts, mit `-u` ohne Doppelte, mit `-h` nach Größen wie 2K und 1G. `-t,` legt das Komma als Feldtrenner fest, `-k3` sortiert nach dem dritten Feld.
+
+**uniq** fasst gleiche Zeilen zusammen, aber nur, wenn sie **direkt hintereinander** stehen. Darum steht vor uniq fast immer sort. `uniq -c` schreibt die Anzahl davor, `uniq -d` zeigt nur doppelte.
+
+**cut** schneidet Spalten aus. `cut -d, -f2` nimmt das zweite Feld, getrennt durch Kommas. Ohne `-d` trennt cut am Tabulator, nicht am Leerzeichen. `-f1,3` nimmt Feld 1 und 3, `-f2-` alles ab Feld 2. `cut -c1-4` schneidet Zeichen aus.
+
+**paste** setzt Zeilen mehrerer Dateien nebeneinander, getrennt durch Tabulatoren oder mit `-d,` durch Kommas. **wc** zählt: `-l` Zeilen, `-w` Wörter, `-c` Bytes.
+
+Das Muster, das du im Alltag am häufigsten brauchst, ist die **Häufigkeitsliste**:
+
+```
+cut -d' ' -f1 logs/zugriff.log | sort | uniq -c | sort -rn | head -3
+```
+
+Erstes Feld ausschneiden, sortieren, zählen, nach Anzahl rückwärts sortieren, die ersten drei zeigen.
+</Karte>
+
+<Merke>sort | uniq -c | sort -rn ist die Häufigkeitsliste. cut ohne -d trennt am Tab.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: sort und uniq" fragen={[
+  { frage: 'Eine Datei enthält die Zeilen a, b, a. Was gibt „uniq datei“ aus?', richtig: 'a, b, a', falsch: ['a, b', 'b'], erklaerung: 'Die beiden a stehen nicht nebeneinander. Erst sort | uniq ergibt a, b.' },
+  { frage: 'Was gibt „sort“ für die Zeilen 9, 10, 100 aus?', richtig: '10, 100, 9', falsch: ['9, 10, 100', '100, 10, 9'], erklaerung: 'Ohne -n vergleicht sort Zeichen für Zeichen. Mit sort -n kommt 9, 10, 100 heraus.' },
+]} />
+
+<Terminal id="zaehlen" titel="Terminal: Wer greift so oft zu?" welt={{ dateien: {"/home/lena/logs/zugriff.log": "10.0.0.5 - - [23/Nov/2026:07:02:46 +0100] \"GET /index.html HTTP/1.1\" 200 5120\n192.168.1.23 - - [23/Nov/2026:07:03:25 +0100] \"GET /bilder/logo.png HTTP/1.1\" 200 431\n203.0.113.77 - - [23/Nov/2026:07:04:00 +0100] \"GET /login HTTP/1.1\" 403 196\n192.168.1.23 - - [23/Nov/2026:07:04:51 +0100] \"GET /index.html HTTP/1.1\" 200 2048\n192.168.1.23 - - [23/Nov/2026:07:06:31 +0100] \"GET /index.html HTTP/1.1\" 200 5120\n198.51.100.9 - - [23/Nov/2026:07:06:51 +0100] \"GET /login HTTP/1.1\" 200 431\n10.0.0.5 - - [23/Nov/2026:07:08:45 +0100] \"GET /bilder/logo.png HTTP/1.1\" 200 880\n203.0.113.77 - - [23/Nov/2026:07:10:22 +0100] \"GET /wp-login.php HTTP/1.1\" 404 196\n198.51.100.9 - - [23/Nov/2026:07:11:13 +0100] \"GET /kontakt.html HTTP/1.1\" 404 196\n203.0.113.77 - - [23/Nov/2026:07:12:34 +0100] \"GET /login HTTP/1.1\" 403 196\n10.0.0.5 - - [23/Nov/2026:07:14:06 +0100] \"GET /preise.html HTTP/1.1\" 200 5120\n203.0.113.77 - - [23/Nov/2026:07:14:41 +0100] \"GET /login HTTP/1.1\" 403 196\n192.168.1.40 - - [23/Nov/2026:07:15:28 +0100] \"GET /bilder/logo.png HTTP/1.1\" 200 880\n203.0.113.77 - - [23/Nov/2026:07:17:20 +0100] \"GET /admin HTTP/1.1\" 404 196\n192.168.1.23 - - [23/Nov/2026:07:17:44 +0100] \"GET /login HTTP/1.1\" 200 15360\n192.168.1.23 - - [23/Nov/2026:07:19:16 +0100] \"GET /bilder/logo.png HTTP/1.1\" 200 431\n192.168.1.40 - - [23/Nov/2026:07:21:17 +0100] \"GET /index.html HTTP/1.1\" 200 15360\n203.0.113.77 - - [23/Nov/2026:07:23:23 +0100] \"GET /login HTTP/1.1\" 404 196\n192.168.1.40 - - [23/Nov/2026:07:23:44 +0100] \"GET /index.html HTTP/1.1\" 200 15360\n10.0.0.5 - - [23/Nov/2026:07:25:43 +0100] \"GET /bilder/logo.png HTTP/1.1\" 200 15360\n192.168.1.23 - - [23/Nov/2026:07:25:53 +0100] \"GET /preise.html HTTP/1.1\" 200 431\n192.168.1.40 - - [23/Nov/2026:07:26:27 +0100] \"GET /preise.html HTTP/1.1\" 404 196\n192.168.1.23 - - [23/Nov/2026:07:27:45 +0100] \"GET /kontakt.html HTTP/1.1\" 200 880\n192.168.1.23 - - [23/Nov/2026:07:29:30 +0100] \"GET /preise.html HTTP/1.1\" 404 196\n203.0.113.77 - - [23/Nov/2026:07:31:29 +0100] \"GET /wp-login.php HTTP/1.1\" 404 196\n10.0.0.5 - - [23/Nov/2026:07:32:45 +0100] \"GET /kontakt.html HTTP/1.1\" 200 431\n192.168.1.23 - - [23/Nov/2026:07:34:01 +0100] \"GET /preise.html HTTP/1.1\" 200 880\n10.0.0.5 - - [23/Nov/2026:07:35:05 +0100] \"GET /kontakt.html HTTP/1.1\" 404 196\n", "/home/lena/kunden.csv": "nr,name,ort,umsatz\n1001,Bäckerei Krume,Kassel,4200\n1002,Elektro Funke,Göttingen,12800\n1003,Café Bohne,Kassel,950\n1004,Schreinerei Span,Fulda,7300\n1005,Fahrrad Speiche,Göttingen,3100\n1006,Blumen Blüte,Kassel,1800\n1007,Druckerei Letter,Fulda,15600\n", "/home/lena/orte.txt": "Kassel\nGöttingen\nFulda\n", "/home/lena/vorwahl.txt": "0561\n0551\n0661\n"} }} aufgaben={[
+  { text: 'Schneide aus dem Protokoll nur die IP-Adressen aus (erstes Feld, Trenner Leerzeichen).', befehl: "^cut -d ?(' '|\" \"|\\\\ ) -f ?1 (\\./)?logs/zugriff\\.log$" },
+  { text: 'Erstelle die Häufigkeitsliste der IP-Adressen, die häufigste oben.', befehl: "^cut -d ?(' '|\" \"|\\\\ ) -f ?1 (\\./)?logs/zugriff\\.log \\| sort \\| uniq -c \\| sort -n?r", frage: 'Welche IP-Adresse greift am häufigsten zu?', antwort: ['192.168.1.23'] },
+  { text: 'Wie oft taucht der Statuscode 404 auf? Nimm das neunte Feld und zähle mit sort und uniq.', befehl: "^cut -d ?(' '|\" \"|\\\\ ) -f ?9 (\\./)?logs/zugriff\\.log \\| sort \\| uniq -c", frage: 'Wie viele 404?', antwort: ['8'] },
+  { text: 'Sortiere <code>kunden.csv</code> numerisch nach dem Umsatz (viertes Feld, Komma als Trenner).', befehl: '^sort -t ?(,|\',\'|",") -k ?4 -n (\\./)?kunden\\.csv|^sort -n -t ?(,|\',\'|",") -k ?4 (\\./)?kunden\\.csv|^sort -t ?(,|\',\'|",") -n -k ?4 (\\./)?kunden\\.csv|^sort -t ?(,|\',\'|",") -k ?4n (\\./)?kunden\\.csv', frage: 'Welche Firma hat den höchsten Umsatz?', antwort: ['Druckerei Letter'] },
+  { text: 'Wie viele Kunden gibt es je Ort? Schneide den Ort aus und zähle.', befehl: '^cut -d ?(,|\',\'|",") -f ?3 (\\./)?kunden\\.csv \\| sort \\| uniq -c', frage: 'Wie viele Kunden sitzen in Kassel?', antwort: ['3'] },
+  { text: 'Setze <code>orte.txt</code> und <code>vorwahl.txt</code> nebeneinander.', befehl: '^paste (-d ?\\S+ )?(\\./)?orte\\.txt (\\./)?vorwahl\\.txt$', frage: 'Welche Vorwahl steht neben Fulda?', antwort: ['0661'] },
+]} />
+
+<Hinweis titel="Prüfungstipp">
+Achte in Prüfungsfragen auf zwei Fallen: uniq ohne vorheriges sort, und sort ohne -n bei Zahlen. Und merke dir den Standard-Trenner von cut: Tabulator. Für Leerzeichen brauchst du `-d' '`.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Welche Zeile zeigt die fünf häufigsten Wörter einer Datei mit einem Wort pro Zeile?', richtig: 'sort datei | uniq -c | sort -rn | head -5', falsch: ['uniq -c datei | sort | head -5', 'sort -n datei | uniq | head -5'], erklaerung: 'Erst sortieren, dann zählen, dann nach der Anzahl absteigend sortieren.' },
+  { frage: 'Was gibt „cut -c1-3“ für die Zeile „Werkstatt“ aus?', richtig: 'Wer', falsch: ['Werkst', 'statt'], erklaerung: '-c nimmt Zeichen, hier Zeichen 1 bis 3.' },
+  { frage: 'Welcher Befehl zählt die Wörter einer Datei?', richtig: 'wc -w', falsch: ['wc -c', 'nl -w'], erklaerung: '-c zählt Bytes, -l Zeilen, -w Wörter.' },
+]} />

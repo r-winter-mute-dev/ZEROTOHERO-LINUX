@@ -1,0 +1,140 @@
+---
+id: l1-3-8
+checks:
+  - id: k1
+  - id: beobachten
+  - id: k2
+  - id: beenden
+  - id: k3
+spick:
+  - t: "Alle Prozesse"
+    v: "ps aux  oder  ps -ef"
+  - t: "Prozesse eines Benutzers"
+    v: "ps -u max, pgrep -u max"
+  - t: "Live-Ansicht"
+    v: "top (q beendet, k beendet Prozess, r renice)"
+  - t: "Speicher und Last"
+    v: "free -h, uptime"
+  - t: "PID zu einem Namen"
+    v: "pgrep -l name"
+  - t: "Signal schicken"
+    v: "kill PID (15), kill -9 PID, kill -HUP PID"
+  - t: "Nach Namen beenden"
+    v: "killall name (genau), pkill muster"
+  - t: "Wiederholt ausführen"
+    v: "watch -n 5 befehl"
+karten:
+  - f: "Welches Signal schickt kill ohne Option?"
+    a: ["15", "sigterm", "term"]
+  - f: "Welches Signal kann ein Prozess weder abfangen noch ignorieren?"
+    a: ["9", "sigkill", "kill"]
+  - f: "Welche Nummer hat SIGHUP?"
+    a: ["1"]
+  - f: "Wofür nutzen viele Dienste SIGHUP?"
+    a: ["konfiguration neu laden", "um die konfiguration neu einzulesen", "neu laden"]
+  - f: "Was ist der Unterschied zwischen killall und pkill?"
+    a: ["killall braucht den genauen namen pkill ein muster", "killall genauer name, pkill muster"]
+  - f: "Was zeigen die drei Zahlen hinter load average?"
+    a: ["die last der letzten 1, 5 und 15 minuten", "durchschnittliche last über 1 5 und 15 minuten", "last 1 5 15 minuten"]
+  - f: "Welcher Befehl zeigt freien und belegten Arbeitsspeicher?"
+    a: ["free", "free -h"]
+  - f: "Welcher Befehl führt einen anderen alle zwei Sekunden erneut aus?"
+    a: ["watch"]
+  - f: "Mit welcher Taste beendest du top?"
+    a: ["q"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+
+Der Lüfter der Werkstatt dröhnt, alles reagiert zäh. Irgendetwas frisst Rechenzeit. **Deine Mission: Finde den Übeltäter und beende ihn, ohne die Arbeit der anderen zu zerstören.** Lernziel 103.5.
+
+## Hinschauen
+
+<Karte nr={1} titel="ps, top, uptime, free">
+Jeder laufende Prozess hat eine **PID** (Prozess-ID), einen Besitzer und einen Elternprozess (PPID).
+
+- `ps` ohne Option zeigt nur die Prozesse deines Terminals.
+- `ps aux` (BSD-Stil, ohne Bindestrich) zeigt alle mit CPU- und Speicheranteil. `ps -ef` (Unix-Stil) zeigt alle mit PPID. Beide Stile sind gleich wichtig für die Prüfung.
+- `ps -u max` zeigt die Prozesse von max, `ps -p 3571` genau einen.
+- `top` ist die Live-Ansicht, sortiert nach CPU. Tasten: `q` beenden, `k` Prozess beenden, `r` Priorität ändern, `M` nach Speicher sortieren, `P` nach CPU. `top -b -n 1` gibt eine einzige Momentaufnahme aus, praktisch für Pipes.
+- `uptime` zeigt, wie lange der Rechner läuft, und die **load average**: die durchschnittliche Zahl der Prozesse, die in den letzten **1, 5 und 15 Minuten** rechnen wollten. Liegt sie dauerhaft über der Zahl der CPU-Kerne, wartet jemand.
+- `free -h` zeigt Arbeitsspeicher und Swap. `available` ist der Speicher, den neue Programme bekommen können, ohne dass ausgelagert werden muss. `buff/cache` gibt der Kernel bei Bedarf frei.
+- `pgrep messd` gibt die PIDs aller Prozesse mit messd im Namen aus, `-l` mit Namen, `-u max` nur die von max.
+- `watch -n 5 befehl` führt den Befehl alle 5 Sekunden aus, bis du Strg+C drückst.
+</Karte>
+
+<Merke>ps aux und ps -ef zeigen alles. top live, q beendet. load average: 1, 5, 15 Minuten.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: Hinschauen" fragen={[
+  { frage: 'Welche Spalte zeigt ps -ef, die ps aux nicht zeigt?', richtig: 'PPID, die ID des Elternprozesses', falsch: ['%CPU', 'STAT'], erklaerung: 'ps aux zeigt dafür %CPU, %MEM und STAT.' },
+  { frage: 'uptime meldet „load average: 3,90, 3,85, 3,70“ auf einem Rechner mit 4 Kernen. Was heißt das?', richtig: 'Die Kerne sind seit mindestens 15 Minuten fast voll ausgelastet.', falsch: ['Der Rechner ist überlastet und hängt.', 'Der Rechner läuft seit 3,9 Tagen.'], erklaerung: 'Eine Last nahe der Kernzahl bedeutet volle, aber noch keine überlaufende Auslastung.' },
+]} />
+
+<Terminal id="beobachten" titel="Terminal: Wer frisst die CPU?" welt={{ extraProzesse: [
+  { pid: 3571, user: 'lena', cmd: '/usr/local/bin/messd --kanal 1', ppid: 1, cpu: 97.3, mem: 2.1, vsz: 210000, rss: 340000, tty: '?', stat: 'R', start: '08:02', zeit: '00:37:12', ignoriertTerm: true },
+  { pid: 3602, user: 'max', cmd: 'python3 auswertung.py', ppid: 3050, cpu: 12.0, mem: 4.4, vsz: 420000, rss: 710000, tty: 'pts/1', stat: 'S', start: '08:20', zeit: '00:03:40' },
+] }} aufgaben={[
+  { text: 'Lass dir die Prozesse deines Terminals anzeigen.', befehl: '^ps$' },
+  { text: 'Lass dir alle Prozesse im BSD-Stil mit CPU-Anteil anzeigen.', befehl: '^ps (aux|-aux|axu)' },
+  { text: 'Und alle Prozesse im Unix-Stil.', befehl: '^ps -ef', frage: 'Welche PPID hat messd?', antwort: ['1'] },
+  { text: 'Mach eine Momentaufnahme mit top im Batchmodus.', befehl: '^top -b( -n ?1)?', frage: 'Welcher Prozess verbraucht am meisten CPU? (Name)', antwort: ['messd'] },
+  { text: 'Zeig nur die Prozesse von max.', befehl: '^(ps -u max|ps -U max|pgrep -l?u max|pgrep -u max( -l)?)' },
+  { text: 'Lass dir Last und Laufzeit anzeigen.', befehl: '^uptime$', frage: 'Wie hoch ist die Last der letzten 15 Minuten?', antwort: ['0,40', '0.40', '0,4'] },
+  { text: 'Wie viel Arbeitsspeicher ist frei? Lass ihn dir lesbar anzeigen.', befehl: '^free -h$' },
+  { text: 'Finde mit pgrep die PID von messd.', befehl: '^pgrep (-l |-a )?messd$', frage: 'PID?', antwort: ['3571'] },
+]} />
+
+## Eingreifen
+
+<Karte nr={2} titel="Signale">
+Prozesse beendest du nicht direkt, du schickst ihnen ein **Signal**. Die wichtigsten:
+
+| Nr. | Name | Bedeutung |
+|---|---|---|
+| 1 | SIGHUP | Terminal weg. Viele Dienste lesen daraufhin ihre Konfiguration neu. |
+| 2 | SIGINT | Unterbrechen, das schickt Strg+C |
+| 9 | SIGKILL | Sofort beenden. Kann nicht abgefangen werden, aber der Prozess kann nicht aufräumen. |
+| 15 | SIGTERM | Bitte beenden. Standard von kill, killall und pkill. |
+| 18 | SIGCONT | Weiterlaufen lassen |
+| 19 | SIGSTOP | Anhalten, nicht abfangbar |
+| 20 | SIGTSTP | Anhalten, das schickt Strg+Z |
+
+- `kill 3571` schickt SIGTERM. `kill -9 3571`, `kill -KILL 3571` und `kill -s SIGKILL 3571` schicken SIGKILL. `kill -l` listet alle Signale.
+- `killall messd` trifft alle Prozesse mit **genau** diesem Namen. `pkill mess` trifft alle, deren Name auf das **Muster** passt, `pkill -u max` alle von max.
+- Normale Benutzer dürfen nur ihren eigenen Prozessen Signale schicken. Für fremde braucht es root.
+
+Der richtige Weg: erst SIGTERM, ein paar Sekunden warten, erst dann SIGKILL. Sonst bleiben halb geschriebene Dateien oder Sperrdateien zurück.
+</Karte>
+
+<Merke>kill = 15 TERM (bitte). -9 KILL (sofort, nicht abfangbar). -1 HUP (neu laden). killall genau, pkill Muster.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: Signale" fragen={[
+  { frage: 'Ein Dienst soll seine geänderte Konfiguration einlesen, ohne neu zu starten. Welches Signal ist üblich?', richtig: 'SIGHUP (1)', falsch: ['SIGKILL (9)', 'SIGSTOP (19)'], erklaerung: 'Viele Dienste wie sshd lesen bei SIGHUP ihre Konfiguration neu.' },
+  { frage: 'Warum ist kill -9 nicht die erste Wahl?', richtig: 'Der Prozess bekommt keine Chance, Dateien zu schließen und aufzuräumen.', falsch: ['kill -9 darf nur root benutzen.', 'kill -9 beendet auch alle Kindprozesse des Systems.'], erklaerung: 'SIGTERM lässt dem Programm Zeit zum Aufräumen.' },
+]} />
+
+<Terminal id="beenden" titel="Terminal: Den Übeltäter beenden" welt={{ extraProzesse: [
+  { pid: 3571, user: 'lena', cmd: '/usr/local/bin/messd --kanal 1', ppid: 1, cpu: 97.3, mem: 2.1, vsz: 210000, rss: 340000, tty: '?', stat: 'R', start: '08:02', zeit: '00:37:12', ignoriertTerm: true },
+  { pid: 3602, user: 'max', cmd: 'python3 auswertung.py', ppid: 3050, cpu: 12.0, mem: 4.4, vsz: 420000, rss: 710000, tty: 'pts/1', stat: 'S', start: '08:20', zeit: '00:03:40' },
+] }} aufgaben={[
+  { text: 'Lass dir die Liste aller Signale anzeigen.', befehl: '^kill -l$' },
+  { text: 'Bitte messd höflich, sich zu beenden.', zustand: 'signal:3571=15' },
+  { text: 'Prüf mit <code>ps -p 3571</code>, ob messd noch läuft.', befehl: '^ps -p 3571$', frage: 'Läuft messd noch? (ja/nein)', antwort: ['ja'] },
+  { text: 'Beende messd jetzt mit einem Signal, das es nicht ignorieren kann.', zustand: 'signal:3571=9 && prozess:3571=weg' },
+  { text: 'Versuch, max’ Auswertung (PID 3602) zu beenden, und lies die Meldung.', befehl: '^kill (-\\S+ )?3602$', auchFehler: true },
+  { text: 'Beende mit killall alle Prozesse, die genau <code>python3</code> heißen, und lies die Ausgabe genau.', befehl: '^killall python3$', auchFehler: true, frage: 'Welcher python3-Prozess läuft danach noch? (PID)', antwort: ['3602'] },
+  { text: 'Starte <code>watch -n 5 uptime</code> und beende es wieder mit Strg+C (Knopf unter dem Terminal).', befehl: '^watch -n ?5 uptime$', zustand: 'strg-c' },
+]} />
+
+<Hinweis titel="Prüfungstipp">
+Lerne die Signalnummern 1, 2, 9, 15 auswendig, dazu 18, 19 und 20. Gefragt wird oft, welches Signal kill standardmäßig schickt (15) und welches sich nicht abfangen lässt (9, und auch 19). Und der Unterschied zwischen killall (genauer Name) und pkill (Muster).
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Welcher Befehl schickt allen Prozessen des Benutzers max SIGTERM?', richtig: 'pkill -u max', falsch: ['killall -u', 'kill -u max'], erklaerung: 'kill braucht PIDs. pkill kann nach Benutzer auswählen.' },
+  { frage: 'Welche Zeile zeigt alle Prozesse mit „ssh“ im Namen samt PID und Namen?', richtig: 'pgrep -l ssh', falsch: ['pkill -l ssh', 'ps ssh'], erklaerung: 'pgrep sucht, pkill schickt Signale.' },
+  { frage: 'Welche Taste in top schickt einem Prozess ein Signal?', richtig: 'k', falsch: ['q', 's'], erklaerung: 'k fragt nach PID und Signal. q beendet top selbst.' },
+]} />

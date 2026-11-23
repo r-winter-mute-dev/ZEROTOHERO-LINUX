@@ -1,0 +1,21 @@
+---
+id: l1-3-probe
+abzeichen: "Topic 103 bestanden"
+checks:
+  - id: probe
+---
+import Probe from '../components/Probe.astro';
+import Karte from '../components/Karte.astro';
+import Hinweis from '../components/Hinweis.astro';
+
+Topic 103 ist der größte Block der Prüfung 101: ungefähr **26 von 60 Fragen**. Zusammen mit Topic 101 und 102 deckt diese Probe schon gut drei Viertel der Prüfung ab. **Deine Mission: Bestehe die Probe mit mindestens 80 %.**
+
+<Karte nr={1} titel="Fragen zum Tippen">
+In dieser Probe kommen mehr Fragen, bei denen du einen Befehl oder eine Option eintippst, statt sie anzukreuzen. Die echte Prüfung hat solche Lückenfragen auch. Wiedererkennen ist leichter als Abrufen, und genau darum übt Abrufen besser.
+</Karte>
+
+<Hinweis titel="Zum Tempo">
+40 Fragen in 60 Minuten. Die Gewichtung folgt den Lernzielen, darum stammt mehr als die Hälfte der Fragen aus Topic 103. Falsch beantwortete Fragen landen morgen in deiner Wiederholung.
+</Hinweis>
+
+<Probe id="probe" titel="Probeprüfung: Topic 101 bis 103" ziele={['101.1', '101.2', '101.3', '102.1', '102.2', '102.3', '102.4', '102.5', '102.6', '103.1', '103.2', '103.3', '103.4', '103.5', '103.6', '103.7', '103.8']} anzahl={40} />

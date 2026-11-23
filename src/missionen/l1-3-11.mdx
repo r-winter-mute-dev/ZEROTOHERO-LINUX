@@ -1,0 +1,159 @@
+---
+id: l1-3-11
+checks:
+  - id: k1
+  - id: grep
+  - id: k2
+  - id: luecke
+  - id: sed
+  - id: k3
+spick:
+  - t: "Anker"
+    v: "^ Zeilenanfang, $ Zeilenende"
+  - t: "Ein Zeichen"
+    v: ". beliebig, [abc] eins davon, [^abc] keins davon, [0-9]"
+  - t: "Wiederholung (BRE)"
+    v: "* beliebig oft, \\{3\\} genau 3, \\{2,4\\}"
+  - t: "Wiederholung (ERE, grep -E)"
+    v: "+ mindestens 1, ? 0 oder 1, {3}, {2,4}"
+  - t: "Oder und Gruppe"
+    v: "ERE: a|b (x)   BRE: a\\|b \\(x\\)"
+  - t: "Klassen"
+    v: "[[:digit:]] [[:alpha:]] [[:alnum:]] [[:space:]] [[:upper:]]"
+  - t: "grep-Optionen"
+    v: "-i -v -c -n -l -w -o -r -E -F"
+  - t: "egrep / fgrep"
+    v: "veraltet für grep -E / grep -F"
+  - t: "sed mit Gruppen"
+    v: "sed -E 's/(a)(b)/\\2\\1/'"
+  - t: "Nachschlagen"
+    v: "man 7 regex"
+karten:
+  - f: "Was passt auf den regulären Ausdruck „^#“?"
+    a: ["zeilen die mit # beginnen", "zeilen die mit einem # anfangen"]
+  - f: "Wofür steht der Punkt in einem regulären Ausdruck?"
+    a: ["ein beliebiges zeichen", "genau ein beliebiges zeichen"]
+  - f: "Was bedeutet * in einem regulären Ausdruck?"
+    a: ["das vorige zeichen beliebig oft auch nullmal", "null oder mehr mal das vorige", "beliebig oft das vorhergehende zeichen"]
+  - f: "Was bedeutet + in einem erweiterten regulären Ausdruck?"
+    a: ["mindestens einmal", "einmal oder öfter", "das vorige mindestens einmal"]
+  - f: "Wie schreibst du „genau fünf Ziffern“ als erweiterten regulären Ausdruck?"
+    a: ["[0-9]{5}", "[[:digit:]]{5}"]
+  - f: "Welche grep-Option schaltet erweiterte reguläre Ausdrücke ein?"
+    a: ["-E", "grep -E"]
+  - f: "Welche grep-Option sucht eine feste Zeichenkette ohne Sonderzeichen?"
+    a: ["-F", "grep -F"]
+  - f: "Welche grep-Option gibt nur die Zeilen aus, die nicht passen?"
+    a: ["-v", "grep -v"]
+  - f: "Welche grep-Option gibt nur den passenden Teil der Zeile aus?"
+    a: ["-o", "grep -o"]
+  - f: "In welchem Handbuchabschnitt steht regex?"
+    a: ["7", "man 7 regex"]
+  - f: "Wie heißt die Zeichenklasse für Ziffern in POSIX-Schreibweise?"
+    a: ["[:digit:]", "[[:digit:]]"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Lueckentext from '../components/Lueckentext.astro';
+
+Die Kundendatei ist über Jahre gewachsen. Darin stecken falsche Postleitzahlen, kaputte Mail-Adressen und uneinheitliche Telefonnummern. Mit festen Suchwörtern findest du die Fehler nicht, denn du weißt ja nicht, wie sie aussehen. **Deine Mission: Beschreib, wie richtige Daten aussehen, und lass grep den Rest finden.** Lernziel 103.7.
+
+## Muster beschreiben
+
+<Karte nr={1} titel="Die Bausteine regulärer Ausdrücke">
+Ein **regulärer Ausdruck** beschreibt ein Textmuster. Er ist nicht dasselbe wie die Platzhalter der Shell: Dort heißt `*` „beliebige Zeichen“, hier heißt es „das vorige Zeichen beliebig oft“.
+
+| Baustein | Bedeutung | Beispiel |
+|---|---|---|
+| `.` | genau ein beliebiges Zeichen | `K.ssel` |
+| `[abc]` `[0-9]` | eins der Zeichen | `[BC]` |
+| `[^abc]` | ein Zeichen, das nicht dabei ist | `[^0-9]` |
+| `^` | Zeilenanfang | `^#` |
+| `$` | Zeilenende | `\.de$` |
+| `*` | voriges Zeichen 0-mal oder öfter | `0*` |
+| `\` | nächstes Zeichen wörtlich | `\.` ist ein echter Punkt |
+
+POSIX-Klassen stehen immer in eckigen Klammern: `[[:digit:]]` Ziffern, `[[:alpha:]]` Buchstaben, `[[:alnum:]]` beides, `[[:space:]]` Leerraum, `[[:upper:]]` und `[[:lower:]]`. Sie sind sicherer als `[a-z]`, das je nach Spracheinstellung Umlaute mitnimmt oder nicht.
+
+Es gibt zwei Schreibweisen:
+
+| | Grundlegend (BRE) | Erweitert (ERE) |
+|---|---|---|
+| Programm | `grep`, `sed` | `grep -E`, `egrep`, `sed -E` |
+| mindestens einmal | `\+` (GNU) | `+` |
+| höchstens einmal | `\?` (GNU) | `?` |
+| genau n, n bis m | `\{n\}`, `\{n,m\}` | `{n}`, `{n,m}` |
+| Gruppe, oder | `\(…\)`, `\|` (GNU) | `(…)`, `|` |
+
+In BRE sind `+ ? { } ( ) |` normale Zeichen und werden erst mit Backslash zu Sonderzeichen. In ERE ist es umgekehrt. Ausführlich steht alles in `man 7 regex`.
+</Karte>
+
+<Merke>. ein Zeichen, * voriges beliebig oft, ^ Anfang, $ Ende. ERE (grep -E): + ? `{n}` ( ) | ohne Backslash.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: Bausteine" fragen={[
+  { frage: 'Auf welche Zeile passt „^a.c$“?', richtig: 'abc', falsch: ['ac', 'abbc'], erklaerung: 'Zwischen a und c steht genau ein Zeichen, und die Zeile hat sonst nichts.' },
+  { frage: "Was findet „grep 'ab*c'“?", richtig: 'ac, abc und abbbc', falsch: ['Nur abc', 'ab gefolgt von beliebigem Text und c'], erklaerung: '* gilt für das b davor, auch nullmal.' },
+  { frage: 'Welcher Aufruf findet Zeilen mit „Fulda“ oder „Kassel“?', richtig: "grep -E 'Fulda|Kassel'", falsch: ["grep 'Fulda|Kassel'", "grep -F 'Fulda|Kassel'"], erklaerung: 'In BRE ist | ein normales Zeichen. GNU grep versteht dort auch Fulda\\|Kassel.' },
+]} />
+
+<Terminal id="grep" titel="Terminal: Fehler in den Kundendaten" welt={{ dateien: {"/home/lena/daten.txt": "Bäckerei Krume, Kassel, 34117, 0561 123456, info@krume.de\nElektro Funke, Göttingen, 37073, 0551 98765, funke@elektro-funke.de\nCafé Bohne, Kassel, 34119, 0561 55555, bohne@cafe\nSchreinerei Span, Fulda, 36037, 0661 4321, span@schreinerei-span.de\nFahrrad Speiche, Göttingen, 3707, 0551 12121, speiche@rad.de\n# Testeintrag, bitte ignorieren\nDruckerei Letter, Fulda, 36041, 0661 777, LETTER@DRUCK.DE\nKasseler Kiosk, Fulda, 36043, 0661 900, kiosk@kasseler.de\n"} }} aufgaben={[
+  { text: 'Zähle, wie viele Zeilen von <code>daten.txt</code> „Kassel“ enthalten.', befehl: '^grep -c ["\']?Kassel["\']? (\\./)?daten\\.txt$', frage: 'Wie viele?', antwort: ['3'] },
+  { text: 'Das sind zu viele, denn ein Kiosk heißt „Kasseler“. Zähle nur das ganze Wort Kassel.', befehl: "^grep (-cw|-wc|-c -w|-w -c) [\"']?Kassel[\"']? (\\./)?daten\\.txt$|^grep -c [\"']?, Kassel,[\"']? (\\./)?daten\\.txt$", frage: 'Wie viele jetzt?', antwort: ['2'] },
+  { text: 'Gib alle Zeilen aus, die nicht mit <code>#</code> beginnen.', befehl: "^grep -v ['\"]\\^#['\"] (\\./)?daten\\.txt$" },
+  { text: 'Such die Mail-Adresse von Letter ohne Rücksicht auf Groß- und Kleinschreibung.', befehl: '^grep -i .*letter.* (\\./)?daten\\.txt$' },
+  { text: 'Finde die Zeile, in der keine fünfstellige Postleitzahl zwischen zwei Kommas steht. Nutze ERE mit <code>{5}</code>.', befehl: "^grep (-vE|-Ev|-v -E|-E -v) ['\"], ?(\\[0-9\\]|\\[\\[:digit:\\]\\])\\{5\\},['\"] (\\./)?daten\\.txt$", frage: 'Welcher Betrieb hat eine falsche PLZ?', antwort: ['Fahrrad Speiche'] },
+  { text: 'Mach dasselbe mit BRE, also mit <code>\\{5\\}</code> und ohne -E.', befehl: "^grep -v ['\"], ?(\\[0-9\\]|\\[\\[:digit:\\]\\])\\\\\\{5\\\\\\},['\"] (\\./)?daten\\.txt$" },
+  { text: 'Gib mit -o nur die Mail-Adressen aus.', befehl: '^grep (-oE|-Eo|-o -E|-E -o|-o) .*@', frage: 'Welche Adresse hat keine Endung wie .de? (ganze Adresse)', antwort: ['bohne@cafe'] },
+  { text: 'Zähle mit fgrep oder grep -F, wie viele Zeilen die feste Zeichenkette <code>.de</code> enthalten.', befehl: "^(fgrep|grep -F) (-c ['\"]?\\.de['\"]?|['\"]?\\.de['\"]? (\\./)?daten\\.txt \\| wc -l|['\"]?\\.de['\"]? -c)", auchFehler: true },
+]} />
+
+## sed mit regulären Ausdrücken
+
+<Karte nr={2} titel="Suchen und ersetzen mit Gruppen">
+sed versteht dieselben Muster. Mit Gruppen kannst du Teile des Treffers im Ersatz wiederverwenden: `\1` ist die erste Klammergruppe, `\2` die zweite, `&` der ganze Treffer.
+
+```
+sed -E 's/(0[0-9]{3}) ([0-9]+)/\1-\2/' daten.txt
+```
+
+macht aus `0561 123456` die Form `0561-123456`. Ohne `-E` müssten die Klammern `\(` `\)` und die Mengenangabe `\{3\}` heißen.
+
+Weitere nützliche sed-Befehle: `sed -n '/Fulda/p'` druckt nur passende Zeilen (wie grep), `sed '/^#/d'` löscht Kommentare, `sed '3,5d'` löscht die Zeilen 3 bis 5, `sed 's/a/b/2'` ersetzt nur den zweiten Treffer einer Zeile.
+</Karte>
+
+<Merke>\1, \2 holen Gruppen zurück, & den ganzen Treffer. sed -E wie grep -E.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: sed" fragen={[
+  { frage: 'Was gibt „echo 2026-11-23 | sed -E \'s/([0-9]+)-([0-9]+)-([0-9]+)/\\3.\\2.\\1/\'“ aus?', richtig: '23.11.2026', falsch: ['2026.11.23', '\\3.\\2.\\1'], erklaerung: 'Die drei Gruppen werden in umgekehrter Reihenfolge eingesetzt.' },
+]} />
+
+<Lueckentext id="luecke" titel="Code-Puzzle: Muster bauen" aufgabe="Ergänze die Muster. Zeile 1 findet leere Zeilen. Zeile 2 findet Zeilen, die mit einer Ziffer beginnen. Zeile 3 findet Zeilen, die auf .de enden. Zeile 4 findet drei bis vier Ziffern hintereinander, in ERE."
+  code={`grep '___' datei
+grep '___[0-9]' datei
+grep '\\.de___' datei
+grep -E '[0-9]___' datei`}
+  luecken={[
+    { loesungen: ['^$'], tipp: 'Anfang und Ende direkt hintereinander.' },
+    { loesungen: ['^'], tipp: 'Anker für den Zeilenanfang.' },
+    { loesungen: ['$'], tipp: 'Anker für das Zeilenende.' },
+    { loesungen: ['{3,4}'], tipp: 'Mindestens und höchstens in geschweiften Klammern.' },
+  ]} />
+
+<Terminal id="sed" titel="Terminal: Einheitlich machen" welt={{ dateien: {"/home/lena/daten.txt": "Bäckerei Krume, Kassel, 34117, 0561 123456, info@krume.de\nElektro Funke, Göttingen, 37073, 0551 98765, funke@elektro-funke.de\nCafé Bohne, Kassel, 34119, 0561 55555, bohne@cafe\nSchreinerei Span, Fulda, 36037, 0661 4321, span@schreinerei-span.de\nFahrrad Speiche, Göttingen, 3707, 0551 12121, speiche@rad.de\n# Testeintrag, bitte ignorieren\nDruckerei Letter, Fulda, 36041, 0661 777, LETTER@DRUCK.DE\nKasseler Kiosk, Fulda, 36043, 0661 900, kiosk@kasseler.de\n"} }} aufgaben={[
+  { text: 'Gib mit sed und Gruppen alle Telefonnummern in der Form <code>0561-123456</code> aus, ohne die Datei zu ändern.', befehl: "^sed -E ['\"]s/\\(.*\\) \\(.*\\)/\\\\1-\\\\2/['\"] (\\./)?daten\\.txt$|^sed ['\"]s/\\\\\\(.*\\\\\\) \\\\\\(.*\\\\\\)/\\\\1-\\\\2/['\"] (\\./)?daten\\.txt$", zustand: 'ausgabe~0561-123456' },
+  { text: 'Druck mit sed nur die Zeilen aus Fulda.', befehl: "^sed -n ['\"]/Fulda/p['\"] (\\./)?daten\\.txt$" },
+  { text: 'Lösch in der Datei selbst die Testzeile, die mit # beginnt.', zustand: 'datei:/home/lena/daten.txt~^Druckerei' , befehl: "^sed -i ['\"]/\\^#/d['\"] (\\./)?daten\\.txt$" },
+]} />
+
+<Hinweis titel="Prüfungstipp">
+Die Prüfung zeigt dir einen Ausdruck und vier Zeilen und fragt, welche passen. Geh Zeichen für Zeichen vor und achte darauf, ob BRE oder ERE gemeint ist. Merke dir auch, dass egrep und fgrep nur alte Namen für grep -E und grep -F sind.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Welcher Ausdruck passt auf eine Zeile, die nur aus Ziffern besteht und mindestens eine hat?', richtig: "grep -E '^[0-9]+$'", falsch: ["grep '^[0-9]*$'", "grep -E '[0-9]+'"], erklaerung: '^[0-9]*$ passt auch auf leere Zeilen. [0-9]+ ohne Anker passt auf jede Zeile mit irgendeiner Ziffer.' },
+  { frage: 'Was macht „grep -r TODO /home/lena/projekt“?', richtig: 'Es durchsucht alle Dateien in dem Ordner und seinen Unterordnern.', falsch: ['Es ersetzt TODO in allen Dateien.', 'Es sucht nur in Dateinamen.'], erklaerung: '-r heißt rekursiv. Dateinamen durchsucht find.' },
+  { frage: 'Welcher Aufruf findet Zeilen, die genau „1.5“ enthalten, und nicht „125“?', richtig: "grep -F '1.5'", falsch: ["grep '1.5'", "grep -E '1.5'"], erklaerung: 'Ohne -F ist der Punkt ein Platzhalter für ein beliebiges Zeichen. Alternativ: grep \'1\\.5\'.' },
+]} />

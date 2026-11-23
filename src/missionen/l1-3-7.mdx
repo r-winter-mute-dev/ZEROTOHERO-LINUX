@@ -1,0 +1,141 @@
+---
+id: l1-3-7
+checks:
+  - id: k1
+  - id: umleiten
+  - id: k2
+  - id: reihe
+  - id: verketten
+  - id: k3
+spick:
+  - t: "Die drei Kanäle"
+    v: "0 stdin, 1 stdout, 2 stderr"
+  - t: "Ausgabe in Datei"
+    v: "> überschreibt, >> hängt an"
+  - t: "Fehler in Datei"
+    v: "2> fehler.txt, 2>/dev/null verwirft"
+  - t: "Beides in eine Datei"
+    v: "> datei 2>&1   oder   &> datei"
+  - t: "Eingabe aus Datei"
+    v: "befehl < datei"
+  - t: "Pipe"
+    v: "a | b  (stdout von a wird stdin von b)"
+  - t: "Mitschneiden"
+    v: "befehl | tee datei  (-a hängt an)"
+  - t: "Als Root in Datei schreiben"
+    v: "echo text | sudo tee /etc/datei"
+  - t: "Argumente aus stdin"
+    v: "find … | xargs rm"
+  - t: "Ausgabe einsetzen"
+    v: "$(befehl)  oder  `befehl`"
+karten:
+  - f: "Welche Nummer hat die Standardfehlerausgabe?"
+    a: ["2"]
+  - f: "Welche Nummer hat die Standardeingabe?"
+    a: ["0"]
+  - f: "Was ist der Unterschied zwischen > und >>?"
+    a: ["> überschreibt, >> hängt an", "> überschreibt und >> hängt an"]
+  - f: "Wie leitest du nur die Fehlermeldungen eines Befehls nach /dev/null?"
+    a: ["2>/dev/null", "2> /dev/null"]
+  - f: "Wie schreibst du stdout und stderr zusammen in die Datei log.txt (klassische Schreibweise)?"
+    a: ["> log.txt 2>&1", ">log.txt 2>&1"]
+  - f: "Wohin geht die Fehlermeldung bei „befehl 2>&1 > datei“?"
+    a: ["auf den bildschirm", "ins terminal", "auf das terminal"]
+  - f: "Welcher Befehl schreibt seine Eingabe in eine Datei und gibt sie gleichzeitig weiter aus?"
+    a: ["tee"]
+  - f: "Warum scheitert sudo echo text > /etc/datei?"
+    a: ["die umleitung macht die eigene shell ohne root rechte", "weil die shell die umleitung ohne root ausführt", "die umleitung läuft nicht als root"]
+  - f: "Welcher Befehl baut aus der Standardeingabe Argumente für einen anderen Befehl?"
+    a: ["xargs"]
+  - f: "Wie setzt du die Ausgabe von date +%F in einen anderen Befehl ein?"
+    a: ["$(date +%F)", "`date +%F`"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Reihenfolge from '../components/Reihenfolge.astro';
+
+Bisher erschien jede Ausgabe auf dem Bildschirm. Für Skripte, Protokolle und Fehlersuche willst du sie aber in Dateien, getrennt nach Erfolg und Fehler, oder direkt im nächsten Befehl. **Deine Mission: Lenke Datenströme dorthin, wo du sie brauchst.** Lernziel 103.4.
+
+## Drei Kanäle
+
+<Karte nr={1} titel="stdin, stdout, stderr">
+Jedes Programm hat drei Kanäle, nummeriert nach ihrem **Dateideskriptor**:
+
+| Nr. | Name | Normalerweise |
+|---|---|---|
+| 0 | stdin, Standardeingabe | Tastatur |
+| 1 | stdout, Standardausgabe | Bildschirm |
+| 2 | stderr, Standardfehlerausgabe | Bildschirm |
+
+Weil stdout und stderr beide auf dem Bildschirm landen, sehen sie gleich aus. Sie sind aber getrennt, und das ist der Trick:
+
+- `befehl > datei` schreibt stdout in die Datei und **überschreibt** sie. Fehler erscheinen weiter auf dem Bildschirm.
+- `befehl >> datei` **hängt** stdout an.
+- `befehl 2> datei` schreibt nur stderr in die Datei. `2>/dev/null` wirft Fehler weg. `/dev/null` ist der Papierkorb ohne Boden.
+- `befehl > datei 2>&1` schreibt beides in die Datei. `2>&1` heißt: Kanal 2 dorthin, wo Kanal 1 **gerade** hinzeigt. Die Bash kennt dafür auch die Kurzform `&> datei`.
+- `befehl < datei` liest stdin aus der Datei, etwa `wc -l < /etc/passwd`.
+
+Die Shell richtet Umleitungen **von links nach rechts** ein, bevor der Befehl startet. Darum ist `2>&1 > datei` etwas anderes: Erst zeigt 2 auf den Bildschirm (wohin 1 gerade zeigt), dann wird 1 auf die Datei gelenkt. Fehler bleiben auf dem Bildschirm. Und darum leert `> datei` die Datei, noch bevor der Befehl überhaupt läuft.
+</Karte>
+
+<Merke>0 rein, 1 raus, 2 Fehler. > überschreibt, >> hängt an. > datei 2>&1 ist beides, 2>&1 > datei nicht.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: Umleitungen" fragen={[
+  { frage: 'Welche Zeile sucht in ganz / nach passwd und blendet „Keine Berechtigung“ aus?', richtig: 'find / -name passwd 2>/dev/null', falsch: ['find / -name passwd > /dev/null', 'find / -name passwd 1>/dev/null'], erklaerung: 'Die Meldungen kommen auf Kanal 2. Mit > /dev/null würdest du die Treffer wegwerfen.' },
+  { frage: 'Was passiert bei „sort datei > datei“?', richtig: 'Die Datei ist danach leer.', falsch: ['Die Datei ist danach sortiert.', 'sort meldet einen Fehler und ändert nichts.'], erklaerung: 'Die Shell leert die Datei, bevor sort sie liest. Richtig ist sort -o datei datei oder eine neue Datei.' },
+]} />
+
+<Terminal id="umleiten" titel="Terminal: Ströme trennen" welt={{ dateien: { '/home/lena/protokoll.txt': 'Zeile 1\n' } }} aufgaben={[
+  { text: 'Schreib die Ausgabe von <code>ls notizen.txt gibtsnicht</code> nach <code>ausgabe.txt</code>.', befehl: '^ls notizen\\.txt gibtsnicht 1?> ?ausgabe\\.txt$', auchFehler: true, frage: 'Was erscheint trotzdem auf dem Bildschirm?', antwort: ['die fehlermeldung', 'fehlermeldung', 'der fehler', 'stderr', 'ls: Zugriff auf \'gibtsnicht\' nicht möglich: Datei oder Verzeichnis nicht gefunden'] },
+  { text: 'Wiederhole den Befehl, aber schreib nur die Fehlermeldung nach <code>fehler.txt</code>.', zustand: 'datei:/home/lena/fehler.txt~gibtsnicht' },
+  { text: 'Schreib jetzt beides zusammen nach <code>alles.txt</code>.', zustand: 'datei:/home/lena/alles.txt~gibtsnicht && datei:/home/lena/alles.txt~^notizen\\.txt$' },
+  { text: 'Probier die verdrehte Reihenfolge: <code>ls notizen.txt gibtsnicht 2>&1 > nur.txt</code>', befehl: '^ls notizen\\.txt gibtsnicht 2>&1 > ?nur\\.txt$', auchFehler: true, frage: 'Wo landet die Fehlermeldung? (Datei oder Bildschirm)', antwort: ['bildschirm', 'auf dem bildschirm', 'terminal'] },
+  { text: 'Häng die Zeile <code>Zeile 2</code> an <code>protokoll.txt</code> an, ohne Zeile 1 zu verlieren.', zustand: 'datei:/home/lena/protokoll.txt~^Zeile 1\\nZeile 2' },
+  { text: 'Such in ganz / nach <code>sshd_config</code> und wirf die Fehlermeldungen weg.', befehl: '^find / -name ["\']?sshd_config["\']? 2> ?/dev/null$', auchFehler: true },
+  { text: 'Zähle die Zeilen von <code>/etc/passwd</code>, indem du die Datei mit <code>&lt;</code> an wc gibst.', befehl: '^wc -l ?< ?/etc/passwd$', frage: 'Was fehlt in der Ausgabe im Vergleich zu wc -l /etc/passwd?', antwort: ['der dateiname', 'dateiname', 'der name der datei'] },
+]} />
+
+## Pipes, tee, xargs und Befehlsersetzung
+
+<Karte nr={2} titel="Befehle verketten">
+Die **Pipe** `a | b` verbindet stdout von a mit stdin von b. Fehler von a laufen nicht durch die Pipe, sie erscheinen weiter auf dem Bildschirm. Willst du sie mitschicken: `a 2>&1 | b` oder kurz `a |& b`.
+
+**tee** ist ein T-Stück: Es schreibt die Eingabe in eine Datei und gibt sie zugleich weiter. `ls /etc | tee liste.txt | wc -l` speichert die Liste und zählt sie. `tee -a` hängt an.
+
+tee löst auch ein klassisches Problem: `sudo echo text > /etc/motd` scheitert, weil die Umleitung deine eigene Shell einrichtet, ohne root-Rechte. sudo gilt nur für echo. Richtig ist `echo text | sudo tee /etc/motd`, denn hier öffnet tee als root die Datei.
+
+**xargs** macht aus der Standardeingabe Argumente: `find . -name '*.tmp' | xargs rm` ruft `rm datei1 datei2 …` auf. Nützlich, weil viele Befehle wie rm keine Namen von stdin lesen. `-n 1` ruft den Befehl für jedes Argument einzeln auf, `-I {}` setzt jedes Argument an der Stelle `{}` ein.
+
+**Befehlsersetzung** setzt die Ausgabe eines Befehls in die Zeile ein: `echo "Heute ist $(date +%F)"`. Die ältere Schreibweise mit Backticks `` `date +%F` `` macht dasselbe, lässt sich aber schlecht verschachteln.
+</Karte>
+
+<Merke>| verbindet stdout mit stdin. tee schreibt mit. xargs macht Argumente. $( ) setzt Ausgaben ein.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: Pipes" fragen={[
+  { frage: 'Was zählt „ls gibtsnicht | wc -l“?', richtig: '0, die Fehlermeldung geht nicht durch die Pipe.', falsch: ['1, die Fehlermeldung ist eine Zeile.', 'Nichts, wc meldet einen Fehler.'], erklaerung: 'Die Pipe verbindet nur stdout.' },
+  { frage: 'Welche Zeile legt eine Datei mit dem heutigen Datum im Namen an?', richtig: 'touch bericht-$(date +%F).txt', falsch: ['touch bericht-"date +%F".txt', 'touch bericht-${date +%F}.txt'], erklaerung: '${…} ist eine Variable, $(…) eine Befehlsersetzung.' },
+]} />
+
+<Reihenfolge id="reihe" titel="Code-Puzzle: Die größten Verzeichnisse" aufgabe="Bau eine Zeile, die die fünf größten Einträge unter /var zeigt und Fehlermeldungen verwirft. Bring die Teile in die richtige Reihenfolge." schritte={['du -s /var/* 2>/dev/null', '| sort -n', '| tail -5']} erklaerung="du gibt die Größe jedes Eintrags aus, sort -n sortiert numerisch aufsteigend, tail -5 nimmt die letzten fünf, also die größten. 2>/dev/null gehört an den Befehl, dessen Fehler du loswerden willst." />
+
+<Terminal id="verketten" titel="Terminal: Verketten" welt={{ dateien: { '/home/lena/projekt/a.tmp': 'x\n', '/home/lena/projekt/b.tmp': 'y\n', '/home/lena/projekt/main.c': 'int main(void) { return 0; }\n' } }} aufgaben={[
+  { text: 'Speichere die Liste von <code>/etc</code> mit tee in <code>etc-liste.txt</code> und zähle sie gleichzeitig mit wc -l.', befehl: '^ls /etc/? \\| tee etc-liste\\.txt \\| wc -l$', zustand: 'da:/home/lena/etc-liste.txt' },
+  { text: 'Versuch, mit <code>sudo echo "Wartung heute 18 Uhr" > /etc/motd</code> eine Nachricht für alle zu hinterlegen.', befehl: '^sudo echo .*> ?/etc/motd$', auchFehler: true },
+  { text: 'Mach es richtig, mit tee.', zustand: 'datei:/etc/motd~Wartung' },
+  { text: 'Lösche alle .tmp-Dateien in projekt mit find und xargs.', befehl: '^find (\\./)?projekt/? .*\\| xargs (-\\S+ )*rm', zustand: 'fehlt:/home/lena/projekt/*.tmp' },
+  { text: 'Gib mit echo und Befehlsersetzung den Satz <code>Heute ist</code> und das heutige Datum aus.', befehl: '^echo "?Heute ist (\\$\\(date( \\+%F)?\\)|`date( \\+%F)?`)"?$' },
+  { text: 'Lege mit touch die Datei <code>bericht-</code>plus Datum im Format JJJJ-MM-TT<code>.txt</code> an.', zustand: 'da:/home/lena/bericht-2026-11-23.txt' },
+]} />
+
+<Hinweis titel="Prüfungstipp">
+Die Reihenfolge von `> datei 2>&1` wird fast sicher abgefragt. Merke: Von links nach rechts lesen, `2>&1` kopiert das Ziel von Kanal 1 in diesem Moment. Ebenso beliebt: das sudo-Problem mit Umleitungen und die Frage, welcher Kanal durch eine Pipe geht.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Welche Zeile hängt stdout und stderr von backup.sh an log.txt an?', richtig: './backup.sh >> log.txt 2>&1', falsch: ['./backup.sh 2>&1 >> log.txt', './backup.sh > log.txt 2>>&1'], erklaerung: 'Erst stdout an die Datei hängen, dann stderr dorthin, wohin stdout zeigt.' },
+  { frage: 'Was macht „cat a.txt b.txt > c.txt“?', richtig: 'c.txt enthält danach a.txt und b.txt hintereinander.', falsch: ['c.txt bekommt nur b.txt.', 'Es vergleicht a.txt und b.txt.'], erklaerung: 'cat hängt die Dateien aneinander, > schreibt das Ergebnis.' },
+  { frage: 'Welcher Befehl übergibt jeden Dateinamen aus einer Liste einzeln an gzip?', richtig: 'cat liste.txt | xargs -n 1 gzip', falsch: ['cat liste.txt | gzip', 'gzip < liste.txt'], erklaerung: 'gzip < liste.txt würde den Text der Liste packen, nicht die genannten Dateien.' },
+]} />

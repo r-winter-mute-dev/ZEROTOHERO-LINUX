@@ -1,0 +1,115 @@
+---
+id: l1-3-10
+checks:
+  - id: k1
+  - id: nice
+  - id: k2
+  - id: renice
+  - id: k3
+spick:
+  - t: "Bereich der Nettigkeit"
+    v: "-20 (höchste Priorität) bis 19 (niedrigste), Standard 0"
+  - t: "Mit Nettigkeit starten"
+    v: "nice -n 10 befehl  (ohne -n: +10)"
+  - t: "Laufenden Prozess ändern"
+    v: "renice -n 15 -p PID, renice -n 5 -u max"
+  - t: "Wer darf was?"
+    v: "Benutzer: nur erhöhen. root: alles, auch negativ"
+  - t: "Anzeigen"
+    v: "ps -o pid,ni,cmd, ps -l (PRI, NI), top (PR, NI)"
+  - t: "In top"
+    v: "Taste r: renice"
+karten:
+  - f: "Welche Nettigkeit bedeutet die höchste Priorität?"
+    a: ["-20"]
+  - f: "Welche Nettigkeit bedeutet die niedrigste Priorität?"
+    a: ["19"]
+  - f: "Mit welcher Nettigkeit starten Prozesse normalerweise?"
+    a: ["0"]
+  - f: "Welche Nettigkeit setzt nice, wenn du keinen Wert angibst?"
+    a: ["10", "+10"]
+  - f: "Wie startest du backup.sh mit der Nettigkeit 15?"
+    a: ["nice -n 15 ./backup.sh", "nice -n 15 backup.sh", "nice -15 ./backup.sh"]
+  - f: "Wie änderst du die Nettigkeit des laufenden Prozesses 4012 auf 5?"
+    a: ["renice -n 5 -p 4012", "renice 5 -p 4012", "renice -n 5 4012", "renice 5 4012"]
+  - f: "Darf ein normaler Benutzer die Nettigkeit seines Prozesses senken?"
+    a: ["nein"]
+  - f: "Welche Spalte zeigt die Nettigkeit in ps und top?"
+    a: ["ni", "NI"]
+  - f: "Welche Taste in top ändert die Nettigkeit eines Prozesses?"
+    a: ["r"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+
+Das Rendern läuft, aber jetzt ruckelt die Videokonferenz. Das Rendern muss nicht schnell sein, nur irgendwann fertig. **Deine Mission: Sag dem Kernel, welcher Prozess Vorrang hat.** Lernziel 103.6.
+
+## Nettigkeit
+
+<Karte nr={1} titel="nice: Wie nett ist ein Prozess zu den anderen?">
+Wollen mehrere Prozesse gleichzeitig rechnen, verteilt der Scheduler des Kernels die Rechenzeit. Beeinflussen kannst du das über die **Nettigkeit** (niceness):
+
+- Der Bereich geht von **-20** bis **19**. Standard ist **0**.
+- Je höher der Wert, desto netter ist der Prozess zu anderen, also desto **weniger** Rechenzeit bekommt er, wenn es eng wird.
+- -20 ist die höchste Priorität, 19 die niedrigste.
+
+`nice -n 10 ./render.sh` startet mit Nettigkeit 10. Ohne `-n` nimmt nice +10. Ohne Befehl zeigt `nice` die aktuelle Nettigkeit. Die ältere Schreibweise `nice -10 befehl` heißt übrigens +10, nicht -10. `nice --10 befehl` wäre -10.
+
+Die Nettigkeit wirkt nur, wenn Prozesse um die CPU konkurrieren. Ist die CPU frei, rechnet auch ein Prozess mit 19 mit voller Geschwindigkeit.
+
+In der Ausgabe von `ps -o pid,ni,cmd` und `top` steht die Nettigkeit in der Spalte **NI**. top zeigt daneben **PR** (Priorität), bei normalen Prozessen 20 plus Nettigkeit. `ps -l` zeigt **PRI** als 80 plus Nettigkeit. Beide sind nur verschiedene Zählweisen derselben Sache.
+</Karte>
+
+<Merke>-20 wichtig, 19 unwichtig, 0 Standard. nice ohne -n: +10. NI-Spalte in ps und top.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: nice" fragen={[
+  { frage: 'Welcher Prozess bekommt bei voller CPU mehr Rechenzeit?', richtig: 'Der mit Nettigkeit -5', falsch: ['Der mit Nettigkeit 10', 'Beide gleich viel, Nettigkeit wirkt nur bei Netzwerk.'], erklaerung: 'Niedrigere Nettigkeit heißt höhere Priorität.' },
+  { frage: 'Welche Nettigkeit hat „nice ./backup.sh“?', richtig: '10', falsch: ['0', '19'], erklaerung: 'Ohne -n erhöht nice um 10.' },
+]} />
+
+<Terminal id="nice" titel="Terminal: Rendern im Hintergrund, aber nett" welt={{ dateien: { '/home/lena/render.sh': '#!/bin/bash\necho "Rendere Video ..."\nsleep 600\necho "Video fertig"\n' }, rechte: { '/home/lena/render.sh': '755' } }} aufgaben={[
+  { text: 'Lass dir die Nettigkeit deiner Shell anzeigen.', befehl: '^nice$', frage: 'Welchen Wert hat sie?', antwort: ['0'] },
+  { text: 'Starte <code>./render.sh</code> mit Nettigkeit 10 im Hintergrund.', zustand: 'ni:render=10' },
+  { text: 'Prüf die Nettigkeit mit ps und eigenen Spalten.', befehl: '^ps (-e)?-?o pid,ni,(cmd|comm|args)$|^ps -o pid,ni,(cmd|comm|args)$' },
+  { text: 'Lass dir die lange Liste mit <code>ps -l</code> zeigen.', befehl: '^ps -l$', frage: 'Welchen Wert hat PRI bei render.sh?', antwort: ['90'] },
+  { text: 'Mach eine Momentaufnahme mit top im Batchmodus und such render.sh.', befehl: '^top -b', frage: 'Welchen Wert hat PR bei render.sh?', antwort: ['30'] },
+  { text: 'Versuch, einen Befehl mit Nettigkeit -10 zu starten, etwa <code>nice -n -10 sleep 100</code>.', befehl: '^nice -n ?-10 ', auchFehler: true },
+]} />
+
+## Laufende Prozesse umstellen
+
+<Karte nr={2} titel="renice und die Rechte">
+**renice** ändert die Nettigkeit eines Prozesses, der schon läuft:
+
+- `renice -n 15 -p 4012` setzt den Prozess 4012 auf 15. Die ältere Form `renice 15 -p 4012` funktioniert auch.
+- `renice -n 5 -u max` setzt alle Prozesse von max auf 5.
+- In top drückst du `r`, gibst die PID und den neuen Wert ein.
+
+Die Regeln für normale Benutzer sind streng: Sie dürfen nur **eigene** Prozesse ändern und die Nettigkeit nur **erhöhen**, also netter werden. Ein Schritt zurück ist auch dann verboten, wenn du den Wert eben selbst erhöht hast. Nur root darf Werte senken und negative Werte setzen. Sonst könnte sich jeder Benutzer auf Kosten der anderen Vorrang verschaffen.
+</Karte>
+
+<Merke>renice -n WERT -p PID. Benutzer: nur eigene, nur nach oben. root: alles.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: renice" fragen={[
+  { frage: 'lena hat ihren Prozess auf 15 gesetzt und will zurück auf 10. Was passiert?', richtig: 'renice meldet „Keine Berechtigung“.', falsch: ['Es klappt, weil es ihr eigener Prozess ist.', 'Es klappt, weil 10 größer als 0 ist.'], erklaerung: 'Normale Benutzer dürfen die Nettigkeit nur erhöhen.' },
+]} />
+
+<Terminal id="renice" titel="Terminal: Nachregeln" welt={{ dateien: { '/home/lena/render.sh': '#!/bin/bash\necho "Rendere Video ..."\nsleep 600\necho "Video fertig"\n' }, rechte: { '/home/lena/render.sh': '755' } }} aufgaben={[
+  { text: 'Starte <code>./render.sh</code> ganz normal im Hintergrund und finde seine PID mit pgrep.', befehl: '^pgrep (-l )?render' },
+  { text: 'Setz die Nettigkeit von render.sh mit renice auf 15.', zustand: 'ni:render=15' },
+  { text: 'Versuch, sie wieder auf 5 zu senken, und lies die Meldung.', befehl: '^renice (-n )?5 (-p )?\\d+$', auchFehler: true },
+  { text: 'Gib dem Backup von lena (python3 backup.py, PID 2210) als root die Nettigkeit -5.', zustand: 'ni:2210=-5' },
+  { text: 'Prüf beide Werte mit ps.', befehl: '^ps .*ni' },
+]} />
+
+<Hinweis titel="Prüfungstipp">
+Typische Fragen: Welcher Wertebereich gilt? Was ist der Standard? Was macht nice ohne Wert? Wer darf negative Werte setzen? Achte auf die Schreibweise `nice -10`: Das ist +10.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Welche Zeile startet den Kompilierlauf mit der niedrigsten möglichen Priorität?', richtig: 'nice -n 19 make', falsch: ['nice -n -20 make', 'renice 19 make'], erklaerung: 'renice braucht eine PID, keinen Befehl.' },
+  { frage: 'Was bewirkt „renice -n 10 -u max“?', richtig: 'Alle laufenden Prozesse von max bekommen Nettigkeit 10.', falsch: ['Neue Prozesse von max starten künftig mit 10.', 'max bekommt 10 Prozent CPU.'], erklaerung: 'renice ändert nur laufende Prozesse.' },
+]} />

@@ -1,0 +1,144 @@
+---
+id: l1-3-9
+checks:
+  - id: k1
+  - id: jobs
+  - id: k2
+  - id: sitzung
+  - id: zuordnung
+  - id: k3
+spick:
+  - t: "Im Hintergrund starten"
+    v: "befehl &"
+  - t: "Jobs anzeigen"
+    v: "jobs (-l mit PID)"
+  - t: "Anhalten"
+    v: "Strg+Z"
+  - t: "Weiter im Hintergrund / Vordergrund"
+    v: "bg [%n], fg [%n]"
+  - t: "Job beenden"
+    v: "kill %n"
+  - t: "Überlebt das Abmelden"
+    v: "nohup befehl &  (Ausgabe in nohup.out)"
+  - t: "screen"
+    v: "screen -S name, Strg+A d, screen -ls, screen -r name"
+  - t: "tmux"
+    v: "tmux new -s name, Strg+B d, tmux ls, tmux attach -t name"
+karten:
+  - f: "Wie startest du einen Befehl direkt im Hintergrund?"
+    a: ["mit & am ende", "befehl &", "&"]
+  - f: "Mit welcher Tastenkombination hältst du den Befehl im Vordergrund an?"
+    a: ["strg+z", "ctrl+z", "strg z"]
+  - f: "Welcher Befehl lässt einen angehaltenen Job im Hintergrund weiterlaufen?"
+    a: ["bg"]
+  - f: "Welcher Befehl holt einen Job in den Vordergrund?"
+    a: ["fg"]
+  - f: "Wie beendest du Job Nummer 2?"
+    a: ["kill %2"]
+  - f: "Welches Signal bekommen Jobs, wenn du das Terminal schließt?"
+    a: ["sighup", "hup", "1"]
+  - f: "Wohin schreibt nohup die Ausgabe, wenn du sie nicht umleitest?"
+    a: ["nohup.out", "in nohup.out"]
+  - f: "Mit welcher Tastenfolge löst du dich von einer screen-Sitzung?"
+    a: ["strg+a d", "ctrl+a d", "strg+a, d"]
+  - f: "Mit welcher Tastenfolge löst du dich von einer tmux-Sitzung?"
+    a: ["strg+b d", "ctrl+b d", "strg+b, d"]
+  - f: "Wie verbindest du dich wieder mit einer screen-Sitzung?"
+    a: ["screen -r", "screen -r name"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Zuordnung from '../components/Zuordnung.astro';
+
+Das Rendern des Werbevideos dauert zehn Minuten. So lange willst du nicht auf ein blockiertes Terminal starren, und ausloggen sollte die Arbeit auch nicht beenden. **Deine Mission: Schick lange Befehle in den Hintergrund und lass sie das Abmelden überleben.** Lernziel 103.5.
+
+## Jobs in der Shell
+
+<Karte nr={1} titel="Vordergrund und Hintergrund">
+Ein Befehl im **Vordergrund** blockiert das Terminal, bis er fertig ist. Mit `&` am Ende startet er im **Hintergrund**, und du bekommst sofort den Prompt zurück. Die Shell nennt ihn einen **Job** und meldet seine Nummer und PID: `[1] 4012`.
+
+| Aktion | Befehl |
+|---|---|
+| im Hintergrund starten | `befehl &` |
+| Jobs anzeigen | `jobs`, mit PID `jobs -l` |
+| Vordergrund-Befehl anhalten | **Strg+Z** (Signal SIGTSTP) |
+| angehaltenen Job im Hintergrund fortsetzen | `bg` oder `bg %2` |
+| Job in den Vordergrund holen | `fg` oder `fg %1` |
+| Job beenden | `kill %1` |
+| Vordergrund-Befehl abbrechen | **Strg+C** (Signal SIGINT) |
+
+In der Ausgabe von `jobs` markiert `+` den aktuellen Job, den fg und bg ohne Nummer nehmen, und `-` den vorherigen.
+
+Jobs gehören zur Shell. Schließt du das Terminal, schickt sie allen ihren Jobs **SIGHUP**, und die meisten Programme beenden sich dann.
+</Karte>
+
+<Merke>& startet im Hintergrund. Strg+Z hält an, bg setzt fort, fg holt nach vorn, kill %n beendet.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: Jobs" fragen={[
+  { frage: 'Du hast einen langen Kopiervorgang im Vordergrund gestartet. Wie schickst du ihn in den Hintergrund, ohne ihn abzubrechen?', richtig: 'Strg+Z, dann bg', falsch: ['Strg+C, dann bg', 'fg, dann &'], erklaerung: 'Strg+C würde den Befehl abbrechen.' },
+  { frage: 'jobs zeigt „[1]- Läuft …“ und „[2]+ Angehalten …“. Was macht fg ohne Nummer?', richtig: 'Es holt Job 2 in den Vordergrund.', falsch: ['Es holt Job 1 in den Vordergrund.', 'Es meldet einen Fehler, weil die Nummer fehlt.'], erklaerung: 'Ohne Nummer nehmen fg und bg den aktuellen Job mit +.' },
+]} />
+
+<Terminal id="jobs" titel="Terminal: Jobs jonglieren" welt={{ dateien: { '/home/lena/render.sh': '#!/bin/bash\necho "Rendere Video ..."\nsleep 600\necho "Video fertig"\n' }, rechte: { '/home/lena/render.sh': '755' } }} aufgaben={[
+  { text: 'Starte <code>sleep 300</code> im Hintergrund.', zustand: 'job:^sleep 300=Running' },
+  { text: 'Lass dir die Jobs anzeigen, mit PID.', befehl: '^jobs -l$' },
+  { text: 'Starte <code>./render.sh</code> im Vordergrund und halte es mit Strg+Z an (Knopf unter dem Terminal).', zustand: 'job:render=Stopped && strg-z' },
+  { text: 'Lass das Rendern im Hintergrund weiterlaufen.', zustand: 'job:render=Running', befehl: '^bg( %\\d)?$' },
+  { text: 'Hol den sleep-Job in den Vordergrund und brich ihn mit Strg+C ab.', zustand: 'job:^sleep 300=weg && strg-c', befehl: '^fg( %\\d)?$' },
+  { text: 'Beende das Rendern über seine Jobnummer.', zustand: 'job:render=weg', befehl: '^kill (-\\S+ )?%\\d$' },
+]} />
+
+## Länger als die Sitzung
+
+<Karte nr={2} titel="nohup, screen und tmux">
+**nohup** startet einen Befehl so, dass er SIGHUP ignoriert: `nohup ./render.sh &`. Was der Befehl ausgibt, landet in **nohup.out** im aktuellen Verzeichnis (oder in `~/nohup.out`, wenn dort nicht geschrieben werden darf). Du kannst auch selbst umleiten: `nohup ./render.sh > render.log 2>&1 &`.
+
+**screen** und **tmux** gehen weiter. Sie sind **Terminal-Multiplexer**: Sie halten eine ganze Sitzung mit Shell und Programmen am Leben, auch wenn deine Verbindung abreißt. Später verbindest du dich wieder und arbeitest weiter, als wäre nichts gewesen. Ideal für lange Arbeiten über SSH.
+
+| | screen | tmux |
+|---|---|---|
+| neue Sitzung | `screen -S name` | `tmux new -s name` |
+| lösen (detach) | Strg+A, dann d | Strg+B, dann d |
+| Sitzungen zeigen | `screen -ls` | `tmux ls` |
+| wieder verbinden | `screen -r name` | `tmux attach -t name` |
+
+Beide können ein Fenster teilen und mehrere Fenster in einer Sitzung halten. screen ist der ältere der beiden, tmux der jüngere. Auf Debian musst du beide erst mit apt installieren. Auf werkstatt sind sie schon da.
+</Karte>
+
+<Merke>nohup befehl & überlebt das Abmelden, Ausgabe in nohup.out. screen: Strg+A d, tmux: Strg+B d.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: Sitzungen" fragen={[
+  { frage: 'Du startest über SSH ein Backup mit „./backup.sh &“ und schließt das Fenster. Was passiert wahrscheinlich?', richtig: 'Das Backup bricht ab, weil es SIGHUP bekommt.', falsch: ['Das Backup läuft weiter, weil es im Hintergrund läuft.', 'Das Backup pausiert bis zur nächsten Anmeldung.'], erklaerung: 'Hintergrund heißt nicht unabhängig. Mit nohup, screen oder tmux überlebt es.' },
+  { frage: 'Welcher Befehl verbindet dich wieder mit der tmux-Sitzung build?', richtig: 'tmux attach -t build', falsch: ['tmux -r build', 'screen -r build'], erklaerung: 'screen -r ist das Gegenstück bei screen.' },
+]} />
+
+<Terminal id="sitzung" titel="Terminal: Überleben" welt={{ dateien: { '/home/lena/render.sh': '#!/bin/bash\necho "Rendere Video ..."\nsleep 600\necho "Video fertig"\n' }, rechte: { '/home/lena/render.sh': '755' } }} aufgaben={[
+  { text: 'Starte <code>./render.sh</code> mit nohup im Hintergrund.', zustand: 'nohup:render' },
+  { text: 'Lies die Datei, in der nohup die Ausgabe sammelt.', befehl: '^cat (\\./)?nohup\\.out$', frage: 'Was steht darin?', antwort: ['Rendere Video ...', 'Rendere Video', 'rendere video ...'] },
+  { text: 'Lass dir die laufenden screen-Sitzungen zeigen.', befehl: '^screen -(ls|list)$', frage: 'Wie heißt die gelöste Sitzung? (Name hinter der Nummer)', antwort: ['backup', '2871.backup'] },
+  { text: 'Verbinde dich wieder mit ihr.', befehl: '^screen -r( \\S+)?$' },
+  { text: 'Lass dir die tmux-Sitzungen zeigen.', befehl: '^tmux (ls|list-sessions)$' },
+  { text: 'Verbinde dich mit der tmux-Sitzung build.', befehl: '^tmux (attach|a|attach-session)( -t)? build$' },
+]} />
+
+<Zuordnung id="zuordnung" titel="Was gehört zusammen?" aufgabe="Ordne jeder Taste oder jedem Befehl die Wirkung zu." paare={[
+  { links: 'Strg+Z', rechts: 'Vordergrund-Befehl anhalten' },
+  { links: 'Strg+C', rechts: 'Vordergrund-Befehl abbrechen' },
+  { links: 'Strg+A, d', rechts: 'Von screen lösen' },
+  { links: 'Strg+B, d', rechts: 'Von tmux lösen' },
+  { links: 'bg', rechts: 'Angehaltenen Job im Hintergrund fortsetzen' },
+  { links: 'nohup', rechts: 'SIGHUP ignorieren' },
+]} />
+
+<Hinweis titel="Prüfungstipp">
+Die Prüfung mischt gern Jobsteuerung und Signale: Strg+Z schickt SIGTSTP, Strg+C schickt SIGINT, das Schließen des Terminals SIGHUP. Und sie fragt, wo nohup die Ausgabe ablegt.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Welcher Befehl zeigt die Jobs der aktuellen Shell?', richtig: 'jobs', falsch: ['ps', 'bg'], erklaerung: 'ps zeigt Prozesse, aber keine Jobnummern.' },
+  { frage: 'Welche Zeile startet update.sh so, dass es das Abmelden überlebt und seine Ausgabe in update.log schreibt?', richtig: 'nohup ./update.sh > update.log 2>&1 &', falsch: ['./update.sh & > update.log', 'nohup > update.log ./update.sh'], erklaerung: 'nohup vorne, Umleitungen wie gewohnt, & am Ende.' },
+  { frage: 'Was ist ein Vorteil von tmux gegenüber nohup?', richtig: 'Du kannst dich wieder mit der laufenden Sitzung verbinden und interaktiv weiterarbeiten.', falsch: ['tmux braucht keine Installation.', 'tmux-Prozesse brauchen keine Rechenzeit.'], erklaerung: 'nohup lässt nur einen Befehl weiterlaufen, tmux eine ganze Sitzung.' },
+]} />

@@ -1,0 +1,95 @@
+// Handbuchseiten für den Simulator: Abschnitt, Kurzbeschreibung (wie whatis sie zeigt) und eine gekürzte Hilfe.
+// Die Kurzbeschreibungen stammen aus den NAME-Abschnitten der englischen Handbuchseiten von Debian 12.
+
+export interface Seite { sek: number; kurz: string; text: string; }
+
+export const SEITEN: Record<string, Seite[]> = {
+  ls: [{ sek: 1, kurz: 'list directory contents', text: '-l lang, -a auch versteckte, -A ohne . und .., -h lesbare Größen, -d Verzeichnis selbst, -R rekursiv,\n-t nach Zeit, -S nach Größe, -r umgekehrt, -1 eine Datei pro Zeile, -F Typzeichen anhängen' }],
+  cp: [{ sek: 1, kurz: 'copy files and directories', text: 'cp QUELLE ZIEL, cp QUELLE… VERZEICHNIS\n-r / -R rekursiv, -a Archiv (rekursiv, Rechte und Zeiten behalten), -p Rechte und Zeiten behalten,\n-i vor dem Überschreiben fragen, -n nie überschreiben, -v ausführlich' }],
+  mv: [{ sek: 1, kurz: 'move (rename) files', text: 'mv QUELLE ZIEL, mv QUELLE… VERZEICHNIS\n-i fragen, -n nie überschreiben, -v ausführlich, -f nie fragen' }],
+  rm: [{ sek: 1, kurz: 'remove files or directories', text: '-r / -R rekursiv, -f ohne Rückfrage und ohne Fehler bei fehlenden Dateien, -i vor jedem Löschen fragen, -v ausführlich' }],
+  mkdir: [{ sek: 1, kurz: 'make directories', text: '-p Elternverzeichnisse mit anlegen, kein Fehler wenn vorhanden; -m MODUS Rechte setzen; -v ausführlich' }],
+  rmdir: [{ sek: 1, kurz: 'remove empty directories', text: 'Löscht nur leere Verzeichnisse. -p auch die leer gewordenen Elternverzeichnisse' }],
+  touch: [{ sek: 1, kurz: 'change file timestamps', text: 'Legt fehlende Dateien leer an und setzt sonst die Zeit auf jetzt.\n-t [[JJ]JJ]MMTThhmm[.ss] bestimmte Zeit, -d "2 days ago" Zeit als Text, -a nur Zugriffszeit, -m nur Änderungszeit' }],
+  file: [{ sek: 1, kurz: 'determine file type', text: 'Erkennt den Typ am Inhalt (magic), nicht an der Endung.' }],
+  find: [{ sek: 1, kurz: 'search for files in a directory hierarchy', text: 'find [START…] [AUSDRUCK]\n-name MUSTER, -iname, -type f|d|l, -size [+-]N[ckMG], -mtime [+-]N (Tage), -mmin, -newer DATEI,\n-user, -group, -perm MODUS|-MODUS|/MODUS, -empty, -maxdepth N, ! oder -not\nAktionen: -print (Standard), -ls, -delete, -exec BEFEHL {} \\; oder {} +' }],
+  tar: [{ sek: 1, kurz: 'an archiving utility', text: 'c anlegen, x auspacken, t auflisten, f DATEI Archivdatei, v ausführlich,\nz gzip, j bzip2, J xz, -C VERZEICHNIS dorthin wechseln\nBeispiele: tar czf a.tar.gz ordner/   tar tzf a.tar.gz   tar xzf a.tar.gz -C /tmp' }],
+  gzip: [{ sek: 1, kurz: 'compress or expand files', text: 'gzip DATEI ersetzt DATEI durch DATEI.gz. -d entpacken (wie gunzip), -c auf die Standardausgabe, -k Original behalten, -1 schnell bis -9 klein' }],
+  gunzip: [{ sek: 1, kurz: 'compress or expand files', text: 'Entpackt DATEI.gz zu DATEI. Wie gzip -d.' }],
+  bzip2: [{ sek: 1, kurz: 'a block-sorting file compressor, v1.0.8', text: 'Wie gzip, Endung .bz2. -d entpacken, -k behalten, -c Standardausgabe' }],
+  xz: [{ sek: 1, kurz: 'Compress or decompress .xz and .lzma files', text: 'Wie gzip, Endung .xz, meist die kleinsten Dateien. -d entpacken, -k behalten, -c Standardausgabe' }],
+  zcat: [{ sek: 1, kurz: 'compress or expand files', text: 'Gibt den entpackten Inhalt einer .gz-Datei aus, ohne sie zu verändern. Ebenso bzcat (.bz2) und xzcat (.xz).' }],
+  cpio: [{ sek: 1, kurz: 'copy files to and from archives', text: '-o Archiv erzeugen (Dateinamen von stdin), -i auspacken, -t auflisten, -d Verzeichnisse anlegen, -v ausführlich\nBeispiel: find ordner | cpio -o > a.cpio   cpio -idv < a.cpio' }],
+  dd: [{ sek: 1, kurz: 'convert and copy a file', text: 'dd if=QUELLE of=ZIEL bs=BLOCKGRÖSSE count=ANZAHL\nBeispiel: dd if=/dev/zero of=leer.img bs=1M count=10\nVorsicht: of=/dev/sdX überschreibt das Gerät ohne Rückfrage.' }],
+  cat: [{ sek: 1, kurz: 'concatenate files and print on the standard output', text: '-n Zeilen nummerieren, -A Steuerzeichen sichtbar ($ am Zeilenende, ^I für Tab)' }],
+  tac: [{ sek: 1, kurz: 'concatenate and print files in reverse', text: 'Wie cat, aber mit der letzten Zeile zuerst.' }],
+  head: [{ sek: 1, kurz: 'output the first part of files', text: '-n N die ersten N Zeilen (Standard 10), -n -N alle außer den letzten N, -c N Bytes' }],
+  tail: [{ sek: 1, kurz: 'output the last part of files', text: '-n N die letzten N Zeilen (Standard 10), -n +N ab Zeile N, -f weiter beobachten, -c N Bytes' }],
+  less: [{ sek: 1, kurz: 'opposite of more', text: 'Blättern: Leertaste, b zurück, /muster suchen, n weiter, q beenden. (Im Simulator wird der Text einfach ausgegeben.)' }],
+  wc: [{ sek: 1, kurz: 'print newline, word, and byte counts for each file', text: '-l Zeilen, -w Wörter, -c Bytes, -m Zeichen' }],
+  nl: [{ sek: 1, kurz: 'number lines of files', text: 'Nummeriert Zeilen, leere Zeilen standardmäßig nicht. -b a alle Zeilen, -w Breite, -s Trenner' }],
+  sort: [{ sek: 1, kurz: 'sort lines of text files', text: '-n numerisch, -h menschliche Größen (2K, 1G), -r umgekehrt, -u doppelte entfernen, -f Groß/klein egal,\n-t ZEICHEN Feldtrenner, -k N[,M] nach Feld N sortieren, -o DATEI Ausgabe in Datei' }],
+  uniq: [{ sek: 1, kurz: 'report or omit repeated lines', text: 'Fasst nur direkt aufeinanderfolgende gleiche Zeilen zusammen, darum meist nach sort.\n-c zählen, -d nur doppelte, -u nur einmalige, -i Groß/klein egal' }],
+  cut: [{ sek: 1, kurz: 'remove sections from each line of files', text: '-d ZEICHEN Trenner (Standard Tab), -f LISTE Felder, -c LISTE Zeichen, -b LISTE Bytes, -s Zeilen ohne Trenner weglassen\nLISTE: 1,3 oder 2-4 oder 3-' }],
+  paste: [{ sek: 1, kurz: 'merge lines of files', text: 'Setzt Zeilen mehrerer Dateien nebeneinander. -d ZEICHEN Trenner, -s Zeilen einer Datei zu einer verbinden' }],
+  tr: [{ sek: 1, kurz: 'translate or delete characters', text: 'Liest nur von der Standardeingabe!\ntr a-z A-Z ersetzen, -d löschen, -s Wiederholungen zusammenfassen, Klassen wie [:upper:] [:digit:] [:space:]' }],
+  od: [{ sek: 1, kurz: 'dump files in octal and other formats', text: '-c Zeichen, -t x1 Hex-Bytes, -A d|x|o|n Adressformat, -N N nur N Bytes. Ohne Option: oktal in Zwei-Byte-Wörtern' }],
+  split: [{ sek: 1, kurz: 'split a file into pieces', text: 'split [OPTION] DATEI [PRÄFIX]. -l N Zeilen je Teil (Standard 1000), -b N Bytes (1K, 1M), -d Ziffern statt Buchstaben\nTeile heißen xaa, xab … oder PRÄFIXaa …; zusammensetzen mit cat xa* > ganz' }],
+  md5sum: [{ sek: 1, kurz: 'compute and check MD5 message digest', text: 'md5sum DATEI zeigt die Prüfsumme. -c LISTE prüft Dateien gegen eine Liste. Ebenso sha256sum und sha512sum.' }],
+  sha256sum: [{ sek: 1, kurz: 'compute and check SHA256 message digest', text: 'Wie md5sum, mit SHA-256. -c LISTE prüft.' }],
+  sha512sum: [{ sek: 1, kurz: 'compute and check SHA512 message digest', text: 'Wie md5sum, mit SHA-512. -c LISTE prüft.' }],
+  sed: [{ sek: 1, kurz: 'stream editor for filtering and transforming text', text: "s/ALT/NEU/ ersetzen (g alle, i Groß/klein egal), /MUSTER/d löschen, N,Md Zeilen löschen, p drucken mit -n,\n-i in der Datei ändern, -E erweiterte reguläre Ausdrücke, -e mehrere Befehle\nBeispiel: sed -n '/^lena/p' /etc/passwd" }],
+  grep: [{ sek: 1, kurz: 'print lines that match patterns', text: '-i Groß/klein egal, -v umkehren, -c zählen, -n Zeilennummern, -l nur Dateinamen, -r rekursiv, -w ganze Wörter,\n-x ganze Zeile, -o nur Treffer, -E erweitert (wie egrep), -F feste Zeichenkette (wie fgrep)' }],
+  egrep: [{ sek: 1, kurz: 'print lines that match patterns', text: 'Veraltet, entspricht grep -E.' }],
+  fgrep: [{ sek: 1, kurz: 'print lines that match patterns', text: 'Veraltet, entspricht grep -F.' }],
+  tee: [{ sek: 1, kurz: 'read from standard input and write to standard output and files', text: '-a anhängen statt überschreiben. Typisch: befehl | sudo tee /etc/datei' }],
+  xargs: [{ sek: 1, kurz: 'build and execute command lines from standard input', text: '-n N höchstens N Argumente je Aufruf, -I {} Platzhalter, -0 Nullbyte als Trenner (zu find -print0), -r nichts tun bei leerer Eingabe' }],
+  ps: [{ sek: 1, kurz: 'report a snapshot of the current processes.', text: 'ps aux (BSD-Stil), ps -ef (Unix-Stil), ps -u BENUTZER, ps -p PID, ps -C NAME,\nps -eo pid,ni,comm eigene Spalten, --sort=-%cpu sortieren' }],
+  top: [{ sek: 1, kurz: 'display Linux processes', text: 'Laufende Anzeige. Tasten: q beenden, k Prozess beenden, r renice, M nach Speicher, P nach CPU. -b Batchmodus, -n N Durchläufe' }],
+  free: [{ sek: 1, kurz: 'Display amount of free and used memory in the system', text: '-h lesbar, -m MiB, -g GiB' }],
+  uptime: [{ sek: 1, kurz: 'Tell how long the system has been running.', text: 'Zeigt Uhrzeit, Laufzeit, Benutzer und die Last der letzten 1, 5 und 15 Minuten. -p nur die Laufzeit' }],
+  pgrep: [{ sek: 1, kurz: 'look up, signal, or wait for processes based on name and other attributes', text: 'pgrep MUSTER gibt PIDs aus. -l mit Namen, -a mit Befehlszeile, -u BENUTZER, -f in der ganzen Befehlszeile suchen' }],
+  pkill: [{ sek: 1, kurz: 'look up, signal, or wait for processes based on name and other attributes', text: 'Wie pgrep, schickt aber ein Signal (Standard SIGTERM). pkill -9 MUSTER' }],
+  killall: [{ sek: 1, kurz: 'kill processes by name', text: 'killall NAME schickt SIGTERM an alle Prozesse mit genau diesem Namen. -9 SIGKILL, -i fragen' }],
+  watch: [{ sek: 1, kurz: 'execute a program periodically, showing output fullscreen', text: 'watch -n SEKUNDEN BEFEHL wiederholt den Befehl (Standard alle 2 Sekunden). Strg+C beendet.' }],
+  nice: [{ sek: 1, kurz: 'run a program with modified scheduling priority', text: 'nice -n N BEFEHL startet mit Nettigkeit N (Standard +10). Bereich -20 (höchste Priorität) bis 19 (niedrigste).\nNur root darf negative Werte setzen. Ohne Befehl: zeigt die aktuelle Nettigkeit.' }],
+  renice: [{ sek: 1, kurz: 'alter priority of running processes', text: 'renice -n N -p PID, renice -n N -u BENUTZER. Normale Benutzer dürfen die Nettigkeit nur erhöhen.' }],
+  nohup: [{ sek: 1, kurz: 'run a command immune to hangups, with output to a non-tty', text: 'nohup BEFEHL & läuft weiter, wenn das Terminal geschlossen wird. Ausgabe landet in nohup.out.' }],
+  screen: [{ sek: 1, kurz: 'screen manager with VT100/ANSI terminal emulation', text: 'screen startet eine Sitzung, Strg+A d löst sich, screen -ls listet, screen -r verbindet wieder' }],
+  tmux: [{ sek: 1, kurz: 'terminal multiplexer', text: 'tmux startet eine Sitzung, Strg+B d löst sich, tmux ls listet, tmux attach verbindet wieder' }],
+  kill: [{ sek: 1, kurz: 'send a signal to a process', text: 'kill PID schickt SIGTERM (15). kill -9 PID SIGKILL, kill -1 SIGHUP, kill -l listet Signale.\nIn der Bash ist kill eingebaut und versteht auch %JOBNUMMER.' }],
+  bash: [{ sek: 1, kurz: 'GNU Bourne-Again SHell', text: 'Eingebaut sind unter anderem cd, echo, export, set, unset, alias, type, history, jobs, fg, bg, kill, umask, source.\nVerlauf: ~/.bash_history, !! letzter Befehl, !N Befehl Nummer N, !text letzter Befehl mit diesem Anfang.\nStart: /etc/profile und ~/.profile für Login-Shells, ~/.bashrc für interaktive Shells.' }],
+  which: [{ sek: 1, kurz: 'locate a command', text: 'Zeigt, welche Datei aus PATH ausgeführt würde. -a alle Treffer. Kennt keine Aliase und keine eingebauten Befehle, dafür gibt es type.' }],
+  whereis: [{ sek: 1, kurz: 'locate the binary, source, and manual page files for a command', text: 'Zeigt Programm und Handbuchseiten eines Befehls.' }],
+  uname: [{ sek: 1, kurz: 'print system information', text: '-a alles, -s Kernelname, -n Rechnername, -r Kernelversion, -m Hardware' }],
+  man: [{ sek: 1, kurz: 'an interface to the system reference manuals', text: 'man [ABSCHNITT] SEITE. -k WORT sucht in den Kurzbeschreibungen (wie apropos), -f SEITE zeigt die Kurzbeschreibung (wie whatis).\nAbschnitte: 1 Benutzerbefehle, 2 Systemaufrufe, 3 Bibliotheksfunktionen, 4 Gerätedateien, 5 Dateiformate,\n6 Spiele, 7 Verschiedenes, 8 Verwaltungsbefehle für root, 9 Kernelroutinen' }],
+  vi: [{ sek: 1, kurz: 'Vi IMproved, a programmer\'s text editor', text: 'Normalmodus: h j k l, w b, 0 $, gg G, x, dd, yy, p, u, /muster, ?muster, n N\nEinfügen: i a o O, zurück mit Esc. Befehlszeile: :w :q :q! :wq :x ZZ :w! :e!' }],
+  passwd: [{ sek: 1, kurz: 'change user password', text: 'Ändert das Passwort des Benutzers.' }, { sek: 5, kurz: 'the password file', text: '/etc/passwd: NAME:x:UID:GID:KOMMENTAR:HEIMATVERZEICHNIS:SHELL, eine Zeile pro Konto. Das x verweist auf /etc/shadow.' }],
+  shadow: [{ sek: 5, kurz: 'shadowed password file', text: '/etc/shadow: NAME:PASSWORT-HASH:LETZTE ÄNDERUNG:MIN:MAX:WARNEN:… Nur für root lesbar.' }],
+  crontab: [{ sek: 1, kurz: 'maintain crontab files for individual users (Vixie Cron)', text: 'crontab -e bearbeiten, -l anzeigen, -r löschen' }, { sek: 5, kurz: 'tables for driving cron', text: 'Minute Stunde Tag Monat Wochentag Befehl' }],
+  hosts: [{ sek: 5, kurz: 'static table lookup for hostnames', text: 'IP-Adresse  Name  [Aliase]' }],
+  fstab: [{ sek: 5, kurz: 'static information about the filesystems', text: 'GERÄT EINHÄNGEPUNKT TYP OPTIONEN DUMP PASS' }],
+  regex: [{ sek: 7, kurz: 'POSIX.2 regular expressions', text: 'Grundlegend (BRE): . beliebiges Zeichen, * beliebig oft, ^ Anfang, $ Ende, [abc] eines davon, [^abc] keines davon,\n\\{n,m\\} n bis m mal, \\( \\) Gruppe, \\| oder (GNU).\nErweitert (ERE, grep -E): + mindestens einmal, ? höchstens einmal, {n,m}, ( ), | ohne Backslash.\nKlassen: [:alpha:] [:digit:] [:alnum:] [:upper:] [:lower:] [:space:] [:punct:], immer in eckigen Klammern: [[:digit:]]' }],
+  signal: [{ sek: 7, kurz: 'overview of signals', text: '1 SIGHUP, 2 SIGINT (Strg+C), 9 SIGKILL (nicht abfangbar), 15 SIGTERM (Standard von kill), 18 SIGCONT, 19 SIGSTOP, 20 SIGTSTP (Strg+Z)' }],
+  hier: [{ sek: 7, kurz: 'description of the filesystem hierarchy', text: '/bin /sbin /usr/bin /usr/sbin Programme, /etc Konfiguration, /home Benutzer, /var veränderliche Daten, /tmp temporär' }],
+  intro: [{ sek: 1, kurz: 'introduction to user commands', text: 'Einführung in Abschnitt 1.' }, { sek: 2, kurz: 'introduction to system calls', text: 'Einführung in Abschnitt 2.' }, { sek: 8, kurz: 'introduction to administration and privileged commands', text: 'Einführung in Abschnitt 8.' }],
+  printf: [{ sek: 1, kurz: 'format and print data', text: "printf FORMAT [ARGUMENT…]: %s Text, %d Zahl, \\n neue Zeile. Anders als echo hängt printf keinen Zeilenumbruch an." }, { sek: 3, kurz: 'formatted output conversion', text: 'C-Funktion printf(3).' }],
+  date: [{ sek: 1, kurz: 'print or set the system date and time', text: 'date +%F zeigt das Datum als JJJJ-MM-TT.' }],
+  sleep: [{ sek: 1, kurz: 'delay for a specified amount of time', text: 'sleep N wartet N Sekunden.' }],
+  env: [{ sek: 1, kurz: 'run a program in a modified environment', text: 'Ohne Argument: alle Umgebungsvariablen. env VAR=wert befehl: Befehl mit geänderter Umgebung starten. -i leere Umgebung.' }],
+  fdisk: [{ sek: 8, kurz: 'manipulate disk partition table', text: '-l Partitionstabellen anzeigen (braucht root)' }],
+  modprobe: [{ sek: 8, kurz: 'Add and remove modules from the Linux Kernel', text: 'modprobe MODUL lädt mit Abhängigkeiten, -r entfernt, -v ausführlich, -n nur so tun' }],
+  shutdown: [{ sek: 8, kurz: 'Halt, power off or reboot the machine', text: '-h ausschalten, -r neu starten, -c abbrechen, Zeit: now, +MINUTEN, hh:mm' }],
+  ldconfig: [{ sek: 8, kurz: 'configure dynamic linker run-time bindings', text: 'Baut /etc/ld.so.cache. -p zeigt den Cache.' }],
+};
+
+// Diese Befehle sind in die Bash eingebaut und haben auf Debian keine eigene Handbuchseite.
+export const EINGEBAUT_OHNE_SEITE = new Set(['cd', 'export', 'unset', 'set', 'alias', 'unalias', 'type', 'history', 'jobs', 'fg', 'bg', 'umask', 'source']);
+
+export function whatis(name: string, sek?: number): string[] {
+  return (SEITEN[name] ?? []).filter((s) => !sek || s.sek === sek).map((s) => `${(name + ' (' + s.sek + ')').padEnd(21)}- ${s.kurz}`);
+}
+export function apropos(wort: string): string[] {
+  const re = new RegExp(wort.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+  return Object.entries(SEITEN).flatMap(([n, l]) => l.filter((s) => re.test(n) || re.test(s.kurz)).map((s) => `${(n + ' (' + s.sek + ')').padEnd(21)}- ${s.kurz}`)).sort();
+}

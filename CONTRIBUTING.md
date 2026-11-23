@@ -62,7 +62,18 @@ Der Text folgt immer demselben Muster: **Karte** (eine Erklärung, höchstens et
   frage: 'Was meldet modprobe?', antwort: ['…'], tipp: '…' }
 ```
 
-Zustände: `modul:NAME=an|aus`, `default=TARGET`, `target=TARGET`, `datei:/pfad~regex` (Pfad darf mit `*` enden), `shutdown=geplant|keiner|reboot|poweroff`, `aus=poweroff|reboot|halt`, `wall`, `prozess:PID=weg|da`, `signal:PID=NR`, `root`, `neustart`. Mehrere mit `&&` verbinden.
+Zustände (mehrere mit `&&` verbinden, `nicht:` davor kehrt einen um):
+
+- System: `modul:NAME=an|aus`, `default=TARGET`, `target=TARGET`, `shutdown=geplant|keiner|reboot|poweroff`, `aus=poweroff|reboot|halt`, `wall`, `root`, `neustart`, `host=NAME`
+- Dateien: `datei:/pfad~regex` (Pfad darf mit `*` enden), `da:/pfad`, `ordner:/pfad`, `fehlt:/muster*`, `leer:/pfad`, `modus:/pfad=0640`, `cwd=/pfad`
+- Shell: `var:NAME~regex`, `export:NAME`, `alias:NAME~regex`, `umask=0027`, `historie~regex`, `roh~regex` (Eingabe vor der Verlaufserweiterung, etwa `!!`), `ohneVerlauf:BEFEHL`, `ausgabe~regex`
+- Prozesse und Jobs: `prozess:PID=weg|da`, `signal:PID=NR`, `laeuft:regex`, `ni:PID|regex=WERT`, `nohup:regex`, `job:regex=Running|Stopped|weg`, `strg-c`, `strg-z`
+- vi: `vi:gespeichert|verworfen|unveraendert|ohne[:/pfad]`
+- Pakete: siehe `zustandPakete` in `src/scripts/shell-pakete.ts`
+
+Startzustand einer Station (`welt`): `dateien` (Inhalt `'/'` legt ein Verzeichnis an), `rechte` (`'/pfad': '755 besitzer gruppe'`), `zeiten` (Alter in Tagen), `extraProzesse`, `pathStandard` (Debian-PATH ohne /usr/sbin), `cwd`, `host`, `distro`, `virt`.
+
+Aufbau des Simulators: `shell.ts` (Parser, Umleitungen, PATH, Jobs, Systembefehle), `shell-text.ts` (Textfilter, Dateien, Archive, Prozesse), `shell-pakete.ts` (Pakete, Platten, Bootloader), `shell-dateien.ts` (Rechte, Zeiten, Prüfsummen), `shell-man.ts` (Handbuchseiten), `vi.ts` (der Editor). Fehlermeldungen folgen den deutschen Übersetzungskatalogen der GNU-Werkzeuge (`LANG=de_DE.UTF-8`). Wo Debian keine Übersetzung mitliefert (vim.tiny, gzip), bleiben sie englisch.
 
 Der Simulator (`src/scripts/shell.ts`) kennt nur die Befehle, die in Missionen vorkommen. Neue Befehle dort ergänzen und dabei das Verhalten eines echten Debian nachbilden, auch die Fehlermeldungen. Testen lässt sich der Simulator auch ohne Browser:
 

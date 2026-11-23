@@ -1,0 +1,127 @@
+---
+id: l1-3-5
+checks:
+  - id: k1
+  - id: muster
+  - id: k2
+  - id: ordnen
+  - id: k3
+spick:
+  - t: "Auflisten"
+    v: "ls -l lang, -a versteckt, -h lesbar, -d Ordner selbst, -R rekursiv, -t nach Zeit"
+  - t: "Kopieren"
+    v: "cp quelle ziel, cp -r ordner ziel, cp -a (alles behalten)"
+  - t: "Verschieben, umbenennen"
+    v: "mv alt neu, mv datei ordner/"
+  - t: "Löschen"
+    v: "rm datei, rm -r ordner, rm -i fragt, rmdir nur leere"
+  - t: "Anlegen"
+    v: "mkdir -p a/b/c, touch datei"
+  - t: "Typ erkennen"
+    v: "file datei"
+  - t: "Platzhalter"
+    v: "* beliebig viele, ? genau eins, [abc] eins davon, [!abc] keins davon, [0-9] Bereich"
+karten:
+  - f: "Wofür steht das Platzhalterzeichen ? in der Shell?"
+    a: ["genau ein zeichen", "ein beliebiges zeichen", "ein zeichen"]
+  - f: "Wofür steht * in der Shell?"
+    a: ["beliebig viele zeichen", "beliebig viele zeichen auch keins", "null oder mehr zeichen"]
+  - f: "Was passt auf [!abc]?"
+    a: ["ein zeichen das nicht a b oder c ist", "ein zeichen außer a, b und c", "ein zeichen außer a b c"]
+  - f: "Erfasst * auch versteckte Dateien, deren Name mit einem Punkt beginnt?"
+    a: ["nein"]
+  - f: "Welche Option von mkdir legt fehlende Elternverzeichnisse mit an?"
+    a: ["-p", "mkdir -p"]
+  - f: "Welche Option braucht cp, um ein Verzeichnis samt Inhalt zu kopieren?"
+    a: ["-r", "-R", "-a", "cp -r"]
+  - f: "Welcher Befehl löscht nur leere Verzeichnisse?"
+    a: ["rmdir"]
+  - f: "Woran erkennt file den Typ einer Datei?"
+    a: ["am inhalt", "an den ersten bytes", "an magischen zahlen im inhalt", "am inhalt nicht an der endung"]
+  - f: "Was macht touch mit einer Datei, die es schon gibt?"
+    a: ["setzt die zeit auf jetzt", "aktualisiert den zeitstempel", "ändert die änderungszeit auf jetzt"]
+  - f: "Mit welchem Befehl benennst du eine Datei um?"
+    a: ["mv"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+
+Im Ordner `fotos` hat sich alles angesammelt: Bilder, temporäre Dateien und eine Rechnung, die gar kein PDF ist. **Deine Mission: Räum auf, ohne jede Datei einzeln abzutippen.** Lernziel 103.3.
+
+## Platzhalter
+
+<Karte nr={1} titel="Globbing: Die Shell sucht die Namen heraus">
+Bevor ein Befehl startet, ersetzt die Shell **Platzhalter** durch passende Dateinamen. Das heißt **Globbing**.
+
+| Muster | Passt auf | Beispiel |
+|---|---|---|
+| `*` | beliebig viele Zeichen, auch keins | `*.jpg` |
+| `?` | genau ein Zeichen | `IMG_000?.jpg` passt auf IMG_0001 bis IMG_0009 |
+| `[abc]` | genau eins der Zeichen | `[jp]*` beginnt mit j oder p |
+| `[a-z]`, `[0-9]` | eins aus dem Bereich | `IMG_001[0-2].jpg` |
+| `[!abc]` oder `[^abc]` | ein Zeichen, das nicht dabei ist | `[!I]*` beginnt nicht mit I |
+
+Zwei Regeln: `*` und `?` erfassen keine **versteckten Dateien**, also Namen mit Punkt am Anfang. Und findet die Shell keinen Treffer, gibt sie das Muster unverändert weiter. Dann meldet zum Beispiel ls, dass es `*.xyz` nicht gibt.
+
+In Anführungszeichen bleibt ein Muster ein Muster: `ls "*.jpg"` sucht eine Datei, die wirklich so heißt.
+
+Verwandt, aber kein Globbing: Die Bash erweitert `{a,b,c}` zu drei Wörtern und `{1..5}` zu fünf, egal ob es die Dateien gibt. `mkdir projekt/{bilder,texte}` legt zwei Ordner an.
+</Karte>
+
+<Merke>* viele, ? eins, [abc] eins davon, [!abc] keins davon. Versteckte Dateien fallen nicht unter *.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: Platzhalter" fragen={[
+  { frage: 'Welche Dateien erfasst „ls datei?.txt“?', richtig: 'datei1.txt und dateiA.txt, aber nicht datei10.txt', falsch: ['datei.txt, datei1.txt und datei10.txt', 'Nur eine Datei, die wirklich datei?.txt heißt'], erklaerung: '? steht für genau ein Zeichen.' },
+  { frage: 'Welches Muster passt auf alle Dateien, die mit einer Ziffer beginnen?', richtig: '[0-9]*', falsch: ['?[0-9]', '*[0-9]'], erklaerung: '*[0-9] wären Dateien, die mit einer Ziffer enden.' },
+]} />
+
+<Terminal id="muster" titel="Terminal: Bilder auswählen" welt={{ dateien: {"/home/lena/fotos/IMG_0001.jpg": "\u0007BIN:2437111", "/home/lena/fotos/IMG_0002.jpg": "\u0007BIN:2474222", "/home/lena/fotos/IMG_0003.jpg": "\u0007BIN:2511333", "/home/lena/fotos/IMG_0004.jpg": "\u0007BIN:2548444", "/home/lena/fotos/IMG_0005.jpg": "\u0007BIN:2585555", "/home/lena/fotos/IMG_0006.jpg": "\u0007BIN:2622666", "/home/lena/fotos/IMG_0007.jpg": "\u0007BIN:2659777", "/home/lena/fotos/IMG_0008.jpg": "\u0007BIN:2696888", "/home/lena/fotos/IMG_0009.jpg": "\u0007BIN:2733999", "/home/lena/fotos/IMG_0010.jpg": "\u0007BIN:2771110", "/home/lena/fotos/IMG_0011.jpg": "\u0007BIN:2808221", "/home/lena/fotos/IMG_0012.jpg": "\u0007BIN:2845332", "/home/lena/fotos/urlaub_2025.png": "\u0007BIN:1830211", "/home/lena/fotos/rechnung.pdf": "Rechnung 2026-117\nBetrag: 340,00 EUR\n", "/home/lena/fotos/.thumbnails": "/", "/home/lena/fotos/.thumbnails/IMG_0001.jpg": "\u0007BIN:12011", "/home/lena/fotos/vorschau.tmp": "tmp\n", "/home/lena/fotos/upload.tmp": "tmp\n", "/home/lena/alt": "/"} }} aufgaben={[
+  { text: 'Zeig alle Dateien in <code>fotos</code>, auch die versteckten.', befehl: '^ls -(a|A|la|al|lA|Al) (\\./)?fotos/?$', frage: 'Wie heißt der versteckte Eintrag?', antwort: ['.thumbnails'] },
+  { text: 'Lass dir mit <code>?</code> alle Bilder von IMG_0001.jpg bis IMG_0009.jpg anzeigen und zähle sie mit wc.', befehl: '^ls (\\./)?fotos/IMG_000\\?\\.jpg \\| wc -l$', frage: 'Wie viele sind es?', antwort: ['9'] },
+  { text: 'Zeig mit einem Bereich in eckigen Klammern nur IMG_0010.jpg bis IMG_0012.jpg.', befehl: '^ls (\\./)?fotos/IMG_001\\[(0-2|012)\\]\\.jpg$' },
+  { text: 'Zeig alle Dateien in fotos, die nicht mit I beginnen.', befehl: '^ls (\\./)?fotos/\\[[!^]I\\]\\*$' },
+  { text: 'Lass dir den Typ von <code>fotos/rechnung.pdf</code> und <code>fotos/IMG_0001.jpg</code> anzeigen.', befehl: '^file (\\./)?fotos/', frage: 'Was ist rechnung.pdf in Wahrheit?', antwort: ['ASCII text', 'text', 'eine textdatei', 'textdatei'] },
+]} />
+
+## Kopieren, verschieben, löschen
+
+<Karte nr={2} titel="Die Befehle für Dateien und Ordner">
+- **ls**: `-l` lange Liste mit Rechten, Größe und Zeit, `-a` auch versteckte, `-h` Größen wie 2,3M, `-d` den Ordner selbst statt seines Inhalts, `-R` rekursiv, `-t` nach Zeit sortiert.
+- **cp quelle ziel** kopiert. Ist das Ziel ein Ordner, landet die Kopie darin. Ordner kopierst du nur mit `-r` (rekursiv). `-a` kopiert rekursiv und behält Rechte und Zeiten, als root auch den Besitzer. `-i` fragt vor dem Überschreiben.
+- **mv alt neu** verschiebt oder benennt um. Ein eigenes Umbenennen-Programm gibt es nicht.
+- **rm datei** löscht ohne Papierkorb und ohne Rückfrage. `-r` löscht Ordner samt Inhalt, `-i` fragt nach, `-f` fragt nie. **rmdir** löscht nur leere Ordner.
+- **mkdir ordner** legt an, `-p` mit allen fehlenden Elternordnern und ohne Fehler, wenn er schon existiert.
+- **touch datei** legt eine leere Datei an oder setzt die Zeit einer vorhandenen auf jetzt. `touch -t 202601011200 datei` setzt eine bestimmte Zeit.
+- **file datei** erkennt den Typ am **Inhalt**, nicht an der Endung. Linux kümmert sich um Endungen nicht.
+</Karte>
+
+<Merke>cp -r für Ordner, mv auch zum Umbenennen, rm ohne Papierkorb, rmdir nur leer, mkdir -p für Ketten.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: cp, mv, rm" fragen={[
+  { frage: 'Der Ordner berichte existiert. Was macht „cp -r projekt berichte“?', richtig: 'Er kopiert projekt als berichte/projekt.', falsch: ['Er überschreibt berichte mit dem Inhalt von projekt.', 'Er bricht ab, weil das Ziel existiert.'], erklaerung: 'Ist das Ziel ein vorhandener Ordner, landet die Kopie darin.' },
+  { frage: 'Welcher Befehl löscht den Ordner alt mit allem, was darin liegt?', richtig: 'rm -r alt', falsch: ['rmdir alt', 'rm alt'], erklaerung: 'rmdir verweigert nicht leere Ordner, rm ohne -r verweigert Ordner ganz.' },
+]} />
+
+<Terminal id="ordnen" titel="Terminal: Aufräumen" welt={{ dateien: {"/home/lena/fotos/IMG_0001.jpg": "\u0007BIN:2437111", "/home/lena/fotos/IMG_0002.jpg": "\u0007BIN:2474222", "/home/lena/fotos/IMG_0003.jpg": "\u0007BIN:2511333", "/home/lena/fotos/IMG_0004.jpg": "\u0007BIN:2548444", "/home/lena/fotos/IMG_0005.jpg": "\u0007BIN:2585555", "/home/lena/fotos/IMG_0006.jpg": "\u0007BIN:2622666", "/home/lena/fotos/IMG_0007.jpg": "\u0007BIN:2659777", "/home/lena/fotos/IMG_0008.jpg": "\u0007BIN:2696888", "/home/lena/fotos/IMG_0009.jpg": "\u0007BIN:2733999", "/home/lena/fotos/IMG_0010.jpg": "\u0007BIN:2771110", "/home/lena/fotos/IMG_0011.jpg": "\u0007BIN:2808221", "/home/lena/fotos/IMG_0012.jpg": "\u0007BIN:2845332", "/home/lena/fotos/urlaub_2025.png": "\u0007BIN:1830211", "/home/lena/fotos/rechnung.pdf": "Rechnung 2026-117\nBetrag: 340,00 EUR\n", "/home/lena/fotos/.thumbnails": "/", "/home/lena/fotos/.thumbnails/IMG_0001.jpg": "\u0007BIN:12011", "/home/lena/fotos/vorschau.tmp": "tmp\n", "/home/lena/fotos/upload.tmp": "tmp\n", "/home/lena/alt": "/"} }} aufgaben={[
+  { text: 'Leg den Ordner <code>archiv/2026/november</code> mit einem einzigen Befehl an.', zustand: 'ordner:/home/lena/archiv/2026/november' },
+  { text: 'Kopiere IMG_0001.jpg bis IMG_0005.jpg mit einem Muster dorthin.', zustand: 'da:/home/lena/archiv/2026/november/IMG_0001.jpg && da:/home/lena/archiv/2026/november/IMG_0005.jpg && da:/home/lena/fotos/IMG_0005.jpg' },
+  { text: 'Benenne <code>fotos/urlaub_2025.png</code> in <code>fotos/urlaub-2025.png</code> um.', zustand: 'da:/home/lena/fotos/urlaub-2025.png && fehlt:/home/lena/fotos/urlaub_2025.png' },
+  { text: 'Lösche alle Dateien mit der Endung .tmp in fotos auf einmal.', zustand: 'fehlt:/home/lena/fotos/*.tmp', befehl: '^rm (-[fiv]+ )?(\\./)?fotos/\\*\\.tmp$' },
+  { text: 'Versuch, den Ordner <code>archiv</code> mit rmdir zu löschen, und lies die Meldung.', befehl: '^rmdir (\\./)?archiv/?$', auchFehler: true },
+  { text: 'Lösche den leeren Ordner <code>alt</code> mit rmdir.', zustand: 'fehlt:/home/lena/alt' },
+  { text: 'Lege eine Sicherung des ganzen Ordners fotos als <code>fotos-sicherung</code> an.', zustand: 'da:/home/lena/fotos-sicherung/IMG_0012.jpg && da:/home/lena/fotos-sicherung/.thumbnails/IMG_0001.jpg' },
+  { text: 'Setz die Zeit von <code>notizen.txt</code> auf den 1. Januar 2026, 12:00 Uhr, und prüf sie mit ls -l.', befehl: '^touch -t (2026)?01011200 (\\./)?notizen\\.txt$' },
+]} />
+
+<Hinweis titel="Prüfungstipp">
+Fragen zu Platzhaltern zeigen meist eine Liste von Dateien und ein Muster. Geh jede Datei durch und prüf Zeichen für Zeichen. Bei `cp` und `mv` lohnt die Frage: Existiert das Ziel schon als Ordner? Dann landet alles darin.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Was macht „mkdir -p a/b/c“, wenn a schon existiert?', richtig: 'Es legt b und c an und meldet keinen Fehler.', falsch: ['Es bricht ab, weil a existiert.', 'Es legt a/b/c als einen Ordnernamen an.'], erklaerung: '-p legt fehlende Teile an und schweigt bei vorhandenen.' },
+  { frage: 'Welcher Befehl kopiert einen Ordner und behält dabei Rechte und Zeitstempel?', richtig: 'cp -a', falsch: ['cp -r', 'mv -a'], erklaerung: 'cp -r kopiert zwar rekursiv, setzt aber neue Zeiten. Den Besitzer kann nur root übernehmen, als normaler Benutzer gehören Kopien immer dir.' },
+  { frage: 'Im Ordner liegen .bashrc, a.txt und b.txt. Was gibt „echo *“ aus?', richtig: 'a.txt b.txt', falsch: ['.bashrc a.txt b.txt', '*'], erklaerung: 'Versteckte Dateien fallen nicht unter *.' },
+]} />

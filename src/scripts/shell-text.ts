@@ -79,7 +79,7 @@ function trMenge(s: string): string[] {
       out.push(...(r[kl[1]] ?? '')); i += kl[0].length; continue;
     }
     let c = s[i];
-    if (c === '\\' && i + 1 < s.length) { const n = s[++i]; c = n === 'n' ? '\n' : n === 't' ? '\t' : n; }
+    if (c === '\\' && i + 1 < s.length) { const n = s[++i]; c = n === 'n' ? '\n' : n === 't' ? '\t' : n === 'r' ? '\r' : n; }
     if (s[i + 1] === '-' && i + 2 < s.length) { const e = s[i + 2]; for (let k = c.charCodeAt(0); k <= e.charCodeAt(0); k++) out.push(String.fromCharCode(k)); i += 3; continue; }
     out.push(c); i++;
   }
@@ -150,7 +150,7 @@ export function textBefehle(h: TextHelfer): Record<string, Befehl> {
     const { texte, err } = eingaben(w, rest, stdin, root, 'cat');
     let out = texte.map((t) => t.text).join('');
     if (flags.has('-n')) out = zeilen(out).map((z, i) => `${String(i + 1).padStart(6)}\t${z}`).join('\n') + '\n';
-    if (flags.has('-A')) out = zeilen(out).map((z) => z.replace(/\t/g, '^I') + '$').join('\n') + '\n';
+    if (flags.has('-A')) out = zeilen(out).map((z) => z.replace(/\t/g, '^I').replace(/\r/g, '^M') + '$').join('\n') + '\n';
     return mitFehlern(out.replace(/\n$/, ''), err);
   };
   b.tac = (w, a, stdin, root) => { const { texte, err } = eingaben(w, a, stdin, root, 'tac'); return mitFehlern(texte.flatMap((t) => zeilen(t.text).reverse()).join('\n'), err); };
@@ -297,7 +297,7 @@ export function textBefehle(h: TextHelfer): Record<string, Befehl> {
         out.push(`${m[2]}: ${gut ? 'OK' : 'GESCHEITERT'}`);
       }
       if (falsch) err.push(`${name}: WARNUNG: ${falsch} berechnete ${falsch === 1 ? 'Prüfsumme passte' : 'Prüfsummen passten'} NICHT`);
-      return { out: out.join('\n'), err: err.length ? err.join('\n') : undefined, code: falsch || err.length ? 1 : 0 };
+      return { out: out.join('\n'), err: err.length ? err.join('\n') : undefined, code: falsch || err.length ? 1 : 0, errNach: true } as Ergebnis;
     }
     const { texte, err } = eingaben(w, rest, stdin, root, name);
     return mitFehlern(texte.map((t) => `${algo(t.text)}  ${t.name}`).join('\n'), err);
@@ -363,7 +363,7 @@ export function textBefehle(h: TextHelfer): Record<string, Befehl> {
       const m = meta(w, p); const c = w.fs[p];
       const links = c === null ? 2 + kinder(w, p).filter((k) => w.fs[(p === '/' ? '' : p) + '/' + k] === null).length : 1;
       const g = groesse(c);
-      return `${rechteText(w, p)} ${String(links).padStart(2)} ${(flags.has('-n') ? (m.owner === 'root' ? '0' : '1000') : m.owner).padEnd(5)} ${(flags.has('-n') ? (m.group === 'root' ? '0' : '1000') : m.group).padEnd(5)} ${(flags.has('-h') ? menschlich(g) : String(g)).padStart(flags.has('-h') ? 4 : 6)} ${zeitText(m.mtime)} ${name}${typeof c === 'string' && c.startsWith('-> ') ? ' -> ' + c.slice(3) : ''}`;
+      return `${rechteText(w, p)} ${String(links).padStart(2)} ${(flags.has('-n') ? (m.owner === 'root' ? '0' : '1000') : m.owner).padEnd(5)} ${(flags.has('-n') ? (m.group === 'root' ? '0' : '1000') : m.group).padEnd(5)} ${(flags.has('-h') ? menschlich(g) : String(g)).padStart(flags.has('-h') ? 4 : 6)} ${zeitText(m.mtime, w.uhr)} ${name}${typeof c === 'string' && c.startsWith('-> ') ? ' -> ' + c.slice(3) : ''}`;
     };
     const sortiere = (ps: { p: string; n: string }[]) => {
       let l = [...ps];
@@ -379,14 +379,14 @@ export function textBefehle(h: TextHelfer): Record<string, Befehl> {
       let eintraege = kinder(w, p).filter((n) => alle || fast || !n.startsWith('.')).map((n) => ({ p: (p === '/' ? '' : p) + '/' + n, n }));
       if (alle) eintraege = [{ p, n: '.' }, { p: p.replace(/\/[^/]+$/, '') || '/', n: '..' }, ...eintraege];
       eintraege = sortiere(eintraege);
-      if (lang) { out.push(`insgesamt ${Math.ceil(eintraege.reduce((s, e) => s + groesse(w.fs[e.p]), 0) / 1024) * 4}`); out.push(...eintraege.map((e) => zeile(e.p, e.n))); }
-      else out.push(eintraege.map((e) => e.n + (flags.has('-F') && w.fs[e.p] === null ? '/' : '')).join(flags.has('-1') ? '\n' : '  '));
+      if (lang) { out.push(`insgesamt ${eintraege.filter((e) => e.n !== '.' && e.n !== '..' || true).reduce((s, e) => s + Math.ceil(groesse(w.fs[e.p]) / 4096) * 4, 0)}`); out.push(...eintraege.map((e) => zeile(e.p, e.n))); }
+      else out.push(eintraege.map((e) => e.n + (flags.has('-F') && w.fs[e.p] === null ? '/' : '')).join(flags.has('-1') || !w.stdoutTty ? '\n' : '  '));
       if (flags.has('-R')) for (const e of eintraege) if (w.fs[e.p] === null && e.n !== '.' && e.n !== '..') { out.push(''); ordner(e.p, `${anzeige === '.' ? '.' : anzeige}/${e.n}`, true); }
     };
     const dateien = ziele.filter((r) => { const p = pfad(w, r); return p in w.fs && (w.fs[p] !== null || flags.has('-d')); });
     const ordnerZiele = ziele.filter((r) => { const p = pfad(w, r); return p in w.fs && w.fs[p] === null && !flags.has('-d'); });
     for (const r of ziele) if (!(pfad(w, r) in w.fs)) err.push(`ls: Zugriff auf '${r}' nicht möglich: Datei oder Verzeichnis nicht gefunden`);
-    if (dateien.length) { if (lang) out.push(...dateien.map((r) => zeile(pfad(w, r), r))); else out.push(dateien.join('  ')); }
+    if (dateien.length) { if (lang) out.push(...dateien.map((r) => zeile(pfad(w, r), r))); else out.push(dateien.join(flags.has('-1') || !w.stdoutTty ? '\n' : '  ')); }
     for (const [i, r] of ordnerZiele.entries()) { if (dateien.length || i > 0) out.push(''); ordner(pfad(w, r), r, ziele.length > 1 || flags.has('-R')); }
     return { out: out.join('\n'), err: err.length ? err.join('\n') : undefined, code: err.length ? 2 : 0 };
   };
@@ -620,13 +620,15 @@ export function textBefehle(h: TextHelfer): Record<string, Befehl> {
     const kurz = a.filter((x) => x.startsWith('-')).join('').replace(/-/g, '');
     if (kurz.includes('o')) {
       const eintraege = zeilen(stdin).map((p) => p.trim()).filter(Boolean).map((p) => ({ p: p.replace(/^\.\//, ''), c: w.fs[pfad(w, p)] ?? '' }));
-      return { out: CPIO + JSON.stringify(eintraege), err: `${Math.max(1, Math.ceil(eintraege.reduce((s, e) => s + groesse(e.c), 0) / 512))} Blöcke`, code: 0 };
+      const n = Math.max(1, Math.ceil(eintraege.reduce((s, e) => s + groesse(e.c), 0) / 512));
+      return { out: CPIO + JSON.stringify(eintraege), err: [...(kurz.includes('v') ? eintraege.map((e) => e.p) : []), `${n} ${n === 1 ? 'Block' : 'Blöcke'}`].join('\n'), code: 0, errNach: true } as Ergebnis;
     }
     if (!stdin.startsWith(CPIO)) return fehler('cpio: Vorzeitiges Ende des Archivs');
     const rohdaten = stdin.slice(CPIO.length);
     const eintraege: { p: string; c: string | null }[] = rohdaten.startsWith('[') ? JSON.parse(rohdaten) : rohdaten.split(',').map((p) => ({ p: '.' + p, c: p.endsWith('.conf') ? '# Beispielkonfiguration\n' : '(ELF-Programm)' }));
-    const bloecke = `${Math.max(1, Math.ceil(eintraege.reduce((s, e) => s + groesse(e.c), 0) / 512))} Blöcke`;
-    if (kurz.includes('t')) return { out: eintraege.map((e) => e.p).join('\n'), err: bloecke, code: 0 };
+    const nb = Math.max(1, Math.ceil(eintraege.reduce((s, e) => s + groesse(e.c), 0) / 512));
+    const bloecke = `${nb} ${nb === 1 ? 'Block' : 'Blöcke'}`;
+    if (kurz.includes('t')) return { out: eintraege.map((e) => e.p).join('\n'), err: bloecke, code: 0, errNach: true } as Ergebnis;
     if (!kurz.includes('i')) return fehler('cpio: Sie müssen eine der Optionen -o, -i, -p, -t angeben.\n„cpio --help“ oder „cpio --usage“ liefert weitere Informationen.');
     for (const e of eintraege) {
       const ziel = pfad(w, e.p);
@@ -636,7 +638,7 @@ export function textBefehle(h: TextHelfer): Record<string, Befehl> {
       if (!(parent in w.fs)) return fehler(`cpio: ${e.p}: Funktion open fehlgeschlagen: Datei oder Verzeichnis nicht gefunden (mit -d werden Verzeichnisse angelegt)`);
       w.fs[ziel] = e.c; neuMeta(w, ziel, root, e.c === null);
     }
-    return { out: kurz.includes('v') ? eintraege.map((e) => e.p).join('\n') : '', err: bloecke, code: 0 };
+    return { out: '', err: [...(kurz.includes('v') ? eintraege.map((e) => e.p) : []), bloecke].join('\n'), code: 0 };
   };
 
   // ---------- dd ----------
@@ -795,6 +797,8 @@ export function textBefehle(h: TextHelfer): Record<string, Befehl> {
   // ===================== 103.5 und 103.6 Prozesse =====================
 
   const sichtbar = (w: Welt) => w.prozesse.filter((p) => !p.weg);
+  // Wie der Kernel den Prozess nennt (comm): bei Skripten der Name des Skripts
+  const kurzname = (p: Prozess) => { if (p.cmd.startsWith('[')) return p.cmd; const t = p.cmd.split(' '); if (/^\/(usr\/)?bin\/(ba)?sh$/.test(t[0]) && t[1] && !t[1].startsWith('-')) return t[1].split('/').pop()!; return t[0].split('/').pop()!.replace(/^-/, ''); };
   const zeitVon = (p: Prozess) => p.zeit ?? '00:00:00';
   b.ps = (w, a) => {
     const roh = a.join(' ');
@@ -806,24 +810,28 @@ export function textBefehle(h: TextHelfer): Record<string, Befehl> {
     if (werte.u || werte.user) liste = liste.filter((p) => p.user === (werte.u ?? werte.user));
     if (werte.p || werte.pid) { const ids = (werte.p ?? werte.pid).split(',').map(Number); liste = liste.filter((p) => ids.includes(p.pid)); }
     if (werte.C) liste = liste.filter((p) => p.cmd.split(' ')[0].split('/').pop() === werte.C);
+    const leer = (werte.p || werte.pid || werte.C) && !liste.length;
     if (werte.sort) { const s = werte.sort; const feld = s.replace(/^[-+]/, ''); const f = (p: Prozess) => feld === '%cpu' || feld === 'pcpu' ? p.cpu ?? 0 : feld === '%mem' || feld === 'pmem' ? p.mem ?? 0 : feld === 'ni' ? p.ni ?? 0 : feld === 'pid' ? p.pid : 0; liste = [...liste].sort((x, y) => (s.startsWith('-') ? f(y) - f(x) : f(x) - f(y))); }
-    const comm = (p: Prozess) => p.cmd.startsWith('[') ? p.cmd : p.cmd.split(' ')[0].split('/').pop()!.replace(/^-/, '');
+    const comm = (p: Prozess) => kurzname(p);
     if (werte.o) {
       const felder = werte.o.split(',').map((x) => x.split('=')[0]);
       const kopf: Record<string, string> = { pid: '    PID', ppid: '   PPID', ni: ' NI', pri: 'PRI', user: 'USER    ', comm: 'COMMAND', cmd: 'CMD', args: 'COMMAND', '%cpu': '%CPU', pcpu: '%CPU', '%mem': '%MEM', stat: 'STAT', tty: 'TT      ', etime: '    ELAPSED' };
       const wert = (p: Prozess, f: string) => ({ pid: String(p.pid).padStart(7), ppid: String(p.ppid ?? 1).padStart(7), ni: String(p.ni ?? 0).padStart(3), pri: String(19 - (p.ni ?? 0)).padStart(3), user: p.user.padEnd(8), comm: comm(p), cmd: p.cmd, args: p.cmd, '%cpu': (p.cpu ?? 0).toFixed(1).padStart(4), pcpu: (p.cpu ?? 0).toFixed(1).padStart(4), '%mem': (p.mem ?? 0).toFixed(1).padStart(4), stat: (p.stat ?? 'S').padEnd(4), tty: (p.tty ?? '?').padEnd(8), etime: '      28:14' } as Record<string, string>)[f] ?? '?';
       return ok([felder.map((f) => kopf[f] ?? f.toUpperCase()).join(' '), ...liste.map((p) => felder.map((f) => wert(p, f)).join(' '))].join('\n'));
     }
-    if (bsd || roh.includes(' u') || roh === 'u') return ok(['USER         PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND', ...liste.map((p) => `${p.user.padEnd(8)} ${String(p.pid).padStart(7)} ${(p.cpu ?? 0).toFixed(1).padStart(4)} ${(p.mem ?? 0).toFixed(1).padStart(4)} ${String(p.vsz ?? 12000).padStart(6)} ${String(p.rss ?? 4000).padStart(5)} ${(p.tty ?? '?').padEnd(8)} ${(p.stat ?? 'S').padEnd(4)} ${(p.start ?? '08:12').padStart(5)}   ${zeitVon(p).slice(3)} ${p.cmd}`)].join('\n'));
+    // ps -l: lange Liste mit PRI (80 + Nettigkeit) und NI
+    if (/(^|\s)-\w*l/.test(roh) && !bsd) return ok(['F S   UID     PID    PPID  C PRI  NI ADDR SZ WCHAN  TTY          TIME CMD', ...liste.map((p) => `${p.user === 'root' ? 4 : 0} ${(p.stat ?? 'S')[0]} ${String(p.user === 'root' ? 0 : p.user === 'max' ? 1001 : 1000).padStart(5)} ${String(p.pid).padStart(7)} ${String(p.ppid ?? 1).padStart(7)}  0 ${String(80 + (p.ni ?? 0)).padStart(3)} ${String(p.ni ?? 0).padStart(3)} - ${String(Math.round((p.vsz ?? 12000) / 4)).padStart(5)} -      ${(p.tty ?? '?').padEnd(8)} ${zeitVon(p)} ${comm(p)}`)].join('\n'));
+    if (bsd || roh.includes(' u') || roh === 'u') return ok(['USER         PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND', ...liste.map((p) => `${p.user.padEnd(8)} ${String(p.pid).padStart(7)} ${(p.cpu ?? 0).toFixed(1).padStart(4)} ${(p.mem ?? 0).toFixed(1).padStart(4)} ${String(p.vsz ?? 12000).padStart(6)} ${String(p.rss ?? 4000).padStart(5)} ${(p.tty ?? '?').padEnd(8)} ${(p.stat ?? 'S').padEnd(4)} ${(p.start ?? '08:12').padStart(5)} ${((t) => `${Number(t[0]) * 60 + Number(t[1])}:${t[2]}`)(zeitVon(p).split(':')).padStart(6)} ${p.cmd}`)].join('\n'));
     if (/-ef|-e.*-f|-f/.test(roh)) return ok(['UID          PID    PPID  C STIME TTY          TIME CMD', ...liste.map((p) => `${p.user.padEnd(8)} ${String(p.pid).padStart(7)} ${String(p.ppid ?? 1).padStart(7)}  ${Math.round(p.cpu ?? 0) > 9 ? 9 : Math.round(p.cpu ?? 0)} ${(p.start ?? '08:12').padStart(5)} ${(p.tty ?? '?').padEnd(8)} ${zeitVon(p)} ${p.cmd}`)].join('\n'));
-    return ok(['    PID TTY          TIME CMD', ...liste.map((p) => `${String(p.pid).padStart(7)} ${(p.tty ?? '?').padEnd(8)} ${zeitVon(p)} ${comm(p)}`)].join('\n'));
+    const r = ok(['    PID TTY          TIME CMD', ...liste.map((p) => `${String(p.pid).padStart(7)} ${(p.tty ?? '?').padEnd(8)} ${zeitVon(p)} ${comm(p)}`)].join('\n'));
+    return leer ? { ...r, code: 1 } : r;
   };
   b.top = (w, a) => {
     const batch = a.some((x) => x.includes('b'));
     const nach = [...sichtbar(w)].sort((x, y) => (y.cpu ?? 0) - (x.cpu ?? 0));
     const lauf = nach.filter((p) => p.stat?.startsWith('R')).length;
     const kopf = `top - ${datumText(w.uhr).split(' ')[3].slice(0, 8)} up 28 min,  2 users,  load average: 0,82, 0,61, 0,40\nTasks: ${nach.length + 180} total,   ${lauf} running, ${nach.length + 180 - lauf} sleeping,   0 stopped,   0 zombie\n%Cpu(s): 14,2 us,  2,1 sy,  3,9 ni, 79,6 id,  0,1 wa,  0,0 hi,  0,1 si,  0,0 st\nMiB Mem :  15921,3 total,   9642,7 free,   2355,5 used,   3604,0 buff/cache\nMiB Swap:   1953,9 total,   1953,9 free,      0,0 used.  13185,8 avail Mem\n\n    PID USER      PR  NI    VIRT    RES    SHR S  %CPU  %MEM     TIME+ COMMAND`;
-    const z = nach.slice(0, 15).map((p) => `${String(p.pid).padStart(7)} ${p.user.padEnd(9)} ${String(p.cmd.startsWith('[') ? 'rt' : 20 + (p.ni ?? 0)).padStart(3)} ${String(p.ni ?? 0).padStart(3)} ${String(p.vsz ?? 12000).padStart(7)} ${String(p.rss ?? 4000).padStart(6)} ${String(Math.round((p.rss ?? 4000) * 0.6)).padStart(6)} ${(p.stat ?? 'S')[0]} ${(p.cpu ?? 0).toFixed(1).padStart(5)} ${(p.mem ?? 0).toFixed(1).padStart(5)} ${((t) => `${Number(t[0]) * 60 + Number(t[1])}:${t[2]}.${String(p.pid % 97).padStart(2, '0')}`)(zeitVon(p).split(':')).padStart(9)} ${(p.cmd.startsWith('[') ? p.cmd.slice(1, -1) : p.cmd.split(' ')[0].split('/').pop()!.replace(/^-/, ''))}`);
+    const z = nach.slice(0, 15).map((p) => `${String(p.pid).padStart(7)} ${p.user.padEnd(9)} ${String(p.cmd.startsWith('[') ? 'rt' : 20 + (p.ni ?? 0)).padStart(3)} ${String(p.ni ?? 0).padStart(3)} ${String(p.vsz ?? 12000).padStart(7)} ${String(p.rss ?? 4000).padStart(6)} ${String(Math.round((p.rss ?? 4000) * 0.6)).padStart(6)} ${(p.stat ?? 'S')[0]} ${(p.cpu ?? 0).toFixed(1).padStart(5)} ${(p.mem ?? 0).toFixed(1).padStart(5)} ${((t) => `${Number(t[0]) * 60 + Number(t[1])}:${t[2]}.${String(p.pid % 97).padStart(2, '0')}`)(zeitVon(p).split(':')).padStart(9)} ${p.cmd.startsWith('[') ? p.cmd.slice(1, -1) : kurzname(p)}`);
     if (!batch) w.langlaeufer = 'top';
     return ok(kopf + '\n' + z.join('\n') + (batch ? '' : '\n(top aktualisiert sich jetzt alle 3 Sekunden. q oder Strg+C beendet. Im Simulator: Strg+C.)'));
   };
@@ -831,16 +839,18 @@ export function textBefehle(h: TextHelfer): Record<string, Befehl> {
   b.pgrep = (w, a) => {
     const { werte, flags, rest } = mitWert(a, ['u']);
     const muster = rest[0] ?? ''; const re = regexAus(muster, { ere: true });
-    const t = sichtbar(w).filter((p) => (!werte.u || p.user === werte.u) && re.test(flags.has('-f') ? p.cmd : p.cmd.split(' ')[0].split('/').pop()!.replace(/^-/, '')));
-    return { out: t.map((p) => flags.has('-l') ? `${p.pid} ${p.cmd.split(' ')[0].split('/').pop()}` : flags.has('-a') ? `${p.pid} ${p.cmd}` : String(p.pid)).join('\n'), code: t.length ? 0 : 1 };
+    const t = sichtbar(w).filter((p) => (!werte.u || p.user === werte.u) && re.test(flags.has('-f') ? p.cmd : kurzname(p)));
+    return { out: t.map((p) => flags.has('-l') ? `${p.pid} ${kurzname(p)}` : flags.has('-a') ? `${p.pid} ${p.cmd}` : String(p.pid)).join('\n'), code: t.length ? 0 : 1 };
   };
   b.watch = (w, a, _i, root) => {
     const { werte, rest } = mitWert(a, ['n']);
     const r = intern(w, rest.join(' '), '', root);
     w.langlaeufer = ['watch', ...a].join(' ');
-    return ok(`Every ${Number(werte.n ?? 2).toFixed(1).replace('.', ',')}s: ${rest.join(' ')}${' '.repeat(10)}werkstatt: ${datumText(w.uhr)}\n\n${r.out}\n(watch wiederholt den Befehl, bis du Strg+C drückst.)`);
+    return ok(`Alle ${Number(werte.n ?? 2).toFixed(1).replace('.', ',')}s: ${rest.join(' ')}${' '.repeat(10)}werkstatt: ${datumText(w.uhr)}\n\n${r.out}`);
   };
   b.nice = (w, a, _i, root) => {
+    // Alte Schreibweise: nice -10 befehl heißt +10, nice --10 befehl heißt -10
+    if (/^--?\d+$/.test(a[0] ?? '')) a = ['-n', a[0].startsWith('--') ? '-' + a[0].slice(2) : a[0].slice(1), ...a.slice(1)];
     const { werte, rest } = mitWert(a, ['n']);
     if (!rest.length) return ok(String(w.nice ?? 0));
     const n = Number(werte.n ?? 10);
@@ -888,7 +898,8 @@ export function textBefehle(h: TextHelfer): Record<string, Befehl> {
     if (!a.length) return fehler('nohup: fehlender Operand');
     w.nohup = true;
     const r = intern(w, a.join(' '), '', root);
-    const ziel = '/home/lena/nohup.out';
+    // nohup.out im aktuellen Verzeichnis, sonst im Heimatverzeichnis
+    const ziel = darfImOrdner(w, (w.cwd === '/' ? '' : w.cwd) + '/nohup.out', root) ? (w.cwd === '/' ? '' : w.cwd) + '/nohup.out' : '/home/lena/nohup.out';
     if (r.out) schreiben(w, ziel, r.out, true, root); else if (!(ziel in w.fs)) schreiben(w, ziel, '', false, root);
     return { out: '', err: "nohup: Eingabe wird ignoriert und Ausgabe an 'nohup.out' angehängt", code: r.code };
   };

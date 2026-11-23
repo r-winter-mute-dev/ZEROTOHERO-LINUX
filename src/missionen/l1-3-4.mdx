@@ -1,0 +1,132 @@
+---
+id: l1-3-4
+checks:
+  - id: k1
+  - id: zeichen
+  - id: k2
+  - id: pruefen
+  - id: k3
+spick:
+  - t: "Zeichen ersetzen"
+    v: "tr a-z A-Z < datei"
+  - t: "Zeichen löschen"
+    v: "tr -d '\\r' < win.txt > unix.txt"
+  - t: "Wiederholungen zusammenfassen"
+    v: "tr -s ' '"
+  - t: "Unsichtbares sichtbar"
+    v: "od -c datei, cat -A datei"
+  - t: "Zerlegen und zusammensetzen"
+    v: "split -l 100 datei teil_ ; cat teil_* > ganz"
+  - t: "Prüfsummen"
+    v: "sha256sum datei, sha256sum -c SHA256SUMS"
+  - t: "Komprimiert lesen"
+    v: "zcat .gz, bzcat .bz2, xzcat .xz"
+  - t: "Ersetzen mit sed"
+    v: "sed 's/alt/neu/g' datei, sed -i … ändert die Datei"
+  - t: "Zeilen löschen mit sed"
+    v: "sed '/^#/d' datei"
+karten:
+  - f: "Von wo liest tr seine Eingabe?"
+    a: ["von der standardeingabe", "stdin", "nur von der standardeingabe"]
+  - f: "Wie wandelst du mit tr Klein- in Großbuchstaben um?"
+    a: ["tr a-z A-Z", "tr '[:lower:]' '[:upper:]'", "tr [:lower:] [:upper:]"]
+  - f: "Welche Option von tr löscht Zeichen?"
+    a: ["-d", "tr -d"]
+  - f: "Welcher Befehl zeigt eine Datei Zeichen für Zeichen, auch unsichtbare wie \\r?"
+    a: ["od -c", "od"]
+  - f: "Wie heißen die Teile, die split ohne Präfix erzeugt?"
+    a: ["xaa xab", "xaa, xab", "xaa", "xaa xab xac"]
+  - f: "Wie prüfst du Dateien gegen eine Liste von SHA-256-Prüfsummen?"
+    a: ["sha256sum -c", "sha256sum -c SHA256SUMS", "sha256sum --check"]
+  - f: "Mit welchem Befehl liest du eine .xz-Datei, ohne sie zu entpacken?"
+    a: ["xzcat"]
+  - f: "Mit welchem Befehl liest du eine .bz2-Datei, ohne sie zu entpacken?"
+    a: ["bzcat"]
+  - f: "Was bewirkt das g am Ende von s/alt/neu/g in sed?"
+    a: ["alle vorkommen in der zeile ersetzen", "alle treffer pro zeile", "global"]
+  - f: "Welche Option lässt sed die Datei selbst ändern?"
+    a: ["-i", "sed -i"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+
+Drei Probleme auf einmal: Eine Bestellung aus dem Windows-Büro zeigt merkwürdige Zeichen, ein heruntergeladenes ISO-Abbild soll geprüft werden, und in alten, gepackten Logs steckt ein Sensorfehler. **Deine Mission: Mach Unsichtbares sichtbar, prüfe Downloads und lies gepackte Logs, ohne sie auszupacken.** Lernziel 103.2.
+
+## Zeichen umwandeln und sichtbar machen
+
+<Karte nr={1} titel="tr, od und split">
+**tr** (translate) ersetzt oder löscht einzelne Zeichen. Es liest **nur von der Standardeingabe**, nimmt also keinen Dateinamen. Du gibst die Datei mit `<` oder einer Pipe hinein:
+
+- `tr a-z A-Z < datei` macht aus Klein- Großbuchstaben. Gleichwertig: `tr '[:lower:]' '[:upper:]'`.
+- `tr -d '\r'` löscht alle Wagenrückläufe.
+- `tr -s ' '` fasst mehrere Leerzeichen hintereinander zu einem zusammen.
+
+Windows beendet Zeilen mit zwei Zeichen, `\r\n`, Linux nur mit `\n`. Das `\r` siehst du nicht, aber es stört Skripte und Vergleiche. Sichtbar macht es **od** (octal dump): `od -c datei` zeigt jedes Zeichen einzeln, `od -t x1` die Bytes hexadezimal. Ohne Option zeigt od Oktalzahlen, daher der Name. `cat -A` zeigt `^M` für `\r` und `$` am Zeilenende.
+
+**split** zerlegt große Dateien: `split -l 100 datei teil_` erzeugt `teil_aa`, `teil_ab` und so weiter, je 100 Zeilen. `-b 10M` teilt nach Größe. Ohne Präfix heißen die Teile `xaa`, `xab`. Zusammen setzt du sie mit `cat teil_* > ganz`, denn die Shell sortiert die Namen alphabetisch.
+</Karte>
+
+<Merke>tr liest nur stdin. \r\n ist Windows, \n ist Linux. od -c zeigt alles.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: tr und od" fragen={[
+  { frage: 'Warum funktioniert „tr a-z A-Z datei.txt“ nicht?', richtig: 'tr nimmt keinen Dateinamen, sondern liest von der Standardeingabe.', falsch: ['tr braucht die Option -f für Dateien.', 'tr kennt keine Bereiche wie a-z.'], erklaerung: 'Richtig ist tr a-z A-Z < datei.txt.' },
+  { frage: 'Wie siehst du, ob eine Datei Windows-Zeilenenden hat?', richtig: 'od -c datei zeigt \\r vor jedem \\n.', falsch: ['wc -l zeigt doppelt so viele Zeilen.', 'file zeigt immer „Windows“.'], erklaerung: 'file meldet zwar oft „with CRLF line terminators“, aber od -c zeigt es Zeichen für Zeichen.' },
+]} />
+
+<Terminal id="zeichen" titel="Terminal: Die Windows-Bestellung" welt={{ dateien: {"/home/lena/downloads/debian-12.iso": "DEBIAN-12-NETINST-PLATZHALTER\nDEBIAN-12-NETINST-PLATZHALTER\nDEBIAN-12-NETINST-PLATZHALTER\n", "/home/lena/downloads/treiber.tar": "Netzwerk-Treiber 2.0\n", "/home/lena/downloads/SHA256SUMS": "29d972083c9bd8f96b1b4fb0f8ed6dba2cf73ec52b7cc72a4e1977fa5fe8f51f  debian-12.iso\nf5d6aad8dbc9a2d1acbb75949e48a0271db00ad6a583ed0c0fb0dee0b0d172ea  treiber.tar\n", "/home/lena/windows.txt": "Bestellung Nr. 4711\r\nMenge: 12\r\nLieferung: Kassel\r\n", "/home/lena/messwerte.csv": "1,27,53\n2,25,66\n3,23,49\n4,21,62\n5,28,45\n6,26,58\n7,24,41\n8,22,54\n9,20,67\n10,27,50\n11,25,63\n12,23,46\n13,21,59\n14,28,42\n15,26,55\n16,24,68\n17,22,51\n18,20,64\n19,27,47\n20,25,60\n21,23,43\n22,21,56\n23,28,69\n24,26,52\n25,24,65\n26,22,48\n27,20,61\n28,27,44\n29,25,57\n30,23,40\n31,21,53\n32,28,66\n33,26,49\n34,24,62\n35,22,45\n36,20,58\n37,27,41\n38,25,54\n39,23,67\n40,21,50\n41,28,63\n42,26,46\n43,24,59\n44,22,42\n45,20,55\n46,27,68\n47,25,51\n48,23,64\n49,21,47\n50,28,60\n51,26,43\n52,24,56\n53,22,69\n54,20,52\n55,27,65\n56,25,48\n57,23,61\n58,21,44\n59,28,57\n60,26,40\n61,24,53\n62,22,66\n63,20,49\n64,27,62\n65,25,45\n66,23,58\n67,21,41\n68,28,54\n69,26,67\n70,24,50\n71,22,63\n72,20,46\n73,27,59\n74,25,42\n75,23,55\n76,21,68\n77,28,51\n78,26,64\n79,24,47\n80,22,60\n81,20,43\n82,27,56\n83,25,69\n84,23,52\n85,21,65\n86,28,48\n87,26,61\n88,24,44\n89,22,57\n90,20,40\n91,27,53\n92,25,66\n93,23,49\n94,21,62\n95,28,45\n96,26,58\n97,24,41\n98,22,54\n99,20,67\n100,27,50\n101,25,63\n102,23,46\n103,21,59\n104,28,42\n105,26,55\n106,24,68\n107,22,51\n108,20,64\n109,27,47\n110,25,60\n111,23,43\n112,21,56\n113,28,69\n114,26,52\n115,24,65\n116,22,48\n117,20,61\n118,27,44\n119,25,57\n120,23,40\n121,21,53\n122,28,66\n123,26,49\n124,24,62\n125,22,45\n126,20,58\n127,27,41\n128,25,54\n129,23,67\n130,21,50\n131,28,63\n132,26,46\n133,24,59\n134,22,42\n135,20,55\n136,27,68\n137,25,51\n138,23,64\n139,21,47\n140,28,60\n141,26,43\n142,24,56\n143,22,69\n144,20,52\n145,27,65\n146,25,48\n147,23,61\n148,21,44\n149,28,57\n150,26,40\n151,24,53\n152,22,66\n153,20,49\n154,27,62\n155,25,45\n156,23,58\n157,21,41\n158,28,54\n159,26,67\n160,24,50\n161,22,63\n162,20,46\n163,27,59\n164,25,42\n165,23,55\n166,21,68\n167,28,51\n168,26,64\n169,24,47\n170,22,60\n171,20,43\n172,27,56\n173,25,69\n174,23,52\n175,21,65\n176,28,48\n177,26,61\n178,24,44\n179,22,57\n180,20,40\n181,27,53\n182,25,66\n183,23,49\n184,21,62\n185,28,45\n186,26,58\n187,24,41\n188,22,54\n189,20,67\n190,27,50\n191,25,63\n192,23,46\n193,21,59\n194,28,42\n195,26,55\n196,24,68\n197,22,51\n198,20,64\n199,27,47\n200,25,60\n201,23,43\n202,21,56\n203,28,69\n204,26,52\n205,24,65\n206,22,48\n207,20,61\n208,27,44\n209,25,57\n210,23,40\n211,21,53\n212,28,66\n213,26,49\n214,24,62\n215,22,45\n216,20,58\n217,27,41\n218,25,54\n219,23,67\n220,21,50\n221,28,63\n222,26,46\n223,24,59\n224,22,42\n225,20,55\n226,27,68\n227,25,51\n228,23,64\n229,21,47\n230,28,60\n231,26,43\n232,24,56\n233,22,69\n234,20,52\n235,27,65\n236,25,48\n237,23,61\n238,21,44\n239,28,57\n240,26,40\n241,24,53\n242,22,66\n243,20,49\n244,27,62\n245,25,45\n246,23,58\n247,21,41\n248,28,54\n249,26,67\n250,24,50\n", "/home/lena/logs/messung.log.2.gz": "\u0007KOMP:gz:21.11. 07:00 Kanal 1: 22,8 °C\n21.11. 12:00 Kanal 1: FEHLER Sensor\n21.11. 18:00 Kanal 1: 23,0 °C\n", "/home/lena/logs/messung.log.3.bz2": "\u0007KOMP:bz2:20.11. 07:00 Kanal 1: 22,1 °C\n20.11. 12:00 Kanal 1: 22,9 °C\n", "/home/lena/logs/messung.log.4.xz": "\u0007KOMP:xz:19.11. 07:00 Kanal 1: 21,7 °C\n19.11. 12:00 Kanal 1: FEHLER Sensor\n19.11. 18:00 Kanal 1: FEHLER Sensor\n", "/home/lena/server.conf": "url=http://werkstatt.example/api\nbackup=http://backup.example/\n# Kommentar: http ist veraltet\n"} }} aufgaben={[
+  { text: 'Schau dir <code>windows.txt</code> Zeichen für Zeichen mit od an.', befehl: '^od -c (\\./)?windows\\.txt$', frage: 'Welches Zeichen steht vor jedem \\n?', antwort: ['\\r', 'r', 'wagenrücklauf', 'carriage return'] },
+  { text: 'Lösche mit tr alle <code>\\r</code> und schreib das Ergebnis nach <code>unix.txt</code>.', befehl: "^(tr -d '\\\\r' < (\\./)?windows\\.txt > (\\./)?unix\\.txt|cat (\\./)?windows\\.txt \\| tr -d '\\\\r' > (\\./)?unix\\.txt)$", zustand: 'datei:/home/lena/unix.txt~^Bestellung Nr\\. 4711\\nMenge' },
+  { text: 'Gib <code>unix.txt</code> in Großbuchstaben aus.', befehl: "^(tr (a-z A-Z|'a-z' 'A-Z'|'\\[:lower:\\]' '\\[:upper:\\]') < (\\./)?unix\\.txt|cat (\\./)?unix\\.txt \\| tr (a-z A-Z|'a-z' 'A-Z'|'\\[:lower:\\]' '\\[:upper:\\]'))$" },
+  { text: 'Zerlege <code>messwerte.csv</code> in Teile zu je 100 Zeilen mit dem Präfix <code>teil_</code>.', befehl: '^split -l ?100 (\\./)?messwerte\\.csv teil_$', frage: 'Wie viele Teile entstehen?', antwort: ['3', 'drei'] },
+  { text: 'Setze die Teile wieder zu <code>zusammen.csv</code> zusammen.', zustand: 'datei:/home/lena/zusammen.csv~^1,27,53\\n(.|\\n)*^250,' },
+]} />
+
+## Prüfsummen, gepackte Logs und ein erster Blick auf sed
+
+<Karte nr={2} titel="md5sum, sha256sum, sha512sum">
+Eine **Prüfsumme** ist ein Fingerabdruck eines Dateiinhalts. Ändert sich ein einziges Bit, ändert sich die ganze Summe. Debian veröffentlicht zu jedem Abbild eine Datei `SHA256SUMS`. `sha256sum datei` berechnet die Summe, `sha256sum -c SHA256SUMS` prüft alle Dateien aus der Liste und meldet je Datei **OK** oder **GESCHEITERT**.
+
+`md5sum` und `sha512sum` arbeiten genauso. MD5 gilt als gebrochen: Man kann absichtlich zwei verschiedene Dateien mit gleicher Summe bauen. Gegen zufällige Übertragungsfehler hilft MD5 noch, gegen Manipulation nur SHA-256 oder SHA-512. Damit niemand auch die Liste fälscht, ist sie zusätzlich signiert.
+</Karte>
+
+<Karte nr={3} titel="zcat, bzcat, xzcat und sed">
+Alte Logs liegen oft gepackt vor: `.gz` (gzip), `.bz2` (bzip2) oder `.xz` (xz). **zcat**, **bzcat** und **xzcat** geben den Inhalt aus, ohne die Datei zu verändern. Das passt perfekt in Pipes: `zcat alt.log.gz | grep FEHLER`.
+
+**sed** (stream editor) verändert Text auf dem Weg durch die Pipe. Die zwei wichtigsten Befehle:
+
+- `sed 's/alt/neu/' datei` ersetzt den ersten Treffer je Zeile. Mit `g` am Ende alle Treffer.
+- `sed '/^#/d' datei` löscht alle Zeilen, die mit `#` beginnen.
+
+sed gibt das Ergebnis aus und lässt die Datei in Ruhe. Erst `sed -i` schreibt die Änderung in die Datei zurück. Mehr zu den Mustern in Mission 3.11.
+</Karte>
+
+<Merke>sha256sum -c prüft eine Liste. zcat, bzcat, xzcat lesen gepackt. sed ändert die Datei erst mit -i.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: Prüfsummen und sed" fragen={[
+  { frage: 'Warum reicht MD5 nicht, um sich gegen ein absichtlich verändertes Abbild zu schützen?', richtig: 'Man kann gezielt verschiedene Dateien mit derselben MD5-Summe erzeugen.', falsch: ['MD5 ist zu langsam.', 'MD5 funktioniert nur für Textdateien.'], erklaerung: 'Dafür gibt es Kollisionsangriffe. SHA-256 gilt hier als sicher.' },
+  { frage: 'Was macht „sed s/a/b/ datei“ mit der Datei?', richtig: 'Nichts. Das Ergebnis erscheint nur auf dem Bildschirm.', falsch: ['Es ersetzt alle a durch b in der Datei.', 'Es ersetzt das erste a der Datei.'], erklaerung: 'Ohne -i ändert sed nur den Datenstrom.' },
+]} />
+
+<Terminal id="pruefen" titel="Terminal: Prüfen und lesen" welt={{ dateien: {"/home/lena/downloads/debian-12.iso": "DEBIAN-12-NETINST-PLATZHALTER\nDEBIAN-12-NETINST-PLATZHALTER\nDEBIAN-12-NETINST-PLATZHALTER\n", "/home/lena/downloads/treiber.tar": "Netzwerk-Treiber 2.0\n", "/home/lena/downloads/SHA256SUMS": "29d972083c9bd8f96b1b4fb0f8ed6dba2cf73ec52b7cc72a4e1977fa5fe8f51f  debian-12.iso\nf5d6aad8dbc9a2d1acbb75949e48a0271db00ad6a583ed0c0fb0dee0b0d172ea  treiber.tar\n", "/home/lena/windows.txt": "Bestellung Nr. 4711\r\nMenge: 12\r\nLieferung: Kassel\r\n", "/home/lena/messwerte.csv": "1,27,53\n2,25,66\n3,23,49\n4,21,62\n5,28,45\n6,26,58\n7,24,41\n8,22,54\n9,20,67\n10,27,50\n11,25,63\n12,23,46\n13,21,59\n14,28,42\n15,26,55\n16,24,68\n17,22,51\n18,20,64\n19,27,47\n20,25,60\n21,23,43\n22,21,56\n23,28,69\n24,26,52\n25,24,65\n26,22,48\n27,20,61\n28,27,44\n29,25,57\n30,23,40\n31,21,53\n32,28,66\n33,26,49\n34,24,62\n35,22,45\n36,20,58\n37,27,41\n38,25,54\n39,23,67\n40,21,50\n41,28,63\n42,26,46\n43,24,59\n44,22,42\n45,20,55\n46,27,68\n47,25,51\n48,23,64\n49,21,47\n50,28,60\n51,26,43\n52,24,56\n53,22,69\n54,20,52\n55,27,65\n56,25,48\n57,23,61\n58,21,44\n59,28,57\n60,26,40\n61,24,53\n62,22,66\n63,20,49\n64,27,62\n65,25,45\n66,23,58\n67,21,41\n68,28,54\n69,26,67\n70,24,50\n71,22,63\n72,20,46\n73,27,59\n74,25,42\n75,23,55\n76,21,68\n77,28,51\n78,26,64\n79,24,47\n80,22,60\n81,20,43\n82,27,56\n83,25,69\n84,23,52\n85,21,65\n86,28,48\n87,26,61\n88,24,44\n89,22,57\n90,20,40\n91,27,53\n92,25,66\n93,23,49\n94,21,62\n95,28,45\n96,26,58\n97,24,41\n98,22,54\n99,20,67\n100,27,50\n101,25,63\n102,23,46\n103,21,59\n104,28,42\n105,26,55\n106,24,68\n107,22,51\n108,20,64\n109,27,47\n110,25,60\n111,23,43\n112,21,56\n113,28,69\n114,26,52\n115,24,65\n116,22,48\n117,20,61\n118,27,44\n119,25,57\n120,23,40\n121,21,53\n122,28,66\n123,26,49\n124,24,62\n125,22,45\n126,20,58\n127,27,41\n128,25,54\n129,23,67\n130,21,50\n131,28,63\n132,26,46\n133,24,59\n134,22,42\n135,20,55\n136,27,68\n137,25,51\n138,23,64\n139,21,47\n140,28,60\n141,26,43\n142,24,56\n143,22,69\n144,20,52\n145,27,65\n146,25,48\n147,23,61\n148,21,44\n149,28,57\n150,26,40\n151,24,53\n152,22,66\n153,20,49\n154,27,62\n155,25,45\n156,23,58\n157,21,41\n158,28,54\n159,26,67\n160,24,50\n161,22,63\n162,20,46\n163,27,59\n164,25,42\n165,23,55\n166,21,68\n167,28,51\n168,26,64\n169,24,47\n170,22,60\n171,20,43\n172,27,56\n173,25,69\n174,23,52\n175,21,65\n176,28,48\n177,26,61\n178,24,44\n179,22,57\n180,20,40\n181,27,53\n182,25,66\n183,23,49\n184,21,62\n185,28,45\n186,26,58\n187,24,41\n188,22,54\n189,20,67\n190,27,50\n191,25,63\n192,23,46\n193,21,59\n194,28,42\n195,26,55\n196,24,68\n197,22,51\n198,20,64\n199,27,47\n200,25,60\n201,23,43\n202,21,56\n203,28,69\n204,26,52\n205,24,65\n206,22,48\n207,20,61\n208,27,44\n209,25,57\n210,23,40\n211,21,53\n212,28,66\n213,26,49\n214,24,62\n215,22,45\n216,20,58\n217,27,41\n218,25,54\n219,23,67\n220,21,50\n221,28,63\n222,26,46\n223,24,59\n224,22,42\n225,20,55\n226,27,68\n227,25,51\n228,23,64\n229,21,47\n230,28,60\n231,26,43\n232,24,56\n233,22,69\n234,20,52\n235,27,65\n236,25,48\n237,23,61\n238,21,44\n239,28,57\n240,26,40\n241,24,53\n242,22,66\n243,20,49\n244,27,62\n245,25,45\n246,23,58\n247,21,41\n248,28,54\n249,26,67\n250,24,50\n", "/home/lena/logs/messung.log.2.gz": "\u0007KOMP:gz:21.11. 07:00 Kanal 1: 22,8 °C\n21.11. 12:00 Kanal 1: FEHLER Sensor\n21.11. 18:00 Kanal 1: 23,0 °C\n", "/home/lena/logs/messung.log.3.bz2": "\u0007KOMP:bz2:20.11. 07:00 Kanal 1: 22,1 °C\n20.11. 12:00 Kanal 1: 22,9 °C\n", "/home/lena/logs/messung.log.4.xz": "\u0007KOMP:xz:19.11. 07:00 Kanal 1: 21,7 °C\n19.11. 12:00 Kanal 1: FEHLER Sensor\n19.11. 18:00 Kanal 1: FEHLER Sensor\n", "/home/lena/server.conf": "url=http://werkstatt.example/api\nbackup=http://backup.example/\n# Kommentar: http ist veraltet\n"} }} aufgaben={[
+  { text: 'Wechsle nach <code>downloads</code> und berechne die SHA-256-Summe von <code>debian-12.iso</code>.', befehl: '^sha256sum (\\./)?debian-12\\.iso$', frage: 'Mit welchen vier Zeichen beginnt sie?', antwort: ['29d9'] },
+  { text: 'Prüf alle Dateien aus <code>SHA256SUMS</code> auf einmal.', befehl: '^sha256sum (-c|--check) (\\./)?SHA256SUMS$', auchFehler: true, frage: 'Welche Datei ist beschädigt?', antwort: ['treiber.tar'] },
+  { text: 'Zurück ins Heimatverzeichnis. Lies <code>logs/messung.log.2.gz</code>, ohne es auszupacken.', befehl: '^zcat (\\./)?logs/messung\\.log\\.2\\.gz$' },
+  { text: 'Lies auch die bzip2- und die xz-Datei mit dem passenden Befehl.', befehl: '^xzcat (\\./)?logs/messung\\.log\\.4\\.xz', zustand: 'ausgabe~^20\\.11\\. 07:00' },
+  { text: 'Zähle, wie oft am 19.11. ein FEHLER auftrat, mit einer Pipe aus xzcat und grep.', befehl: '^xzcat (\\./)?logs/messung\\.log\\.4\\.xz \\| grep (-c FEHLER|FEHLER \\| wc -l)$', frage: 'Wie oft?', antwort: ['2'] },
+  { text: 'Lass dir <code>server.conf</code> mit https statt http: ausgeben, ohne die Datei zu ändern.', befehl: "^sed '?s/http:/https:/g?'? (\\./)?server\\.conf$" },
+  { text: 'Schreib die Änderung jetzt in die Datei.', zustand: 'datei:/home/lena/server.conf~^url=https://werkstatt' },
+  { text: 'Gib die Datei ohne Kommentarzeilen aus.', befehl: "^sed '/\\^#/d' (\\./)?server\\.conf$" },
+]} />
+
+<Hinweis titel="Prüfungstipp">
+Die Prüfung fragt nach Paaren: Welches Programm liest welche Endung (zcat, bzcat, xzcat)? Welche Prüfsumme gehört zu welchem Befehl? Und sie lockt mit „tr datei“, das es so nicht gibt.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Wie setzt du die Teile xaa, xab, xac wieder zusammen?', richtig: 'cat xa* > ganz', falsch: ['split -j xa* > ganz', 'paste xa* > ganz'], erklaerung: 'paste würde die Teile nebeneinander statt untereinander setzen.' },
+  { frage: 'Welcher Befehl fasst mehrere Leerzeichen hintereinander zu einem zusammen?', richtig: "tr -s ' '", falsch: ["tr -d ' '", "cut -d ' '"], erklaerung: '-s steht für squeeze. -d würde alle Leerzeichen löschen.' },
+  { frage: 'Was gibt „echo Hallo | sed s/l/L/“ aus?', richtig: 'HaLlo', falsch: ['HaLLo', 'Hallo'], erklaerung: 'Ohne g ersetzt sed nur den ersten Treffer je Zeile.' },
+]} />

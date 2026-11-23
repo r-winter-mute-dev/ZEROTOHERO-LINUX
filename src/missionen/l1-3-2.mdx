@@ -1,0 +1,189 @@
+---
+id: l1-3-2
+checks:
+  - id: k1
+  - id: pfad
+  - id: k2
+  - id: verlauf
+  - id: handbuch
+  - id: zuordnung
+  - id: k3
+spick:
+  - t: "Wo sucht die Shell?"
+    v: "echo $PATH"
+  - t: "Was ist das für ein Befehl?"
+    v: "type befehl  (type -a: alle Treffer)"
+  - t: "Welche Datei würde starten?"
+    v: "which befehl"
+  - t: "Programm außerhalb von PATH"
+    v: "./programm  oder  /voller/pfad/programm"
+  - t: "Verlauf"
+    v: "history, ~/.bash_history"
+  - t: "Wiederholen"
+    v: "!!  !42  !-2  !ssh"
+  - t: "Handbuch"
+    v: "man [Abschnitt] seite, man -k wort, whatis seite"
+  - t: "System"
+    v: "uname -a, -r Kernel, -m Hardware"
+karten:
+  - f: "In welcher Variable stehen die Verzeichnisse, in denen die Shell nach Befehlen sucht?"
+    a: ["PATH", "$PATH"]
+  - f: "Wie startest du das Skript hallo.sh im aktuellen Verzeichnis, wenn es nicht in PATH liegt?"
+    a: ["./hallo.sh"]
+  - f: "Welcher Befehl zeigt, ob ein Name ein Alias, ein eingebauter Befehl oder eine Datei ist?"
+    a: ["type"]
+  - f: "Welcher Befehl zeigt den Pfad der Datei, die für einen Befehl ausgeführt würde?"
+    a: ["which", "type -p"]
+  - f: "Was wiederholt !! ?"
+    a: ["den letzten befehl", "letzten befehl"]
+  - f: "In welcher Datei speichert die Bash den Verlauf?"
+    a: ["~/.bash_history", ".bash_history"]
+  - f: "Wann schreibt die Bash den Verlauf in ~/.bash_history?"
+    a: ["beim beenden der shell", "beim beenden", "beim abmelden", "wenn die shell beendet wird"]
+  - f: "Welche Variable legt fest, wie viele Befehle der Verlauf im Speicher hält?"
+    a: ["HISTSIZE"]
+  - f: "Welcher Abschnitt der Handbuchseiten enthält Dateiformate wie /etc/passwd?"
+    a: ["5", "abschnitt 5"]
+  - f: "Welcher Abschnitt der Handbuchseiten enthält Befehle für root?"
+    a: ["8", "abschnitt 8"]
+  - f: "Wie suchst du in den Kurzbeschreibungen aller Handbuchseiten nach einem Wort (zwei Möglichkeiten)?"
+    a: ["man -k", "apropos", "man -k oder apropos"]
+  - f: "Welcher Befehl zeigt die Version des laufenden Kernels?"
+    a: ["uname -r"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Zuordnung from '../components/Zuordnung.astro';
+
+Ein neuer Kollege meldet sich: Auf seinem frisch installierten Debian gibt es angeblich kein `fdisk`. Und sein Skript im eigenen Ordner startet nur manchmal. **Deine Mission: Finde heraus, wo die Shell nach Befehlen sucht, wie du Befehle wiederholst und wo du Hilfe bekommst.** Lernziel 103.1.
+
+## Wo die Shell Befehle sucht
+
+<Karte nr={1} titel="PATH, eingebaute Befehle und Aliase">
+Tippst du `ls`, prüft die Bash der Reihe nach:
+
+1. Ist es ein **Alias**? Auf Debian ist `ls` ein Alias für `ls --color=auto`.
+2. Ist es ein **eingebauter Befehl** der Shell, etwa `cd`, `echo`, `export` oder `history`?
+3. Sonst sucht sie eine Datei in den Verzeichnissen aus **PATH**, von links nach rechts. Der erste Treffer gewinnt.
+
+`type ls` verrät, was davon zutrifft. `which ls` zeigt nur, welche Datei aus PATH starten würde. Aliase und eingebaute Befehle kennt which nicht.
+
+Liegt ein Programm nicht in PATH, rufst du es mit Pfad auf: `./hallo.sh` im aktuellen Verzeichnis oder `/opt/messsoft/bin/messprog` absolut. Das aktuelle Verzeichnis steht absichtlich nicht in PATH. Sonst könnte jemand ein Programm namens `ls` in `/tmp` legen, und du würdest es versehentlich starten.
+
+Willst du ein Verzeichnis dauerhaft dazunehmen, hängst du es an: `export PATH=$PATH:~/werkzeuge`. Damit das jede neue Shell tut, gehört die Zeile in `~/.bashrc` oder `~/.profile`.
+</Karte>
+
+<Karte nr={2} titel="Die Debian-Falle mit /usr/sbin">
+Programme für die Verwaltung liegen in `/usr/sbin` (früher `/sbin`). Debian nimmt `/usr/sbin` für normale Benutzer nicht in PATH auf. Darum meldet `fdisk -l` als lena „Befehl nicht gefunden“, obwohl das Programm da ist. Mit `sudo` klappt es, weil sudo einen eigenen, sicheren PATH verwendet, der `/usr/sbin` enthält. Red Hat und SUSE haben `/usr/sbin` auch für normale Benutzer in PATH.
+
+Seit Debian 12 sind `/bin` und `/sbin` übrigens nur noch Verweise auf `/usr/bin` und `/usr/sbin` („merged /usr“). `/bin/ls` und `/usr/bin/ls` sind dieselbe Datei.
+</Karte>
+
+<Merke>Reihenfolge: Alias, eingebauter Befehl, dann PATH von links nach rechts. Außerhalb von PATH: ./programm.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: PATH" fragen={[
+  { frage: 'Im aktuellen Verzeichnis liegt das ausführbare Skript backup.sh. Du tippst „backup.sh“ und bekommst „Befehl nicht gefunden“. Was hilft sofort?', richtig: './backup.sh', falsch: ['sudo backup.sh', 'source PATH'], erklaerung: 'Das aktuelle Verzeichnis steht nicht in PATH. Mit ./ gibst du den Pfad an.' },
+  { frage: 'Was zeigt „type cd“?', richtig: 'Dass cd in die Shell eingebaut ist', falsch: ['/usr/bin/cd', 'Nichts, cd ist kein Befehl'], erklaerung: 'cd muss eingebaut sein: Ein eigenes Programm könnte das Verzeichnis der Shell nicht ändern.' },
+]} />
+
+<Terminal id="pfad" titel="Terminal: Ein frisches Debian" welt={{ pathStandard: true, dateien: { '/home/lena/werkzeuge/hallo.sh': '#!/bin/bash\necho "Hallo aus dem Werkzeugkasten"\n' }, rechte: { '/home/lena/werkzeuge/hallo.sh': '755' } }} aufgaben={[
+  { text: 'Lass dir PATH ausgeben.', befehl: '^echo "?\\$\\{?PATH\\}?"?$', frage: 'Steht /usr/sbin darin? (ja/nein)', antwort: ['nein'] },
+  { text: 'Versuch, als lena <code>fdisk -l</code> aufzurufen.', befehl: '^fdisk -l$', auchFehler: true },
+  { text: 'Prüf mit ls, ob es <code>/usr/sbin/fdisk</code> trotzdem gibt.', befehl: '^ls (-l )?/(usr/)?sbin/fdisk$' },
+  { text: 'Ruf fdisk jetzt mit sudo auf.', befehl: '^sudo fdisk -l$' },
+  { text: 'Finde mit type heraus, was <code>ls</code> eigentlich ist.', befehl: '^type (-a )?ls$', frage: 'Was ist ls laut type?', antwort: ['alias', 'ein alias', 'ls --color=auto'] },
+  { text: 'Und welche Datei würde für ls starten? Frag which.', befehl: '^which ls$', frage: 'Pfad?', antwort: ['/usr/bin/ls'] },
+  { text: 'Wechsle in den Ordner <code>werkzeuge</code> und versuch dort, <code>hallo.sh</code> ohne Pfad zu starten.', befehl: '^hallo\\.sh$', auchFehler: true },
+  { text: 'Starte es jetzt mit Pfad aus dem aktuellen Verzeichnis.', befehl: '^\\./hallo\\.sh$' },
+  { text: 'Häng <code>~/werkzeuge</code> an PATH an und exportiere das Ergebnis.', zustand: 'var:PATH~(^|:)/home/lena/werkzeuge/?(:|$)' },
+  { text: 'Wechsle zurück ins Heimatverzeichnis und starte <code>hallo.sh</code> dort ohne Pfad.', befehl: '^hallo\\.sh$', zustand: 'cwd=/home/lena' },
+]} />
+
+## Der Verlauf
+
+<Karte nr={3} titel="history und die Ausrufezeichen">
+Die Bash merkt sich deine Befehle. `history` zeigt sie nummeriert, Pfeil hoch holt sie zurück, Strg+R sucht rückwärts. Schneller geht es mit der **Verlaufserweiterung**:
+
+| Eingabe | Wirkung |
+|---|---|
+| `!!` | letzter Befehl, praktisch als `sudo !!` |
+| `!42` | Befehl Nummer 42 aus `history` |
+| `!-2` | vorletzter Befehl |
+| `!ssh` | letzter Befehl, der mit ssh beginnt |
+| `!$` | letztes Wort des letzten Befehls |
+
+Die Bash zeigt die erweiterte Zeile an, bevor sie sie ausführt.
+
+Gespeichert wird der Verlauf in **~/.bash_history**, aber erst, wenn die Shell sich beendet. Was du gerade tippst, steht also noch nicht in der Datei. `HISTSIZE` legt fest, wie viele Befehle im Speicher bleiben, `HISTFILESIZE`, wie viele in der Datei. Debian setzt in `~/.bashrc` außerdem `HISTCONTROL=ignoreboth`: Doppelte Befehle direkt hintereinander und Befehle mit einem **Leerzeichen am Anfang** landen nicht im Verlauf.
+</Karte>
+
+<Merke>!! letzter Befehl, !n Nummer n, !text letzter mit diesem Anfang. ~/.bash_history wird beim Beenden geschrieben.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: Verlauf" fragen={[
+  { frage: 'Du hast „apt update“ ohne sudo getippt und eine Fehlermeldung bekommen. Was ist der kürzeste Weg, es mit sudo zu wiederholen?', richtig: 'sudo !!', falsch: ['sudo !$', 'sudo history'], erklaerung: '!! wird zum letzten Befehl, also sudo apt update.' },
+  { frage: 'Ein Befehl steht nicht in ~/.bash_history, obwohl du ihn eben getippt hast. Was ist die wahrscheinlichste Erklärung?', richtig: 'Die Shell schreibt den Verlauf erst beim Beenden in die Datei.', falsch: ['Die Datei ist beschädigt.', 'Nur root hat einen Verlauf.'], erklaerung: 'Mit history -a kannst du sofort anhängen lassen.' },
+]} />
+
+<Terminal id="verlauf" titel="Terminal: Befehle wiederholen" aufgaben={[
+  { text: 'Lass dir den Verlauf anzeigen.', befehl: '^history$' },
+  { text: 'Lies die Datei, in der der Verlauf früherer Sitzungen steht.', befehl: '^cat (~|/home/lena)/\\.bash_history$', frage: 'Welcher Befehl steht dort in der letzten Zeile?', antwort: ['sudo dmesg | tail'] },
+  { text: 'Gib mit echo das Wort <code>Werkstatt</code> aus und wiederhole den Befehl dann mit <code>!!</code>.', zustand: 'roh~^!!$' },
+  { text: 'Führe einen Befehl über seine Nummer aus <code>history</code> aus, etwa <code>!3</code>.', zustand: 'roh~^!\\d+$' },
+  { text: 'Wiederhole den letzten Befehl, der mit <code>cat</code> beginnt, mit <code>!cat</code>.', zustand: 'roh~^!cat$' },
+  { text: 'Tippe <code> echo geheim</code> mit einem Leerzeichen am Anfang. Schau dann mit history nach.', zustand: 'ohneVerlauf:echo geheim', frage: 'Steht echo geheim im Verlauf? (ja/nein)', antwort: ['nein'] },
+]} />
+
+## Hilfe im System
+
+<Karte nr={4} titel="man, seine Abschnitte und uname">
+`man ls` öffnet die Handbuchseite. Darin blätterst du mit der Leertaste, suchst mit `/wort` und beendest mit `q`. Die Seiten sind in **Abschnitte** sortiert:
+
+| Abschnitt | Inhalt | Beispiel |
+|---|---|---|
+| 1 | Befehle für alle Benutzer | ls(1), passwd(1) |
+| 2 | Systemaufrufe des Kernels | open(2) |
+| 3 | Bibliotheksfunktionen | printf(3) |
+| 4 | Gerätedateien | null(4) |
+| 5 | Dateiformate und Konfigurationsdateien | passwd(5), fstab(5) |
+| 6 | Spiele | |
+| 7 | Verschiedenes, Überblicke | regex(7), signal(7) |
+| 8 | Befehle für die Systemverwaltung (root) | fdisk(8), modprobe(8) |
+
+Gibt es einen Namen in mehreren Abschnitten, nimmt `man` den ersten. `man 5 passwd` holt gezielt die Beschreibung der Datei /etc/passwd. `whatis passwd` (gleich `man -f`) zeigt alle Abschnitte mit Kurzbeschreibung. `man -k wort` (gleich `apropos`) sucht in allen Kurzbeschreibungen.
+
+Für eingebaute Befehle wie `cd` gibt es keine eigene Seite. Hilfe gibt `help cd` oder die große Seite `man bash`.
+
+`uname` zeigt Systeminformationen: `-r` die Kernelversion, `-m` die Hardware-Architektur, `-n` den Rechnernamen, `-a` alles.
+</Karte>
+
+<Merke>1 Befehle, 5 Dateiformate, 8 Verwaltung. man -k sucht, whatis zeigt Kurzbeschreibungen.</Merke>
+
+<Terminal id="handbuch" titel="Terminal: Im Handbuch nachschlagen" aufgaben={[
+  { text: 'Öffne die Handbuchseite von ls.', befehl: '^man ls$' },
+  { text: 'Finde heraus, in welchen Abschnitten es eine Seite namens passwd gibt.', befehl: '^(whatis|man -f) passwd$', frage: 'Welche Abschnitte? (zwei Zahlen)', antwort: ['1 und 5', '1 5', '1, 5', '1,5', '5 und 1'] },
+  { text: 'Öffne die Seite, die das Format der Datei /etc/passwd beschreibt.', befehl: '^man 5 passwd$' },
+  { text: 'Such in allen Kurzbeschreibungen nach dem Wort <code>compress</code>.', befehl: '^(man -k|apropos) compress$' },
+  { text: 'Lass dir die Version des laufenden Kernels anzeigen.', befehl: '^uname -r$', frage: 'Welche Version?', antwort: ['6.1.0-27-amd64'] },
+  { text: 'Und die Hardware-Architektur.', befehl: '^uname -m$', frage: 'Welche?', antwort: ['x86_64'] },
+]} />
+
+<Zuordnung id="zuordnung" titel="Welcher Abschnitt?" aufgabe="Ordne jedem Inhalt den Abschnitt der Handbuchseiten zu." paare={[
+  { links: 'Aufbau der Datei /etc/fstab', rechts: 'Abschnitt 5' },
+  { links: 'Der Befehl modprobe', rechts: 'Abschnitt 8' },
+  { links: 'Der Befehl ls', rechts: 'Abschnitt 1' },
+  { links: 'Überblick über reguläre Ausdrücke', rechts: 'Abschnitt 7' },
+  { links: 'Die C-Funktion printf', rechts: 'Abschnitt 3' },
+]} />
+
+<Hinweis titel="Prüfungstipp">
+Gefragt wird gern: Welcher Abschnitt enthält Konfigurationsdateien (5), welcher Verwaltungsbefehle (8)? Wie holt man gezielt einen Abschnitt (`man 5 passwd`)? Was ist der Unterschied zwischen type und which? Und wie startet man ein Programm, das nicht in PATH liegt?
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Ein Programm liegt in /opt/tool/bin. Wie machst du es für alle weiteren Befehle dieser Shell ohne Pfad aufrufbar?', richtig: 'export PATH=$PATH:/opt/tool/bin', falsch: ['export PATH=/opt/tool/bin', 'PATH+=/opt/tool/bin'], erklaerung: 'Ohne $PATH: davor würdest du alle anderen Verzeichnisse verlieren. PATH+=/opt/tool/bin hängt den Text ohne Doppelpunkt an.' },
+  { frage: 'Welcher Befehl findet Handbuchseiten zu einem Thema, wenn du den Befehlsnamen nicht kennst?', richtig: 'apropos', falsch: ['whatis', 'which'], erklaerung: 'apropos (man -k) durchsucht die Kurzbeschreibungen. whatis braucht den genauen Namen.' },
+  { frage: 'Was zeigt „uname -a“ nicht?', richtig: 'Die Debian-Version', falsch: ['Die Kernelversion', 'Den Rechnernamen'], erklaerung: 'uname kennt nur den Kernel. Die Distribution steht in /etc/os-release.' },
+]} />

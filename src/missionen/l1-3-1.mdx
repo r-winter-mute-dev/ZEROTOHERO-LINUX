@@ -1,0 +1,151 @@
+---
+id: l1-3-1
+checks:
+  - id: k1
+  - id: variablen
+  - id: k2
+  - id: zitate
+  - id: k3
+spick:
+  - t: "Variable setzen (ohne Leerzeichen!)"
+    v: "NAME=wert"
+  - t: "Variable lesen"
+    v: "echo $NAME  oder  echo ${NAME}"
+  - t: "An Kindprozesse weitergeben"
+    v: "export NAME  oder  export NAME=wert"
+  - t: "Nur Umgebungsvariablen"
+    v: "env  oder  printenv"
+  - t: "Alle Variablen und Funktionen"
+    v: "set"
+  - t: "Variable löschen"
+    v: "unset NAME"
+  - t: "Nichts ersetzen"
+    v: "'einfache Anführungszeichen'"
+  - t: "Nur $, ` und \\ wirken"
+    v: "\"doppelte Anführungszeichen\""
+  - t: "Ein Zeichen schützen"
+    v: "\\ (Backslash)"
+  - t: "Befehlsfolgen"
+    v: "a ; b   a && b   a || b"
+karten:
+  - f: "Wie setzt du in der Bash die Variable ZIEL auf den Wert labor?"
+    a: ["ZIEL=labor"]
+  - f: "Welcher Befehl macht eine Shell-Variable für Programme sichtbar, die du aus dieser Shell startest?"
+    a: ["export"]
+  - f: "Welcher Befehl löscht eine Variable?"
+    a: ["unset"]
+  - f: "Welcher Befehl zeigt nur die Umgebungsvariablen (zwei Möglichkeiten)?"
+    a: ["env", "printenv", "env oder printenv"]
+  - f: "Welcher Befehl zeigt alle Shell-Variablen samt Funktionen?"
+    a: ["set"]
+  - f: "Was gibt echo 'Ich bin $USER' aus?"
+    a: ["Ich bin $USER"]
+  - f: "Welche Zeichen behalten in doppelten Anführungszeichen ihre Sonderbedeutung?"
+    a: ["$ ` \\", "$, ` und \\", "dollar backtick backslash"]
+  - f: "Wann läuft b bei „a && b“?"
+    a: ["wenn a erfolgreich war", "nur wenn a erfolgreich ist", "bei Exit-Code 0"]
+  - f: "Wann läuft b bei „a || b“?"
+    a: ["wenn a fehlschlägt", "nur wenn a fehlschlägt", "bei Exit-Code ungleich 0"]
+  - f: "Welche Variable enthält den Exit-Code des letzten Befehls?"
+    a: ["$?", "?"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+
+Ab jetzt arbeitest du fast nur noch in der Shell. Bevor ein Befehl überhaupt startet, hat die Shell deine Zeile schon zerlegt, Variablen ersetzt und Anführungszeichen ausgewertet. Wer das nicht weiß, wundert sich über leere Ausgaben und Dateien, die angeblich nicht existieren. **Deine Mission: Verstehe, was die Shell mit deiner Eingabe macht, und nutze Variablen gezielt.** Lernziel 103.1.
+
+## Was die Shell mit deiner Zeile macht
+
+<Karte nr={1} titel="Erst die Shell, dann der Befehl">
+Die **Shell** ist das Programm, das deine Eingabe liest. Auf Debian, Red Hat und SUSE ist das meistens die **Bash** (Bourne-Again Shell). Drückst du Enter, passiert in dieser Reihenfolge ungefähr Folgendes:
+
+1. Die Shell zerlegt die Zeile an Leerzeichen in **Wörter**. Das erste Wort ist der Befehl, der Rest sind Optionen und Argumente.
+2. Sie ersetzt **Variablen** wie `$HOME`, Platzhalter wie `*.txt` und die Tilde `~`.
+3. Sie sucht den Befehl und startet ihn mit den fertigen Wörtern.
+
+Der Befehl selbst sieht also nie `$HOME`, sondern nur `/home/lena`. Und er sieht nie `*.txt`, sondern die Liste der passenden Dateien.
+
+Der Prompt verrät, wer du bist: `$` am Ende heißt normaler Benutzer, `#` heißt root.
+</Karte>
+
+<Karte nr={2} titel="Variablen: Shell und Umgebung">
+Eine Variable setzt du mit **NAME=wert**, ohne Leerzeichen um das Gleichheitszeichen. Mit Leerzeichen hält die Shell `NAME` für einen Befehl. Lesen kannst du sie mit `$NAME` oder `${NAME}`. Die geschweiften Klammern brauchst du, wenn direkt Text folgt: `${NAME}s`.
+
+Eine frisch gesetzte Variable ist eine **Shell-Variable**: Nur diese Shell kennt sie. Programme, die du startest, bekommen eine Kopie der **Umgebung**. Dort landet die Variable erst mit **export**. Darum:
+
+- `env` oder `printenv` zeigen nur die Umgebungsvariablen.
+- `set` zeigt alles, auch Shell-Variablen und Funktionen.
+- `unset NAME` löscht eine Variable.
+- `NAME=wert befehl` setzt die Variable nur für diesen einen Befehl.
+
+Wichtige Umgebungsvariablen: `HOME`, `USER`, `PATH`, `SHELL`, `LANG`, `PWD`. In `$?` steht der Exit-Code des letzten Befehls: 0 heißt Erfolg, alles andere ein Fehler.
+</Karte>
+
+<Merke>NAME=wert ohne Leerzeichen. export gibt an Kindprozesse weiter. env zeigt die Umgebung, set zeigt alles.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: Variablen" fragen={[
+  { frage: 'Du tippst „ZIEL = labor“. Was passiert?', richtig: 'Die Shell sucht einen Befehl namens ZIEL und findet ihn nicht.', falsch: ['ZIEL bekommt den Wert labor.', 'ZIEL bekommt den Wert „ labor“ mit Leerzeichen.'], erklaerung: 'Um das Gleichheitszeichen dürfen keine Leerzeichen stehen.' },
+  { frage: 'Du setzt ZIEL=labor und startest ein Skript. Das Skript sieht ZIEL nicht. Warum?', richtig: 'ZIEL ist nur eine Shell-Variable. Erst export ZIEL gibt sie an Kindprozesse weiter.', falsch: ['Skripte dürfen keine Variablen lesen.', 'Variablen gelten erst nach einem Neustart.'], erklaerung: 'Kindprozesse bekommen nur die Umgebung, also exportierte Variablen.' },
+  { frage: 'Welcher Befehl zeigt auch Shell-Variablen, die nicht exportiert sind?', richtig: 'set', falsch: ['env', 'printenv'], erklaerung: 'env und printenv zeigen nur die Umgebung.' },
+]} />
+
+<Terminal id="variablen" titel="Terminal: Variablen setzen und weitergeben" aufgaben={[
+  { text: 'Lass dir dein Heimatverzeichnis über die Variable <code>HOME</code> ausgeben.', befehl: '^echo "?\\$\\{?HOME\\}?"?$', frage: 'Wie lautet es?', antwort: ['/home/lena'] },
+  { text: 'Setze die Shell-Variable <code>ZIEL</code> auf den Wert <code>werkstatt</code>.', zustand: 'var:ZIEL~^werkstatt$' },
+  { text: 'Starte eine neue Shell, die ZIEL ausgibt: <code>bash -c \'echo "Ziel: $ZIEL"\'</code>', befehl: '^bash -c ', frage: 'Steht hinter „Ziel:“ etwas? (ja/nein)', antwort: ['nein'] },
+  { text: 'Exportiere ZIEL in die Umgebung.', zustand: 'export:ZIEL' },
+  { text: 'Prüf mit <code>env</code> oder <code>printenv</code> und grep, dass ZIEL jetzt in der Umgebung steht.', befehl: '^(env|printenv)( ZIEL$| \\| grep )' },
+  { text: 'Lass dir den Exit-Code des letzten Befehls anzeigen.', befehl: '^echo "?\\$\\?"?$' },
+  { text: 'Lösche die Variable wieder.', befehl: '^unset ZIEL$' },
+]} />
+
+## Anführungszeichen und Escape-Zeichen
+
+<Karte nr={3} titel="Drei Arten, die Shell zu bremsen">
+Manchmal soll die Shell Zeichen nicht auswerten, etwa Leerzeichen in Dateinamen oder ein Dollarzeichen in einem Preis.
+
+| Schreibweise | Wirkung | Beispiel | Ausgabe |
+|---|---|---|---|
+| `'…'` einfache | Nichts wird ersetzt. | `echo 'Ich bin $USER'` | `Ich bin $USER` |
+| `"…"` doppelte | Leerzeichen und `*` sind geschützt. `$`, `` ` `` und `\` wirken weiter. | `echo "Ich bin $USER"` | `Ich bin lena` |
+| `\` Backslash | Schützt genau das nächste Zeichen. | `echo \$USER` | `$USER` |
+
+Ein Dateiname mit Leerzeichen braucht einen dieser Schutzmechanismen. `ls mein bericht.txt` sucht zwei Dateien: `mein` und `bericht.txt`. Richtig ist `ls "mein bericht.txt"` oder `ls mein\ bericht.txt`.
+</Karte>
+
+<Merke>'…' schützt alles. "…" lässt $ ` \ durch. \ schützt ein Zeichen.</Merke>
+
+<Karte nr={4} titel="Mehrere Befehle in einer Zeile">
+- `a ; b` führt erst a, dann b aus, egal wie a ausgeht.
+- `a && b` führt b nur aus, wenn a erfolgreich war (Exit-Code 0).
+- `a || b` führt b nur aus, wenn a fehlgeschlagen ist.
+
+`mkdir projekt && cd projekt` wechselt nur ins Verzeichnis, wenn es angelegt werden konnte. `cd /gibtsnicht || echo "Verzeichnis fehlt"` meldet den Fehler.
+</Karte>
+
+<Quiz id="k2" titel="Kurzcheck: Anführungszeichen" fragen={[
+  { frage: 'Was gibt echo "Preis: $5" aus?', richtig: 'Nur „Preis:“, ohne Zahl dahinter', falsch: ['Preis: $5', 'Preis: 5'], erklaerung: 'In doppelten Anführungszeichen ersetzt die Shell $5 durch den fünften Positionsparameter. Der ist hier leer. Mit einfachen Anführungszeichen käme Preis: $5 heraus.' },
+  { frage: 'Was führt „false && echo A || echo B“ aus?', richtig: 'Nur echo B', falsch: ['Nur echo A', 'Beide'], erklaerung: 'false liefert einen Fehler, also wird echo A übersprungen. Damit ist auch der Teil vor || fehlgeschlagen, also läuft echo B.' },
+]} />
+
+<Terminal id="zitate" titel="Terminal: Anführungszeichen in der Praxis" aufgaben={[
+  { text: 'Gib <code>Ich bin $USER</code> in doppelten Anführungszeichen aus.', befehl: '^echo "Ich bin \\$USER"$' },
+  { text: 'Und jetzt in einfachen Anführungszeichen.', befehl: "^echo 'Ich bin \\$USER'$", frage: 'Was erscheint?', antwort: ['Ich bin $USER'] },
+  { text: 'Lege eine leere Datei mit dem Namen <code>mein bericht.txt</code> an (mit Leerzeichen).', zustand: 'da:/home/lena/mein bericht.txt' },
+  { text: 'Versuch, sie ohne Schutz mit <code>ls mein bericht.txt</code> anzuzeigen, und lies die Meldung.', befehl: '^ls mein bericht\\.txt$', auchFehler: true, frage: 'Wie viele Dateien hat ls gesucht?', antwort: ['2', 'zwei'] },
+  { text: 'Zeig sie jetzt richtig an, mit Anführungszeichen oder Backslash.', befehl: "^ls (\"mein bericht\\.txt\"|'mein bericht\\.txt'|mein\\\\ bericht\\.txt)$" },
+  { text: 'Leg das Verzeichnis <code>projekt</code> an und wechsle nur dann hinein, wenn das geklappt hat. Beides in einer Zeile.', befehl: '^mkdir projekt && cd projekt$' },
+]} />
+
+<Hinweis titel="Prüfungstipp">
+Die Prüfung liebt kleine Zeilen mit `echo`, Variablen und Anführungszeichen und fragt nach der Ausgabe. Geh sie im Kopf wie die Shell durch: erst zerlegen, dann ersetzen, dann ausführen. Und achte auf `export`: Ohne export sieht ein Kindprozess die Variable nicht.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Welche Zeile gibt PATH nur für den einen Aufruf von meinprogramm einen anderen Wert?', richtig: 'PATH=/opt/bin meinprogramm', falsch: ['export PATH=/opt/bin; meinprogramm', 'set PATH=/opt/bin meinprogramm'], erklaerung: 'Die Zuweisung direkt vor dem Befehl gilt nur für diesen Befehl. Mit export ändert sich PATH für alle weiteren Befehle der Shell.' },
+  { frage: 'Was gibt „echo \\$HOME“ aus?', richtig: '$HOME', falsch: ['/home/lena', '\\$HOME'], erklaerung: 'Der Backslash schützt das Dollarzeichen und verschwindet selbst.' },
+  { frage: 'Welche Variable verwendet die Shell, um Programme zu finden?', richtig: 'PATH', falsch: ['HOME', 'SHELL'], erklaerung: 'Mehr dazu in der nächsten Mission.' },
+]} />

@@ -1,0 +1,153 @@
+---
+id: l1-3-6
+checks:
+  - id: k1
+  - id: suchen
+  - id: k2
+  - id: sichern
+  - id: k3
+spick:
+  - t: "Nach Name"
+    v: "find ordner -name '*.bak'   (-iname ohne Groß/klein)"
+  - t: "Nach Typ"
+    v: "-type f Datei, d Verzeichnis, l Link"
+  - t: "Nach Alter und Größe"
+    v: "-mtime +30 (älter als 30 Tage), -size +1M"
+  - t: "Etwas damit tun"
+    v: '-exec rm {} \;   -delete   -ls'
+  - t: "Archiv anlegen"
+    v: "tar czf a.tar.gz ordner/"
+  - t: "Archiv ansehen / auspacken"
+    v: "tar tzf a.tar.gz   tar xzf a.tar.gz -C ziel"
+  - t: "tar-Kompression"
+    v: "z gzip, j bzip2, J xz"
+  - t: "Einzeln packen"
+    v: "gzip, bzip2, xz (-d entpacken, -k behalten)"
+  - t: "cpio"
+    v: "find … | cpio -o > a.cpio   cpio -idv < a.cpio"
+  - t: "Blockweise kopieren"
+    v: "dd if=quelle of=ziel bs=1M count=10"
+karten:
+  - f: "Wie findest du alle Dateien unter /home, die mit .bak enden?"
+    a: ["find /home -name '*.bak'", "find /home -name \"*.bak\"", "find /home -name *.bak"]
+  - f: "Was bedeutet -mtime +30 bei find?"
+    a: ["älter als 30 tage", "vor mehr als 30 tagen geändert", "zuletzt vor mehr als 30 tagen geändert"]
+  - f: "Wie findest du Dateien, die größer als 100 MB sind?"
+    a: ["find / -size +100M", "-size +100M", "find -size +100M"]
+  - f: "Wofür steht {} bei find -exec?"
+    a: ["den gefundenen dateinamen", "die gefundene datei", "jeden treffer"]
+  - f: "Welche tar-Option legt ein Archiv an?"
+    a: ["c", "-c"]
+  - f: "Welche tar-Option listet den Inhalt eines Archivs?"
+    a: ["t", "-t"]
+  - f: "Welche tar-Option packt mit bzip2?"
+    a: ["j", "-j"]
+  - f: "Welche tar-Option packt mit xz?"
+    a: ["J", "-J"]
+  - f: "Was passiert mit der Originaldatei bei gzip datei?"
+    a: ["sie wird durch datei.gz ersetzt", "sie wird gelöscht", "sie verschwindet"]
+  - f: "Woher liest cpio -o die Namen der Dateien?"
+    a: ["von der standardeingabe", "stdin", "aus der standardeingabe"]
+  - f: "Wie erzeugst du mit dd eine 10 MiB große Datei aus Nullen?"
+    a: ["dd if=/dev/zero of=datei bs=1M count=10"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+
+Das Projekt des Messprogramms wächst. Darin liegen alte Sicherungskopien, riesige Messdaten und Quelltext, der unbedingt gesichert werden muss. **Deine Mission: Finde, was weg kann, und pack den Rest in ein Archiv.** Lernziel 103.3.
+
+## find
+
+<Karte nr={1} titel="Suchen nach Eigenschaften">
+**find** durchsucht Verzeichnisse rekursiv: `find wo was [aktion]`. Ohne Ort sucht es im aktuellen Verzeichnis, ohne Aktion gibt es die Treffer aus.
+
+| Test | Bedeutung |
+|---|---|
+| `-name '*.bak'` | Name passt auf das Muster (`-iname` ohne Groß/klein) |
+| `-type f`, `-type d`, `-type l` | Datei, Verzeichnis, symbolischer Link |
+| `-mtime +30`, `-mtime -1` | Inhalt geändert vor mehr als 30 Tagen, innerhalb des letzten Tages |
+| `-mmin -10` | in den letzten 10 Minuten geändert |
+| `-size +1M`, `-size -10k` | größer als 1 MiB, kleiner als 10 KiB |
+| `-user lena`, `-perm 644` | Besitzer, Rechte |
+| `-empty` | leere Datei oder leeres Verzeichnis |
+| `-maxdepth 1` | nicht tiefer als eine Ebene |
+
+Mehrere Tests müssen alle zutreffen. `!` oder `-not` kehrt einen Test um. Das Muster gehört in **Anführungszeichen**, sonst ersetzt die Shell `*.bak` schon vorher durch Dateien im aktuellen Verzeichnis.
+
+Aktionen: `-delete` löscht, `-ls` zeigt Details, `-exec befehl {} \;` führt einen Befehl für jeden Treffer aus. `{}` steht für den Treffer, `\;` beendet den Befehl. Mit `{} +` statt `{} \;` bekommt der Befehl alle Treffer auf einmal.
+
+Suchst du als normaler Benutzer in `/`, meldet find „Keine Berechtigung“ für Ordner wie `/root`. Mit `2>/dev/null` blendest du das aus (Mission 3.7).
+</Karte>
+
+<Merke>find ORT TESTS AKTION. Muster in Anführungszeichen. -mtime +N älter als N Tage. `-exec … {} \;`</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: find" fragen={[
+  { frage: 'Welche Zeile findet im aktuellen Verzeichnis und darunter alle Verzeichnisse?', richtig: 'find . -type d', falsch: ['find -dir .', 'find . -name d'], erklaerung: '-type d steht für directory.' },
+  { frage: 'Was findet „find /var/log -mtime -1“?', richtig: 'Dateien, die innerhalb des letzten Tages geändert wurden', falsch: ['Dateien, die vor mehr als einem Tag geändert wurden', 'Dateien, die genau einen Tag alt sind'], erklaerung: 'Minus heißt „weniger als“, Plus „mehr als“.' },
+]} />
+
+<Terminal id="suchen" titel="Terminal: Im Projekt suchen" welt={{"dateien": {"/home/lena/projekt/src/main.c": "#include <stdio.h>\nint main(void) { puts(\"Messung\"); return 0; }\n", "/home/lena/projekt/src/sensor.c": "/* Sensor auslesen */\nint sensor(void) { return 23; }\n", "/home/lena/projekt/src/sensor.c.bak": "/* alte Fassung */\n", "/home/lena/projekt/doku/handbuch.txt": "Handbuch Messprogramm\n", "/home/lena/projekt/doku/alt.txt.bak": "alt\n", "/home/lena/projekt/daten/messung-2025.csv": "\u0007BIN:3145728", "/home/lena/projekt/daten/messung-2026.csv": "\u0007BIN:524288", "/home/lena/projekt/leer": "/", "/home/lena/bericht.txt": "Monatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\n"}, "zeiten": {"/home/lena/projekt/src/sensor.c.bak": 95, "/home/lena/projekt/doku/alt.txt.bak": 400, "/home/lena/projekt/daten/messung-2025.csv": 330, "/home/lena/projekt/doku/handbuch.txt": 45, "/home/lena/projekt/src/main.c": 2, "/home/lena/projekt/src/sensor.c": 1, "/home/lena/projekt/daten/messung-2026.csv": 3}}} aufgaben={[
+  { text: 'Finde alle Dateien in <code>projekt</code>, deren Name auf .bak endet.', befehl: "^find (\\./)?projekt/? -name ('\\*\\.bak'|\"\\*\\.bak\"|\\\\\\*\\.bak)$", frage: 'Wie viele sind es?', antwort: ['2'] },
+  { text: 'Finde alle Verzeichnisse in projekt.', befehl: '^find (\\./)?projekt/? -type d$' },
+  { text: 'Finde alle Dateien in projekt, die älter als 30 Tage sind.', befehl: '^find (\\./)?projekt/? (-type f -mtime \\+30|-mtime \\+30 -type f|-mtime \\+30)$', frage: 'Wie viele sind es?', antwort: ['4'] },
+  { text: 'Finde alle Dateien in projekt, die größer als 1 MiB sind.', befehl: '^find (\\./)?projekt/? (-type f )?-size \\+1M$', frage: 'Welche Datei ist es? (nur der Name)', antwort: ['messung-2025.csv'] },
+  { text: 'Finde leere Dateien und Verzeichnisse in projekt.', befehl: '^find (\\./)?projekt/? -empty$' },
+  { text: 'Lösche alle .bak-Dateien in projekt mit find.', zustand: 'fehlt:/home/lena/projekt/*.bak', befehl: '^find (\\./)?projekt/? -name \\S+ (-delete|-exec rm (-f )?\\{\\} (\\\;|\\+|\';\'|";"))$' },
+]} />
+
+## Archive und Kompression
+
+<Karte nr={2} titel="tar: viele Dateien in eine">
+**tar** (tape archive) bündelt Dateien und Ordner in eine Archivdatei. Die wichtigsten Buchstaben:
+
+| Buchstabe | Bedeutung |
+|---|---|
+| `c` | create, anlegen |
+| `x` | extract, auspacken |
+| `t` | list, Inhalt zeigen |
+| `f datei` | file, Name des Archivs (immer zuletzt in der Gruppe) |
+| `v` | verbose, Namen anzeigen |
+| `z` / `j` / `J` | zusätzlich mit gzip / bzip2 / xz packen |
+| `-C ordner` | vor dem Auspacken in diesen Ordner wechseln |
+
+`tar czf sicherung.tar.gz projekt` legt an, `tar tzf sicherung.tar.gz` zeigt den Inhalt, `tar xzf sicherung.tar.gz -C /tmp` packt in /tmp aus. Der Bindestrich ist optional: `tar -czf` funktioniert genauso. tar entfernt einen führenden `/` aus den Namen, damit beim Auspacken nichts Systemdateien überschreibt.
+</Karte>
+
+<Karte nr={3} titel="gzip, bzip2, xz, cpio und dd">
+**gzip**, **bzip2** und **xz** packen einzelne Dateien. Sie **ersetzen** die Datei: aus `bericht.txt` wird `bericht.txt.gz`. Mit `-k` bleibt das Original erhalten, mit `-d` (oder gunzip, bunzip2, unxz) packst du wieder aus. xz packt meist am kleinsten, gzip am schnellsten, bzip2 liegt dazwischen.
+
+**cpio** ist ein älteres Archivformat. Es liest die Dateinamen von der Standardeingabe, darum kommt es fast immer mit find: `find projekt -name '*.c' | cpio -o > quellen.cpio`. Auspacken mit `cpio -idv < quellen.cpio`, wobei `-d` fehlende Ordner anlegt. Im Alltag begegnet dir cpio in RPM-Paketen und im initramfs.
+
+**dd** kopiert Blöcke, ohne sich um Dateisysteme zu kümmern: `dd if=quelle of=ziel bs=1M count=10`. Damit erzeugst du leere Dateien aus `/dev/zero`, sicherst den Anfang einer Platte oder schreibst ein ISO-Abbild auf einen USB-Stick: `dd if=debian.iso of=/dev/sdb bs=4M`. Vorsicht: dd fragt nie nach. Ein falsches `of=` zerstört die falsche Platte.
+</Karte>
+
+<Merke>tar c/x/t + f, z gzip, j bzip2, J xz. gzip ersetzt die Datei (-k behält). cpio liest Namen von stdin. dd fragt nie.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: Archive" fragen={[
+  { frage: 'Welche Zeile packt das Archiv daten.tar.bz2 aus?', richtig: 'tar xjf daten.tar.bz2', falsch: ['tar czf daten.tar.bz2', 'tar xJf daten.tar.bz2'], erklaerung: 'x auspacken, j bzip2. J wäre xz.' },
+  { frage: 'Nach „gzip log.txt“: Welche Dateien gibt es?', richtig: 'Nur log.txt.gz', falsch: ['log.txt und log.txt.gz', 'Nur log.txt'], erklaerung: 'gzip ersetzt das Original. Mit gzip -k bleibt es erhalten.' },
+]} />
+
+<Terminal id="sichern" titel="Terminal: Sichern und packen" welt={{"dateien": {"/home/lena/projekt/src/main.c": "#include <stdio.h>\nint main(void) { puts(\"Messung\"); return 0; }\n", "/home/lena/projekt/src/sensor.c": "/* Sensor auslesen */\nint sensor(void) { return 23; }\n", "/home/lena/projekt/src/sensor.c.bak": "/* alte Fassung */\n", "/home/lena/projekt/doku/handbuch.txt": "Handbuch Messprogramm\n", "/home/lena/projekt/doku/alt.txt.bak": "alt\n", "/home/lena/projekt/daten/messung-2025.csv": "\u0007BIN:3145728", "/home/lena/projekt/daten/messung-2026.csv": "\u0007BIN:524288", "/home/lena/projekt/leer": "/", "/home/lena/bericht.txt": "Monatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\nMonatsbericht November\n"}, "zeiten": {"/home/lena/projekt/src/sensor.c.bak": 95, "/home/lena/projekt/doku/alt.txt.bak": 400, "/home/lena/projekt/daten/messung-2025.csv": 330, "/home/lena/projekt/doku/handbuch.txt": 45, "/home/lena/projekt/src/main.c": 2, "/home/lena/projekt/src/sensor.c": 1, "/home/lena/projekt/daten/messung-2026.csv": 3}}} aufgaben={[
+  { text: 'Lege ein mit gzip gepacktes Archiv <code>sicherung.tar.gz</code> vom Ordner projekt an.', zustand: 'da:/home/lena/sicherung.tar.gz', befehl: '^tar -?c?z?v?c?z?v?f sicherung\\.tar\\.gz (\\./)?projekt/?$' },
+  { text: 'Lass dir den Inhalt des Archivs anzeigen, ohne es auszupacken.', befehl: '^tar -?[tzv]*t[tzv]*f sicherung\\.tar\\.gz$' },
+  { text: 'Leg den Ordner <code>test</code> an und pack das Archiv dort aus.', zustand: 'da:/home/lena/test/projekt/src/main.c' },
+  { text: 'Pack <code>bericht.txt</code> mit gzip und schau, was übrig bleibt.', zustand: 'da:/home/lena/bericht.txt.gz', frage: 'Gibt es bericht.txt danach noch? (ja/nein)', antwort: ['nein'] },
+  { text: 'Pack die Datei wieder aus.', zustand: 'fehlt:/home/lena/bericht.txt.gz && da:/home/lena/bericht.txt' },
+  { text: 'Pack bericht.txt mit xz und behalte dabei das Original.', zustand: 'da:/home/lena/bericht.txt.xz && da:/home/lena/bericht.txt' },
+  { text: 'Sammle alle .c-Dateien aus projekt mit find und cpio im Archiv <code>quellen.cpio</code>.', befehl: '^find (\\./)?projekt/? .*\\| cpio -o\\w* > quellen\\.cpio$', zustand: 'da:/home/lena/quellen.cpio' },
+  { text: 'Erzeuge mit dd die Datei <code>leer.img</code> aus 10 Blöcken zu 1 MiB Nullen.', befehl: '^dd if=/dev/zero of=(\\./)?leer\\.img bs=1M count=10$' },
+]} />
+
+<Hinweis titel="Prüfungstipp">
+Lerne die tar-Buchstaben als Paare: c anlegen, x auspacken, t ansehen, f Datei. Dazu z, j, J für gzip, bzip2, xz. Und bei find die Vorzeichen: +30 heißt mehr als 30, -30 weniger als 30.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Warum gehört bei „find . -name \'*.log\'“ das Muster in Anführungszeichen?', richtig: 'Sonst ersetzt die Shell *.log vorher durch passende Dateien im aktuellen Verzeichnis.', falsch: ['find versteht ohne Anführungszeichen keine Sterne.', 'Ohne Anführungszeichen sucht find nur Verzeichnisse.'], erklaerung: 'find soll das Muster selbst sehen und in allen Unterordnern anwenden.' },
+  { frage: 'Welcher Befehl schreibt ein ISO-Abbild bitgenau auf den USB-Stick /dev/sdb?', richtig: 'dd if=debian.iso of=/dev/sdb bs=4M', falsch: ['cp -r debian.iso /dev/sdb/', 'tar xf debian.iso -C /dev/sdb'], erklaerung: 'dd schreibt Blöcke direkt auf das Gerät. Vorher genau prüfen, dass sdb wirklich der Stick ist.' },
+  { frage: 'Welches Programm braucht die Dateinamen auf der Standardeingabe?', richtig: 'cpio -o', falsch: ['tar -c', 'gzip'], erklaerung: 'Darum steht vor cpio fast immer find und eine Pipe.' },
+]} />

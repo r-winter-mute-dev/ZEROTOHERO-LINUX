@@ -91,14 +91,18 @@ export function dateityp(w: Welt, p: string): string {
   if (c.startsWith(KOMP)) { const art = c.slice(KOMP.length).split(':')[0]; return art === 'gz' ? 'gzip compressed data, from Unix' : art === 'bz2' ? 'bzip2 compressed data, block size = 900k' : 'XZ compressed data, checksum CRC64'; }
   if (c.startsWith(TAR)) return 'POSIX tar archive (GNU)';
   if (c.startsWith(CPIO)) return 'ASCII cpio archive (SVR4 with no CRC)';
-  if (c.startsWith(BIN)) return p.startsWith('/dev/') ? 'block special' : 'data';
+  if (c.startsWith(BIN) && /\.jpe?g$/i.test(p)) return 'JPEG image data, JFIF standard 1.01, aspect ratio, density 1x1, segment length 16, baseline, precision 8, 4032x3024, components 3';
+  if (c.startsWith(BIN) && /\.png$/i.test(p)) return 'PNG image data, 1920 x 1080, 8-bit/color RGB, non-interlaced';
+  if (c.startsWith(BIN) && /\.pdf$/i.test(p)) return 'PDF document, version 1.7, 2 page(s)';
+  if (c.startsWith(BIN)) return p.startsWith('/dev/') ? 'block special' : BIN_ORDNER.test(p) ? 'ELF 64-bit LSB pie executable, x86-64, version 1 (SYSV), dynamically linked, interpreter /lib64/ld-linux-x86-64.so.2, for GNU/Linux 3.2.0, stripped' : 'data';
   if (c === '' ) return 'empty';
   if (c.startsWith('(ELF') || /(bin|sbin)\//.test(p) && !c.startsWith('#!')) return 'ELF 64-bit LSB pie executable, x86-64, version 1 (SYSV), dynamically linked, interpreter /lib64/ld-linux-x86-64.so.2, stripped';
   if (c.startsWith('#!/bin/bash') || c.startsWith('#!/usr/bin/env bash')) return 'Bourne-Again shell script, UTF-8 Unicode text executable';
   if (c.startsWith('#!/bin/sh')) return 'POSIX shell script, ASCII text executable';
   if (c.startsWith('#!/usr/bin/python3') || c.startsWith('#!/usr/bin/env python3')) return 'Python script, ASCII text executable';
-  if (/[^\x00-\x7f]/.test(c)) return 'Unicode text, UTF-8 text';
-  return 'ASCII text';
+  const crlf = c.includes('\r\n') ? ', with CRLF line terminators' : '';
+  if (/[^\x00-\x7f]/.test(c)) return 'Unicode text, UTF-8 text' + crlf;
+  return 'ASCII text' + crlf;
 }
 
 // ---------- Darstellung ----------
@@ -112,9 +116,11 @@ export function rechteText(w: Welt, p: string): string {
 }
 
 const MONATE = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
-export function zeitText(ms: number): string {
+export function zeitText(ms: number, jetzt = ms): string {
   const d = new Date(ms + 3600000); // MEZ
-  return `${String(d.getUTCDate()).padStart(2)}. ${MONATE[d.getUTCMonth()]} ${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`;
+  // Wie GNU ls: Älter als ein halbes Jahr oder in der Zukunft, dann Jahr statt Uhrzeit
+  const alt = jetzt - ms > 182.5 * 86400000 || ms - jetzt > 3600000;
+  return `${String(d.getUTCDate()).padStart(2)}. ${MONATE[d.getUTCMonth()]} ${alt ? ' ' + d.getUTCFullYear() : String(d.getUTCHours()).padStart(2, '0') + ':' + String(d.getUTCMinutes()).padStart(2, '0')}`;
 }
 export function datumText(ms: number): string {
   const d = new Date(ms + 3600000);

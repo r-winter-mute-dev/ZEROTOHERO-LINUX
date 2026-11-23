@@ -1,0 +1,177 @@
+---
+id: l1-3-12
+checks:
+  - id: k1
+  - id: erste
+  - id: k2
+  - id: bearbeiten
+  - id: k3
+  - id: system
+  - id: k4
+spick:
+  - t: "Modi"
+    v: "Normalmodus (Start), Einfügemodus (i a o), Befehlszeile (:)"
+  - t: "Zurück in den Normalmodus"
+    v: "Esc"
+  - t: "Bewegen"
+    v: "h links, j runter, k hoch, l rechts, w Wort, 0 $ Zeile, gg G Datei"
+  - t: "Einfügen"
+    v: "i vor, a hinter dem Cursor, o neue Zeile darunter, O darüber"
+  - t: "Löschen"
+    v: "x Zeichen, dd Zeile, dw Wort, 3dd drei Zeilen"
+  - t: "Kopieren und einfügen"
+    v: "yy Zeile kopieren, p darunter einfügen, P darüber"
+  - t: "Rückgängig"
+    v: "u"
+  - t: "Suchen"
+    v: "/muster vorwärts, ?muster rückwärts, n weiter, N zurück"
+  - t: "Speichern und beenden"
+    v: ":w  :q  :wq  :x  ZZ"
+  - t: "Mit Gewalt"
+    v: ":q! ohne Speichern, :w! trotz Schreibschutz"
+  - t: "Standard-Editor"
+    v: "export EDITOR=vi"
+karten:
+  - f: "In welchem Modus startet vi?"
+    a: ["normalmodus", "im normalmodus", "befehlsmodus", "kommandomodus"]
+  - f: "Mit welcher Taste kommst du in vi zurück in den Normalmodus?"
+    a: ["esc", "escape"]
+  - f: "Welche vier Tasten bewegen den Cursor in vi nach links, unten, oben, rechts?"
+    a: ["h j k l", "hjkl"]
+  - f: "Welche Taste fügt in vi eine neue Zeile unter der aktuellen ein und wechselt in den Einfügemodus?"
+    a: ["o"]
+  - f: "Welcher vi-Befehl löscht die aktuelle Zeile?"
+    a: ["dd"]
+  - f: "Welcher vi-Befehl kopiert die aktuelle Zeile?"
+    a: ["yy"]
+  - f: "Welcher vi-Befehl fügt Kopiertes unter der aktuellen Zeile ein?"
+    a: ["p"]
+  - f: "Wie beendest du vi, ohne die Änderungen zu speichern?"
+    a: [":q!"]
+  - f: "Welche zwei Großbuchstaben speichern und beenden vi?"
+    a: ["zz", "ZZ"]
+  - f: "Wie suchst du in vi rückwärts nach „fehler“?"
+    a: ["?fehler"]
+  - f: "Welche Umgebungsvariable legt den Standard-Editor fest?"
+    a: ["EDITOR", "$EDITOR", "VISUAL"]
+  - f: "Welcher vi-Befehl macht die letzte Änderung rückgängig?"
+    a: ["u"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+
+Auf jedem Linux-Server, auch dem kleinsten Rettungssystem, gibt es vi. Oft ist er der einzige Editor. Viele, die ihn das erste Mal öffnen, kommen nicht mehr heraus. **Deine Mission: Öffne eine Datei in vi, ändere sie, speichere sie und komm wieder heraus. Ohne Panik.** Lernziel 103.8.
+
+## Die Modi
+
+<Karte nr={1} titel="vi hat Modi, und das ist der ganze Trick">
+vi startet im **Normalmodus**. Dort sind Tasten Befehle: `x` löscht ein Zeichen, `dd` eine Zeile. Wer einfach lostippt, richtet Chaos an.
+
+- **Normalmodus**: bewegen, löschen, kopieren. Hierher kommst du immer mit **Esc**.
+- **Einfügemodus**: Text tippen. Hinein mit `i` (vor dem Cursor), `a` (hinter dem Cursor), `o` (neue Zeile darunter) oder `O` (neue Zeile darüber). Unten steht dann `-- INSERT --`.
+- **Befehlszeile**: Mit `:` im Normalmodus. Hier speicherst und beendest du.
+
+| Befehl | Wirkung |
+|---|---|
+| `:w` | speichern |
+| `:q` | beenden, nur wenn nichts geändert ist |
+| `:wq`, `:x` oder `ZZ` | speichern und beenden |
+| `:q!` | beenden und Änderungen **verwerfen** |
+| `:w!` | trotz Schreibschutz speichern, wenn die Rechte es erlauben |
+| `:e!` | Datei neu laden, Änderungen verwerfen |
+
+Wenn gar nichts mehr geht: Esc, Esc, dann `:q!` und Enter.
+
+Im Simulator öffnet `vi datei` den Editor direkt im Terminal. Tippe einfach, die Tasten gehen an vi. Auf dem Handy hilft der Knopf **Esc** unter dem Terminal.
+</Karte>
+
+<Merke>Esc bringt dich immer in den Normalmodus. i tippen, Esc, :wq speichern und raus, :q! raus ohne Speichern.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: Modi" fragen={[
+  { frage: 'Du hast in vi etwas getippt und willst ohne Speichern raus. Was tippst du?', richtig: 'Esc, dann :q! und Enter', falsch: [':q und Enter', 'Strg+C'], erklaerung: ':q verweigert das Beenden, solange es ungespeicherte Änderungen gibt.' },
+  { frage: 'vi zeigt unten „-- INSERT --“. Was passiert, wenn du dd tippst?', richtig: 'Die Buchstaben dd erscheinen im Text.', falsch: ['Die Zeile wird gelöscht.', 'vi speichert die Datei.'], erklaerung: 'Im Einfügemodus ist jede Taste Text. Erst Esc, dann dd.' },
+]} />
+
+<Terminal id="erste" titel="Terminal: Die Einkaufsliste" welt={{ dateien: { '/home/lena/notiz.txt': 'Einkauf Werkstatt\nLötzinn\nSchrumpfschlauch\nALT: Toner prüfen\nSicherungen 5x20\n' } }} aufgaben={[
+  { text: 'Öffne <code>notiz.txt</code> in vi.', befehl: '^vi (\\./)?notiz\\.txt$' },
+  { text: 'Springe mit <code>G</code> an das Ende, öffne mit <code>o</code> eine neue Zeile und tippe <code>Kabelbinder</code>. Dann Esc.', zustand: 'datei:/home/lena/notiz.txt~^Kabelbinder$' },
+  { text: 'Speichere und beende vi mit <code>:wq</code>.', zustand: 'vi:gespeichert:/home/lena/notiz.txt' },
+  { text: 'Kontrolliere das Ergebnis mit cat.', befehl: '^cat (\\./)?notiz\\.txt$' },
+]} />
+
+## Bewegen und bearbeiten
+
+<Karte nr={2} titel="Die wichtigsten Befehle im Normalmodus">
+| Taste | Wirkung |
+|---|---|
+| `h` `j` `k` `l` | links, runter, hoch, rechts (Pfeiltasten gehen meist auch) |
+| `w` / `b` | ein Wort vor / zurück |
+| `0` / `$` | Zeilenanfang / Zeilenende |
+| `gg` / `G` | erste / letzte Zeile, `5G` Zeile 5 |
+| `x` | Zeichen unter dem Cursor löschen |
+| `dd` | Zeile löschen (und merken), `3dd` drei Zeilen |
+| `dw` | bis zum nächsten Wort löschen |
+| `yy` | Zeile kopieren („yank“), `2yy` zwei Zeilen |
+| `p` / `P` | Gemerktes unter / über der Zeile einfügen |
+| `u` | rückgängig |
+| `/muster` | vorwärts suchen, `n` nächster Treffer, `N` voriger |
+| `?muster` | rückwärts suchen |
+
+Das Muster ist dahinter: **Operator plus Bewegung**. `d` löscht, `y` kopiert, `c` ändert. `dw` löscht ein Wort, `d$` bis zum Zeilenende, `dd` die ganze Zeile. Eine Zahl davor wiederholt: `5x`, `2dd`, `3j`.
+</Karte>
+
+<Merke>dd löschen, yy kopieren, p einfügen, u rückgängig, /muster suchen. Zahl davor wiederholt.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: Befehle" fragen={[
+  { frage: 'Wie verschiebst du eine Zeile um eine Position nach unten?', richtig: 'dd, dann p', falsch: ['yy, dann P', 'x, dann p'], erklaerung: 'dd schneidet die Zeile aus, p setzt sie unter der neuen aktuellen Zeile wieder ein.' },
+  { frage: 'Was macht „3dd“?', richtig: 'Es löscht drei Zeilen ab der aktuellen.', falsch: ['Es löscht Zeile 3.', 'Es löscht drei Zeichen.'], erklaerung: 'Zeile 3 wäre 3G, dann dd.' },
+]} />
+
+<Terminal id="bearbeiten" titel="Terminal: Aufräumen in vi" welt={{ dateien: { '/home/lena/notiz.txt': 'Einkauf Werkstatt\nLötzinn\nSchrumpfschlauch\nALT: Toner prüfen\nSicherungen 5x20\n' } }} aufgaben={[
+  { text: 'Öffne <code>notiz.txt</code>, such mit <code>/ALT</code> die veraltete Zeile und lösch sie mit <code>dd</code>.', zustand: 'nicht:datei:/home/lena/notiz.txt~ALT' },
+  { text: 'Geh mit <code>gg</code> und <code>j</code> zur Zeile „Lötzinn“, kopiere sie mit <code>yy</code> und füge sie mit <code>p</code> darunter ein.', zustand: 'datei:/home/lena/notiz.txt~^Lötzinn\\nLötzinn$' },
+  { text: 'Geh mit <code>gg</code> in die erste Zeile und ändere mit <code>cw</code> das Wort „Einkauf“ in „Bestellung“. Dann Esc und <code>:w</code> zum Speichern, ohne vi zu verlassen. (Alle Aufgaben hier zählen erst, wenn gespeichert ist.)', zustand: 'datei:/home/lena/notiz.txt~^Bestellung Werkstatt$' },
+  { text: 'Lösch die doppelte Zeile wieder, mach das mit <code>u</code> rückgängig und beende vi dann mit <code>ZZ</code>.', zustand: 'vi:gespeichert:/home/lena/notiz.txt' },
+]} />
+
+## vi und das System
+
+<Karte nr={3} titel="Schreibschutz, sudo und der Standard-Editor">
+Öffnest du als normaler Benutzer eine Systemdatei wie `/etc/hosts`, zeigt vi `[readonly]`. `:w` scheitert mit **E45**. Auch `:w!` hilft nicht, denn `!` hebt nur den Schreibschutz des Editors auf, nicht die Rechte im Dateisystem: Dann kommt **E212: Can't open file for writing**. Raus mit `:q!` und neu mit `sudo vi /etc/hosts`. Sicherer ist `sudoedit /etc/hosts`: Es bearbeitet eine Kopie als du selbst und schreibt sie danach als root zurück.
+
+Programme wie `crontab -e`, `visudo` oder `git commit` starten den **Standard-Editor**. Welcher das ist, steht in der Umgebungsvariablen **EDITOR** (manche Programme bevorzugen **VISUAL**). Mit `export EDITOR=vi` in der `~/.bashrc` gilt es dauerhaft. Debian fragt sonst die Alternative `editor` ab, die du mit `sudo update-alternatives --config editor` umstellst.
+
+Andere Editoren, die du kennen solltest:
+
+- **vim** (Vi IMproved): der heute übliche vi mit Syntaxfarben und vielen Erweiterungen. Auf Debian ist nach der Installation nur `vim.tiny` als `vi` dabei.
+- **nano**: einfach, die Tastenkürzel stehen unten am Rand. Strg+O speichert, Strg+X beendet.
+- **Emacs**: mächtig und erweiterbar, mit eigener Tastenwelt. Strg+X Strg+S speichert, Strg+X Strg+C beendet.
+</Karte>
+
+<Merke>[readonly]: :q! und mit sudo neu öffnen. :w! hilft nur gegen den Schreibschutz von vi. EDITOR legt den Standard-Editor fest.</Merke>
+
+<Quiz id="k3" titel="Kurzcheck: System" fragen={[
+  { frage: 'Welche Zeile macht vi für alle weiteren Programme dieser Shell zum Standard-Editor?', richtig: 'export EDITOR=vi', falsch: ['EDITOR vi', 'alias editor=vi'], erklaerung: 'Ohne export sehen die Programme die Variable nicht.' },
+]} />
+
+<Terminal id="system" titel="Terminal: Systemdateien" aufgaben={[
+  { text: 'Öffne <code>/etc/hosts</code> als lena in vi, versuch mit <code>:w</code> zu speichern und lies die Meldung unten.', befehl: '^vi /etc/hosts$' },
+  { text: 'Verlass vi ohne zu speichern mit <code>:q!</code>.', zustand: 'vi:ohne:/etc/hosts' },
+  { text: 'Öffne die Datei jetzt mit sudo, füge am Ende die Zeile <code>192.168.1.50 drucker</code> ein und speichere mit <code>:wq</code>.', zustand: 'datei:/etc/hosts~^192\\.168\\.1\\.50\\s+drucker$ && vi:gespeichert:/etc/hosts' },
+  { text: 'Leg mit vi die neue Datei <code>idee.txt</code> mit einer Zeile Text an.', zustand: 'datei:/home/lena/idee.txt~\\S' },
+  { text: 'Mach vi zum Standard-Editor für diese Shell.', zustand: 'export:EDITOR && var:EDITOR~^(/usr/bin/)?(vi|vim\\.tiny)$' },
+]} />
+
+<Hinweis titel="Prüfungstipp">
+Gefragt werden fast immer dieselben Dinge: Wie kommt man ohne Speichern heraus (`:q!`)? Wie speichert man und beendet (`:wq`, `:x`, `ZZ`)? Was machen dd, yy, p, o, a, i? Wie sucht man (`/` vorwärts, `?` rückwärts)? Und welche Variable legt den Editor fest (EDITOR)?
+</Hinweis>
+
+<Quiz id="k4" titel="Abschluss" fragen={[
+  { frage: 'Welche Taste fügt Text direkt hinter dem Cursor ein?', richtig: 'a', falsch: ['i', 'o'], erklaerung: 'i fügt vor dem Cursor ein, o öffnet eine neue Zeile darunter.' },
+  { frage: 'Was macht „ZZ“ in vi?', richtig: 'Speichern und beenden', falsch: ['Beenden ohne Speichern', 'Zwei Zeilen löschen'], erklaerung: 'ZZ entspricht :x. Ohne Speichern beendet ZQ oder :q!.' },
+  { frage: 'Du suchst mit /fehler. Wie springst du zum nächsten Treffer?', richtig: 'n', falsch: ['N', '/'], erklaerung: 'N springt zum vorigen Treffer.' },
+  { frage: 'Welcher Editor zeigt seine wichtigsten Tastenkürzel am unteren Rand an?', richtig: 'nano', falsch: ['vi', 'Emacs'], erklaerung: 'Darum ist nano bei Einsteigern beliebt.' },
+]} />
