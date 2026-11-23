@@ -40,7 +40,12 @@ export function meta(w: Welt, p: string): Meta {
 export function neuMeta(w: Welt, p: string, root: boolean, dir: boolean) {
   if (!w.meta) w.meta = {};
   const basis = dir ? 0o777 : 0o666;
-  w.meta[p] = { mode: basis & ~(w.umask ?? 0o022), owner: root ? 'root' : 'lena', group: root ? 'root' : 'lena', mtime: w.uhr };
+  const eltern = p.slice(0, p.lastIndexOf('/')) || '/';
+  const em = p in w.fs || eltern in w.fs ? meta(w, eltern) : null;
+  // SGID am Verzeichnis: Neues erbt die Gruppe, neue Verzeichnisse auch das SGID-Bit
+  const sgid = !!em && (em.mode & 0o2000) !== 0;
+  w.meta[p] = { mode: (basis & ~(w.umask ?? 0o022)) | (sgid && dir ? 0o2000 : 0), owner: root ? 'root' : 'lena', group: sgid ? em!.group : root ? 'root' : 'lena', mtime: w.uhr };
+  if (w.inodes) delete w.inodes[p];
 }
 
 export function beruehren(w: Welt, p: string) { meta(w, p).mtime = w.uhr; }

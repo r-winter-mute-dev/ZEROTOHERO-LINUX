@@ -2,6 +2,7 @@
 // reguläre Ausdrücke. Ausgaben und Fehlermeldungen folgen GNU coreutils, grep, findutils, tar und procps
 // (Fehlermeldungen auf Deutsch wie bei LANG=de_DE.UTF-8), gekürzt wo nötig.
 import type { Welt, Prozess } from './shell';
+import { inode, linkZahl } from './shell-rechte';
 import { BIN, CPIO, KOMP, TAR, darf, darfImOrdner, dateityp, datumText, groesse, istText, md5, menschlich, meta, neuMeta, rechteText, sha256, sha512, zeitText, beruehren } from './shell-dateien';
 
 export interface Ergebnis { out: string; code: number; err?: string; }
@@ -106,7 +107,8 @@ export function textBefehle(h: TextHelfer): Record<string, Befehl> {
     let c = w.fs[p];
     if (c === null) return { err: `${befehl}: ${name}: Ist ein Verzeichnis` };
     if (!darf(w, p, 'r', root)) return { err: `${befehl}: ${name}: Keine Berechtigung` };
-    if (c.startsWith('-> ')) { const z = c.slice(3); c = w.fs[z.startsWith('/') ? z : p.replace(/[^/]+$/, '') + z] ?? ''; }
+    // Symbolischen Links folgen; zeigt einer ins Leere, meldet das Programm „nicht gefunden“
+    for (let i = 0; typeof c === 'string' && c.startsWith('-> ') && i < 40; i++) { const z = c.slice(3); const q = pfad(w, z.startsWith('/') ? z : (p.slice(0, p.lastIndexOf('/')) || '/') + '/' + z); if (!(q in w.fs)) return { err: `${befehl}: ${name}: Datei oder Verzeichnis nicht gefunden` }; c = w.fs[q]; if (c === null) return { err: `${befehl}: ${name}: Ist ein Verzeichnis` }; }
     return { text: c ?? '' };
   }
   /** Mehrere Dateien oder stdin lesen. */
@@ -142,6 +144,7 @@ export function textBefehle(h: TextHelfer): Record<string, Befehl> {
   }
 
   const b: Record<string, Befehl> = {};
+  const inodeVon = (p: string) => { let h = 0; for (const c of p) h = (h * 31 + c.charCodeAt(0)) >>> 0; return p === '/' ? 2 : 131072 + (h % 3900000); };
 
   // ===================== 103.2 Textfilter =====================
 
@@ -359,12 +362,21 @@ export function textBefehle(h: TextHelfer): Record<string, Befehl> {
     const lang = flags.has('-l') || flags.has('-n'); const alle = flags.has('-a'); const fast = flags.has('-A');
     const ziele = rest.length ? rest : ['.'];
     const out: string[] = []; const err: string[] = [];
-    const zeile = (p: string, name: string) => {
+    // ls -l: Felder sammeln, dann wie GNU ls je Block in Spalten ausrichten
+    const felder = (p: string, name: string) => {
       const m = meta(w, p); const c = w.fs[p];
-      const links = c === null ? 2 + kinder(w, p).filter((k) => w.fs[(p === '/' ? '' : p) + '/' + k] === null).length : 1;
       const g = groesse(c);
-      return `${rechteText(w, p)} ${String(links).padStart(2)} ${(flags.has('-n') ? (m.owner === 'root' ? '0' : '1000') : m.owner).padEnd(5)} ${(flags.has('-n') ? (m.group === 'root' ? '0' : '1000') : m.group).padEnd(5)} ${(flags.has('-h') ? menschlich(g) : String(g)).padStart(flags.has('-h') ? 4 : 6)} ${zeitText(m.mtime, w.uhr)} ${name}${typeof c === 'string' && c.startsWith('-> ') ? ' -> ' + c.slice(3) : ''}`;
+      const uid = (u: string) => (u === 'root' ? '0' : u === 'lena' ? '1000' : u === 'max' ? '1001' : '1002');
+      return [...(flags.has('-i') ? [String(inode(w, p))] : []), rechteText(w, p), String(linkZahl(w, p)), flags.has('-n') ? uid(m.owner) : m.owner, flags.has('-n') ? uid(m.group) : m.group, flags.has('-h') ? menschlich(g) : String(g), zeitText(m.mtime, w.uhr), name + (typeof c === 'string' && c.startsWith('-> ') ? ' -> ' + c.slice(3) : '')];
     };
+    const ausrichten = (zeilen: string[][]) => {
+      if (!zeilen.length) return [];
+      const br = zeilen[0].map((_, i) => Math.max(...zeilen.map((z) => z[i].length)));
+      const i0 = flags.has('-i') ? 1 : 0;
+      return zeilen.map((z) => z.map((x, i) => (i === z.length - 1 ? x : i === i0 + 2 || i === i0 + 3 || i === i0 + 0 && !flags.has('-i') ? x.padEnd(br[i]) : x.padStart(br[i]))).join(' '));
+    };
+    const zeile = (p: string, name: string) => ausrichten([felder(p, name)])[0];
+    void zeile;
     const sortiere = (ps: { p: string; n: string }[]) => {
       let l = [...ps];
       if (flags.has('-t')) l.sort((x, y) => meta(w, y.p).mtime - meta(w, x.p).mtime);
@@ -379,14 +391,14 @@ export function textBefehle(h: TextHelfer): Record<string, Befehl> {
       let eintraege = kinder(w, p).filter((n) => alle || fast || !n.startsWith('.')).map((n) => ({ p: (p === '/' ? '' : p) + '/' + n, n }));
       if (alle) eintraege = [{ p, n: '.' }, { p: p.replace(/\/[^/]+$/, '') || '/', n: '..' }, ...eintraege];
       eintraege = sortiere(eintraege);
-      if (lang) { out.push(`insgesamt ${eintraege.filter((e) => e.n !== '.' && e.n !== '..' || true).reduce((s, e) => s + Math.ceil(groesse(w.fs[e.p]) / 4096) * 4, 0)}`); out.push(...eintraege.map((e) => zeile(e.p, e.n))); }
-      else out.push(eintraege.map((e) => e.n + (flags.has('-F') && w.fs[e.p] === null ? '/' : '')).join(flags.has('-1') || !w.stdoutTty ? '\n' : '  '));
+      if (lang) { out.push(`insgesamt ${eintraege.reduce((s, e) => s + Math.ceil(groesse(w.fs[e.p]) / 4096) * 4, 0)}`); out.push(...ausrichten(eintraege.map((e) => felder(e.p, e.n)))); }
+      else out.push(eintraege.map((e) => (flags.has('-i') ? inode(w, e.p) + ' ' : '') + e.n + (flags.has('-F') && w.fs[e.p] === null ? '/' : '')).join(flags.has('-1') || !w.stdoutTty ? '\n' : '  '));
       if (flags.has('-R')) for (const e of eintraege) if (w.fs[e.p] === null && e.n !== '.' && e.n !== '..') { out.push(''); ordner(e.p, `${anzeige === '.' ? '.' : anzeige}/${e.n}`, true); }
     };
-    const dateien = ziele.filter((r) => { const p = pfad(w, r); return p in w.fs && (w.fs[p] !== null || flags.has('-d')); });
+    const dateien = ziele.filter((r) => { const p = pfad(w, r); return p in w.fs && (w.fs[p] !== null || flags.has('-d')); }).sort((x, y) => x.localeCompare(y, 'de'));
     const ordnerZiele = ziele.filter((r) => { const p = pfad(w, r); return p in w.fs && w.fs[p] === null && !flags.has('-d'); });
     for (const r of ziele) if (!(pfad(w, r) in w.fs)) err.push(`ls: Zugriff auf '${r}' nicht möglich: Datei oder Verzeichnis nicht gefunden`);
-    if (dateien.length) { if (lang) out.push(...dateien.map((r) => zeile(pfad(w, r), r))); else out.push(dateien.join(flags.has('-1') || !w.stdoutTty ? '\n' : '  ')); }
+    if (dateien.length) { if (lang) out.push(...ausrichten(dateien.map((r) => felder(pfad(w, r), r)))); else out.push(dateien.map((r) => (flags.has('-i') ? inode(w, pfad(w, r)) + ' ' : '') + r).join(flags.has('-1') || !w.stdoutTty ? '\n' : '  ')); }
     for (const [i, r] of ordnerZiele.entries()) { if (dateien.length || i > 0) out.push(''); ordner(pfad(w, r), r, ziele.length > 1 || flags.has('-R')); }
     return { out: out.join('\n'), err: err.length ? err.join('\n') : undefined, code: err.length ? 2 : 0 };
   };
@@ -449,7 +461,7 @@ export function textBefehle(h: TextHelfer): Record<string, Befehl> {
       if (!(p in w.fs)) { if (!flags.has('-f')) err.push(`rm: das Entfernen von '${d}' ist nicht möglich: Datei oder Verzeichnis nicht gefunden`); return; }
       if (w.fs[p] === null && !rek) { err.push(`rm: das Entfernen von '${d}' ist nicht möglich: Ist ein Verzeichnis`); return; }
       if (!darfImOrdner(w, p, root, true)) { err.push(`rm: das Entfernen von '${d}' ist nicht möglich: Keine Berechtigung`); return; }
-      for (const k of Object.keys(w.fs).filter((k) => k === p || k.startsWith(p + '/')).sort().reverse()) { const dir = w.fs[k] === null; delete w.fs[k]; if (flags.has('-v')) { const anz = d + k.slice(p.length); out.push(dir ? `Verzeichnis '${anz}' wurde entfernt` : `'${anz}' wurde entfernt`); } }
+      for (const k of Object.keys(w.fs).filter((k) => k === p || k.startsWith(p + '/')).sort().reverse()) { const dir = w.fs[k] === null; delete w.fs[k]; if (w.inodes) delete w.inodes[k]; if (flags.has('-v')) { const anz = d + k.slice(p.length); out.push(dir ? `Verzeichnis '${anz}' wurde entfernt` : `'${anz}' wurde entfernt`); } }
     };
     const ausf = () => { for (const d of rest) weg(pfad(w, d), d); return mitFehlern(out.join('\n'), err); };
     if (flags.has('-i') && rest.length) return frage(w, `rm: reguläre Datei '${rest[0]}' entfernen?`, false, ausf);
@@ -482,7 +494,9 @@ export function textBefehle(h: TextHelfer): Record<string, Befehl> {
           if (behalten) w.meta![neu] = { ...meta(w, k) }; else neuMeta(w, neu, root, w.fs[k] === null);
           if (!behalten && w.fs[k] !== null) meta(w, neu).mode = meta(w, k).mode & ~(w.umask ?? 0o022) & 0o777 | (meta(w, k).mode & 0o111 ? 0o111 & ~(w.umask ?? 0o022) : 0);
         }
-        if (verschieben) for (const k of alle.reverse()) delete w.fs[k];
+        // mv behält Inode und Verknüpfungen, cp legt neue Inodes an
+        if (verschieben) { for (const k of alle) { const neu = zp + k.slice(qp.length); if (!w.inodes) w.inodes = {}; w.inodes[neu] = w.inodes[k] ?? inodeVon(k); w.meta![neu] = w.meta?.[k] ?? w.meta![neu]; } for (const k of alle.reverse()) { delete w.fs[k]; if (w.inodes) delete w.inodes[k]; } }
+        else for (const k of alle) if (w.inodes) delete w.inodes[zp + k.slice(qp.length)];
         if (flags.has('-v')) out.push(`${verschieben ? 'Datei umbenannt ' : ''}'${q}' -> '${zielAnzeige(q)}'`);
       }
       return mitFehlern(out.join('\n'), err);

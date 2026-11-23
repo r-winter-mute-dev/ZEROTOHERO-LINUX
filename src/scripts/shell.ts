@@ -6,6 +6,8 @@
 import { paketBefehle, programmStarten, neustartPakete, startStand, zustandPakete, type PaketStand } from './shell-pakete';
 import { textBefehle } from './shell-text';
 import { SEITEN, EINGEBAUT_OHNE_SEITE, whatis, apropos } from './shell-man';
+import { rechteBefehle, linksAbgleichen, nurLesbar, zustandRechte, inode, linkZahl } from './shell-rechte';
+import { START_FSTAB, plattenBefehle, startPlatten, zustandPlatten, plattenKaputt, type PlattenStand } from './shell-platten';
 import { START_UHR, beruehren, darf, darfImOrdner, meta, neuMeta, type Meta } from './shell-dateien';
 
 export interface Modul { name: string; groesse: number; abh: string[]; beschreibung: string; parameter?: Record<string, string>; datei?: string; }
@@ -55,6 +57,15 @@ export interface Welt {
   vi?: boolean;
   langNice?: number;
   stdoutTty?: boolean;
+  platten?: PlattenStand;
+  inodes?: Record<string, number>;
+  hardlinkInhalt?: Record<number, string>;
+  locateDb?: string[];
+  mountUnitsGeladen?: boolean;
+  mountUnitsAktiv?: string[];
+  fstabStand?: string | null;
+  unitStand?: Record<string, string | null>;
+  dialog?: null | { prompt: string; eingabe: (zeile: string) => string };   // interaktive Programme wie fdisk
 }
 
 const KERNEL = '6.1.0-27-amd64';
@@ -239,7 +250,7 @@ function modulPfad(name: string) {
   return `${ordner[name] ?? 'kernel/drivers/misc'}/${name.replace(/_/g, name === 'usb_storage' ? '-' : '_')}.ko`;
 }
 
-export interface WeltOptionen { defaultTarget?: string; target?: string; ohne?: string[]; dateien?: Record<string, string>; prozesse?: Prozess[]; root?: boolean; distro?: 'debian' | 'alma' | 'suse'; virt?: string; host?: string; aptVeraltet?: boolean; geaendert?: string[]; pathStandard?: boolean; cwd?: string; rechte?: Record<string, string>; zeiten?: Record<string, number>; aliase?: Record<string, string>; extraProzesse?: Prozess[]; }
+export interface WeltOptionen { defaultTarget?: string; target?: string; ohne?: string[]; dateien?: Record<string, string>; prozesse?: Prozess[]; root?: boolean; distro?: 'debian' | 'alma' | 'suse'; virt?: string; host?: string; aptVeraltet?: boolean; geaendert?: string[]; pathStandard?: boolean; cwd?: string; rechte?: Record<string, string>; zeiten?: Record<string, number>; aliase?: Record<string, string>; extraProzesse?: Prozess[]; neuePlatte?: boolean | 'leer' | 'partitioniert' | 'formatiert'; kaputt?: string[]; }
 
 export function neueWelt(o: WeltOptionen = {}): Welt {
   const verfuegbar = Object.fromEntries(MODULE.map((x) => [x.name, x]));
@@ -275,14 +286,20 @@ export function neueWelt(o: WeltOptionen = {}): Welt {
   if (o.cwd) { w.cwd = o.cwd; w.env.PWD = o.cwd; }
   w.historie = (w.fs['/home/lena/.bash_history'] ?? '').split('\n').filter(Boolean);
   programmeAblegen(w);
+  // Verzeichnisse nach dem Filesystem Hierarchy Standard, die noch fehlen
+  if (w.distro === 'debian') for (const d of ['/mnt', '/media', '/srv', '/opt', '/usr/local', '/usr/local/bin', '/usr/local/sbin', '/usr/share', '/usr/share/doc', '/usr/share/man', '/usr/lib', '/usr/include', '/var/tmp', '/var/lib', '/var/cache', '/var/spool', '/var/mail', '/run', '/boot', '/proc', '/sys', '/lib', '/home', '/root', '/etc/default', '/etc/opt']) if (!(d in w.fs)) w.fs[d] = null;
+  w.platten = startPlatten({ neuePlatte: o.neuePlatte }, START_UHR);
+  START_FSTAB.set(w, w.fs['/etc/fstab'] ?? undefined);
+  for (const d of o.kaputt ?? []) plattenKaputt(w, d);
+  if (o.neuePlatte) { w.fs['/dev/sdb'] = ''; for (const p of w.platten.platten.find((x) => x.name === 'sdb')!.partitionen) w.fs['/dev/sdb' + p.nr] = ''; }
   w.fs['/etc/systemd/system/default.target'] = `-> /usr/lib/systemd/system/${w.defaultTarget}`;
   benutzerBerechnen(w);
   return w;
 }
 
 // Die wichtigsten Programme liegen als Platzhalter in /usr/bin und /usr/sbin, damit ls, file, find und which sie finden.
-const PROGRAMME = ['bash', 'cat', 'cp', 'mv', 'rm', 'ls', 'mkdir', 'rmdir', 'touch', 'ln', 'chmod', 'chown', 'head', 'tail', 'wc', 'sort', 'uniq', 'cut', 'paste', 'tr', 'od', 'split', 'nl', 'tac', 'sed', 'grep', 'find', 'xargs', 'tar', 'gzip', 'gunzip', 'zcat', 'bzip2', 'bunzip2', 'bzcat', 'xz', 'unxz', 'xzcat', 'cpio', 'dd', 'md5sum', 'sha256sum', 'sha512sum', 'file', 'ps', 'top', 'free', 'uptime', 'pgrep', 'pkill', 'killall', 'kill', 'watch', 'nice', 'renice', 'nohup', 'sleep', 'tee', 'env', 'printenv', 'uname', 'which', 'whereis', 'man', 'date', 'echo', 'printf', 'pwd', 'less', 'more', 'vim.tiny', 'nano', 'screen', 'tmux', 'basename', 'dirname', 'id', 'whoami', 'hostname', 'sudo', 'lspci', 'lsusb', 'lsblk', 'dmesg', 'journalctl', 'systemctl', 'apt', 'apt-get', 'apt-cache', 'dpkg', 'ldd'];
-const SBIN_PROGRAMME = ['fdisk', 'modprobe', 'insmod', 'rmmod', 'lsmod', 'modinfo', 'shutdown', 'reboot', 'poweroff', 'halt', 'ldconfig', 'update-grub', 'grub-install', 'swapon', 'dpkg-reconfigure', 'sshd', 'telinit', 'runlevel'];
+const PROGRAMME = ['mount', 'umount', 'df', 'du', 'findmnt', 'lsblk', 'ln', 'chgrp', 'locate', 'plocate', 'bash', 'cat', 'cp', 'mv', 'rm', 'ls', 'mkdir', 'rmdir', 'touch', 'ln', 'chmod', 'chown', 'head', 'tail', 'wc', 'sort', 'uniq', 'cut', 'paste', 'tr', 'od', 'split', 'nl', 'tac', 'sed', 'grep', 'find', 'xargs', 'tar', 'gzip', 'gunzip', 'zcat', 'bzip2', 'bunzip2', 'bzcat', 'xz', 'unxz', 'xzcat', 'cpio', 'dd', 'md5sum', 'sha256sum', 'sha512sum', 'file', 'ps', 'top', 'free', 'uptime', 'pgrep', 'pkill', 'killall', 'kill', 'watch', 'nice', 'renice', 'nohup', 'sleep', 'tee', 'env', 'printenv', 'uname', 'which', 'whereis', 'man', 'date', 'echo', 'printf', 'pwd', 'less', 'more', 'vim.tiny', 'nano', 'screen', 'tmux', 'basename', 'dirname', 'id', 'whoami', 'hostname', 'sudo', 'lspci', 'lsusb', 'lsblk', 'dmesg', 'journalctl', 'systemctl', 'apt', 'apt-get', 'apt-cache', 'dpkg', 'ldd'];
+const SBIN_PROGRAMME = ['mkfs', 'mkfs.ext2', 'mkfs.ext3', 'mkfs.ext4', 'mkfs.xfs', 'mkfs.vfat', 'mkfs.fat', 'mkfs.exfat', 'mkswap', 'swapoff', 'blkid', 'e2fsck', 'fsck', 'fsck.ext4', 'tune2fs', 'xfs_repair', 'xfs_fsr', 'xfs_db', 'parted', 'gdisk', 'fdisk', 'modprobe', 'insmod', 'rmmod', 'lsmod', 'modinfo', 'shutdown', 'reboot', 'poweroff', 'halt', 'ldconfig', 'update-grub', 'grub-install', 'swapon', 'dpkg-reconfigure', 'sshd', 'telinit', 'runlevel'];
 function programmeAblegen(w: Welt) {
   if (w.distro !== 'debian') return;
   for (const d of ['/usr', '/usr/bin', '/usr/sbin']) if (!(d in w.fs)) w.fs[d] = null;
@@ -355,6 +372,11 @@ function pfad(w: Welt, p: string): string {
   for (const t of teile) { if (!t || t === '.') continue; if (t === '..') st.pop(); else st.push(t); }
   // merged /usr: /bin/x ist /usr/bin/x
   if (st.length > 1 && (st[0] === 'bin' || st[0] === 'sbin') && w.fs['/' + st[0]] === '-> usr/' + st[0]) st.unshift('usr');
+  // Symbolische Links auf Verzeichnisse in der Mitte des Pfades folgen (das letzte Glied bleibt der Link selbst)
+  for (let i = 0, runden = 0; i < st.length - 1 && runden < 40; i++) {
+    const vor = '/' + st.slice(0, i + 1).join('/'); const c = w.fs[vor];
+    if (typeof c === 'string' && c.startsWith('-> ')) { const ziel = c.slice(3); const neu = pfad(w, ziel.startsWith('/') ? ziel : (vor.slice(0, vor.lastIndexOf('/')) || '/') + '/' + ziel); st.splice(0, i + 1, ...neu.split('/').filter(Boolean)); i = -1; runden++; }
+  }
   return '/' + st.join('/');
 }
 const kinder = (w: Welt, dir: string) => Object.keys(w.fs).filter((k) => k !== dir && k.startsWith(dir === '/' ? '/' : dir + '/') && !k.slice(dir === '/' ? 1 : dir.length + 1).includes('/')).map((k) => k.split('/').pop()!).sort();
@@ -776,7 +798,7 @@ function pkillKern(w: Welt, a: string[], root: boolean, art: 'pkill' | 'killall'
   if (!name && !user) return fehler(art === 'pkill' ? 'pkill: kein Abgleichkriterium angegeben\nGeben Sie »pkill --help« ein, um weitere Informationen zu erhalten.' : 'Aufruf: killall [OPTION]... [--] NAME...', 2);
   if (!ziele.length) return art === 'killall' ? fehler(`${name}: Kein Prozess gefunden`) : { out: '', code: 1 };
   const err: string[] = []; let geschafft = 0;
-  for (const p of ziele) { const e = signal(w, p.pid, sig, root); if (e) err.push(art === 'pkill' ? `pkill: Abwürgen von Prozess-ID ${p.pid} fehlgeschlagen: Die Operation ist nicht erlaubt` : `${prozName(p)}(${p.pid}): Die Operation ist nicht erlaubt`); else geschafft++; }
+  for (const p of ziele) { const e = signal(w, p.pid, sig, root); if (e) err.push(art === 'pkill' ? `pkill: Abwürgen von Prozess-ID ${p.pid} fehlgeschlagen: Vorgang nicht zulässig` : `${prozName(p)}(${p.pid}): Vorgang nicht zulässig`); else geschafft++; }
   return { out: '', err: err.join('\n') || undefined, code: geschafft ? 0 : 1 };
 }
 function signalZahl(s: string) { const n = s.toUpperCase().replace(/^SIG/, ''); return /^\d+$/.test(n) ? Number(n) : ({ HUP: 1, INT: 2, QUIT: 3, KILL: 9, USR1: 10, USR2: 12, TERM: 15, CONT: 18, STOP: 19, TSTP: 20 } as Record<string, number>)[n] ?? 15; }
@@ -784,7 +806,7 @@ function signalZahl(s: string) { const n = s.toUpperCase().replace(/^SIG/, ''); 
 function signal(w: Welt, pid: number, sig: number, root: boolean): string {
   const p = w.prozesse.find((x) => x.pid === pid);
   if (!p) return `bash: kill: (${pid}) - Kein passender Prozess gefunden`;
-  if (p.user !== 'lena' && !root) return `bash: kill: (${pid}) - Die Operation ist nicht erlaubt`;
+  if (p.user !== 'lena' && !root) return `bash: kill: (${pid}) - Vorgang nicht zulässig`;
   w.verlauf.push({ zeile: `#signal ${pid} ${sig}`, code: 0, ausgabe: '' });
   // Jobs der Shell: angehaltene Jobs mit SIGCONT weiterlaufen lassen, beendete melden
   const job = w.jobs.find((j) => j.pid === pid);
@@ -834,6 +856,7 @@ function schreiben(w: Welt, ziel: string, text: string, anhaengen: boolean, root
   const dir = p.slice(0, p.lastIndexOf('/')) || '/';
   if (!(dir in w.fs) || w.fs[dir] !== null) return 'Datei oder Verzeichnis nicht gefunden';
   if (w.fs[p] === null) return 'Ist ein Verzeichnis';
+  if (nurLesbar(w, p)) return 'Das Dateisystem ist nur lesbar';
   if (p in w.fs) { if (!darf(w, p, 'w', root)) return 'Keine Berechtigung'; }
   else { if (!darfImOrdner(w, p, root)) return 'Keine Berechtigung'; w.fs[p] = ''; neuMeta(w, p, root, false); }
   const t = text.endsWith('\n') || !text ? text : text + '\n';
@@ -994,7 +1017,7 @@ function wildcards(w: Welt, muster: string): string[] {
 // ---------- Befehlssuche über PATH ----------
 
 // Wo die Programme auf Debian 12 liegen (merged /usr: /bin -> usr/bin, /sbin -> usr/sbin)
-const SBIN = new Set(['fdisk', 'modprobe', 'insmod', 'rmmod', 'lsmod', 'modinfo', 'depmod', 'shutdown', 'reboot', 'poweroff', 'halt', 'telinit', 'init', 'runlevel', 'ldconfig', 'update-grub', 'grub-install', 'grub-mkconfig', 'swapon', 'swapoff', 'dpkg-reconfigure', 'sshd', 'mkfs', 'fsck', 'blkid', 'parted', 'useradd', 'usermod', 'ifconfig']);
+const SBIN = new Set(['mkfs', 'mkfs.ext2', 'mkfs.ext3', 'mkfs.ext4', 'mkfs.xfs', 'mkfs.vfat', 'mkfs.fat', 'mkfs.exfat', 'mkfs.btrfs', 'mke2fs', 'mkswap', 'swapoff', 'blkid', 'e2fsck', 'fsck.ext2', 'fsck.ext3', 'fsck.ext4', 'tune2fs', 'e2label', 'xfs_repair', 'xfs_fsr', 'xfs_db', 'xfs_admin', 'parted', 'gdisk', 'updatedb', 'chroot', 'fdisk', 'modprobe', 'insmod', 'rmmod', 'lsmod', 'modinfo', 'depmod', 'shutdown', 'reboot', 'poweroff', 'halt', 'telinit', 'init', 'runlevel', 'ldconfig', 'update-grub', 'grub-install', 'grub-mkconfig', 'swapon', 'swapoff', 'dpkg-reconfigure', 'sshd', 'mkfs', 'fsck', 'blkid', 'parted', 'useradd', 'usermod', 'ifconfig']);
 const ROOT_PATH = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin';
 const AUCH_EXTERN = new Set(['echo', 'pwd', 'kill', 'true', 'false', 'printf']);   // gibt es auch als Programm in /usr/bin
 const EIGENER_ORT: Record<string, string> = { 'apt-file': '/usr/bin' };
@@ -1296,6 +1319,8 @@ function einfachAusfuehren(w: Welt, c: Einfach, stdin: string, rootStart: boolea
   // Meist erscheint stderr zuerst (ungepuffert). Manche Befehle melden ihre Zusammenfassung erst am Ende.
   if ((r as any).errNach) { ablegen(fd1, out, true); ablegen(fd2, r.err ?? '', false); }
   else { ablegen(fd2, r.err ?? '', false); ablegen(fd1, out, true); }
+  // Harte Links: Was über einen Namen geschrieben wurde, gilt für alle
+  linksAbgleichen(w);
   return { out: pipe, code: r.code, tty, ende: (r as any).ende } as Ergebnis & { tty: string };
 }
 
@@ -1406,6 +1431,12 @@ export function ausfuehren(w: Welt, zeile: string): Lauf {
     w.verlauf.push({ zeile: '#strg-z', code: 148, ausgabe: '' });
     return { ausgabe: `^Z\n[${j.nr}]+  Angehalten              ${j.cmd}`, code: 148 };
   }
+  // Interaktives Programm (fdisk): Die Zeile geht an das Programm, nicht an die Shell
+  if (w.dialog) {
+    const out = w.dialog.eingabe(zeile);
+    w.verlauf.push({ zeile: '#dialog ' + zeile.trim(), code: 0, ausgabe: out });
+    return { ausgabe: out.replace(/^\n+/, ''), code: 0 };
+  }
   let roh = zeile.replace(/\s+$/, '');
   if (w.vordergrund && !w.wartet) return { ausgabe: `(${w.vordergrund.cmd} läuft noch im Vordergrund. Drücke Strg+Z zum Anhalten oder Strg+C zum Abbrechen.)`, code: 0 };
   if (!roh.trim() && !w.wartet) return { ausgabe: meldungenAbholen(w), code: 0 };
@@ -1446,6 +1477,7 @@ function meldungenAbholen(w: Welt) {
 }
 
 export function prompt(w: Welt) {
+  if (w.dialog) return w.dialog.prompt;
   if (w.wartet || w.vordergrund) return '';
   const ort = w.cwd === '/home/lena' ? '~' : w.cwd.startsWith('/home/lena/') ? '~' + w.cwd.slice('/home/lena'.length) : w.cwd;
   const user = w.root ? 'root' : 'lena';
@@ -1470,6 +1502,15 @@ export function neuStarten(w: Welt) {
 }
 
 Object.assign(befehle, paketBefehle({ ok, fehler, optionen, pfad, schreiben }));
+Object.assign(befehle, plattenBefehle({ ok, fehler, pfad, kinder }));
+Object.assign(befehle, rechteBefehle({ ok, fehler, pfad, kinder }));
+// systemctl: Mount-Units und daemon-reload gehen an das Plattenmodell
+const altSystemctl = befehle.systemctl;
+befehle.systemctl = (w, a, i, r) => {
+  const rest = a.filter((x) => !x.startsWith('-'));
+  if (rest[0] === 'daemon-reload' || rest.some((x) => x.endsWith('.mount'))) return befehle.__mountunit(w, rest, i, r);
+  return altSystemctl(w, a, i, r);
+};
 const procCat = befehle.cat;
 Object.assign(befehle, textBefehle({ ok, fehler, optionen, pfad, kinder, schreiben, intern: (w, zeile, stdin, root) => intern(w, zeile, stdin, root), frage: (w, text, standardJa, aktion) => { w.wartet = { standardJa, aktion }; return ok(text); } }));
 const textCat = befehle.cat;
@@ -1521,7 +1562,7 @@ Object.assign(befehle, PROGRAMME_SHELL, {
 for (const n of ['jobs', 'fg', 'bg']) SHELL_INTERN[n] = befehle[n];
 for (const n of ['cd', 'history', 'export', 'unset', 'jobs', 'fg', 'bg', 'alias', 'unalias', 'type', 'umask', 'source']) delete befehle[n];
 
-export const BEFEHLSNAMEN = [...new Set([...Object.keys(befehle), ...Object.keys(EINGEBAUT), 'sudo'])].sort();
+export const BEFEHLSNAMEN = [...new Set([...Object.keys(befehle).filter((n) => !n.startsWith('__')), ...Object.keys(EINGEBAUT), 'sudo'])].sort();
 
 // ---------- Prüfen von Aufgaben ----------
 
@@ -1558,6 +1599,8 @@ export function zustandStimmt(w: Welt, z: string): boolean {
     if ((m = s.match(/^host=(.+)$/))) return w.host === m[1];
     if (s === 'antwort:ja') return w.verlauf.some((v) => v.zeile === '#antwort ja');
     const p = zustandPakete(w, s); if (p !== undefined) return p;
+    const pl = zustandPlatten(w, s); if (pl !== undefined) return pl;
+    const re = zustandRechte(w, s, pfad); if (re !== undefined) return re;
     if (s === 'neustart') return w.verlauf.some((v) => v.zeile === '#neustart');
     // ---- ab Topic 103 ----
     // vi:ohne = beendet, ohne zu speichern (mit oder ohne Änderungen)
