@@ -9,6 +9,8 @@ import { SEITEN, EINGEBAUT_OHNE_SEITE, whatis, apropos } from './shell-man';
 import { locateDbAnlegen, rechteBefehle, linksAbgleichen, nurLesbar, zustandRechte, inode, linkZahl } from './shell-rechte';
 import { START_FSTAB, plattenBefehle, startPlatten, zustandPlatten, plattenKaputt, type PlattenStand } from './shell-platten';
 import { skriptKern, programm, funktionAufrufen, istZusammengesetzt, zerlegenProgramm, BrauchtEingabe, stand, rechnen, RechenFehler, parameter, skriptEingebaut, skriptBefehle, suBefehl, shellStarten, shellBeenden, zustandSkript } from './shell-skript';
+import { adminBefehle, adminKern, idFuer, zustandAdmin, gruppenVon } from './shell-admin';
+import { zeitBefehle, zeitDateien, zeitKern, timerSystemctl, zustandZeit } from './shell-zeit';
 import { x11Befehle, x11Dateien, grafikStarten, zustandX11 } from './shell-x11';
 import { START_UHR, beruehren, darf, darfImOrdner, meta, neuMeta, type Meta } from './shell-dateien';
 
@@ -244,6 +246,11 @@ function grundFs(): Record<string, string | null> {
     '/etc/systemd/system/default.target': '-> /usr/lib/systemd/system/graphical.target',
   };
   x11Dateien(fs);
+  zeitDateien(fs);
+  // Gruppen-Schatten, Vorgaben für useradd und login.defs (Debian 12)
+  fs['/etc/gshadow'] = (fs['/etc/group'] ?? '').split('\n').filter(Boolean).map((z) => { const g = z.split(':'); return `${g[0]}:${g[0] === 'sudo' || g[0] === 'users' ? '*' : '!'}::${g[3] ?? ''}`; }).join('\n') + '\n';
+  fs['/etc/default/useradd'] = '# Default values for useradd(8)\n#\n# The SHELL variable specifies the default login shell on your\n# system.\n# Similar to DSHELL in adduser. However, we use "sh" here because\n# useradd is a low level utility and should be as general\n# as possible\nSHELL=/bin/sh\n#\n# The default group for users\n# 100=users on Debian systems\n# Same as USERS_GID in adduser\n# This argument is used when the -n flag is specified.\n# The default behavior (when -n and -g are not specified) is to create a\n# primary user group with the same name as the user being added to the\n# system.\n# GROUP=100\n#\n# The default home directory. Same as DHOME for adduser\n# HOME=/home\n#\n# The number of days after a password expires until the account\n# is permanently disabled\n# INACTIVE=-1\n#\n# The default expire date\n# EXPIRE=\n#\n# The SKEL variable specifies the directory containing "skeletal" user\n# files; in other words, files such as a sample .profile that will be\n# copied to the new user\'s home directory when it is created.\n# SKEL=/etc/skel\n#\n# Defines whether the mail spool should be created while\n# creating the account\n# CREATE_MAIL_SPOOL=no\n';
+  fs['/etc/login.defs'] = '#\n# /etc/login.defs - Configuration control definitions for the login package.\n#\nMAIL_DIR        /var/mail\n\n# Password aging controls:\n#\n#\tPASS_MAX_DAYS\tMaximum number of days a password may be used.\n#\tPASS_MIN_DAYS\tMinimum number of days allowed between password changes.\n#\tPASS_WARN_AGE\tNumber of days warning given before a password expires.\n#\nPASS_MAX_DAYS\t99999\nPASS_MIN_DAYS\t0\nPASS_WARN_AGE\t7\n\n#\n# Min/max values for automatic uid selection in useradd(8)\n#\nUID_MIN\t\t\t 1000\nUID_MAX\t\t\t60000\n#SYS_UID_MIN\t\t  100\n#SYS_UID_MAX\t\t  999\nGID_MIN\t\t\t 1000\nGID_MAX\t\t\t60000\n\n#\n# If useradd(8) should create home directories for users by default (non\n# system users only).\n# This option is overridden with the -M or -m flags on the useradd(8)\n# command-line.\n#\n#CREATE_HOME     yes\n\n# HOME_MODE is used by useradd(8) and newusers(8) to set the mode for new\n# home directories.\n# If HOME_MODE is not set, the value of UMASK is used to create the mode.\nHOME_MODE\t0700\n\nUMASK\t\t022\n\nENCRYPT_METHOD YESCRYPT\n';
   // Vorlagen für neue Benutzer und die Startdateien von root
   for (const n of ['.bashrc', '.profile']) { fs['/etc/skel/' + n] = fs['/home/lena/' + n]; fs['/root/' + n] = fs['/home/lena/' + n]; }
   for (const p of PCI) {
@@ -311,8 +318,8 @@ export function neueWelt(o: WeltOptionen = {}): Welt {
 }
 
 // Die wichtigsten Programme liegen als Platzhalter in /usr/bin und /usr/sbin, damit ls, file, find und which sie finden.
-const PROGRAMME = ['passwd', 'su', 'chsh', 'chfn', 'newgrp', 'gpasswd', 'chage', 'expiry', 'crontab', 'stat', 'readlink', 'mount', 'umount', 'df', 'du', 'findmnt', 'lsblk', 'ln', 'chgrp', 'locate', 'plocate', 'bash', 'cat', 'cp', 'mv', 'rm', 'ls', 'mkdir', 'rmdir', 'touch', 'ln', 'chmod', 'chown', 'head', 'tail', 'wc', 'sort', 'uniq', 'cut', 'paste', 'tr', 'od', 'split', 'nl', 'tac', 'sed', 'grep', 'find', 'xargs', 'tar', 'gzip', 'gunzip', 'zcat', 'bzip2', 'bunzip2', 'bzcat', 'xz', 'unxz', 'xzcat', 'cpio', 'dd', 'md5sum', 'sha256sum', 'sha512sum', 'file', 'ps', 'top', 'free', 'uptime', 'pgrep', 'pkill', 'killall', 'kill', 'watch', 'nice', 'renice', 'nohup', 'sleep', 'tee', 'env', 'printenv', 'uname', 'which', 'whereis', 'man', 'date', 'echo', 'printf', 'pwd', 'less', 'more', 'vim.tiny', 'nano', 'screen', 'tmux', 'basename', 'dirname', 'id', 'whoami', 'hostname', 'sudo', 'lspci', 'lsusb', 'lsblk', 'dmesg', 'journalctl', 'systemctl', 'apt', 'apt-get', 'apt-cache', 'dpkg', 'ldd', 'seq', 'expr', 'mail', 'dircolors', 'dash', 'test', '[', 'diff', 'xclock', 'xeyes', 'xterm', 'xcalc', 'gnome-calculator', 'orca', 'onboard', 'xdpyinfo', 'xwininfo', 'xhost', 'xauth', 'X', 'Xorg', 'setxkbmap', 'gsettings'];
-const SBIN_PROGRAMME = ['mkfs', 'mkfs.ext2', 'mkfs.ext3', 'mkfs.ext4', 'mkfs.xfs', 'mkfs.vfat', 'mkfs.fat', 'mkfs.exfat', 'mkswap', 'swapoff', 'blkid', 'e2fsck', 'fsck', 'fsck.ext4', 'tune2fs', 'xfs_repair', 'xfs_fsr', 'xfs_db', 'parted', 'gdisk', 'fdisk', 'modprobe', 'insmod', 'rmmod', 'lsmod', 'modinfo', 'shutdown', 'reboot', 'poweroff', 'halt', 'ldconfig', 'update-grub', 'grub-install', 'swapon', 'dpkg-reconfigure', 'sshd', 'telinit', 'runlevel'];
+const PROGRAMME = ['passwd', 'su', 'chsh', 'chfn', 'newgrp', 'gpasswd', 'chage', 'expiry', 'crontab', 'stat', 'readlink', 'mount', 'umount', 'df', 'du', 'findmnt', 'lsblk', 'ln', 'chgrp', 'locate', 'plocate', 'bash', 'cat', 'cp', 'mv', 'rm', 'ls', 'mkdir', 'rmdir', 'touch', 'ln', 'chmod', 'chown', 'head', 'tail', 'wc', 'sort', 'uniq', 'cut', 'paste', 'tr', 'od', 'split', 'nl', 'tac', 'sed', 'grep', 'find', 'xargs', 'tar', 'gzip', 'gunzip', 'zcat', 'bzip2', 'bunzip2', 'bzcat', 'xz', 'unxz', 'xzcat', 'cpio', 'dd', 'md5sum', 'sha256sum', 'sha512sum', 'file', 'ps', 'top', 'free', 'uptime', 'pgrep', 'pkill', 'killall', 'kill', 'watch', 'nice', 'renice', 'nohup', 'sleep', 'tee', 'env', 'printenv', 'uname', 'which', 'whereis', 'man', 'date', 'echo', 'printf', 'pwd', 'less', 'more', 'vim.tiny', 'nano', 'screen', 'tmux', 'basename', 'dirname', 'id', 'whoami', 'hostname', 'sudo', 'lspci', 'lsusb', 'lsblk', 'dmesg', 'journalctl', 'systemctl', 'apt', 'apt-get', 'apt-cache', 'dpkg', 'ldd', 'seq', 'expr', 'mail', 'dircolors', 'dash', 'test', '[', 'diff', 'xclock', 'xeyes', 'xterm', 'xcalc', 'gnome-calculator', 'orca', 'onboard', 'xdpyinfo', 'xwininfo', 'xhost', 'xauth', 'X', 'Xorg', 'setxkbmap', 'gsettings', 'getent', 'crontab', 'at', 'atq', 'atrm', 'batch', 'run-parts', 'systemd-run', 'locale', 'localectl', 'timedatectl', 'tzselect', 'iconv'];
+const SBIN_PROGRAMME = ['mkfs', 'mkfs.ext2', 'mkfs.ext3', 'mkfs.ext4', 'mkfs.xfs', 'mkfs.vfat', 'mkfs.fat', 'mkfs.exfat', 'mkswap', 'swapoff', 'blkid', 'e2fsck', 'fsck', 'fsck.ext4', 'tune2fs', 'xfs_repair', 'xfs_fsr', 'xfs_db', 'parted', 'gdisk', 'fdisk', 'modprobe', 'insmod', 'rmmod', 'lsmod', 'modinfo', 'shutdown', 'reboot', 'poweroff', 'halt', 'ldconfig', 'update-grub', 'grub-install', 'swapon', 'dpkg-reconfigure', 'sshd', 'telinit', 'runlevel', 'useradd', 'usermod', 'userdel', 'groupadd', 'groupmod', 'groupdel'];
 function programmeAblegen(w: Welt) {
   if (w.distro !== 'debian') return;
   for (const d of ['/usr', '/usr/bin', '/usr/sbin']) if (!(d in w.fs)) w.fs[d] = null;
@@ -1044,7 +1051,7 @@ function wildcards(w: Welt, muster: string): string[] {
 // ---------- Befehlssuche über PATH ----------
 
 // Wo die Programme auf Debian 12 liegen (merged /usr: /bin -> usr/bin, /sbin -> usr/sbin)
-const SBIN = new Set(['mkfs', 'mkfs.ext2', 'mkfs.ext3', 'mkfs.ext4', 'mkfs.xfs', 'mkfs.vfat', 'mkfs.fat', 'mkfs.exfat', 'mkfs.btrfs', 'mke2fs', 'mkswap', 'swapoff', 'blkid', 'e2fsck', 'fsck.ext2', 'fsck.ext3', 'fsck.ext4', 'tune2fs', 'e2label', 'xfs_repair', 'xfs_fsr', 'xfs_db', 'xfs_admin', 'parted', 'gdisk', 'updatedb', 'chroot', 'fdisk', 'modprobe', 'insmod', 'rmmod', 'lsmod', 'modinfo', 'depmod', 'shutdown', 'reboot', 'poweroff', 'halt', 'telinit', 'init', 'runlevel', 'ldconfig', 'update-grub', 'grub-install', 'grub-mkconfig', 'swapon', 'swapoff', 'dpkg-reconfigure', 'sshd', 'mkfs', 'fsck', 'blkid', 'parted', 'useradd', 'usermod', 'ifconfig']);
+const SBIN = new Set(['mkfs', 'mkfs.ext2', 'mkfs.ext3', 'mkfs.ext4', 'mkfs.xfs', 'mkfs.vfat', 'mkfs.fat', 'mkfs.exfat', 'mkfs.btrfs', 'mke2fs', 'mkswap', 'swapoff', 'blkid', 'e2fsck', 'fsck.ext2', 'fsck.ext3', 'fsck.ext4', 'tune2fs', 'e2label', 'xfs_repair', 'xfs_fsr', 'xfs_db', 'xfs_admin', 'parted', 'gdisk', 'updatedb', 'chroot', 'fdisk', 'modprobe', 'insmod', 'rmmod', 'lsmod', 'modinfo', 'depmod', 'shutdown', 'reboot', 'poweroff', 'halt', 'telinit', 'init', 'runlevel', 'ldconfig', 'update-grub', 'grub-install', 'grub-mkconfig', 'swapon', 'swapoff', 'dpkg-reconfigure', 'sshd', 'mkfs', 'fsck', 'blkid', 'parted', 'useradd', 'usermod', 'userdel', 'groupadd', 'groupmod', 'groupdel', 'ifconfig']);
 const ROOT_PATH = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin';
 const AUCH_EXTERN = new Set(['echo', 'pwd', 'kill', 'true', 'false', 'printf', 'test', '[']);   // gibt es auch als Programm in /usr/bin
 const EIGENER_ORT: Record<string, string> = { 'apt-file': '/usr/bin' };
@@ -1559,6 +1566,11 @@ export function ausfuehren(w: Welt, zeile: string): Lauf {
     w.verlauf.push({ zeile: '#strg-z', code: 148, ausgabe: '' });
     return { ausgabe: `^Z\n[${j.nr}]+  Angehalten              ${j.cmd}`, code: 148 };
   }
+  // Strg+D: Ende der Eingabe für at und andere Programme, die bis Dateiende lesen
+  if (zeile === '\u0004') {
+    if (w.dialog) { const out = w.dialog.eingabe('\u0004'); w.verlauf.push({ zeile: '#strg-d', code: 0, ausgabe: out }); return { ausgabe: out.replace(/^\n+/, ''), code: 0 }; }
+    return { ausgabe: '(Strg+D an einer leeren Zeile würde die Shell beenden. Im Simulator bleibst du angemeldet.)', code: 0 };
+  }
   // Interaktives Programm (fdisk): Die Zeile geht an das Programm, nicht an die Shell
   if (w.dialog) {
     const out = w.dialog.eingabe(zeile);
@@ -1676,6 +1688,17 @@ export function neuStarten(w: Welt) {
 Object.assign(befehle, paketBefehle({ ok, fehler, optionen, pfad, schreiben }));
 Object.assign(befehle, skriptBefehle());
 Object.assign(befehle, x11Befehle());
+Object.assign(befehle, adminBefehle());
+adminKern({
+  rechte: (w, p, mode, owner, group) => { const m = meta(w, p); m.mode = mode; m.owner = owner; m.group = group; },
+  dialog: (w, prompt, weiter) => { w.dialog = { prompt, eingabe: (z) => { w.dialog = null; return weiter(z); } }; },
+  heute: (w) => Math.floor(w.uhr / 86400000),
+});
+{
+  const altId = befehle.id; const altGroups = befehle.groups;
+  befehle.id = (w, a, i, r) => idFuer(w, a, r) ?? altId(w, a, i, r);
+  befehle.groups = (w, a, i, r) => { const n = a.find((x) => !x.startsWith('-')); if (!n || n === 'lena') return altGroups(w, a, i, r); const g = gruppenVon(w, n); return g.length ? ok(`${n} : ${g.join(' ')}`) : fehler(`groups: »${n}«: Diesen Benutzer gibt es nicht`); };
+}
 befehle.su = (w, a, _i, root) => {
   const r = suBefehl(w, a, root);
   if (r.dialog) { const d = r.dialog; w.dialog = { prompt: 'Passwort: ', eingabe: (z) => { w.dialog = null; return d(z); } }; return ok(''); }
@@ -1703,6 +1726,18 @@ befehle.systemctl = (w, a, i, r) => {
 const procCat = befehle.cat;
 Object.assign(befehle, textBefehle({ ok, fehler, optionen, pfad, kinder, schreiben, intern: (w, zeile, stdin, root) => intern(w, zeile, stdin, root), frage: (w, text, standardJa, aktion) => { w.wartet = { standardJa, aktion }; return ok(text); } }));
 const textCat = befehle.cat;
+// Geplante Aufgaben, Zeitzonen und Sprache (ersetzt auch das einfache date aus shell-text)
+Object.assign(befehle, zeitBefehle());
+zeitKern({
+  dialog: (w, prompt, weiter) => { w.dialog = { prompt, eingabe: (z) => { w.dialog = null; return weiter(z); } }; },
+  vi: (w, p, nach) => { (w as Welt & { viNach?: unknown }).viNach = { pfad: p, nach }; return viStart(w, [p], w.root); },
+  rechte: (w, p, mode, owner, group) => { const m = meta(w, p); m.mode = mode; m.owner = owner; m.group = group; },
+  pfad,
+});
+{
+  const vorher = befehle.systemctl;
+  befehle.systemctl = (w, a, i, r) => timerSystemctl(w, a, r || w.root) ?? vorher(w, a, i, r);
+}
 // /proc/modules wird aus dem Zustand der Module erzeugt
 befehle.cat = (w, a, i, r) => a.some((x) => pfad(w, x) === '/proc/modules') ? procCat(w, a, i, r) : textCat(w, a, i, r);
 // vi öffnet im Terminal den Editor. Die Komponente erkennt die Markierung und übernimmt die Tastatur.
@@ -1729,6 +1764,13 @@ export function viSpeichern(w: Welt, ziel: string, text: string, root: boolean, 
   w.fs[p] = text; beruehren(w, p);
   if (w.pakete && !w.pakete.geaendert.includes(p)) w.pakete.geaendert.push(p);
   return null;
+}
+/** Nach dem Schließen von vi: Programme wie crontab -e werten die Datei aus. */
+export function viBeendet(w: Welt, art: string, p: string): string {
+  const x = w as Welt & { viNach?: { pfad: string; nach: (art: string) => string } | null };
+  if (!x.viNach || x.viNach.pfad !== p) return '';
+  const h = x.viNach; x.viNach = null;
+  return h.nach(art);
 }
 export function istVi(ausgabe: string) { const i = ausgabe.indexOf(VI); return i < 0 ? null : JSON.parse(ausgabe.slice(i + VI.length).split('\n')[0]) as { p: string; d: string; root: boolean; nurLesen: boolean }; }
 
@@ -1805,6 +1847,8 @@ export function zustandStimmt(w: Welt, z: string): boolean {
     const re = zustandRechte(w, s, pfad); if (re !== undefined) return re;
     const sz = zustandSkript(w, s); if (sz !== undefined) return sz;
     const zx = zustandX11(w, s); if (zx !== undefined) return zx;
+    const za = zustandAdmin(w, s); if (za !== undefined) return za;
+    const zz = zustandZeit(w, s); if (zz !== undefined) return zz;
     if (s === 'neustart') return w.verlauf.some((v) => v.zeile === '#neustart');
     // ---- ab Topic 103 ----
     // vi:ohne = beendet, ohne zu speichern (mit oder ohne Änderungen)

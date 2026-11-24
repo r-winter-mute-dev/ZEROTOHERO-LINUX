@@ -1,0 +1,21 @@
+---
+id: l1-7-probe
+abzeichen: "Topic 106 und 107 bestanden"
+checks:
+  - id: probe
+---
+import Probe from '../components/Probe.astro';
+import Karte from '../components/Karte.astro';
+import Hinweis from '../components/Hinweis.astro';
+
+Topic 106 und 107 bringen in Prüfung 102 zusammen ungefähr **16 von 60 Fragen**. **Deine Mission: Bestehe die Probe mit mindestens 80 %.**
+
+<Karte nr={1} titel="Was diese Probe mischt">
+Die Fragen kommen aus Topic 106 und 107 und zu einem kleineren Teil aus Topic 105. Skripte und Startdateien kommen in Topic 107 ständig wieder vor, etwa in crontab-Zeilen oder in ~/.profile. Auch diese Probe verteilt das Üben also über die Zeit und mischt die Themen. Darauf beruhen Spacing und Interleaving.
+</Karte>
+
+<Hinweis titel="Zum Tempo">
+30 Fragen in 45 Minuten. Topic 107 hat das größte Gewicht, darum stammt die Hälfte der Fragen daher. Falsch beantwortete Fragen landen morgen in deiner Wiederholung.
+</Hinweis>
+
+<Probe id="probe" titel="Probeprüfung: Topic 106 und 107 mit Wiederholung" ziele={['106.1', '106.2', '106.3', '107.1', '107.2', '107.3', '105.1', '105.2']} anzahl={30} />

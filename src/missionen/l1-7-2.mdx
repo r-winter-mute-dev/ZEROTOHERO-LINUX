@@ -1,0 +1,136 @@
+---
+id: l1-7-2
+checks:
+  - id: k1
+  - id: gruppen
+  - id: k2
+  - id: alterung
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "/etc/group"
+    v: "name:x:GID:mitglied1,mitglied2"
+  - t: "Gruppen"
+    v: "groupadd [-g GID] name · groupmod -n neu alt · groupdel name"
+  - t: "Mitglieder"
+    v: "gpasswd -a user gruppe · gpasswd -d user gruppe · usermod -aG gruppe user"
+  - t: "Passwortregeln anzeigen"
+    v: "chage -l name"
+  - t: "Passwortregeln setzen"
+    v: "chage -M max -m min -W warn -I inaktiv -E JJJJ-MM-TT name · chage -d 0 erzwingt Änderung"
+  - t: "Vorgaben für neue Konten"
+    v: "/etc/login.defs: PASS_MAX_DAYS, PASS_MIN_DAYS, PASS_WARN_AGE"
+karten:
+  - f: "Welche Felder hat eine Zeile in /etc/group?"
+    a: ["name:x:gid:mitglieder", "name, passwort, gid, mitglieder"]
+  - f: "Wie legst du die Gruppe labor mit der GID 1500 an?"
+    a: ["groupadd -g 1500 labor", "sudo groupadd -g 1500 labor"]
+  - f: "Wie benennst du die Gruppe labor in werkstatt um?"
+    a: ["groupmod -n werkstatt labor"]
+  - f: "Wie entfernst du jonas aus der Gruppe labor?"
+    a: ["gpasswd -d jonas labor"]
+  - f: "Welcher Befehl zeigt die Passwortalterung von jonas?"
+    a: ["chage -l jonas"]
+  - f: "Wie zwingst du jonas, sein Passwort bei der nächsten Anmeldung zu ändern?"
+    a: ["chage -d 0 jonas", "passwd -e jonas", "passwd --expire jonas"]
+  - f: "Wie lässt du das Konto von jonas am 31.03.2027 ablaufen?"
+    a: ["chage -E 2027-03-31 jonas", "usermod -e 2027-03-31 jonas"]
+  - f: "Welche Gruppe kann nicht gelöscht werden, solange ein Benutzer sie als primäre Gruppe hat?"
+    a: ["seine primäre gruppe", "die primäre gruppe"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+
+Die Messdaten gehören jetzt einem Team, und Jonas ist nur bis Ende März da. **Deine Mission: Verwalte Gruppen und Mitglieder und lege fest, wie lange Passwörter und Konten gelten.** Lernziel 107.1.
+
+## Gruppen
+
+<Karte nr={1} titel="/etc/group, groupadd, gpasswd">
+Jede Gruppe ist eine Zeile in **/etc/group**: Name, Platzhalter `x`, **GID** und die Liste der zusätzlichen Mitglieder:
+
+```
+users:x:100:lena,jonas
+```
+
+Die **primäre** Gruppe eines Benutzers steht nicht in dieser Liste, sondern als GID in seiner Zeile in `/etc/passwd`. Neue Dateien bekommen die primäre Gruppe (außer in einem Verzeichnis mit SGID, Mission 4.6). Gruppenpasswörter und Gruppenverwalter liegen in **/etc/gshadow**. Gebraucht werden sie heute kaum noch.
+
+| Befehl | Wirkung |
+|---|---|
+| `groupadd labor` | Gruppe anlegen, `-g 1500` mit fester GID, `-r` als Systemgruppe |
+| `groupmod -n team labor` | umbenennen, `-g` ändert die GID |
+| `groupdel labor` | löschen, aber nie die primäre Gruppe eines Benutzers |
+| `gpasswd -a jonas labor` | jonas aufnehmen, `-d` entfernt ihn |
+| `usermod -aG labor jonas` | dasselbe von der Seite des Benutzers |
+
+Neue Gruppen wirken erst nach einer neuen Anmeldung. In der laufenden Sitzung kann jonas mit `newgrp labor` in die Gruppe wechseln.
+</Karte>
+
+<Merke>/etc/group: name:x:GID:mitglieder. Die primäre Gruppe steht in /etc/passwd. groupadd, groupmod -n, groupdel, gpasswd -a/-d. Gruppen wirken nach dem nächsten Login.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: Gruppen" fragen={[
+  { frage: 'In welcher Datei steht, welche primäre Gruppe jonas hat?', richtig: '/etc/passwd', falsch: ['/etc/group', '/etc/gshadow'], erklaerung: 'Das vierte Feld in /etc/passwd ist die GID der primären Gruppe.' },
+  { frage: 'Warum scheitert „groupdel jonas“, solange das Konto jonas existiert?', richtig: 'Es ist die primäre Gruppe von jonas.', falsch: ['Gruppen kann nur userdel löschen.', 'Die Gruppe hat Mitglieder.'], erklaerung: 'groupdel lehnt das ab, weil Dateien und Konto sonst auf eine GID ohne Namen zeigen würden.' },
+]} />
+
+<Terminal id="gruppen" titel="Terminal: Das Messteam" welt={{ dateien: { '/srv/messdaten': '/' } }} aufgaben={[
+  { text: 'Lege die Gruppe <code>messteam</code> mit der GID 1500 an.', zustand: 'gruppe-da:messteam && datei:/etc/group~^messteam:x:1500:' },
+  { text: 'Nimm lena und max in die Gruppe auf.', zustand: 'mitglied:messteam=lena && mitglied:messteam=max' },
+  { text: 'Lass dir die Zeile der Gruppe mit getent zeigen.', befehl: '^getent group messteam$' },
+  { text: 'Gib der Gruppe das Verzeichnis <code>/srv/messdaten</code>.', zustand: 'gruppe:/srv/messdaten=messteam' },
+  { text: 'Max wechselt in ein anderes Projekt. Nimm ihn wieder aus der Gruppe.', zustand: 'nicht:mitglied:messteam=max && mitglied:messteam=lena' },
+  { text: 'Benenne die Gruppe in <code>messung</code> um und prüf, wem das Verzeichnis jetzt gehört.', zustand: 'gruppe-da:messung && gruppe:/srv/messdaten=messung', befehl: '^ls -\\w*l\\w*d\\w* /srv/messdaten/?$|^ls -\\w*d\\w*l\\w* /srv/messdaten/?$', frage: 'Warum zeigt ls sofort den neuen Namen?', antwort: ['weil die datei nur die gid speichert', 'die datei speichert nur die gid', 'nur die gid steht an der datei'] },
+]} />
+
+## Wie lange gelten Passwort und Konto?
+
+<Karte nr={2} titel="chage und /etc/login.defs">
+Die Felder 3 bis 8 von `/etc/shadow` steuern die **Passwortalterung**. Bequem ändern lassen sie sich mit **chage**:
+
+| Option | Feld | Bedeutung |
+|---|---|---|
+| `-d` | letzte Änderung | `-d 0` erzwingt eine Änderung bei der nächsten Anmeldung |
+| `-m` | Minimum | so viele Tage muss ein Passwort mindestens bleiben |
+| `-M` | Maximum | danach muss es geändert werden |
+| `-W` | Warnung | so viele Tage vorher wird gewarnt |
+| `-I` | inaktiv | so viele Tage nach Ablauf geht noch eine Anmeldung mit Zwang zur Änderung, dann ist das Konto gesperrt |
+| `-E` | Ablauf | an diesem Tag (JJJJ-MM-TT) wird das ganze Konto gesperrt, `-E -1` hebt das auf |
+
+`chage -l jonas` zeigt alles lesbar an, und das darf jeder für sein eigenes Konto. `passwd -e jonas` ist die Kurzform von `chage -d 0`, `usermod -e` setzt das Ablaufdatum.
+
+Die Vorgaben für **neue** Konten stehen in `/etc/login.defs`: `PASS_MAX_DAYS 99999` (praktisch nie), `PASS_MIN_DAYS 0`, `PASS_WARN_AGE 7`. Bestehende Konten ändert eine Änderung dort nicht.
+</Karte>
+
+<Merke>chage -l zeigt. -M max, -m min, -W Warnung, -I inaktiv, -E Kontoablauf, -d 0 erzwingt Änderung. Vorgaben für neue Konten: PASS_MAX_DAYS, PASS_MIN_DAYS, PASS_WARN_AGE in /etc/login.defs.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: Alterung" fragen={[
+  { frage: 'Was bewirkt „chage -E 2027-03-31 jonas“?', richtig: 'Ab dem 31. März 2027 kann sich jonas nicht mehr anmelden.', falsch: ['Das Passwort von jonas muss bis dahin geändert werden.', 'jonas wird an dem Tag gelöscht.'], erklaerung: '-E betrifft das Konto, -M das Passwort. Gelöscht wird nichts.' },
+  { frage: 'Du änderst PASS_MAX_DAYS in /etc/login.defs auf 90. Was passiert mit lena?', richtig: 'Nichts, die Vorgabe gilt nur für neue Konten.', falsch: ['Ihr Passwort läuft in 90 Tagen ab.', 'Sie muss sich neu anmelden.'], erklaerung: 'Für bestehende Konten nimmst du chage -M 90.' },
+]} />
+
+<Terminal id="alterung" titel="Terminal: Ein Konto mit Ablaufdatum" aufgaben={[
+  { text: 'Lege jonas mit Home und Bash an und lass dir seine Passwortalterung zeigen.', befehl: '^sudo chage -l jonas$', zustand: 'konto:jonas', frage: 'Wann läuft sein Passwort ab?', antwort: ['nie'] },
+  { text: 'Jonas soll sein Passwort alle 90 Tage ändern und 14 Tage vorher gewarnt werden.', zustand: 'shadow:jonas~^jonas:[^:]*:\\d+:\\d*:90:14:' },
+  { text: 'Sein Konto läuft am 31. März 2027 ab.', zustand: 'shadow:jonas~^jonas:[^:]*:\\d+:\\d*:90:14:[^:]*:20908:' },
+  { text: 'Zwing ihn, das Passwort bei der ersten Anmeldung zu ändern, und prüf das Ergebnis.', zustand: 'shadow:jonas~^jonas:[^:]*:0:', befehl: '^sudo chage -l jonas$', frage: 'Was steht bei „Letzte Passwortänderung“?', antwort: ['Passwort muss geändert werden', 'passwort muss geändert werden'] },
+  { text: 'Lass dir deine eigene Passwortalterung als lena zeigen, ohne sudo.', befehl: '^chage -l lena$' },
+]} />
+
+<Labor id="labor" titel="Aufgabe im Labor: Fristen in der VM"
+  aufgabe="Lege in deiner VM ein Testkonto an, gib ihm Fristen, prüf sie und lösch das Konto wieder. Füge die Ausgabe ein."
+  befehl={"sudo useradd -m testkonto\nsudo chage -M 90 -W 14 -E 2030-12-31 testkonto\nsudo chage -l testkonto\nsudo userdel -r testkonto"}
+  muster={["(Maximum number of days|Maximale Anzahl).*: 90$", "(warning|Warnung).*: 14$", "(Account expires|Benutzerzugang läuft ab).*2030"]}
+  erfolg="chage schreibt die Felder in /etc/shadow, chage -l liest sie lesbar aus." />
+
+<Hinweis titel="Prüfungstipp">
+Die Optionen von chage verwechselt man leicht: Großes M ist das Maximum, kleines m das Minimum, großes E das Ablaufdatum des Kontos. Und /etc/login.defs gilt nur für neue Konten.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Wie zwingst du lena, ihr Passwort bei der nächsten Anmeldung zu ändern?', richtig: 'chage -d 0 lena', falsch: ['chage -M 0 lena', 'passwd -l lena'], erklaerung: 'passwd -l sperrt das Passwort, statt eine Änderung zu verlangen.' },
+  { frage: 'Welcher Befehl nimmt max in die Gruppe labor auf?', richtig: 'gpasswd -a max labor', falsch: ['groupadd max labor', 'usermod -G labor max'], erklaerung: 'usermod -G ohne -a würde max aus allen anderen zusätzlichen Gruppen werfen.' },
+]} />

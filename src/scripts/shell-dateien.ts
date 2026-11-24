@@ -97,6 +97,7 @@ export function dateityp(w: Welt, p: string): string {
   if (c === undefined) return `cannot open \`${p}' (No such file or directory)`;
   if (c.startsWith('-> ')) return `symbolic link to ${c.slice(3)}`;
   if (c.startsWith(KOMP)) { const art = c.slice(KOMP.length).split(':')[0]; return art === 'gz' ? 'gzip compressed data, from Unix' : art === 'bz2' ? 'bzip2 compressed data, block size = 900k' : 'XZ compressed data, checksum CRC64'; }
+  if (/[\uF780-\uF7FF]/.test(c)) return 'ISO-8859 text';
   if (c.startsWith(TAR)) return 'POSIX tar archive (GNU)';
   if (c.startsWith(CPIO)) return 'ASCII cpio archive (SVR4 with no CRC)';
   if (c.startsWith(BIN) && /\.jpe?g$/i.test(p)) return 'JPEG image data, JFIF standard 1.01, aspect ratio, density 1x1, segment length 16, baseline, precision 8, 4032x3024, components 3';

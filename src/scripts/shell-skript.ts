@@ -982,7 +982,9 @@ export function skriptBefehle(): Record<string, B> {
 export function suBefehl(w: Welt, a: string[], root: boolean): Ergebnis & { dialog?: (zeile: string) => string } {
   let login = false; let user = 'root'; let cmd: string | undefined;
   for (let i = 0; i < a.length; i++) { const x = a[i]; if (x === '-' || x === '-l' || x === '--login') login = true; else if (x === '-c') cmd = a[++i]; else if (!x.startsWith('-')) user = x; }
-  if (!['root', 'lena', 'max'].includes(user)) return fehler(`su: Benutzer ${user} existiert nicht oder der Benutzereintrag enthält keine Shell.`);
+  const eintrag = (w.fs['/etc/passwd'] ?? '').split('\n').map((z) => z.split(':')).find((z) => z[0] === user);
+  if (!eintrag) return fehler(`su: Benutzer ${user} existiert nicht oder der Benutzereintrag enthält keine Shell.`);
+  if (/nologin|false$/.test(eintrag[6] ?? '')) return { out: '', err: 'This account is currently not available.', code: 1 };
   const ziel = user === 'root';
   const weiter = () => {
     if (cmd !== undefined) { const r = K.zeile(w, cmd, '', ziel); return { out: r.out.replace(/\n$/, ''), err: r.err || undefined, code: r.code }; }

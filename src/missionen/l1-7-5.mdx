@@ -1,0 +1,132 @@
+---
+id: l1-7-5
+checks:
+  - id: k1
+  - id: sprache
+  - id: k2
+  - id: zeit
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "Locale-Name"
+    v: "sprache_LAND.Kodierung, etwa de_DE.UTF-8 · C bzw. POSIX = neutral"
+  - t: "Vorrang"
+    v: "LC_ALL vor LC_* (LC_TIME, LC_NUMERIC …) vor LANG"
+  - t: "Anzeigen und setzen"
+    v: "locale · locale -a · localectl status · localectl set-locale LANG=… · /etc/default/locale"
+  - t: "Kodierung umwandeln"
+    v: "iconv -f ISO-8859-1 -t UTF-8 alt.txt > neu.txt · iconv -l"
+  - t: "Zeitzone"
+    v: "timedatectl · timedatectl set-timezone Europe/Berlin · /etc/localtime → /usr/share/zoneinfo/… · /etc/timezone"
+  - t: "Für einen Befehl"
+    v: "TZ=Asia/Tokyo date · LANG=C befehl · tzselect zeigt den TZ-Wert"
+karten:
+  - f: "Welche Variable überstimmt alle anderen Locale-Variablen?"
+    a: ["LC_ALL"]
+  - f: "Welche Locale erzwingt englische Meldungen und neutrale Sortierung?"
+    a: ["C", "POSIX", "LANG=C", "LC_ALL=C"]
+  - f: "Welcher Befehl listet alle installierten Locales?"
+    a: ["locale -a"]
+  - f: "Welche Variable steuert nur das Datumsformat?"
+    a: ["LC_TIME"]
+  - f: "Wie wandelst du alt.txt von ISO-8859-1 nach UTF-8 um?"
+    a: ["iconv -f ISO-8859-1 -t UTF-8 alt.txt", "iconv -f iso-8859-1 -t utf-8 alt.txt > neu.txt"]
+  - f: "Wie setzt du die Zeitzone des Systems auf Europe/Berlin?"
+    a: ["timedatectl set-timezone Europe/Berlin", "sudo timedatectl set-timezone Europe/Berlin"]
+  - f: "Worauf zeigt /etc/localtime?"
+    a: ["auf eine datei unter /usr/share/zoneinfo", "/usr/share/zoneinfo/europe/berlin"]
+  - f: "Wie zeigst du die Uhrzeit in Tokio an, ohne das System zu ändern?"
+    a: ["TZ=Asia/Tokyo date"]
+  - f: "Wie viele Bytes braucht ein ASCII-Zeichen in UTF-8?"
+    a: ["1", "eins", "ein byte"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+
+Ein Partnerlabor in Tokio schickt Messprotokolle, ein altes Windows-Gerät liefert Dateien mit kaputten Umlauten, und ein Skript soll Meldungen auf Englisch auswerten. **Deine Mission: Stell Sprache, Kodierung und Zeitzone richtig ein, für das System und für einzelne Befehle.** Lernziel 107.3.
+
+## Sprache und Zeichensätze
+
+<Karte nr={1} titel="Locales, LANG, LC_* und Kodierungen">
+Eine **Locale** legt fest, in welcher Sprache Programme reden und wie sie Datum, Zahlen, Währung und Sortierung darstellen. Ihr Name hat die Form `sprache_LAND.Kodierung`: `de_DE.UTF-8`, `en_US.UTF-8`, `de_AT.UTF-8`. Die Locale **C** (gleichbedeutend **POSIX**) ist neutral: englische Meldungen, Sortierung nach Bytewerten.
+
+Gesteuert wird alles über Umgebungsvariablen:
+
+| Variable | steuert |
+|---|---|
+| `LANG` | die Vorgabe für alles |
+| `LC_MESSAGES`, `LC_TIME`, `LC_NUMERIC`, `LC_MONETARY`, `LC_COLLATE`, `LC_CTYPE` … | je einen Bereich, und sie schlagen LANG |
+| `LC_ALL` | überstimmt alle anderen, gedacht für Tests und Skripte |
+
+`locale` zeigt die aktuellen Werte, `locale -a` die installierten Locales. Systemweit steht die Vorgabe auf Debian in `/etc/default/locale`. Ändern kannst du sie mit `localectl set-locale LANG=en_US.UTF-8` oder mit `dpkg-reconfigure locales`. `localectl status` zeigt außerdem die Tastaturbelegung.
+
+Ein Klassiker in Skripten: `LANG=C befehl`. Dann sind die Meldungen englisch und stabil, egal welche Sprache der Benutzer eingestellt hat.
+
+**Kodierungen** übersetzen Zeichen in Bytes. **ASCII** kennt nur 128 Zeichen, also keine Umlaute. **ISO-8859-1** (Latin-1) und ISO-8859-15 (mit €) speichern westeuropäische Zeichen in je einem Byte. **Unicode** umfasst alle Schriften. Seine heute übliche Kodierung **UTF-8** braucht für ASCII-Zeichen ein Byte und für ä zwei. Liest ein UTF-8-System eine Latin-1-Datei, erscheinen Umlaute als `�`. **iconv** wandelt um: `iconv -f ISO-8859-1 -t UTF-8 alt.txt > neu.txt`. `iconv -l` listet alle Kodierungen, `-t ASCII//TRANSLIT` ersetzt fehlende Zeichen durch ähnliche.
+</Karte>
+
+<Merke>sprache_LAND.Kodierung. LC_ALL vor LC_* vor LANG. C/POSIX = neutral. locale, locale -a, localectl, /etc/default/locale. ASCII 7 Bit, ISO-8859-1 ein Byte, UTF-8 variabel. iconv -f von -t nach.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: Locales" fragen={[
+  { frage: 'LANG=de_DE.UTF-8 und LC_TIME=en_US.UTF-8 sind gesetzt. In welcher Sprache erscheint das Datum?', richtig: 'Englisch', falsch: ['Deutsch', 'Je nach Programm zufällig'], erklaerung: 'LC_TIME schlägt LANG für den Bereich Datum und Uhrzeit.' },
+  { frage: 'Was bewirkt „LC_ALL=C sort liste.txt“?', richtig: 'sort sortiert nach Bytewerten, unabhängig von der eingestellten Sprache.', falsch: ['sort sortiert nur Großbuchstaben.', 'Die Systemsprache wird dauerhaft auf C gestellt.'], erklaerung: 'Eine Zuweisung vor dem Befehl gilt nur für diesen Aufruf (Mission 5.1).' },
+]} />
+
+<Terminal id="sprache" titel="Terminal: Sprache und Umlaute" welt={{ dateien: { '/home/lena/protokoll-alt.txt': 'Messgert 3, Gre: 12 m\n' } }} aufgaben={[
+  { text: 'Lass dir die aktuellen Locale-Einstellungen zeigen.', befehl: '^locale$', frage: 'Welchen Wert hat LANG?', antwort: ['de_DE.UTF-8'] },
+  { text: 'Lass dir die installierten Locales zeigen.', befehl: '^locale -a$', frage: 'Welche englische Locale ist installiert?', antwort: ['en_US.utf8', 'en_US.UTF-8'] },
+  { text: 'Lass dir das Datum einmal mit <code>LANG=C</code> ausgeben.', befehl: '^(LANG|LC_ALL|LC_TIME)=C date$' },
+  { text: 'Lies <code>protokoll-alt.txt</code> und lass dir die Kodierung mit <code>file</code> zeigen.', befehl: '^file (\\./)?protokoll-alt\\.txt$', frage: 'Welche Kodierung meldet file?', antwort: ['ISO-8859', 'ISO-8859 text', 'iso-8859'] },
+  { text: 'Wandle die Datei nach UTF-8 um und speichere sie als <code>protokoll.txt</code>.', zustand: 'datei:/home/lena/protokoll.txt~Messgerät 3, Größe' },
+  { text: 'Stell die Systemsprache auf <code>en_US.UTF-8</code> und prüf es mit localectl.', zustand: 'systemlocale=en_US\\.UTF-8', befehl: '^localectl( status)?$' },
+]} />
+
+## Zeit und Zeitzonen
+
+<Karte nr={2} titel="Zeitzonen, timedatectl, tzselect und TZ">
+Die Systemuhr läuft in **UTC**. Erst beim Anzeigen rechnet das System in eine Zeitzone um. Welche das ist, legt **/etc/localtime** fest, ein Verweis auf eine Datei unter **/usr/share/zoneinfo/**, etwa `Europe/Berlin`. Debian schreibt den Namen zusätzlich nach **/etc/timezone**.
+
+- `timedatectl` zeigt Ortszeit, UTC, Zeitzone und ob die Uhr über NTP abgeglichen wird (Mission 8.1).
+- `timedatectl set-timezone Asia/Tokyo` stellt die Zone um, `timedatectl list-timezones` listet alle.
+- `tzselect` fragt nach Kontinent, Land und Region und gibt den passenden Namen aus. Es ändert nichts am System, es zeigt nur, wie du `TZ` setzen kannst.
+- Die Variable **TZ** gilt wie LANG für eine Shell oder einen einzigen Befehl: `TZ=Asia/Tokyo date`. Dauerhaft für einen Benutzer: `export TZ=Asia/Tokyo` in `~/.profile`.
+
+`date` zeigt die Zeit in der aktuellen Zone, `date -u` in UTC, `date +%F` nur das Datum. Für Zeitangaben in Logs und Skripten ist UTC oft die bessere Wahl, weil es keine Sommerzeit kennt.
+</Karte>
+
+<Merke>Uhr intern in UTC. /etc/localtime → /usr/share/zoneinfo/Zone, Name in /etc/timezone. timedatectl set-timezone. tzselect zeigt nur. TZ=Zone befehl für einen Aufruf, date -u für UTC.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: Zeitzonen" fragen={[
+  { frage: 'Was ändert tzselect am System?', richtig: 'Nichts, es zeigt nur den passenden TZ-Wert.', falsch: ['Es setzt /etc/localtime neu.', 'Es stellt die Uhr nach NTP.'], erklaerung: 'Die Zeitzone des Systems ändert timedatectl set-timezone.' },
+  { frage: 'Was zeigt „TZ=UTC date“ auf einem Rechner in Berlin im November?', richtig: 'Die Uhrzeit eine Stunde früher als die Ortszeit', falsch: ['Die Ortszeit', 'Eine Fehlermeldung'], erklaerung: 'Berlin ist im Winter UTC+1.' },
+]} />
+
+<Terminal id="zeit" titel="Terminal: Uhrzeit für Tokio" aufgaben={[
+  { text: 'Lass dir Zeit und Zeitzone des Systems zeigen.', befehl: '^timedatectl( status)?$', frage: 'Welche Zeitzone ist eingestellt?', antwort: ['Europe/Berlin'] },
+  { text: 'Prüf, worauf <code>/etc/localtime</code> zeigt.', befehl: '^ls -\\w*l\\w* /etc/localtime$|^readlink( -f)? /etc/localtime$' },
+  { text: 'Lass dir nur für diesen einen Befehl die Uhrzeit in Tokio zeigen.', befehl: '^TZ=Asia/Tokyo date', frage: 'Welche Abkürzung hat die Zone?', antwort: ['JST'] },
+  { text: 'Finde mit <code>tzselect</code> den Namen der Zeitzone für Portugal.', befehl: '^tzselect$', zustand: 'ausgabe~^Europe/Lisbon$' },
+  { text: 'Das Messgerät steht ab heute in Lissabon. Stell die Zeitzone des Systems um.', zustand: 'zone=Europe/Lisbon' },
+  { text: 'Prüf <code>/etc/timezone</code>.', befehl: '^cat /etc/timezone$', frage: 'Was steht darin?', antwort: ['Europe/Lisbon'] },
+]} />
+
+<Labor id="labor" titel="Aufgabe im Labor: Sprache und Zeit in der VM"
+  aufgabe="Führe die Zeilen in deiner VM aus und füge die Ausgabe ein."
+  befehl={"locale | head -2\nLANG=C ls /gibtsnicht\nTZ=Asia/Tokyo date +%Z\ntimedatectl | grep 'Time zone'\nprintf 'Gr\\xf6\\xdfe\\n' | iconv -f ISO-8859-1 -t UTF-8"}
+  muster={["^LANG=", "No such file or directory", "^JST$", "Time zone: \\S+/\\S+", "^Größe$"]}
+  erfolg="LANG=C liefert englische Meldungen, TZ wirkt nur für den einen Befehl, und iconv hat die Latin-1-Bytes in UTF-8 umgewandelt." />
+
+<Hinweis titel="Prüfungstipp">
+Gefragt werden die Vorrangregel LC_ALL vor LC_* vor LANG, die Bedeutung von C/POSIX, die Dateien /etc/localtime, /etc/timezone und /usr/share/zoneinfo, die Werkzeuge timedatectl, tzselect und iconv und der Unterschied zwischen ASCII, ISO-8859 und UTF-8.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Welcher Befehl wandelt eine Datei von Windows-1252 nach UTF-8 um?', richtig: 'iconv -f WINDOWS-1252 -t UTF-8 datei', falsch: ['locale -f WINDOWS-1252 datei', 'file -t UTF-8 datei'], erklaerung: 'file erkennt eine Kodierung nur, iconv wandelt um.' },
+  { frage: 'Welche Datei bestimmt die Zeitzone des Systems?', richtig: '/etc/localtime', falsch: ['/etc/default/locale', '/etc/timezone.conf'], erklaerung: '/etc/timezone enthält auf Debian nur den Namen zusätzlich.' },
+  { frage: 'Welche Locale-Variable gilt, wenn LANG=de_DE.UTF-8, LC_MESSAGES=fr_FR.UTF-8 und LC_ALL=C gesetzt sind?', richtig: 'C für alles', falsch: ['Französisch für Meldungen, sonst Deutsch', 'Deutsch für alles'], erklaerung: 'LC_ALL überstimmt alle anderen.' },
+]} />

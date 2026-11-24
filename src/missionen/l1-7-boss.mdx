@@ -1,0 +1,35 @@
+---
+id: l1-7-boss
+checks:
+  - id: ankunft
+spick:
+  - t: "Konto"
+    v: "useradd -m -s /bin/bash -c … -G … -e JJJJ-MM-TT name · chage -d 0 name"
+  - t: "Fremde crontab"
+    v: "crontab -u name datei · crontab -u name -l"
+  - t: "Einmalig"
+    v: "echo \"befehl\" | at 08:00 tomorrow"
+  - t: "Kodierung"
+    v: "iconv -f ISO-8859-1 -t UTF-8 -o ziel quelle"
+  - t: "Zeitzone für einen Benutzer"
+    v: "export TZ=Europe/Lisbon in ~/.profile"
+---
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+
+Ana Sousa aus dem Partnerlabor in Lissabon arbeitet ab morgen für drei Monate per SSH auf werkstatt. Sie gehört zum Messteam, soll ihre Uhrzeit sehen und jeden Morgen einen Bericht bekommen. Die Kalibrierdaten liegen noch im alten Latin-1-Format. **Dein Bosskampf: Richte alles ein, bevor Ana sich morgen früh zum ersten Mal anmeldet.** Alles aus Topic 107, dazu Startdateien aus Topic 105.
+
+<Hinweis titel="Reihenfolge">
+Fang mit Gruppe und Konto an. Ohne Konto gibt es keine crontab und keine Dateien in Anas Home. Dateien legst du als root an, achte also darauf, dass sie am Ende Ana gehören.
+</Hinweis>
+
+<Terminal id="ankunft" titel="Bosskampf: Anas erster Tag" welt={{ dateien: { '/srv/messdaten/kalibrierung.txt': 'Gert;Faktor;Prfer\nSensor 1;1,002;Mller\nSensor 2;0,998;Mller\n', '/usr/local/bin/waechter': '#!/bin/bash\necho "Alles in Ordnung"\n' }, rechte: { '/usr/local/bin/waechter': '755' } }} aufgaben={[
+  { text: 'Die Gruppe <code>messteam</code> existiert.', zustand: 'gruppe-da:messteam' },
+  { text: 'Das Konto <code>ana</code> hat ein Home, die Bash, den Kommentar „Ana Sousa“ und gehört zusätzlich zu messteam.', zustand: 'konto:ana~:Ana Sousa:/home/ana:/bin/bash$ && ordner:/home/ana && mitglied:messteam=ana' },
+  { text: 'Anas Konto läuft am 30. Juni 2027 ab.', zustand: 'shadow:ana~^ana:[^:]*:\\d*:[^:]*:[^:]*:[^:]*:[^:]*:20999:' },
+  { text: 'Ana hat ein Startpasswort und muss es bei der ersten Anmeldung ändern.', zustand: 'shadow:ana~^ana:\\$y\\$[^:]*:0:' },
+  { text: 'In Anas Login-Shell gilt die Zeitzone Lissabon. Die Systemzeitzone bleibt Berlin.', zustand: 'datei:/home/ana/.profile~^export TZ="?Europe/Lisbon"?$ && zone=Europe/Berlin' },
+  { text: 'Anas crontab startet montags bis freitags um 6 Uhr <code>/usr/local/bin/waechter</code>.', zustand: 'cron:ana~^0 6 \\* \\* (1-5|mon-fri) /usr/local/bin/waechter$' },
+  { text: 'Morgen um 8 Uhr bekommt Ana einmalig eine Willkommensmail.', zustand: 'atjob~mail .*ana' },
+  { text: 'Die Kalibrierdaten liegen als UTF-8 in <code>/home/ana/kalibrierung.txt</code> und gehören ana.', zustand: 'datei:/home/ana/kalibrierung.txt~^Gerät;Faktor;Prüfer$ && besitzer:/home/ana/kalibrierung.txt=ana' },
+]} />

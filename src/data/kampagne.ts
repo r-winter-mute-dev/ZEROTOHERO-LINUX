@@ -152,7 +152,19 @@ const LPIC1: Akt[] = [
       m('l1-6-boss', 'Boss 6', 'Der Arbeitsplatz für Jonas', 'Tastatur, Zugriffsschutz und Hilfen eines Arbeitsplatzes reparieren und in einem Skript festhalten.', 'Alles aus Topic 106, dazu Skripte aus Topic 105', 'Terminal-Simulator', { boss: true, ziele: ['106.1', '106.2', '106.3'], bereit: true }),
     ],
   },
-  geplanterAkt('l1', 7, 'Administration', '107', 'Benutzer und Gruppen, geplante Aufgaben, Sprache und Zeitzone.', 'lpic1'),
+  {
+    nr: 7, titel: 'Administration', teil: 'l1-7', teilName: 'Topic 107',
+    ziel: 'Konten und Gruppen verwalten, Passwortregeln setzen, Aufträge mit cron, at und systemd-Timern planen und Sprache, Kodierung und Zeitzone einstellen. 12 von 60 Fragen in Prüfung 102.',
+    missionen: [
+      m('l1-7-1', '7.1', 'Benutzerkonten', 'Kontodateien lesen und Konten anlegen, ändern und löschen.', '/etc/passwd, /etc/shadow, UIDs, useradd, usermod, userdel, passwd, getent, id, /etc/skel', 'Terminal-Simulator und Quiz', { ziele: ['107.1'], bereit: true }),
+      m('l1-7-2', '7.2', 'Gruppen und Passwortregeln', 'Gruppen verwalten und festlegen, wie lange Passwörter und Konten gelten.', '/etc/group, /etc/gshadow, groupadd, groupmod, groupdel, gpasswd, chage, /etc/login.defs', 'Terminal-Simulator und Quiz', { ziele: ['107.1'], bereit: true }),
+      m('l1-7-3', '7.3', 'cron', 'Wiederkehrende Aufträge für Benutzer und System planen.', 'crontab, Zeitfelder, /etc/crontab, /etc/cron.d, cron.daily, run-parts, cron.allow, cron.deny', 'Terminal-Simulator, Lückentext, Quiz', { ziele: ['107.2'], bereit: true }),
+      m('l1-7-4', '7.4', 'at und systemd-Timer', 'Einmalige Aufträge planen und Timer-Units schreiben.', 'at, atq, atrm, batch, at.allow, at.deny, Timer-Units, OnCalendar, Persistent, systemctl list-timers, systemd-run', 'Terminal-Simulator, Zuordnung, Quiz', { ziele: ['107.2'], bereit: true }),
+      m('l1-7-5', '7.5', 'Sprache und Zeitzone', 'Locale, Kodierung und Zeitzone für System und einzelne Befehle einstellen.', 'locale, LANG, LC_*, LC_ALL, localectl, ASCII, ISO-8859, UTF-8, iconv, timedatectl, tzselect, TZ, /etc/localtime, /etc/timezone', 'Terminal-Simulator und Quiz', { ziele: ['107.3'], bereit: true }),
+      m('l1-7-boss', 'Boss 7', 'Anas erster Tag', 'Ein Konto mit Fristen, Gruppen, Aufträgen, Zeitzone und umgewandelten Daten einrichten.', 'Alles aus Topic 107, dazu Startdateien aus Topic 105', 'Terminal-Simulator', { boss: true, ziele: ['107.1', '107.2', '107.3'], bereit: true }),
+      m('l1-7-probe', 'Probe 7', 'Probeprüfung Topic 106 und 107', 'Topic 106 und 107 gemischt mit Topic 105, mit Zeitlimit.', 'Topic 106, 107 und Wiederholung von 105', 'Prüfungssimulation', { probe: true, ziele: ['106.1', '106.2', '106.3', '107.1', '107.2', '107.3', '105.1', '105.2'], bereit: true }),
+    ],
+  },
   geplanterAkt('l1', 8, 'Systemdienste', '108', 'Zeit, Protokollierung, Mail und Drucken.', 'lpic1'),
   geplanterAkt('l1', 9, 'Netzwerk', '109', 'IP-Grundlagen, dauerhafte Konfiguration, Fehlersuche und DNS auf dem Client.', 'lpic1'),
   geplanterAkt('l1', 10, 'Sicherheit', '110', 'Rechner absichern und Daten mit SSH und GnuPG schützen.', 'lpic1', [

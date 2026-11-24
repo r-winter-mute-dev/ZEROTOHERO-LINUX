@@ -1,0 +1,149 @@
+---
+id: l1-7-3
+checks:
+  - id: k1
+  - id: luecke
+  - id: eigene
+  - id: k2
+  - id: system
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "Fünf Zeitfelder"
+    v: "Minute Stunde Tag Monat Wochentag Befehl   (0 und 7 = Sonntag)"
+  - t: "Schreibweisen"
+    v: "* jeder · 1,15 Liste · 8-17 Bereich · */15 Schritt · @daily @reboot"
+  - t: "Eigene Tabelle"
+    v: "crontab -e · crontab -l · crontab -r · crontab datei · (root) crontab -u name -e"
+  - t: "System"
+    v: "/etc/crontab und /etc/cron.d/* mit Benutzerfeld · /etc/cron.{hourly,daily,weekly,monthly}/ für Skripte"
+  - t: "Wer darf?"
+    v: "/etc/cron.allow (nur diese) vor /etc/cron.deny (alle außer diesen)"
+  - t: "Ablage"
+    v: "/var/spool/cron/crontabs/NAME (nie direkt bearbeiten)"
+karten:
+  - f: "Wie viele Zeitfelder hat eine Zeile in einer Benutzer-crontab?"
+    a: ["5", "fünf"]
+  - f: "Welche Zeile startet /home/lena/bin/sicherung jeden Tag um 2:30 Uhr?"
+    a: ["30 2 * * * /home/lena/bin/sicherung"]
+  - f: "Was bedeutet */15 im Minutenfeld?"
+    a: ["alle 15 minuten", "jede viertelstunde"]
+  - f: "Welcher Befehl öffnet die eigene crontab im Editor?"
+    a: ["crontab -e"]
+  - f: "Welcher Befehl zeigt die eigene crontab?"
+    a: ["crontab -l"]
+  - f: "Was unterscheidet /etc/crontab von einer Benutzer-crontab?"
+    a: ["sie hat ein zusätzliches feld für den benutzer", "ein benutzerfeld vor dem befehl"]
+  - f: "Welche Datei hat Vorrang: /etc/cron.allow oder /etc/cron.deny?"
+    a: ["/etc/cron.allow", "cron.allow"]
+  - f: "Wo legst du ein Skript ab, das einmal am Tag laufen soll?"
+    a: ["/etc/cron.daily", "/etc/cron.daily/"]
+  - f: "Welche Zeile läuft montags bis freitags um 7 Uhr?"
+    a: ["0 7 * * 1-5"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Lueckentext from '../components/Lueckentext.astro';
+
+Die Sicherung der Messdaten macht lena bisher jeden Abend von Hand, und der Nachtwächter aus Akt 5 soll endlich nachts allein laufen. **Deine Mission: Lass cron die Arbeit erledigen, für dich selbst und für das ganze System.** Lernziel 107.2.
+
+## Die eigene crontab
+
+<Karte nr={1} titel="Fünf Felder und ein Befehl">
+Der Dienst **cron** prüft jede Minute, ob etwas zu tun ist. Jeder Benutzer hat eine eigene Tabelle, die **crontab**. Jede Zeile besteht aus fünf Zeitfeldern und dem Befehl:
+
+```
+# Min Std Tag Mon Wochentag  Befehl
+30   2   *   *   *          /home/lena/bin/sicherung
+*/15 8-17 *  *   1-5        /home/lena/bin/messen >> /home/lena/messen.log 2>&1
+0    9   1   *   *          echo "Monatsbericht fällig"
+```
+
+| Feld | Werte |
+|---|---|
+| Minute | 0 bis 59 |
+| Stunde | 0 bis 23 |
+| Tag des Monats | 1 bis 31 |
+| Monat | 1 bis 12 oder jan bis dec |
+| Wochentag | 0 bis 7 (0 und 7 sind Sonntag) oder sun bis sat |
+
+`*` heißt jeder Wert, `1,15` eine Liste, `8-17` ein Bereich, `*/15` jeder fünfzehnte Wert. Kurzformen ersetzen alle fünf Felder: `@reboot`, `@hourly`, `@daily`, `@weekly`, `@monthly`, `@yearly`.
+
+Bearbeitet wird die Tabelle mit **`crontab -e`**. Der Befehl öffnet den Editor aus `$EDITOR` und prüft die Zeilen beim Speichern. `crontab -l` zeigt sie, `crontab -r` löscht sie ganz, `crontab datei` übernimmt eine Datei. root bearbeitet fremde Tabellen mit `crontab -u jonas -e`. Abgelegt werden sie in `/var/spool/cron/crontabs/`. Dort bearbeitest du sie nie direkt.
+
+Zwei Dinge gehen in der Praxis oft schief: cron läuft mit einem sehr kurzen PATH und ohne deine Startdateien, darum gehören **volle Pfade** in die Zeile. Und Ausgaben schickt cron als Mail an den Besitzer. Wer keine Mail will, leitet sie in eine Datei um.
+</Karte>
+
+<Merke>Min Std Tag Monat Wochentag Befehl. * jeder, a,b Liste, a-b Bereich, */n Schritt, 0 und 7 = Sonntag. crontab -e bearbeiten, -l zeigen, -r löschen. Volle Pfade, Ausgaben umleiten.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: Zeitfelder" fragen={[
+  { frage: 'Wann läuft „0 */6 * * *“?', richtig: 'Um 0, 6, 12 und 18 Uhr, jeweils zur vollen Stunde', falsch: ['Alle sechs Minuten', 'Am sechsten Tag jedes Monats'], erklaerung: '*/6 steht im Stundenfeld, die Minute ist 0.' },
+  { frage: 'Welche Zeile läuft jeden Sonntag um 23:45 Uhr?', richtig: '45 23 * * 0', falsch: ['23 45 * * 0', '45 23 0 * *'], erklaerung: 'Zuerst die Minute, dann die Stunde, der Wochentag ist das fünfte Feld.' },
+]} />
+
+<Lueckentext id="luecke" titel="Code-Puzzle: Eine crontab für das Labor" aufgabe="Ergänze die Zeitfelder passend zu den Kommentaren."
+  code={`# jeden Tag um 2:30 Uhr
+___ ___ * * * /home/lena/bin/sicherung
+# montags bis freitags alle 15 Minuten zwischen 8 und 17 Uhr
+___ 8-17 * * ___ /home/lena/bin/messen
+# bei jedem Systemstart
+___ /home/lena/bin/waechter`}
+  luecken={[
+    { loesungen: ['30'] }, { loesungen: ['2', '02'] }, { loesungen: ['*/15', '0,15,30,45'] }, { loesungen: ['1-5', 'mon-fri'] }, { loesungen: ['@reboot'] },
+  ]} />
+
+<Terminal id="eigene" titel="Terminal: Lenas crontab" aufgaben={[
+  { text: 'Schau nach, ob du schon eine crontab hast.', befehl: '^crontab -l$', auchFehler: true },
+  { text: 'Öffne deine crontab mit <code>crontab -e</code> und trag ein: jeden Tag um 2:30 Uhr <code>/home/lena/bin/sicherung</code>. In vi: G, o, Zeile tippen, Esc, :wq.', zustand: 'cron:lena~^30 2 \\* \\* \\* /home/lena/bin/sicherung$' },
+  { text: 'Lass dir die crontab anzeigen.', befehl: '^crontab -l$', frage: 'Wie viele Zeilen beginnen nicht mit #?', antwort: ['1', 'eine'] },
+  { text: 'Füge eine Zeile hinzu, die montags bis freitags alle 15 Minuten zwischen 8 und 17 Uhr <code>/home/lena/bin/messen</code> startet und alle Ausgaben an <code>/home/lena/messen.log</code> anhängt.', zustand: 'cron:lena~^\\*/15 8-17 \\* \\* (1-5|mon-fri) /home/lena/bin/messen >> /home/lena/messen\\.log 2>&1$' },
+  { text: 'Versuch, eine kaputte Zeile über eine Datei zu installieren: <code>echo "60 * * * * x" | crontab -</code>.', befehl: '^echo .*\\| ?crontab -$', auchFehler: true, frage: 'Welches Feld bemängelt crontab?', antwort: ['minute', 'bad minute'] },
+]} />
+
+## cron für das ganze System
+
+<Karte nr={2} titel="/etc/crontab, cron.d, cron.daily und wer darf">
+Neben den Tabellen der Benutzer liest cron Systemtabellen:
+
+- **/etc/crontab** und alle Dateien in **/etc/cron.d/** haben ein **sechstes Feld vor dem Befehl: den Benutzer**, unter dem der Befehl läuft. Sie werden direkt bearbeitet, ohne crontab-Befehl. Pakete legen ihre Aufträge nach `/etc/cron.d/`.
+- **/etc/cron.hourly/, cron.daily/, cron.weekly/, cron.monthly/** enthalten Skripte ohne Zeitangabe. `/etc/crontab` startet sie mit `run-parts`. Die Dateinamen dürfen keinen Punkt enthalten, sonst überspringt run-parts sie. `run-parts --test /etc/cron.daily` zeigt, was laufen würde. Ist **anacron** installiert, holt es verpasste Läufe nach, wenn der Rechner nachts aus war.
+
+**Wer darf crontab benutzen?** Gibt es **/etc/cron.allow**, dürfen nur die Benutzer darin. Sonst gilt **/etc/cron.deny**: alle außer denen darin. Fehlen beide, dürfen auf Debian alle, auf manchen anderen Systemen nur root. root darf immer.
+</Karte>
+
+<Merke>/etc/crontab und /etc/cron.d/: sechs Felder, mit Benutzer, direkt bearbeiten. cron.daily usw.: Skripte ohne Punkt im Namen, run-parts. cron.allow schlägt cron.deny.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: System" fragen={[
+  { frage: 'Was fehlt in „0 3 * * * /usr/local/bin/waechter“, wenn die Zeile in /etc/cron.d/waechter steht?', richtig: 'Der Benutzer vor dem Befehl', falsch: ['Nichts', 'Das Feld für die Sekunde'], erklaerung: 'Richtig wäre „0 3 * * * root /usr/local/bin/waechter“.' },
+  { frage: 'Es gibt /etc/cron.allow mit „lena“ und /etc/cron.deny mit „lena“. Darf lena crontab benutzen?', richtig: 'Ja, cron.allow hat Vorrang.', falsch: ['Nein, cron.deny hat Vorrang.', 'Nur root entscheidet das zur Laufzeit.'], erklaerung: 'Existiert cron.allow, wird cron.deny gar nicht gelesen.' },
+]} />
+
+<Terminal id="system" titel="Terminal: Der Nachtwächter zieht ein" welt={{ dateien: { '/usr/local/bin/waechter': '#!/bin/bash\necho "Alles in Ordnung"\n' }, rechte: { '/usr/local/bin/waechter': '755' } }} aufgaben={[
+  { text: 'Lies <code>/etc/crontab</code>.', befehl: '^(cat|less|grep .*) /etc/crontab$', frage: 'Um welche Uhrzeit startet cron.daily? (HH:MM)', antwort: ['06:25', '6:25'] },
+  { text: 'Lass dir zeigen, welche Skripte cron.daily starten würde.', befehl: '^run-parts --test /etc/cron\\.daily/?$', frage: 'Warum fehlt .placeholder in der Liste?', antwort: ['wegen des punkts im namen', 'der punkt im namen', 'punkt im namen'] },
+  { text: 'Lege als root <code>/etc/cron.d/waechter</code> an: jeden Tag um 3 Uhr soll root <code>/usr/local/bin/waechter</code> starten.', zustand: 'datei:/etc/cron.d/waechter~^0 3 \\* \\* \\* root /usr/local/bin/waechter' },
+  { text: 'Sperre max für crontab, indem du eine <code>/etc/cron.deny</code> mit seinem Namen anlegst.', zustand: 'datei:/etc/cron.deny~^max$' },
+  { text: 'Lege eine <code>/etc/cron.allow</code> an, in der nur <code>root</code> steht, und versuch danach <code>crontab -l</code> als lena.', befehl: '^crontab -l$', auchFehler: true, zustand: 'datei:/etc/cron.allow~^root$', frage: 'Darf lena crontab noch benutzen? (ja/nein)', antwort: ['nein'] },
+  { text: 'Nimm lena in <code>/etc/cron.allow</code> auf.', zustand: 'datei:/etc/cron.allow~^lena$' },
+]} />
+
+<Labor id="labor" titel="Aufgabe im Labor: cron in der VM"
+  aufgabe="Lege in deiner VM einen Auftrag an, der jede Minute die Uhrzeit in eine Datei schreibt. Warte zwei Minuten, prüf die Datei und lösch den Auftrag wieder. Füge die Ausgabe ein."
+  befehl={"(crontab -l 2>/dev/null; echo '* * * * * date +%T >> /tmp/cron-test.txt') | crontab -\nsleep 125; cat /tmp/cron-test.txt\ncrontab -r; crontab -l"}
+  muster={["^\\d\\d:\\d\\d:0\\d$", "no crontab for \\w+"]}
+  erfolg="cron startet den Befehl jeweils zur Sekunde 0 einer Minute." />
+
+<Hinweis titel="Prüfungstipp">
+Die Prüfung legt dir Zeilen vor und fragt, wann sie laufen. Lies die fünf Felder immer von links: Minute, Stunde, Tag, Monat, Wochentag. Denk an das Benutzerfeld in /etc/crontab und /etc/cron.d und an die Regel „cron.allow vor cron.deny“.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Was bewirkt „crontab -r“?', richtig: 'Es löscht die eigene crontab komplett.', falsch: ['Es lädt die crontab neu.', 'Es zeigt die crontab von root.'], erklaerung: 'Ohne Rückfrage. Leicht mit -e zu verwechseln, die Tasten liegen nebeneinander.' },
+  { frage: 'Wann läuft „0 0 1 1 *“?', richtig: 'Am 1. Januar um Mitternacht', falsch: ['Jeden Tag um Mitternacht', 'Jeden Montag im Januar'], erklaerung: 'Tag 1, Monat 1. Das entspricht @yearly.' },
+  { frage: 'Ein Skript in /etc/cron.daily heißt „sicherung.sh“ und läuft nie. Warum?', richtig: 'run-parts überspringt Namen mit Punkt.', falsch: ['Skripte dort brauchen eine Zeitangabe.', 'cron.daily läuft nur sonntags.'], erklaerung: 'Benenne es in „sicherung“ um.' },
+]} />

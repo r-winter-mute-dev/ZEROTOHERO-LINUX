@@ -1,0 +1,159 @@
+---
+id: l1-7-4
+checks:
+  - id: k1
+  - id: einmal
+  - id: k2
+  - id: timer
+  - id: zuordnung
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "Einmal später"
+    v: "at 17:00 · at now + 30 minutes · at teatime tomorrow · Ende mit Strg+D"
+  - t: "Aus einer Pipe"
+    v: "echo \"befehl\" | at now + 1 hour · at -f datei 02:00"
+  - t: "Warteschlange"
+    v: "atq (at -l) · at -c NR (Inhalt) · atrm NR"
+  - t: "Wenn wenig los ist"
+    v: "batch (startet, sobald die Last niedrig ist)"
+  - t: "Wer darf at?"
+    v: "/etc/at.allow vor /etc/at.deny"
+  - t: "systemd-Timer"
+    v: "name.timer + name.service · OnCalendar=*-*-* 02:00:00 · Persistent=true · systemctl enable --now name.timer · systemctl list-timers"
+  - t: "Spontan"
+    v: "systemd-run --on-active=30m befehl · systemd-run --on-calendar=… befehl"
+karten:
+  - f: "Wie lässt du einen Befehl einmalig in 30 Minuten laufen?"
+    a: ["at now + 30 minutes", "echo befehl | at now + 30 minutes"]
+  - f: "Welcher Befehl zeigt die wartenden at-Aufträge?"
+    a: ["atq", "at -l"]
+  - f: "Wie löschst du den at-Auftrag Nummer 3?"
+    a: ["atrm 3"]
+  - f: "Welcher Befehl startet einen Auftrag, sobald die Systemlast niedrig ist?"
+    a: ["batch"]
+  - f: "Welche zwei Units braucht ein systemd-Timer?"
+    a: [".timer und .service", "eine timer-unit und eine service-unit"]
+  - f: "Welche Zeile lässt einen Timer täglich um 2 Uhr laufen?"
+    a: ["OnCalendar=*-*-* 02:00:00", "OnCalendar=02:00", "OnCalendar=*-*-* 02:00"]
+  - f: "Welche Option holt einen verpassten Timer-Lauf nach dem Einschalten nach?"
+    a: ["Persistent=true"]
+  - f: "Welcher Befehl listet alle aktiven Timer?"
+    a: ["systemctl list-timers"]
+  - f: "Mit welcher Tastenkombination beendest du die Eingabe bei at?"
+    a: ["strg+d", "ctrl+d"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Zuordnung from '../components/Zuordnung.astro';
+
+Heute Nachmittag soll einmalig eine große Auswertung laufen, und die nächtliche Sicherung soll künftig auch dann nachgeholt werden, wenn der Rechner nachts aus war. **Deine Mission: Plane einmalige Aufträge mit at und wiederkehrende mit systemd-Timern.** Lernziel 107.2.
+
+## Einmal, später
+
+<Karte nr={1} titel="at, atq, atrm, batch">
+**at** führt Befehle **einmal** zu einer bestimmten Zeit aus. Nach `at ZEIT` tippst du die Befehle Zeile für Zeile hinter den Prompt `at>` und beendest die Eingabe mit **Strg+D**. Bequemer geht es über eine Pipe oder eine Datei:
+
+```
+echo "/home/lena/bin/auswertung" | at 16:30
+at -f auftrag.sh now + 2 hours
+```
+
+Zeitangaben: `16:30`, `4pm`, `noon`, `midnight`, `teatime` (16 Uhr), `tomorrow`, `16:30 tomorrow`, `now + 30 minutes`, `now + 3 days`. at antwortet mit der Nummer des Auftrags und dem Zeitpunkt.
+
+`atq` (oder `at -l`) zeigt die Warteschlange, `at -c 3` den vollständigen Auftrag 3 mit allen Umgebungsvariablen, `atrm 3` löscht ihn. **batch** nimmt Befehle wie at an, startet sie aber, sobald die Systemlast niedrig genug ist.
+
+Den Zugriff regeln **/etc/at.allow** und **/etc/at.deny**, nach derselben Regel wie bei cron: allow schlägt deny. Auf Debian ist at ein eigenes Paket (`apt install at`), und eine at.deny mit den Systemkonten ist schon da.
+</Karte>
+
+<Merke>at ZEIT, Befehle, Strg+D. echo befehl | at now + 30 minutes. atq zeigt, at -c NR zeigt den Inhalt, atrm NR löscht. batch wartet auf wenig Last. at.allow vor at.deny.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: at" fragen={[
+  { frage: 'Was unterscheidet at von cron?', richtig: 'at führt einen Auftrag einmal aus, cron immer wieder.', falsch: ['at läuft nur als root.', 'at kennt keine Uhrzeiten, nur Minuten.'], erklaerung: 'Für Wiederholungen nimmst du cron oder einen systemd-Timer.' },
+  { frage: 'Welcher Befehl zeigt, was genau im at-Auftrag 5 steht?', richtig: 'at -c 5', falsch: ['atq 5', 'atrm -l 5'], erklaerung: 'atq listet nur Nummer, Zeit, Warteschlange und Besitzer.' },
+]} />
+
+<Terminal id="einmal" titel="Terminal: Die Auswertung heute Nachmittag" aufgaben={[
+  { text: 'Plane mit einer Pipe für heute 16:30 Uhr den Befehl <code>/home/lena/bin/auswertung</code>.', zustand: 'atjob~^/home/lena/bin/auswertung$' },
+  { text: 'Plane interaktiv für „teatime“ den Befehl <code>echo Feierabend | wall</code>. Beende die Eingabe mit dem Knopf Strg+D.', zustand: 'atjob~^echo Feierabend \\| wall$' },
+  { text: 'Lass dir die Warteschlange zeigen.', befehl: '^(atq|at -l)$', frage: 'Wie viele Aufträge warten?', antwort: ['2', 'zwei'] },
+  { text: 'Lass dir den Inhalt von Auftrag 1 zeigen.', befehl: '^at -c 1', frage: 'In welches Verzeichnis wechselt der Auftrag vor dem Start? (Pfad)', antwort: ['/home/lena'] },
+  { text: 'Die Auswertung ist abgesagt. Lösch Auftrag 1.', befehl: '^atrm 1$', zustand: 'nicht:atjob~auswertung' },
+]} />
+
+## Wiederkehrend mit systemd
+
+<Karte nr={2} titel="Timer-Units, OnCalendar und systemd-run">
+systemd kann cron ersetzen. Ein **Timer** besteht aus zwei Units mit gleichem Namen: der **.service**, die beschreibt, was laufen soll, und der **.timer**, die beschreibt, wann.
+
+```
+# /etc/systemd/system/sicherung.service
+[Unit]
+Description=Sicherung der Messdaten
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/sicherung
+
+# /etc/systemd/system/sicherung.timer
+[Unit]
+Description=Sicherung jede Nacht um 2 Uhr
+
+[Timer]
+OnCalendar=*-*-* 02:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+```
+
+**OnCalendar** hat die Form `Wochentag Jahr-Monat-Tag Stunde:Minute:Sekunde`: `Mon..Fri *-*-* 07:00`, `*-*-01 00:00` (monatlich) oder Kurzformen wie `daily`, `weekly`, `hourly`. Statt fester Zeiten gehen auch Abstände: `OnBootSec=15min`, `OnUnitActiveSec=1h`. **Persistent=true** holt einen Lauf nach, der verpasst wurde, weil der Rechner aus war. Das kann cron nicht.
+
+Danach: `systemctl daemon-reload`, dann `systemctl enable --now sicherung.timer`. Aktiviert wird der **Timer**, nicht der Service. `systemctl list-timers` zeigt alle Timer mit dem nächsten und letzten Lauf. Die Ausgaben landen im Journal: `journalctl -u sicherung.service`.
+
+Für einen einmaligen Auftrag ohne Unit-Dateien gibt es **systemd-run**: `systemd-run --on-active=30m /usr/local/bin/sicherung` oder `--on-calendar="Mon 09:00"`. systemd legt dann eine vorübergehende Timer-Unit an.
+</Karte>
+
+<Merke>Timer = name.timer (wann) + name.service (was). OnCalendar=*-*-* 02:00:00, Persistent=true holt nach. systemctl enable --now name.timer, systemctl list-timers. Spontan: systemd-run --on-active=30m befehl.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: Timer" fragen={[
+  { frage: 'Welche Unit aktivierst du mit systemctl enable --now, damit die Sicherung nachts läuft?', richtig: 'sicherung.timer', falsch: ['sicherung.service', 'timers.target'], erklaerung: 'Der Timer startet den Service zur richtigen Zeit.' },
+  { frage: 'Was leistet Persistent=true?', richtig: 'Ein verpasster Lauf wird nachgeholt, sobald der Rechner wieder läuft.', falsch: ['Der Timer überlebt einen Neustart nur damit.', 'Der Service läuft dauerhaft weiter.'], erklaerung: 'Bei cron übernimmt das anacron für cron.daily und Co.' },
+]} />
+
+<Terminal id="timer" titel="Terminal: Die Sicherung als Timer" welt={{ dateien: { '/usr/local/bin/sicherung': '#!/bin/bash\ntar czf /var/backups/messdaten-$(date +%F).tar.gz /srv/messdaten\n', '/etc/systemd/system/sicherung.service': '[Unit]\nDescription=Sicherung der Messdaten\n\n[Service]\nType=oneshot\nExecStart=/usr/local/bin/sicherung\n' }, rechte: { '/usr/local/bin/sicherung': '755' } }} aufgaben={[
+  { text: 'Lass dir die vorhandenen Timer zeigen.', befehl: '^systemctl list-timers', frage: 'Welcher Timer rotiert die Logdateien?', antwort: ['logrotate.timer', 'logrotate'] },
+  { text: 'Lies <code>logrotate.timer</code>, um ein Beispiel zu sehen.', befehl: '^(cat|systemctl cat) (/usr/lib/systemd/system/)?logrotate\\.timer$', frage: 'Welcher Wert steht bei OnCalendar?', antwort: ['daily'] },
+  { text: 'Lege als root <code>/etc/systemd/system/sicherung.timer</code> an, der jede Nacht um 2 Uhr läuft, verpasste Läufe nachholt und zu <code>timers.target</code> gehört.', zustand: 'datei:/etc/systemd/system/sicherung.timer~^OnCalendar=(\\*-\\*-\\* )?02:00(:00)?$ && datei:/etc/systemd/system/sicherung.timer~^Persistent=true$ && datei:/etc/systemd/system/sicherung.timer~^WantedBy=timers\\.target$' },
+  { text: 'Lies die Units neu ein und aktiviere den Timer sofort und dauerhaft.', zustand: 'timer:sicherung.timer=beides' },
+  { text: 'Prüf, ob er in der Liste erscheint.', befehl: '^systemctl list-timers', frage: 'Wann läuft er als Nächstes? (Uhrzeit HH:MM)', antwort: ['02:00', '2:00'] },
+  { text: 'Plane mit systemd-run einen einmaligen Lauf der Sicherung in 30 Minuten.', befehl: '^sudo systemd-run --on-active=30m /usr/local/bin/sicherung$' },
+]} />
+
+<Zuordnung id="zuordnung" titel="Zuordnung: Welches Werkzeug?" aufgabe="Ordne jeder Aufgabe das passende Werkzeug zu." paare={[
+  { links: 'Heute um 16:30 Uhr einmal eine Auswertung starten', rechts: 'at' },
+  { links: 'Jede Nacht sichern, auch wenn der Rechner um 2 Uhr aus war', rechts: 'systemd-Timer mit Persistent=true' },
+  { links: 'lena will alle 15 Minuten ihr eigenes Messskript starten', rechts: 'crontab -e' },
+  { links: 'Eine lange Rechnung starten, sobald der Server weniger zu tun hat', rechts: 'batch' },
+  { links: 'Ein Paket installiert einen täglichen Aufräumjob für root', rechts: '/etc/cron.d/' },
+]} />
+
+<Labor id="labor" titel="Aufgabe im Labor: at und Timer in der VM"
+  aufgabe="Installiere at in deiner VM, plane einen Auftrag, prüf die Warteschlange und die Timer und lösch den Auftrag wieder. Füge die Ausgabe ein."
+  befehl={"sudo apt install -y at >/dev/null\necho 'touch /tmp/at-test' | at now + 10 minutes\natq\natrm $(atq | cut -f1)\nsystemctl list-timers --no-pager | tail -2"}
+  muster={["^job \\d+ at ", "^\\d+\\s+\\w{3} \\w{3}", "timers listed"]}
+  erfolg="at nummeriert die Aufträge fortlaufend. Die Timer deiner VM kommen von Paketen wie apt, logrotate und man-db." />
+
+<Hinweis titel="Prüfungstipp">
+Unterscheide sicher: at einmal, cron wiederholt, batch bei wenig Last, systemd-Timer mit Persistent für verpasste Läufe. Merk dir die Befehle atq, atrm, at -c und systemctl list-timers sowie die beiden Units eines Timers.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Welcher Befehl löscht den at-Auftrag 7?', richtig: 'atrm 7', falsch: ['at -r 7 -f', 'atq -d 7'], erklaerung: 'at -d 7 oder at -r 7 funktionieren ebenfalls, atrm ist die übliche Form.' },
+  { frage: 'Welche OnCalendar-Angabe bedeutet „montags bis freitags um 7 Uhr“?', richtig: 'Mon..Fri *-*-* 07:00:00', falsch: ['0 7 * * 1-5', '*-*-* Mon-Fri 07'], erklaerung: 'Die zweite Antwort ist eine crontab-Zeile, keine OnCalendar-Angabe.' },
+]} />

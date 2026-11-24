@@ -1,0 +1,153 @@
+---
+id: l1-7-1
+checks:
+  - id: k1
+  - id: dateien
+  - id: k2
+  - id: anlegen
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "/etc/passwd"
+    v: "name:x:UID:GID:Kommentar:Home:Shell"
+  - t: "/etc/shadow"
+    v: "name:Hash:letzte Änderung:min:max:Warnung:inaktiv:Ablauf:"
+  - t: "Anlegen"
+    v: "useradd -m -s /bin/bash -c \"Name\" -G gruppe1,gruppe2 name"
+  - t: "Ändern"
+    v: "usermod -aG gruppe name · -s Shell · -L sperren · -U entsperren · -e Ablaufdatum"
+  - t: "Löschen"
+    v: "userdel name · userdel -r name (mit Home und Mail)"
+  - t: "Passwort"
+    v: "passwd name · passwd -l/-u/-S name"
+  - t: "Nachschlagen"
+    v: "getent passwd name · id name · groups name"
+karten:
+  - f: "Welche Felder hat eine Zeile in /etc/passwd?"
+    a: ["name:x:uid:gid:kommentar:home:shell", "name, passwort, uid, gid, kommentar, home, shell"]
+  - f: "In welcher Datei stehen die Passwort-Hashes?"
+    a: ["/etc/shadow"]
+  - f: "Ab welcher UID beginnen auf Debian normale Benutzer?"
+    a: ["1000"]
+  - f: "Welche Option von useradd legt das Home-Verzeichnis an?"
+    a: ["-m"]
+  - f: "Wie fügst du jonas zur Gruppe sudo hinzu, ohne andere Gruppen zu verlieren?"
+    a: ["usermod -aG sudo jonas", "gpasswd -a jonas sudo", "sudo usermod -aG sudo jonas"]
+  - f: "Wie löschst du jonas samt Home-Verzeichnis?"
+    a: ["userdel -r jonas", "sudo userdel -r jonas"]
+  - f: "Wie sperrst du das Passwort von jonas?"
+    a: ["passwd -l jonas", "usermod -L jonas"]
+  - f: "Welche Login-Shell gibt useradd auf Debian 12 ohne -s?"
+    a: ["/bin/sh"]
+  - f: "Woran erkennst du in /etc/shadow ein gesperrtes Passwort?"
+    a: ["an einem ! vor dem hash", "!"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+
+Jonas braucht ein eigenes Konto, und für den Messdienst `messd` soll ein Systemkonto her, mit dem sich niemand anmelden kann. **Deine Mission: Lies die Kontodateien, lege Konten an, ändere und lösche sie.** Lernziel 107.1.
+
+## Die Kontodateien
+
+<Karte nr={1} titel="/etc/passwd, /etc/shadow, /etc/group">
+Jedes Konto steht als eine Zeile in **/etc/passwd**, die Felder sind durch Doppelpunkte getrennt:
+
+```
+lena:x:1000:1000:Lena,,,:/home/lena:/bin/bash
+```
+
+Name, Platzhalter `x` für das Passwort, **UID**, **GID** der primären Gruppe, Kommentar (GECOS, meist der volle Name), Home-Verzeichnis und Login-Shell. Die Datei ist für alle lesbar, darum steht das Passwort nicht drin.
+
+Die Hashes liegen in **/etc/shadow**, lesbar nur für root und die Gruppe shadow:
+
+```
+lena:$y$j9T$…:20050:0:99999:7:::
+```
+
+Nach Name und Hash folgen: Tag der letzten Änderung (Tage seit dem 1.1.1970), Mindest- und Höchstalter des Passworts, Warnfrist, Frist nach Ablauf und Ablaufdatum des Kontos (Mission 7.2). Ein `!` oder `*` statt des Hashes heißt: Anmeldung mit Passwort unmöglich. `$y$` steht für yescrypt, das Verfahren von Debian 12.
+
+**UIDs**: 0 ist root, 1 bis 999 sind Systemkonten für Dienste (oft mit der Shell `/usr/sbin/nologin`), ab 1000 kommen Menschen. Die Grenzen stehen in `/etc/login.defs`.
+
+`getent passwd lena` fragt alle Quellen ab, also auch LDAP, falls eingerichtet. `id jonas` zeigt UID, GID und Gruppen.
+</Karte>
+
+<Merke>/etc/passwd: name:x:UID:GID:Kommentar:Home:Shell, für alle lesbar. /etc/shadow: Hashes und Fristen, nur root. ! vor dem Hash = gesperrt. 0 root, 1–999 System, ab 1000 Menschen.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: Kontodateien" fragen={[
+  { frage: 'Welches Feld in „max:x:1001:100:Max:/home/max:/bin/bash“ ist die GID?', richtig: '100', falsch: ['1001', 'max'], erklaerung: 'Das dritte Feld ist die UID, das vierte die GID der primären Gruppe.' },
+  { frage: 'Warum ist /etc/passwd für alle lesbar?', richtig: 'Programme wie ls brauchen die Zuordnung von UIDs zu Namen. Die Hashes stehen getrennt in /etc/shadow.', falsch: ['Das ist ein Sicherheitsfehler.', 'Nur root kann sie lesen.'], erklaerung: 'Früher standen die Hashes in /etc/passwd. Darum wurden sie nach /etc/shadow ausgelagert.' },
+]} />
+
+<Terminal id="dateien" titel="Terminal: Wer ist auf werkstatt?" aufgaben={[
+  { text: 'Zeig die Zeile von lena aus <code>/etc/passwd</code> mit getent.', befehl: '^getent passwd lena$', frage: 'Welche Login-Shell hat lena?', antwort: ['/bin/bash'] },
+  { text: 'Versuch, <code>/etc/shadow</code> als lena zu lesen.', befehl: '^(cat|less|head|tail) /etc/shadow$', auchFehler: true },
+  { text: 'Lies die Zeile von max aus <code>/etc/shadow</code> mit root-Rechten.', befehl: '^sudo (grep max /etc/shadow|getent shadow max)$', frage: 'Mit welchen drei Zeichen beginnt der Hash?', antwort: ['$y$'] },
+  { text: 'Zähle die Konten, deren Shell auf <code>nologin</code> endet.', befehl: '^grep -c .*nologin.* /etc/passwd$', frage: 'Wie viele?', antwort: ['15'] },
+  { text: 'Lies in <code>/etc/login.defs</code> nach, wo die UIDs für Benutzer beginnen.', befehl: '^grep .*UID_MIN.* /etc/login\\.defs$' },
+]} />
+
+## Konten anlegen, ändern, löschen
+
+<Karte nr={2} titel="useradd, usermod, userdel, passwd">
+**useradd** legt ein Konto an:
+
+```
+useradd -m -s /bin/bash -c "Jonas Berg" -G users,plugdev jonas
+```
+
+| Option | Wirkung |
+|---|---|
+| `-m` | Home anlegen und den Inhalt von `/etc/skel` hineinkopieren (Mission 5.2) |
+| `-s` | Login-Shell. **Debian 12 nimmt ohne -s `/bin/sh`** (aus `/etc/default/useradd`) |
+| `-c` | Kommentar, meist der volle Name |
+| `-g` / `-G` | primäre Gruppe / zusätzliche Gruppen |
+| `-u`, `-d`, `-e` | UID, Home-Pfad, Ablaufdatum des Kontos |
+| `-r` | Systemkonto mit UID unter 1000, ohne Home |
+
+Ohne `-g` legt useradd eine **eigene Gruppe** mit dem Namen des Benutzers an. Das neue Konto ist zunächst gesperrt (`!` in shadow), bis root mit `passwd jonas` ein Passwort setzt. Debian bringt außerdem das freundlichere Skript **adduser** mit, das nachfragt. Die Prüfung verlangt useradd.
+
+**usermod** ändert ein Konto mit denselben Optionen. Die wichtigste Falle: `usermod -G sudo jonas` **ersetzt** alle zusätzlichen Gruppen. Mit `-aG` (append) hängt es an. Dazu kommen `-L` und `-U` (Passwort sperren und entsperren), `-l` (umbenennen) und `-d neu -m` (Home verschieben).
+
+**userdel jonas** löscht das Konto, das Home bleibt stehen. **userdel -r** löscht Home und Mail mit.
+
+**passwd** setzt Passwörter: ohne Namen das eigene, als root jedes. `passwd -l` sperrt, `-u` entsperrt, `-S` zeigt den Status, `-e` erzwingt eine Änderung bei der nächsten Anmeldung.
+</Karte>
+
+<Merke>useradd -m -s /bin/bash -G a,b name. Debian ohne -s: /bin/sh. usermod -aG hängt an, -G allein ersetzt. userdel -r löscht das Home mit. passwd name setzt, -l sperrt, -S zeigt.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: Konten" fragen={[
+  { frage: 'jonas ist in den Gruppen users und plugdev. Was gilt nach „usermod -G sudo jonas“?', richtig: 'jonas ist nur noch in sudo (und seiner primären Gruppe).', falsch: ['jonas ist in users, plugdev und sudo.', 'Der Befehl schlägt fehl.'], erklaerung: 'Ohne -a ersetzt -G die Liste der zusätzlichen Gruppen.' },
+  { frage: 'Was bleibt nach „userdel jonas“ zurück?', richtig: 'Das Verzeichnis /home/jonas', falsch: ['Die Zeile in /etc/passwd', 'Nichts'], erklaerung: 'Erst userdel -r entfernt Home und Mail.' },
+]} />
+
+<Terminal id="anlegen" titel="Terminal: Konten für Jonas und messd" aufgaben={[
+  { text: 'Lege das Konto <code>jonas</code> mit Home, der Shell <code>/bin/bash</code>, dem Kommentar „Jonas Berg“ und den zusätzlichen Gruppen <code>users</code> und <code>plugdev</code> an.', zustand: 'konto:jonas~:Jonas Berg:/home/jonas:/bin/bash$ && ordner:/home/jonas && mitglied:users=jonas && mitglied:plugdev=jonas' },
+  { text: 'Prüf mit root-Rechten, was useradd aus <code>/etc/skel</code> kopiert hat.', befehl: '^sudo ls -a /home/jonas/?$', frage: 'Welche Datei für Login-Shells liegt dort?', antwort: ['.profile'] },
+  { text: 'Setze für jonas ein Passwort.', zustand: 'shadow:jonas~^jonas:\\$y\\$' },
+  { text: 'Nimm jonas zusätzlich in die Gruppe <code>sudo</code> auf, ohne die anderen Gruppen zu verlieren.', zustand: 'mitglied:sudo=jonas && mitglied:users=jonas' },
+  { text: 'Lege das Systemkonto <code>messd</code> ohne Home an, mit der Shell <code>/usr/sbin/nologin</code>.', zustand: 'konto:messd~:x:9\\d\\d:.*:/usr/sbin/nologin$' },
+  { text: 'Versuch, dich als messd anzumelden.', befehl: '^(sudo )?su - messd$', auchFehler: true, frage: 'Welche Meldung erscheint?', antwort: ['This account is currently not available.', 'this account is currently not available'] },
+  { text: 'Sperr das Passwort von jonas und lass dir den Status zeigen.', zustand: 'shadow:jonas~^jonas:!', befehl: '^sudo passwd -S jonas$', frage: 'Welcher Buchstabe steht hinter dem Namen?', antwort: ['L'] },
+  { text: 'Lege probehalber das Konto <code>praktikant</code> an und lösch es samt Home wieder.', befehl: '^sudo userdel -r praktikant$', zustand: 'nicht:konto:praktikant' },
+]} />
+
+<Labor id="labor" titel="Aufgabe im Labor: Ein Konto in der VM"
+  aufgabe="Lege in deiner Debian-VM ein Testkonto an, prüf es und lösch es wieder. Füge die Ausgabe ein."
+  befehl={"sudo useradd -m -s /bin/bash -G users testkonto\nid testkonto\ngetent passwd testkonto\nsudo userdel -r testkonto; getent passwd testkonto || echo weg"}
+  muster={["^uid=\\d+\\(testkonto\\) gid=\\d+\\(testkonto\\).*\\(users\\)", "^testkonto:x:\\d+:\\d+::/home/testkonto:/bin/bash$", "^weg$"]}
+  erfolg="Ohne -g bekommt testkonto eine eigene Gruppe gleichen Namens." />
+
+<Hinweis titel="Prüfungstipp">
+Lern die Felder von /etc/passwd und /etc/shadow in ihrer Reihenfolge. Fast immer gefragt: -m bei useradd, -aG bei usermod, -r bei userdel und die Bedeutung von ! in /etc/shadow.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Welche Datei bestimmt, welche Shell useradd ohne -s vergibt?', richtig: '/etc/default/useradd', falsch: ['/etc/shells', '/etc/skel/.profile'], erklaerung: '/etc/shells listet nur die erlaubten Shells.' },
+  { frage: 'Welche UID hat root?', richtig: '0', falsch: ['1', '1000'], erklaerung: 'Rechte hängen an der UID, nicht am Namen. Jedes Konto mit UID 0 ist root.' },
+  { frage: 'Ein Dienstkonto soll keine Anmeldung erlauben. Welche Shell bekommt es?', richtig: '/usr/sbin/nologin', falsch: ['/bin/sh', '/bin/false/login'], erklaerung: '/bin/false geht auch, gibt aber keine Meldung aus.' },
+]} />

@@ -22,6 +22,7 @@ const { id, titel = 'Terminal', aufgaben, welt = {}, einleitung } = Astro.props;
     <p class="term-knoepfe">
       <button type="button" class="knopf zweit klein" data-term-taste="c" title="Bricht den Befehl im Vordergrund ab (wie Strg+C)">Strg+C</button>
         <button type="button" class="knopf zweit klein" data-term-taste="z" title="Hält den Befehl im Vordergrund an (wie Strg+Z)">Strg+Z</button>
+        <button type="button" class="knopf zweit klein" data-term-taste="d" title="Beendet eine Eingabe, etwa bei at (wie Strg+D)">Strg+D</button>
         <button type="button" class="knopf zweit klein" data-term-esc hidden title="Escape-Taste für vi">Esc</button>
         <button type="button" class="knopf zweit klein" data-term-neustart>Neu starten</button>
       <button type="button" class="knopf zweit klein" data-term-reset>Alles zurücksetzen</button>
@@ -31,7 +32,7 @@ const { id, titel = 'Terminal', aufgaben, welt = {}, einleitung } = Astro.props;
 
 <script>
   import { station } from '../scripts/station';
-  import { ausfuehren, befehlStimmt, BEFEHLSNAMEN, istVi, neueWelt, neuStarten, prompt, viOeffnen, viSpeichern, zustandStimmt, type Aufgabe, type Welt } from '../scripts/shell';
+  import { ausfuehren, befehlStimmt, BEFEHLSNAMEN, istVi, viBeendet, neueWelt, neuStarten, prompt, viOeffnen, viSpeichern, zustandStimmt, type Aufgabe, type Welt } from '../scripts/shell';
   import { Vi } from '../scripts/vi';
 
   document.querySelectorAll<HTMLElement>('[data-kw-term]').forEach((box) => {
@@ -88,6 +89,8 @@ const { id, titel = 'Terminal', aufgaben, welt = {}, einleitung } = Astro.props;
         // Wie vim: Die letzte Meldung (etwa „… written“) bleibt nach dem Beenden stehen
         if (vi.ende.art === 'gespeichert' && /written$/.test(vi.meldung)) zeile(vi.meldung, 'info');
         w.verlauf.push({ zeile: `#vi ${vi.ende.art} ${viPfad}`, code: 0, ausgabe: '' });
+        const nachVi = viBeendet(w, vi.ende.art, viPfad);
+        if (nachVi) { zeile(nachVi, ''); w.verlauf.push({ zeile: '#nachvi', code: 0, ausgabe: nachVi }); }
         vi = null; viBox.hidden = true; escKnopf.hidden = true; ausgabe.hidden = false; formular.classList.remove('vi-an');
         promptEl.textContent = prompt(w);
         eingabe.value = ''; eingabe.focus({ preventScroll: true });
@@ -101,7 +104,8 @@ const { id, titel = 'Terminal', aufgaben, welt = {}, einleitung } = Astro.props;
     function zeile(text: string, art = '') {
       const p = document.createElement('pre');
       p.className = `tz ${art}`;
-      p.textContent = text;
+      // Bytes einer fremden Kodierung (ISO-8859-1) erscheinen wie in einem UTF-8-Terminal als Ersatzzeichen
+      p.textContent = text.replace(/[\uF780-\uF7FF]/g, '\uFFFD');
       ausgabe.append(p);
       ausgabe.scrollTop = ausgabe.scrollHeight;
     }
@@ -189,17 +193,18 @@ const { id, titel = 'Terminal', aufgaben, welt = {}, einleitung } = Astro.props;
     });
 
     // Strg+C und Strg+Z schicken Signale an den Befehl im Vordergrund
-    function taste(t: 'c' | 'z') {
+    function taste(t: 'c' | 'z' | 'd') {
       if (s.gesperrt()) return;
       const lief = !!w.vordergrund; const p = prompt(w);
-      const r = ausfuehren(w, t === 'c' ? '\u0003' : '\u001a');
-      if (lief) zeile(r.ausgabe, '');
+      const r = ausfuehren(w, t === 'c' ? '\u0003' : t === 'z' ? '\u001a' : '\u0004');
+      if (t === 'd') { zeile(p + eingabe.value, 'cmd'); if (r.ausgabe) zeile(r.ausgabe, ''); }
+      else if (lief) zeile(r.ausgabe, '');
       else zeile(p + eingabe.value + (t === 'c' ? '^C' : '^Z'), 'cmd');
       eingabe.value = '';
       promptEl.textContent = prompt(w);
       pruefen();
     }
-    box.querySelectorAll<HTMLButtonElement>('[data-term-taste]').forEach((b) => b.addEventListener('click', () => { taste(b.dataset.termTaste as 'c' | 'z'); eingabe.focus({ preventScroll: true }); }));
+    box.querySelectorAll<HTMLButtonElement>('[data-term-taste]').forEach((b) => b.addEventListener('click', () => { taste(b.dataset.termTaste as 'c' | 'z' | 'd'); eingabe.focus({ preventScroll: true }); }));
 
     // Im vi gehen alle Tasten an den Editor. Bildschirmtastaturen liefern Zeichen oft nur über „input“.
     eingabe.addEventListener('input', () => {
