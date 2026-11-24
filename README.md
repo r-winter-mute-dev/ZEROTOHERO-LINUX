@@ -26,7 +26,7 @@
 | Kampagne | Zertifikat | Prüfungen | Lernziele | Stand |
 | :---: | --- | --- | :---: | :---: |
 | 1 | LPIC-1 Linux Administrator | 101-500, 102-500 | v5.0 | komplett spielbar: Akt 0 bis 10, Generalproben 101 und 102 |
-| 2 | LPIC-2 Linux Engineer | 201-450, 202-450 | v4.5 | Lehrplan steht |
+| 2 | LPIC-2 Linux Engineer | 201-450, 202-450 | v4.5 | im Aufbau: Akt 0 und 1 spielbar. Stoff, der im angekündigten Entwurf 5.0 entfällt oder umzieht, ist in den Missionen gekennzeichnet |
 | 3 | LPIC-3 Security | 303-300 | v3.0 | Lehrplan steht |
 
 Jede Prüfung hat 60 Fragen in 90 Minuten. Bestanden ist ab 500 auf einer Skala von 200 bis 800.
@@ -49,6 +49,14 @@ Jede Prüfung hat 60 Fragen in 90 Minuten. Bestanden ist ab 500 auf einer Skala 
 | 8 | 108 | Systemuhr und Hardware-Uhr, NTP mit chrony und ntpd, rsyslog, Journal und logrotate, Mail-Aliase und ~/.forward, Drucken mit CUPS, Bosskampf, Probeprüfung | ✅ |
 | 9 | 109 | IPv4, CIDR und Subnetting, Ports, TCP/UDP/ICMP und IPv6, dauerhafte Konfiguration mit NetworkManager und ifupdown, ip und net-tools, Fehlersuche mit ping, traceroute, tracepath, nc und ss, DNS mit host, dig und getent, Bosskampf, Probeprüfung | ✅ |
 | 10 | 110 | SUID-Audit, Konten, offene Ports mit ss, lsof, fuser und nmap, Anmeldespuren, ulimit und limits.conf, sudo und visudo, Dienste und Sockets abschalten, xinetd, TCP-Wrapper, /etc/nologin, OpenSSH mit Schlüsseln, Agent, known_hosts und Tunneln, GnuPG, Bosskampf, Generalprobe 102 | ✅ |
+
+### Kampagne 2: LPIC-2
+
+| Akt | Topic | Inhalt | Stand |
+| :---: | :---: | --- | :---: |
+| 0 | – | Aufbau der Prüfungen 201 und 202, Version 4.5 und Entwurf 5.0, Netzwerk-Labor mit Router, Server und Client | ✅ |
+| 1 | 200 | Last und CPU, Speicher und Swap, Platten-I/O mit iostat und iotop, Netzdurchsatz mit sar, iftop und iptraf-ng, Trends und Vorhersage mit sysstat, Überwachungssysteme, Bosskampf, Probeprüfung | ✅ |
+| 2–13 | 201–212 | Kernel, Systemstart, Dateisysteme, RAID und LVM, Netzwerk, Wartung, DNS, Web, Samba und NFS, DHCP, PAM und LDAP, E-Mail, Sicherheit | 📝 |
 
 ✅ spielbar · 📝 Lehrplan steht, Missionen folgen
 
@@ -99,6 +107,8 @@ Am meisten hilft gerade:
 - [x] Topic 108 (Akt 8)
 - [x] Topic 109 (Akt 9)
 - [x] Topic 110 (Akt 10) und Generalprobe 102
+- [x] LPIC-2 Akt 0 (Labor) und Akt 1 (Topic 200)
+- [ ] LPIC-2 Akt 2 bis 13
 - [ ] **Labor-Aufgaben testen** auf anderen Distributionen und mit anderen Virtualisierern.
 
 ## Entstehung

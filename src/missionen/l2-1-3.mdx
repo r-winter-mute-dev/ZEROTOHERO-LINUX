@@ -1,0 +1,131 @@
+---
+id: l2-1-3
+checks:
+  - id: k1
+  - id: zuordnung
+  - id: k2
+  - id: platte
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "Symptom"
+    v: "Last hoch, CPU frei, wa hoch · vmstat: b > 0, bi/bo hoch · ps: Zustand D"
+  - t: "iostat (sysstat)"
+    v: "iostat -x 1 2 · zweiten Bericht lesen · %util · r_await, w_await (ms) · aqu-sz · rkB/s, wkB/s"
+  - t: "iotop"
+    v: "sudo iotop -o (nur Prozesse mit I/O) · -b -n 1 für einen Bericht · Spalte IO>"
+  - t: "Blockiert"
+    v: "ps -eo stat,pid,cmd | grep '^D' · top Spalte S = D"
+  - t: "Verlauf"
+    v: "sar -b (gesamt) · sar -d (pro Platte)"
+karten:
+  - f: "Mit welchem Befehl zeigst du erweiterte Statistiken pro Platte, jede Sekunde, zweimal?"
+    a: ["iostat -x 1 2"]
+  - f: "Warum liest man bei iostat den zweiten Bericht?"
+    a: ["der erste zeigt mittelwerte seit dem start", "erster bericht seit dem booten"]
+  - f: "Welche Spalte von iostat -x zeigt, wie viel Zeit die Platte beschäftigt war?"
+    a: ["%util", "util"]
+  - f: "Welche Spalten von iostat -x zeigen die Wartezeit pro Anfrage?"
+    a: ["r_await und w_await", "await"]
+  - f: "Mit welchem Befehl siehst du, welcher Prozess gerade wie viel liest und schreibt?"
+    a: ["iotop", "sudo iotop -o", "iotop -o"]
+  - f: "In welchem Zustand stehen Prozesse, die auf die Platte warten?"
+    a: ["d"]
+  - f: "Zu welchem Paket gehören iostat und sar?"
+    a: ["sysstat"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Zuordnung from '../components/Zuordnung.astro';
+
+Neuer Morgen, neues Symptom: Die Last auf srv1 steht bei fast 5, aber die CPU langweilt sich. Die Datenbank antwortet trotzdem mit Verzögerung. **Deine Mission: Erkenne einen Engpass bei der Platte, miss ihn mit iostat und iotop und finde, wer die Platte belegt.** Lernziel 200.1.
+
+## Das Muster
+
+<Karte nr={1} titel="Wenn alle auf die Platte warten">
+Eine Festplatte mit drehenden Scheiben schafft je nach Muster nur einige hundert Zugriffe pro Sekunde. Will ein Prozess Daten, die nicht im Cache liegen, muss er warten. Er steht dann im Zustand **D** (uninterruptible sleep), kann nicht einmal mit `kill -9` beendet werden, bis die Platte antwortet, und zählt zur Last.
+
+Das typische Bild eines I/O-Engpasses:
+
+- **uptime:** Last hoch.
+- **top:** viel **wa**, wenig us und sy, die CPU ist im Grunde frei.
+- **vmstat:** Spalte **b** größer als null, **bi** und **bo** hoch.
+- **ps:** Prozesse mit **D** in der Spalte STAT.
+
+`ps -eo stat,pid,cmd | grep '^D'` listet die blockierten Prozesse. Mehr Kerne helfen hier nicht. Helfen kann: weniger gleichzeitiger I/O, schnellere Platten (SSD), mehr RAM für den Cache, oder die schwere Arbeit in eine ruhigere Zeit verlegen.
+</Karte>
+
+<Merke>I/O-Engpass: Last hoch, CPU frei, wa hoch, vmstat b > 0, Prozesse im Zustand D. Mehr CPU hilft nicht.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: Muster" fragen={[
+  { frage: 'top zeigt 2 % us, 3 % sy, 45 % id und 50 % wa. Die Last ist 5 auf 4 Kernen. Was ist der Engpass?', richtig: 'Die Platte', falsch: ['Die CPU', 'Der Arbeitsspeicher'], erklaerung: 'Die CPU ist zur Hälfte frei und zur Hälfte am Warten. Die Last kommt von Prozessen im Zustand D.' },
+]} />
+
+## iostat und iotop
+
+<Karte nr={2} titel="Pro Platte und pro Prozess">
+**iostat** aus dem Paket **sysstat** zeigt die Last pro Platte. Wie bei vmstat zeigt der erste Bericht Mittelwerte seit dem Start. Darum: `iostat -x 1 2` und den **zweiten** Bericht lesen. Mit `-x` kommen die erweiterten Spalten:
+
+| Spalte | Bedeutung |
+|---|---|
+| r/s, w/s | Lese- und Schreibanfragen pro Sekunde |
+| rkB/s, wkB/s | gelesene und geschriebene kB pro Sekunde |
+| r_await, w_await | mittlere Wartezeit pro Anfrage in ms, einschließlich Warteschlange |
+| aqu-sz | mittlere Länge der Warteschlange |
+| %util | Anteil der Zeit, in der die Platte beschäftigt war |
+
+Bei einer einzelnen Festplatte heißt **%util nahe 100** und ein **await** von über 100 ms: Sie ist am Ende. Bei SSDs und RAID-Verbünden, die viele Anfragen gleichzeitig bearbeiten, ist %util allein weniger aussagekräftig. Dort zählen await und aqu-sz. `iostat -d` zeigt nur die Platten, `iostat -c` nur die CPU, `iostat -m` in MB.
+
+**iotop** zeigt, welcher Prozess wie viel liest und schreibt, ähnlich wie top. Es braucht Root-Rechte und ist meist nachzuinstallieren. `sudo iotop -o` zeigt nur Prozesse, die gerade I/O machen. `-b -n 1` gibt einen einzigen Bericht aus. Die Spalte **IO>** zeigt, wie viel Prozent der Zeit der Prozess auf I/O gewartet hat.
+</Karte>
+
+<Merke>iostat -x 1 2, zweiten Bericht lesen: %util, r_await, w_await, aqu-sz. iotop -o: wer macht I/O, nur mit root. Beide oft nachzuinstallieren (sysstat, iotop).</Merke>
+
+<Zuordnung id="zuordnung" titel="Zuordnung: Welches Werkzeug?" aufgabe="Ordne jeder Frage das passende Werkzeug zu." paare={[
+  { links: 'Wie ausgelastet ist /dev/sda?', rechts: 'iostat -x 1 2' },
+  { links: 'Welcher Prozess schreibt so viel?', rechts: 'iotop -o' },
+  { links: 'Wie viele Prozesse sind blockiert?', rechts: 'vmstat 1 5' },
+  { links: 'Wie sah die Platte heute Nacht aus?', rechts: 'sar -d' },
+]} />
+
+<Quiz id="k2" titel="Kurzcheck: iostat" fragen={[
+  { frage: 'iostat -x zeigt für sdb %util 99 und w_await 190 ms. Was bedeutet das?', richtig: 'sdb ist voll ausgelastet, jede Schreibanfrage wartet im Mittel 190 ms.', falsch: ['sdb ist zu 99 % voll.', 'sdb hat Lesefehler.'], erklaerung: '%util misst Zeit, nicht Füllstand. Den Füllstand zeigt df.' },
+]} />
+
+## Wer quält die Platte?
+
+<Terminal id="platte" titel="Terminal: srv1 wartet" welt={{ host: 'srv1', last: { szenario: 'platte' } }} aufgaben={[
+  { text: 'Lass dir die Last zeigen.', befehl: '^uptime$|^w$' },
+  { text: 'Beobachte mit vmstat fünf Sekunden lang.', befehl: '^vmstat 1 5$|^vmstat -w 1 5$', frage: 'Wie viele Prozesse sind blockiert? (Spalte b ab der zweiten Zeile)', antwort: ['3'] },
+  { text: 'Lass dir die blockierten Prozesse zeigen: ps mit Zustand, PID und Befehl, gefiltert auf D.', befehl: "^ps -eo stat,pid,(cmd|args|comm)( \\| grep (-E )?['\"]?\\^D['\"]?)?$|^ps aux \\| (grep|awk).*D.*$" },
+  { text: 'Installiere sysstat und iotop.', zustand: 'paket-da:iostat && paket-da:iotop' },
+  { text: 'Miss die Platten mit iostat: erweitert, jede Sekunde, zwei Berichte.', befehl: '^iostat -x 1 2$|^iostat -xd 1 2$|^iostat -dx 1 2$', frage: 'Wie hoch ist %util von sda im zweiten Bericht ungefähr? (ganze Zahl)', antwort: ['99', '100'] },
+  { text: 'Finde mit iotop heraus, wer liest und schreibt. Nur Prozesse mit I/O, ein einziger Bericht.', befehl: '^iotop -o -b -n ?1$|^iotop -b -o -n ?1$|^iotop -bon ?1$|^iotop -obn ?1$', frage: 'Welches Programm ist es?', antwort: ['rsync'] },
+  { text: 'Lass dir mit pstree samt Argumenten zeigen, wer rsync gestartet hat.', befehl: '^pstree -(pa|ap|a)( \\| (grep|less|head).*)?$|^pstree -a -p$|^pstree -p -a$', frage: 'Welches Skript läuft da? (Pfad)', antwort: ['/usr/local/sbin/sicherung', 'sicherung'] },
+  { text: 'Die nächtliche Sicherung hängt noch von 2 Uhr. Halte den Dienst sicherung an, sie läuft heute Nacht neu.', zustand: 'lastprozess:4410=weg && last:wa<10' },
+]} />
+
+<Hinweis titel="Warum läuft die Sicherung noch?">
+Die Sicherung kopiert jede Nacht alle Dateien von /srv/daten, auch die, die sich nicht geändert haben. Das dauert inzwischen bis in den Vormittag. Bessere Wege: rsync nur geänderte Dateien vergleichen lassen statt alles zu lesen, die Sicherung mit `ionice -c3` als Leerlauf-I/O laufen lassen, oder einen Snapshot mit LVM sichern (Akt 5). Wie stark die Datenmenge wächst, untersuchst du in Mission 1.5.
+</Hinweis>
+
+<Labor id="labor" titel="Labor: I/O auf srv1 messen"
+  aufgabe="Erzeuge auf srv1 mit dd Schreiblast auf einer Zusatzplatte und miss sie gleichzeitig mit iostat. Füge die Ausgabe ein. Achtung: Nimm wirklich eine leere Zusatzplatte, dd überschreibt sie."
+  befehl={"sudo apt install -y sysstat iotop\n(sudo dd if=/dev/zero of=/dev/sdb bs=1M count=1500 oflag=direct status=none &)\niostat -x sdb 1 3"}
+  muster={["^Device\\s+r/s", "^sdb\\s+", "%util"]}
+  erfolg="Während dd läuft, steigen wkB/s und %util von sdb. oflag=direct umgeht den Cache, sonst würde dd zuerst nur in den Speicher schreiben." />
+
+<Hinweis titel="Prüfungstipp">
+Gefragt werden die Spalten von iostat -x, dass iotop Root-Rechte braucht, und die Spalte b von vmstat als „processes blocked on I/O“. Im Entwurf 5.0 stehen iostat, iotop, vmstat und sar unter 204.3.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Welche Option von iotop zeigt nur Prozesse, die gerade I/O machen?', richtig: '-o', falsch: ['-a', '-p'], erklaerung: '-a zeigt aufsummierte Werte, -p einen bestimmten Prozess.' },
+  { frage: 'Warum lässt sich ein Prozess im Zustand D oft nicht mit kill -9 beenden?', richtig: 'Er wartet im Kernel auf eine Ein- oder Ausgabe und nimmt Signale erst danach an.', falsch: ['Er gehört immer root.', 'Er ist bereits beendet.'], erklaerung: 'Hängt die Platte oder ein NFS-Server, bleibt er so lange in D.' },
+  { frage: 'Zu welchem Paket gehört iostat?', richtig: 'sysstat', falsch: ['procps', 'iotop'], erklaerung: 'procps liefert vmstat, top und free.' },
+]} />

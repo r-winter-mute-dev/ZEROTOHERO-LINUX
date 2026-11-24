@@ -1,0 +1,170 @@
+---
+id: l2-1-5
+checks:
+  - id: k1
+  - id: sammeln
+  - id: verlauf
+  - id: k2
+  - id: rechnen
+  - id: zuordnung
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "Sammeln (Debian)"
+    v: "apt install sysstat · ENABLED=\"true\" in /etc/default/sysstat · systemctl enable --now sysstat · Daten in /var/log/sysstat/saTT"
+  - t: "Auswerten"
+    v: "sar -u CPU · -r Speicher · -S Swap · -b und -d Platten · -n DEV Netz · -q Warteschlange und Last · -f /var/log/sysstat/sa20 · -s 08:00 -e 12:00"
+  - t: "Für Diagramme"
+    v: "sadf -d /var/log/sysstat/sa20 -- -r · Semikolon-CSV für Tabellen und gnuplot"
+  - t: "Wachstum"
+    v: "Zuwachs pro Zeit = (neu − alt) ÷ Zeitraum · Restkapazität ÷ Zuwachs = Zeit bis zur Grenze"
+  - t: "Überwachung"
+    v: "Nagios, Icinga2 (Alarme) · collectd (Werte sammeln) · MRTG, Cacti (Diagramme aus SNMP und RRD)"
+karten:
+  - f: "Welche Datei musst du auf Debian ändern, damit sysstat Daten sammelt?"
+    a: ["/etc/default/sysstat"]
+  - f: "Wo legt sysstat auf Debian seine Tagesdateien ab?"
+    a: ["/var/log/sysstat", "/var/log/sysstat/"]
+  - f: "Mit welcher Option liest sar eine ältere Tagesdatei?"
+    a: ["-f"]
+  - f: "Welche sar-Option zeigt den Speicherverlauf?"
+    a: ["-r"]
+  - f: "Welche sar-Option zeigt Warteschlange und Last?"
+    a: ["-q"]
+  - f: "Mit welchem Befehl wandelst du sar-Daten in CSV um?"
+    a: ["sadf -d", "sadf"]
+  - f: "Welche zwei Programme sind klassische Werkzeuge für Alarme bei Störungen?"
+    a: ["nagios und icinga", "icinga2 und nagios", "nagios, icinga2"]
+  - f: "Welche Programme zeichnen Diagramme aus SNMP-Werten und RRD-Dateien?"
+    a: ["mrtg und cacti", "cacti und mrtg"]
+  - f: "Was sammelt collectd?"
+    a: ["messwerte des systems in regelmäßigen abständen", "systemstatistiken"]
+  - f: "Wie rechnest du aus, wann eine Platte voll ist?"
+    a: ["freier platz geteilt durch zuwachs pro monat", "restkapazität ÷ wachstum"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Lueckentext from '../components/Lueckentext.astro';
+import Zuordnung from '../components/Zuordnung.astro';
+
+Bisher hast du Feuer gelöscht. Die Chefin will wissen, wann es wieder brennt: „Wie lange reicht die Platte für /srv/daten noch, und wann ist der Speicher wieder voll?“ **Deine Mission: Sammle Messwerte über lange Zeit, lies Verläufe, rechne das Wachstum hoch und kenne die Werkzeuge, mit denen Firmen das dauerhaft überwachen.** Lernziel 200.2.
+
+## Messwerte sammeln
+
+<Karte nr={1} titel="sysstat: sadc sammelt, sar zeigt">
+Alle bisherigen Werkzeuge zeigen das Jetzt. Für eine Vorhersage brauchst du die Vergangenheit. Das Paket **sysstat** bringt dafür **sadc** mit: Es speichert alle zehn Minuten einen Schnappschuss von CPU, Speicher, Platten und Netz in eine Tagesdatei, auf Debian `/var/log/sysstat/saTT` (TT = Tag des Monats). Wie viele Tage es aufhebt, steht in `/etc/sysstat/sysstat` (HISTORY, auf Debian 7).
+
+Auf Debian muss das Sammeln eingeschaltet sein. Prüf nach der Installation die Zeile `ENABLED` in **/etc/default/sysstat**: Steht dort `"false"`, setzt du sie auf `"true"` und startest mit `systemctl enable --now sysstat`. Ab dann wächst der Verlauf. Werte von vorher gibt es nicht. Wer erst sammelt, wenn es brennt, hat keine Vorgeschichte.
+
+**sar** liest diese Dateien:
+
+| Aufruf | Zeigt |
+|---|---|
+| `sar` oder `sar -u` | CPU über den Tag |
+| `sar -r` | Speicher, mit %memused |
+| `sar -S` | Swap |
+| `sar -b`, `sar -d` | Platten gesamt, pro Gerät |
+| `sar -n DEV` | Netz pro Schnittstelle |
+| `sar -q` | Warteschlange und Last |
+| `sar -f /var/log/sysstat/sa20` | einen anderen Tag |
+| `sar -s 08:00 -e 12:00` | nur ein Zeitfenster |
+| `sar -r 1 5` | live, wie vmstat |
+
+`sadf -d datei -- -r` gibt dieselben Werte als CSV mit Semikolons aus. Daraus zeichnet eine Tabellenkalkulation oder gnuplot ein Diagramm.
+</Karte>
+
+<Merke>sysstat sammelt mit sadc alle 10 Minuten nach /var/log/sysstat/saTT. Debian: ENABLED="true" in /etc/default/sysstat. sar -u, -r, -S, -b, -d, -n DEV, -q, -f für andere Tage, sadf -d für CSV.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: sar" fragen={[
+  { frage: 'sar meldet „Bitte prüfen Sie, ob die Datensammlung aktiviert ist“. Was tust du auf Debian?', richtig: 'In /etc/default/sysstat ENABLED="true" setzen und den Dienst sysstat aktivieren', falsch: ['sar mit Root-Rechten starten', 'sysstat neu installieren'], erklaerung: 'Ohne Sammler gibt es keine Tagesdateien. Live-Messungen mit sar 1 5 gehen trotzdem.' },
+]} />
+
+<Terminal id="sammeln" titel="Terminal: Ab heute wird gemessen" welt={{ host: 'srv1', last: { szenario: 'ruhig' } }} aufgaben={[
+  { text: 'Installiere sysstat.', zustand: 'paket-da:sar' },
+  { text: 'Versuch, mit sar die CPU von heute anzuzeigen.', befehl: '^sar( -u)?$', auchFehler: true },
+  { text: 'Lass dir die Zeile ENABLED in <code>/etc/default/sysstat</code> zeigen.', befehl: '^grep ENABLED /etc/default/sysstat$|^cat /etc/default/sysstat$', frage: 'Welcher Wert steht dort?', antwort: ['"false"', 'false'] },
+  { text: 'Schalte das Sammeln ein und starte den Dienst so, dass er auch nach einem Neustart läuft.', zustand: 'datei:/etc/default/sysstat~^ENABLED="true"$ && sysstat:an' },
+  { text: 'Versuch es noch einmal mit sar.', befehl: '^sar( -u)?$' },
+  { text: 'Live geht es sofort: Miss die CPU jede Sekunde, fünfmal.', befehl: '^sar( -u)? 1 5$' },
+]} />
+
+<Terminal id="verlauf" titel="Terminal: Der Speicher von srv1 über eine Woche" welt={{ host: 'srv1', last: { szenario: 'speicher', sysstat: 'an' } }} aufgaben={[
+  { text: 'Lass dir zeigen, welche Tagesdateien es gibt.', befehl: '^ls( -l)? /var/log/sysstat/?$' },
+  { text: 'Lass dir den Speicherverlauf von heute zeigen.', befehl: '^sar -r$', frage: 'Wie hoch war %memused um 08:00?', antwort: ['94,50', '94,5', '94.50', '94.5'] },
+  { text: 'Lass dir den Speicherverlauf von vor drei Tagen zeigen, dem 20. November.', befehl: '^sar -r -f /var/log/sysstat/sa20$|^sar -f /var/log/sysstat/sa20 -r$', frage: 'Ungefähr wie viel %memused waren es um 10:00? (ganze Zahl)', antwort: ['43'] },
+  { text: 'Lass dir den Swap von heute zeigen.', befehl: '^sar -S$' },
+  { text: 'Exportier den Speicherverlauf von heute als CSV.', befehl: '^sadf -d( /var/log/sysstat/sa23)? -- -r$' },
+]} />
+
+## Vorhersagen
+
+<Karte nr={2} titel="Wachstum, Grenze, Zeitpunkt">
+Vor jeder Vorhersage steht die **Diagnose**: Was ist knapp, und warum? Ein Speicherleck braucht einen Patch, keine neue Hardware. Erst wenn die Ursache echtes Wachstum ist, rechnest du hoch. Eine Vorhersage braucht drei Dinge:
+
+1. **Die Grenze:** Ab wann wird es eng? Eine Platte ist nicht erst bei 100 % voll, ab etwa 90 % leiden viele Dateisysteme und Datenbanken. Speicher ist voll, wenn available gegen null geht und geswappt wird. Eine CPU ist voll, wenn die Last dauerhaft über der Zahl der Kerne liegt.
+2. **Das Wachstum:** Wie schnell nähert sich der Wert der Grenze? Bei stetigem Wachstum rechnest du **(neuer Wert − alter Wert) ÷ Zeitraum**.
+3. **Der Zeitpunkt:** **Restkapazität ÷ Wachstum** ergibt, wann die Grenze erreicht ist. Das ist der **Bruchpunkt** (capacity break point) der jetzigen Ausstattung.
+
+Wichtig ist der Blick auf den Verlauf, nicht auf zwei einzelne Werte. Ein Diagramm zeigt, ob das Wachstum gerade, beschleunigt oder in Stufen verläuft. Saisonale Spitzen wie der Monatsabschluss können eine gerade Linie täuschen. Und eine Vorhersage ist eine Schätzung. Plane Puffer ein und miss weiter.
+</Karte>
+
+<Merke>Grenze festlegen (Platte etwa 90 %), Wachstum = Zuwachs ÷ Zeit, Bruchpunkt = Restkapazität ÷ Wachstum. Verlauf als Diagramm anschauen, Puffer einplanen, weiter messen.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: Vorhersage" fragen={[
+  { frage: 'Eine Platte mit 1000 GB ist zu 700 GB belegt und wächst um 20 GB pro Monat. Ab 900 GB soll gewarnt werden. Wann ist das erreicht?', richtig: 'In etwa 10 Monaten', falsch: ['In etwa 15 Monaten', 'In etwa 35 Monaten'], erklaerung: '(900 − 700) ÷ 20 = 10. Bis ganz voll wären es 15 Monate.' },
+]} />
+
+<Lueckentext id="rechnen" titel="Rechnen: Wann ist /srv/daten voll?" aufgabe="In /var/log/kapazitaet/srv-daten.csv steht die Belegung von /srv/daten am Monatsende: Dezember 2025 waren es 1012 GiB, November 2026 sind es 1399 GiB. Die Platte hat 1863 GiB nutzbar. Rechne mit ganzen Zahlen."
+  code={`Zuwachs in 11 Monaten:          1399 − 1012 = ___ GiB
+Zuwachs pro Monat (gerundet):   ___ GiB
+Grenze 90 % von 1863 GiB:       ___ GiB (gerundet)
+Bis zur Grenze fehlen:          ___ GiB
+Grenze erreicht in etwa:        ___ Monaten`}
+  luecken={[{ loesungen: ['387'] }, { loesungen: ['35'] }, { loesungen: ['1677'] }, { loesungen: ['278'] }, { loesungen: ['8'] }]} />
+
+<Hinweis titel="Was heißt das für die Chefin?">
+Bei gleichbleibendem Wachstum ist die Warnschwelle in etwa acht Monaten erreicht, also im Sommer 2027. Ganz voll wäre die Platte nach etwa 13 Monaten. Eine größere Platte oder ein zweites Volume (LVM, Akt 5) sollte also im Frühjahr bestellt werden, mit Puffer für Lieferzeit und Umzug.
+</Hinweis>
+
+## Dauerhaft überwachen
+
+<Karte nr={3} titel="Nagios, Icinga2, collectd, MRTG, Cacti">
+Für ein ganzes Netz misst man nicht auf jedem Rechner von Hand. Dafür gibt es Überwachungssysteme. Für die Prüfung musst du wissen, wofür sie stehen:
+
+- **Nagios** und sein Nachfolger **Icinga2** prüfen in festen Abständen, ob Dienste antworten und Werte in Ordnung sind (über kleine Prüfprogramme, „Plugins“, etwa `check_disk`), und alarmieren per Mail oder Chat, wenn eine Schwelle überschritten ist. Schwerpunkt: Störungen erkennen.
+- **collectd** ist ein Dienst, der auf jedem Rechner regelmäßig Messwerte sammelt (CPU, Speicher, Platten, Netz und vieles mehr) und speichert oder an einen zentralen Server schickt. Schwerpunkt: Daten für Verläufe.
+- **MRTG** (Multi Router Traffic Grapher) und **Cacti** zeichnen Verläufe als Diagramme, klassisch für den Netzverkehr von Routern und Switches, die Werte per **SNMP** abfragen. Cacti speichert in **RRD**-Dateien (Round Robin Database), die mit der Zeit verdichten: Minutenwerte für Tage, Stundenwerte für Monate.
+
+Heute sind auch Prometheus mit Grafana oder Zabbix verbreitet. Das Prinzip ist dasselbe: sammeln, speichern, zeichnen, bei Schwellen alarmieren.
+</Karte>
+
+<Merke>Nagios, Icinga2: prüfen und alarmieren. collectd: Messwerte sammeln. MRTG, Cacti: Diagramme, oft aus SNMP, gespeichert in RRD.</Merke>
+
+<Zuordnung id="zuordnung" titel="Zuordnung: Wer macht was?" aufgabe="Ordne jedem Programm seine Hauptaufgabe zu." paare={[
+  { links: 'Icinga2', rechts: 'Dienste prüfen und bei Störungen alarmieren' },
+  { links: 'collectd', rechts: 'Messwerte auf jedem Rechner sammeln' },
+  { links: 'MRTG', rechts: 'Netzverkehr von Routern als Diagramm' },
+  { links: 'Cacti', rechts: 'Diagramme aus RRD-Dateien über eine Weboberfläche' },
+  { links: 'sar', rechts: 'gesammelte Werte eines Rechners auf der Kommandozeile' },
+]} />
+
+<Labor id="labor" titel="Labor: Sammeln auf srv1"
+  aufgabe="Schalte auf srv1 das Sammeln mit sysstat ein und lass es mindestens eine Stunde laufen. Lies dann den Verlauf. Füge die Ausgabe ein."
+  befehl={"sudo apt install -y sysstat\ngrep ENABLED /etc/default/sysstat\nsudo sed -i 's/^ENABLED=.*/ENABLED=\"true\"/' /etc/default/sysstat\nsudo systemctl enable --now sysstat\n# eine Stunde später:\nsar -u | tail -4\nsar -r | tail -3"}
+  muster={["^ENABLED=\"(true|false)\"", "(Average|Durchschnitt):", "%memused|kbmemused"]}
+  erfolg="Ab jetzt hat srv1 eine Vorgeschichte. Lass das Sammeln für den Rest des Kurses an, spätere Missionen greifen darauf zurück." />
+
+<Hinweis titel="Prüfungstipp und Version 5.0">
+Gefragt werden Begriffe wie Wachstumsrate, Bruchpunkt und Ressourcenerschöpfung, das Sammeln mit sar und die Namen der Überwachungslösungen mit ihrer Rolle. Im Entwurf 5.0 fällt dieses Lernziel weg: Dort stehen weder Vorhersage noch Nagios, Icinga, collectd, MRTG oder Cacti. sar bleibt, unter 204.3.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Mit welchem Befehl zeigst du die Last und die Warteschlange von gestern, Tagesdatei sa22?', richtig: 'sar -q -f /var/log/sysstat/sa22', falsch: ['sar -q 22', 'uptime -f /var/log/sysstat/sa22'], erklaerung: 'Ohne -f liest sar die Datei von heute.' },
+  { frage: 'Welche Software ist vor allem dafür gedacht, bei einer Störung Alarm zu schlagen?', richtig: 'Icinga2', falsch: ['MRTG', 'collectd'], erklaerung: 'MRTG zeichnet Diagramme, collectd sammelt Werte.' },
+  { frage: 'Der Speicher von srv1 wächst seit dem letzten Neustart von messd um etwa 17 Prozentpunkte am Tag und liegt jetzt bei 94 %. Was folgt daraus?', richtig: 'Der Dienst hat ein Leck und braucht spätestens alle paar Tage einen Neustart, bis das Update kommt.', falsch: ['srv1 braucht sofort mehr Kerne.', 'Der Cache ist zu groß eingestellt.'], erklaerung: 'Ein gleichmäßiges Wachstum seit einem Neustart ist das typische Muster eines Speicherlecks.' },
+]} />

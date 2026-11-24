@@ -1,0 +1,139 @@
+---
+id: l2-1-2
+checks:
+  - id: k1
+  - id: luecke
+  - id: k2
+  - id: speicher
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "free -h"
+    v: "used, free, buff/cache · available = was Programme noch bekommen können"
+  - t: "Swap"
+    v: "swapon --show · free · /proc/swaps · vmstat: swpd belegt, si/so pro Sekunde ein- und ausgelagert"
+  - t: "vmstat 1 5"
+    v: "erste Zeile seit dem Start · r läuft · b blockiert · si so Swap · bi bo Blöcke von und zur Platte · wa"
+  - t: "Wer frisst?"
+    v: "ps aux --sort=-rss | head · top, dann M · systemctl status dienst (Memory)"
+  - t: "Wenn nichts mehr geht"
+    v: "OOM-Killer beendet Prozesse · journalctl -k | grep -i 'out of memory'"
+karten:
+  - f: "Welche Spalte von free zeigt, wie viel Speicher Programme noch bekommen können?"
+    a: ["available"]
+  - f: "Warum ist wenig free bei Linux meistens kein Problem?"
+    a: ["weil der kernel freien speicher als cache nutzt und ihn bei bedarf wieder hergibt", "cache wird freigegeben"]
+    aufdecken: true
+  - f: "Was zeigen die Spalten si und so in vmstat?"
+    a: ["ein- und auslagern pro sekunde", "swap in und swap out", "kib pro sekunde von und zum swap"]
+  - f: "Warum ist die erste Zeile von vmstat mit Vorsicht zu lesen?"
+    a: ["sie zeigt mittelwerte seit dem start", "durchschnitt seit dem booten"]
+  - f: "Mit welchem Befehl zeigst du die aktiven Swap-Bereiche?"
+    a: ["swapon --show", "swapon -s", "cat /proc/swaps"]
+  - f: "Mit welchem ps-Aufruf findest du die Prozesse mit dem meisten Arbeitsspeicher?"
+    a: ["ps aux --sort=-rss", "ps aux --sort=-%mem", "ps -eo pid,rss,cmd --sort=-rss"]
+  - f: "Was tut der OOM-Killer?"
+    a: ["er beendet prozesse, wenn kein speicher mehr frei ist", "beendet prozesse bei speichermangel"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Lueckentext from '../components/Lueckentext.astro';
+
+Diesmal ist es nicht die CPU. srv1 reagiert träge, Anmelden per SSH dauert Sekunden, aber top zeigt kaum Rechenlast. **Deine Mission: Lies den Speicher richtig, erkenne, wann Swap zum Problem wird, und finde den Dienst, der immer mehr Speicher verbraucht.** Lernziel 200.1.
+
+## Freier Speicher ist verschwendeter Speicher
+
+<Karte nr={1} titel="free richtig lesen">
+```
+               total        used        free      shared  buff/cache   available
+Mem:           7,8Gi       1,8Gi       818Mi        51Mi       5,2Gi       4,3Gi
+Swap:          2,0Gi          0B       2,0Gi
+```
+
+Nur 818 MiB **free**? Kein Grund zur Sorge. Linux nutzt Speicher, den gerade niemand braucht, als **Cache** für Dateien (buff/cache). Will ein Programm mehr Speicher, gibt der Kernel den Cache sofort wieder her. Die wichtige Spalte ist **available**: So viel können Programme noch bekommen, ohne dass etwas ausgelagert werden muss.
+
+Wird es eng, lagert der Kernel selten genutzte Seiten in den **Swap** aus. Ein bisschen belegter Swap ist harmlos, wenn die Seiten dort einfach liegen bleiben. Schlimm wird es, wenn ständig aus- und wieder eingelagert wird. Dann wartet jeder Prozess auf die Platte, der Rechner wird zäh, und der Kernel-Thread **kswapd** taucht in top auf. Ist auch der Swap voll, beendet der **OOM-Killer** (out of memory) einen Prozess, meist den größten. Das steht dann im Kernel-Protokoll (`journalctl -k`).
+</Karte>
+
+<Merke>free wenig ist normal, available zählt. Swap belegt ist harmlos, ständiges Ein- und Auslagern (si, so) nicht. Ist alles voll, beendet der OOM-Killer einen Prozess.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: free" fragen={[
+  { frage: 'free zeigt 300 MiB free, 6 GiB buff/cache und 6,2 GiB available. Ist der Speicher knapp?', richtig: 'Nein. Der Cache wird bei Bedarf freigegeben, Programme können noch 6,2 GiB bekommen.', falsch: ['Ja, nur 300 MiB sind frei.', 'Ja, der Cache muss sofort geleert werden.'], erklaerung: 'Den Cache leert man nicht von Hand. Er macht Dateizugriffe schneller.' },
+]} />
+
+## vmstat
+
+<Karte nr={2} titel="Ein Werkzeug für alles auf einmal">
+**vmstat** zeigt in einer Zeile Prozesse, Speicher, Swap, Platten-I/O, Interrupts und CPU. `vmstat 1 5` gibt fünf Zeilen im Abstand von einer Sekunde aus.
+
+```
+procs -----------memory---------- ---swap-- -----io---- -system-- ------cpu-----
+ r  b   swpd   free   buff  cache   si   so    bi    bo   in   cs us sy id wa st
+ 0  1 504924 376300   4100  27000  742  985   805  1141  231  380  7  3 85  5  0
+```
+
+| Spalte | Bedeutung |
+|---|---|
+| r | Prozesse, die laufen oder auf einen Kern warten |
+| b | Prozesse, die **blockiert** auf Ein- oder Ausgabe warten (Zustand D) |
+| swpd | belegter Swap in KiB |
+| free, buff, cache | Speicher in KiB |
+| si, so | **swap in, swap out**: KiB pro Sekunde aus dem Swap geholt bzw. hineingeschrieben |
+| bi, bo | **blocks in, blocks out**: Blöcke pro Sekunde von der Platte gelesen bzw. auf sie geschrieben |
+| in, cs | Interrupts und Kontextwechsel pro Sekunde |
+| us sy id wa st | wie in top |
+
+**Achtung:** Die **erste Zeile** zeigt Mittelwerte seit dem Start des Rechners. Für den aktuellen Zustand liest du ab der zweiten Zeile. Ohne Intervall gibt vmstat nur diese eine, wenig hilfreiche Zeile aus.
+
+`vmstat -s` zeigt Zähler als Liste, `vmstat -d` Statistiken pro Platte, `vmstat -S M` Werte in MiB.
+</Karte>
+
+<Merke>vmstat 1 5, erste Zeile ignorieren. r läuft, b blockiert. si/so: Swap pro Sekunde, dauerhaft über null ist schlecht. bi/bo: Blöcke von und zur Platte.</Merke>
+
+<Lueckentext id="luecke" titel="Lückentext: vmstat lesen" aufgabe="Ergänze die Bedeutung der Spalten."
+  code={`r    Prozesse, die ___ oder auf einen Kern warten
+b    Prozesse, die auf Ein- oder Ausgabe warten (Zustand ___)
+si   KiB pro Sekunde aus dem ___ geholt
+bo   Blöcke pro Sekunde auf die ___ geschrieben`}
+  luecken={[{ loesungen: ['laufen', 'rechnen'] }, { loesungen: ['D'] }, { loesungen: ['Swap', 'swap'] }, { loesungen: ['Platte', 'Festplatte', 'platte'] }]} />
+
+<Quiz id="k2" titel="Kurzcheck: vmstat" fragen={[
+  { frage: 'vmstat 1 5 zeigt ab der zweiten Zeile si = 800 und so = 1000. Was passiert?', richtig: 'Der Rechner lagert ständig ein und aus, weil der Speicher nicht reicht.', falsch: ['Die Platte schreibt Sicherungen.', 'Das ist normales Verhalten bei viel Cache.'], erklaerung: 'Das nennt man Thrashing. Abhilfe: den Verbraucher finden oder mehr RAM.' },
+]} />
+
+## Der Speicherfresser
+
+<Terminal id="speicher" titel="Terminal: Wohin ist der Speicher?" welt={{ host: 'srv1', last: { szenario: 'speicher' } }} aufgaben={[
+  { text: 'Lass dir den Speicher lesbar zeigen.', befehl: '^free -h$|^free -m$', frage: 'Wie viel kann ein Programm noch bekommen? (Spalte available, mit Einheit wie angezeigt)', antwort: ['386Mi', '386 Mi', '386', '386MiB'] },
+  { text: 'Lass dir die aktiven Swap-Bereiche zeigen.', befehl: '^swapon --show$|^swapon -s$|^cat /proc/swaps$', frage: 'Wie heißt das Swap-Gerät?', antwort: ['/dev/sda3'] },
+  { text: 'Beobachte mit vmstat fünf Sekunden lang, im Abstand von einer Sekunde.', befehl: '^vmstat 1 5$|^vmstat -w 1 5$', frage: 'Wird gerade ständig ausgelagert? (ja/nein)', antwort: ['ja'] },
+  { text: 'Finde den Prozess mit dem meisten Arbeitsspeicher.', befehl: '^ps aux --sort=-(rss|%mem|pmem)( \\| head.*)?$|^ps -eo [\\w,%]+ --sort=-(rss|%mem|pmem)( \\| head.*)?$', frage: 'Wie heißt der Dienst dahinter? Schau in die Spalte COMMAND.', antwort: ['messd', 'messd.jar', 'java'] },
+  { text: 'Lass dir den Status des Dienstes messd zeigen.', befehl: '^systemctl status messd(\\.service)?$', frage: 'Seit wann läuft er? (Wochentag, englisch abgekürzt)', antwort: ['Sat', 'sat'] },
+  { text: 'messd hat ein bekanntes Speicherleck, ein Update kommt nächste Woche. Starte den Dienst neu, damit srv1 heute wieder atmet.', zustand: 'lastprozess:2870=weg && last:swap<100' },
+  { text: 'Prüf mit vmstat, ob noch ausgelagert wird.', befehl: '^vmstat 1 [3-9]$|^vmstat -w 1 [3-9]$' },
+]} />
+
+<Hinweis titel="Neustart ist keine Lösung">
+Der Neustart von messd kauft dir Zeit. Das Leck bleibt, und in drei Tagen ist der Speicher wieder voll. In Mission 1.5 rechnest du aus, wann genau. Bis das Update kommt, könntest du dem Dienst eine Obergrenze setzen, etwa mit `MemoryMax=` in der Unit-Datei. Dann trifft der OOM-Killer messd und nicht die Datenbank.
+</Hinweis>
+
+<Labor id="labor" titel="Labor: Speicher und Swap auf srv1"
+  aufgabe="Lass dir auf srv1 den Speicher, den Swap und fünf Zeilen vmstat zeigen. Füge die Ausgabe ein."
+  befehl={"free -h\nswapon --show\nvmstat 1 5\nps aux --sort=-rss | head -4"}
+  muster={["^Mem:", "^(NAME|/dev/)", "^\\s*r\\s+b\\s+swpd", "^USER\\s+PID"]}
+  erfolg="Auf einer frischen VM sind si und so null, und der größte Prozess ist meist systemd-journald oder ein Paketverwaltungsrest." />
+
+<Hinweis titel="Prüfungstipp">
+Gefragt werden die Spalten von vmstat (vor allem r, b, si, so, bi, bo, wa), dass die erste Zeile Mittelwerte seit dem Start zeigt, und die Spalte available von free. „Blocks in“, „blocks out“ und „processes blocked on I/O“ stehen wörtlich in den Lernzielen.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Welche vmstat-Spalten zeigen den Verkehr zwischen Speicher und Swap?', richtig: 'si und so', falsch: ['bi und bo', 'in und cs'], erklaerung: 'bi und bo sind der Verkehr mit der Platte insgesamt.' },
+  { frage: 'Was zeigt die erste Ausgabezeile von vmstat 1 5?', richtig: 'Mittelwerte seit dem Start des Rechners', falsch: ['Die Werte der ersten Sekunde', 'Den höchsten Wert der letzten Minute'], erklaerung: 'Ab der zweiten Zeile kommen die aktuellen Werte.' },
+  { frage: 'Der Speicher ist voll, der Swap auch. Was tut der Kernel?', richtig: 'Der OOM-Killer beendet einen Prozess, meist den mit dem größten Speicherbedarf.', falsch: ['Er startet den Rechner neu.', 'Er legt automatisch eine neue Swap-Datei an.'], erklaerung: 'Was beendet wurde, steht im Kernel-Protokoll.' },
+]} />

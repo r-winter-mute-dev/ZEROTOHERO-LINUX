@@ -1,0 +1,150 @@
+---
+id: l2-0-2
+checks:
+  - id: k1
+  - id: zuordnung
+  - id: k2
+  - id: router
+    hardware: true
+  - id: server
+    hardware: true
+  - id: client
+    hardware: true
+  - id: k3
+spick:
+  - t: "Netz „firma“"
+    v: "192.168.50.0/24 · gw .1 · srv1 .10 · client1 .20"
+  - t: "gw (Router)"
+    v: "Debian 12 ohne Desktop, 1 GB RAM · Adapter 1 NAT (enp0s3) · Adapter 2 internes Netz firma (enp0s8)"
+  - t: "srv1 (Server)"
+    v: "Debian 12 ohne Desktop, 2 GB RAM · ein Adapter im internen Netz · drei Zusatzplatten zu je 2 GB"
+  - t: "client1"
+    v: "Debian 12 mit Xfce oder AlmaLinux 9, 2 GB RAM · ein Adapter im internen Netz"
+  - t: "Routing an"
+    v: "/etc/sysctl.d/90-router.conf: net.ipv4.ip_forward = 1 · sysctl --system"
+  - t: "NAT"
+    v: "/etc/nftables.conf: table ip nat, chain postrouting, oifname \"enp0s3\" masquerade · systemctl enable --now nftables"
+  - t: "Feste Adresse (Debian)"
+    v: "/etc/network/interfaces: iface enp0s3 inet static, address 192.168.50.10/24, gateway 192.168.50.1"
+karten:
+  - f: "Welche sysctl-Einstellung macht aus Linux einen Router?"
+    a: ["net.ipv4.ip_forward = 1", "net.ipv4.ip_forward=1", "ip_forward"]
+  - f: "Wie heißt das nftables-Ziel, das private Adressen hinter der Adresse des Routers versteckt?"
+    a: ["masquerade"]
+  - f: "In welchem Netz liegen die drei Labor-Maschinen?"
+    a: ["192.168.50.0/24"]
+  - f: "Warum hängt nur der Router am NAT-Adapter von VirtualBox?"
+    a: ["damit aller verkehr nach außen über den router läuft", "damit der router das einzige tor nach draußen ist"]
+    aufdecken: true
+  - f: "Wofür bekommt srv1 drei zusätzliche Platten?"
+    a: ["für raid und lvm", "raid und lvm"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Labor from '../components/Labor.astro';
+import Zuordnung from '../components/Zuordnung.astro';
+
+In LPIC-1 hat ein Rechner gereicht. Für LPIC-2 brauchst du ein Netz: Ein Nameserver ist sinnlos, wenn niemand ihn fragt, und eine Firewall, wenn nichts durch sie hindurchgeht. **Deine Mission: Baue ein kleines Firmennetz aus drei virtuellen Maschinen, mit einem Router, der den Weg ins Internet freigibt.**
+
+## Der Plan
+
+<Karte nr={1} titel="Drei Maschinen, ein eigenes Netz">
+```
+         Internet
+            │
+   ┌────────┴────────┐   NAT-Adapter von VirtualBox (enp0s3, Adresse per DHCP)
+   │  gw    (Router) │
+   └────────┬────────┘   internes Netz „firma“ (enp0s8) 192.168.50.1
+            │
+     ┌──────┴───────┐
+ ┌───┴────┐    ┌────┴─────┐
+ │ srv1   │    │ client1  │
+ │ .10    │    │ .20      │
+ └────────┘    └──────────┘
+```
+
+- **gw** ist der Router: Debian 12 ohne Desktop, 1 GB RAM. Er hat zwei Netzwerkadapter: Adapter 1 hängt am **NAT** von VirtualBox und kommt damit ins Internet, Adapter 2 hängt im **internen Netz** mit dem Namen `firma`.
+- **srv1** ist der Server: Debian 12 ohne Desktop, 2 GB RAM, ein Adapter im internen Netz `firma`. Gib ihm gleich **drei zusätzliche virtuelle Platten** zu je 2 GB. Die brauchst du in Akt 5 für RAID und LVM.
+- **client1** ist der Arbeitsplatz: Debian 12 mit Xfce oder AlmaLinux 9, 2 GB RAM, ein Adapter im internen Netz.
+
+Ein internes Netz in VirtualBox ist wie ein Switch, an dem nur deine VMs hängen. Es gibt dort keinen DHCP-Server und keinen Weg nach draußen. Den Weg baust du selbst, mit gw. Andere Programme nennen das anders, etwa „isoliertes Netz“ oder „Host Only“. Wichtig ist nur: ein Netz, in dem allein deine VMs hängen. Auch die Namen der Schnittstellen können dann anders lauten, `ip -br link` zeigt sie dir.
+</Karte>
+
+<Merke>192.168.50.0/24: gw .1, srv1 .10, client1 .20. Nur gw hängt zusätzlich am NAT von VirtualBox. srv1 hat drei Zusatzplatten für RAID und LVM.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: Aufbau" fragen={[
+  { frage: 'Warum bekommen srv1 und client1 keinen NAT-Adapter?', richtig: 'Weil ihr gesamter Verkehr nach draußen über den Router gw laufen soll.', falsch: ['Weil NAT-Adapter nur unter Windows funktionieren.', 'Weil sie sonst keine feste Adresse haben können.'], erklaerung: 'Nur so kannst du später Firewall, Proxy und Messungen am Router üben.' },
+]} />
+
+<Zuordnung id="zuordnung" titel="Zuordnung: Wer ist wer?" aufgabe="Ordne jeder Maschine ihre Adresse im Netz firma zu." paare={[
+  { links: 'gw', rechts: '192.168.50.1' },
+  { links: 'srv1', rechts: '192.168.50.10' },
+  { links: 'client1', rechts: '192.168.50.20' },
+]} />
+
+## Den Router einrichten
+
+<Karte nr={2} titel="Weiterleiten und maskieren">
+Ein Linux-Rechner leitet Pakete zwischen seinen Schnittstellen nur weiter, wenn man es ihm erlaubt. Das steuert die Kernel-Einstellung **`net.ipv4.ip_forward`**. Damit das dauerhaft gilt, kommt sie in eine Datei unter `/etc/sysctl.d/`:
+
+```
+# /etc/sysctl.d/90-router.conf
+net.ipv4.ip_forward = 1
+```
+
+`sudo sysctl --system` liest alle diese Dateien sofort ein.
+
+Weiterleiten reicht noch nicht. Die Adressen 192.168.50.x sind privat, das Internet kennt keinen Rückweg dorthin. Darum ersetzt der Router beim Hinausgehen die Absenderadresse durch seine eigene und merkt sich die Verbindung (**NAT**, hier in der Form **Masquerading**). Das erledigt **nftables**, die Firewall des Kernels:
+
+```
+#!/usr/sbin/nft -f
+# /etc/nftables.conf auf gw
+flush ruleset
+
+table ip nat {
+    chain postrouting {
+        type nat hook postrouting priority srcnat; policy accept;
+        oifname "enp0s3" masquerade
+    }
+}
+```
+
+`sudo systemctl enable --now nftables` lädt die Regeln jetzt und bei jedem Start. Die feste Adresse für enp0s8 trägst du in `/etc/network/interfaces` ein, siehe Spickzettel. Mehr über Router und Firewall kommt in Akt 13.
+</Karte>
+
+<Merke>ip_forward = 1 in /etc/sysctl.d/, sysctl --system. NAT: nftables-Regel masquerade für die Schnittstelle nach draußen, systemctl enable --now nftables.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: Router" fragen={[
+  { frage: 'srv1 erreicht gw, aber kein Paket kommt im Internet an. Weiterleiten ist eingeschaltet. Was fehlt am wahrscheinlichsten?', richtig: 'Das Masquerading, damit Antworten den Weg zurück finden', falsch: ['Eine zweite Netzwerkkarte in srv1', 'Ein DNS-Eintrag für gw'], erklaerung: 'Ohne NAT gehen Pakete mit privater Absenderadresse hinaus, und niemand kann darauf antworten.' },
+]} />
+
+<Labor id="router" titel="Labor: gw als Router"
+  aufgabe="Installier gw mit zwei Adaptern, gib enp0s8 die Adresse 192.168.50.1/24, schalte das Weiterleiten ein und richte das Masquerading ein. Mach danach einen Snapshot „Router fertig“. Füge die Ausgabe ein."
+  befehl={"ip -br addr\nsysctl net.ipv4.ip_forward\nsudo nft list ruleset | grep masquerade\nsystemctl is-enabled nftables"}
+  muster={["^enp0s8\\s+UP\\s+192\\.168\\.50\\.1/24", "^net\\.ipv4\\.ip_forward = 1", "oifname \"enp0s3\" masquerade", "^enabled"]}
+  erfolg="gw leitet jetzt weiter und versteckt das Netz firma hinter seiner eigenen Adresse." />
+
+## Server und Client
+
+<Labor id="server" titel="Labor: srv1 im Netz"
+  aufgabe="Installier srv1 mit einem Adapter im internen Netz firma und drei Zusatzplatten zu je 2 GB. Trag in /etc/network/interfaces die Adresse 192.168.50.10/24 und das Gateway 192.168.50.1 ein, in /etc/resolv.conf den Nameserver 9.9.9.9. Starte danach neu. Füge die Ausgabe ein."
+  befehl={"ip -br addr\nip route | head -1\nping -c 2 9.9.9.9 | tail -2\nping -c 1 deb.debian.org | head -1\nlsblk -d -o NAME,SIZE"}
+  muster={["192\\.168\\.50\\.10/24", "^default via 192\\.168\\.50\\.1 ", "2 (packets transmitted|Pakete übertragen), 2 (received|empfangen)", "^PING deb\\.debian\\.org", "^sd[bcd]\\s+2G"]}
+  erfolg="srv1 kommt über gw ins Internet und hat die Platten für Akt 5. Mach einen Snapshot „Grundaufbau“." />
+
+<Labor id="client" titel="Labor: client1 im Netz"
+  aufgabe="Installier client1 mit einem Adapter im internen Netz firma. Gib ihm die Adresse 192.168.50.20/24, Gateway 192.168.50.1 und Nameserver 9.9.9.9. Auf AlmaLinux geht das mit nmcli, auf Debian mit Xfce ebenfalls über NetworkManager. Füge die Ausgabe ein."
+  befehl={"ip -br addr\nping -c 2 192.168.50.10 | tail -2\nping -c 2 9.9.9.9 | tail -2"}
+  muster={["192\\.168\\.50\\.20/24", "2 (packets transmitted|Pakete übertragen), 2 (received|empfangen)"]}
+  erfolg="Das Netz steht. Ab jetzt kommen die Labor-Aufgaben aus diesen drei Maschinen." />
+
+<Hinweis titel="Speicher knapp?">
+Drei VMs brauchen zusammen etwa 5 GB RAM. Hat dein Rechner nur 8 GB, starte gw mit 512 MB und client1 erst, wenn eine Mission ihn braucht. Die meisten Labor-Aufgaben laufen auf srv1.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Welche Datei liest der Router beim Start, damit das Weiterleiten eingeschaltet ist?', richtig: 'Eine Datei unter /etc/sysctl.d/ mit net.ipv4.ip_forward = 1', falsch: ['/etc/nftables.conf', '/proc/sys/net/ipv4/ip_forward, dort von Hand geändert'], erklaerung: 'Eine Änderung direkt in /proc gilt nur bis zum nächsten Neustart.' },
+  { frage: 'Was ist ein internes Netz in VirtualBox?', richtig: 'Ein virtueller Switch, an dem nur VMs hängen, ohne DHCP und ohne Weg nach draußen', falsch: ['Ein Netz, das automatisch ins Internet führt', 'Ein Netz nur für den Host-Rechner'], erklaerung: 'Den Weg nach draußen baut gw.' },
+]} />

@@ -1,0 +1,103 @@
+---
+id: l2-0-1
+checks:
+  - id: k1
+  - id: k2
+  - id: k3
+  - id: plan
+spick:
+  - t: "LPIC-2"
+    v: "Prüfung 201-450 und 202-450, Lernziele Version 4.5"
+  - t: "Je Prüfung"
+    v: "60 Fragen, 90 Minuten, bestanden ab 500 auf der Skala 200–800"
+  - t: "Voraussetzung"
+    v: "gültiges LPIC-1, sonst wird LPIC-2 nicht vergeben"
+  - t: "Gültigkeit"
+    v: "5 Jahre"
+  - t: "Sprache"
+    v: "Deutsch im Testzentrum, online nur Englisch oder Japanisch"
+  - t: "201"
+    v: "200 Kapazität · 201 Kernel · 202 Start · 203 Dateisysteme · 204 Speicher · 205 Netz · 206 Wartung"
+  - t: "202"
+    v: "207 DNS · 208 Web · 209 Dateifreigaben · 210 Clients · 211 E-Mail · 212 Sicherheit"
+karten:
+  - f: "Wie heißen die beiden Prüfungen für LPIC-2? (Codes, mit Komma)"
+    a: ["201-450, 202-450", "201-450,202-450", "201-450 202-450"]
+  - f: "Was brauchst du außer den beiden Prüfungen, damit du LPIC-2 bekommst?"
+    a: ["ein gültiges lpic-1", "gültiges lpic-1", "aktives lpic-1", "lpic-1"]
+  - f: "Wie lange gilt LPIC-2?"
+    a: ["5 jahre", "fünf jahre"]
+  - f: "Welche Version der Lernziele gilt für die Prüfungen 201-450 und 202-450?"
+    a: ["4.5"]
+  - f: "Welches Topic ist das größte der Prüfung 201?"
+    a: ["205 netzwerkkonfiguration", "205", "netzwerkkonfiguration"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Bestaetigung from '../components/Bestaetigung.astro';
+import Lernzielkarte from '../components/Lernzielkarte.astro';
+
+Mit LPIC-1 kannst du einen Linux-Rechner verwalten. Mit **LPIC-2** betreibst du das Netz einer kleinen Firma: Server, die nicht ausfallen dürfen, Dienste für viele Benutzer, Fehlersuche unter Zeitdruck. **Deine Mission: Lerne dein neues Ziel kennen.**
+
+## Die Prüfung
+
+<Karte nr={1} titel="Zwei Prüfungen, eine Voraussetzung">
+LPIC-2 heißt beim LPI „Linux Engineer“. Du bekommst es, wenn du die Prüfungen **201-450** und **202-450** bestehst. Jede hat **60 Fragen** und dauert **90 Minuten**, wie bei LPIC-1. Auch die Bewertung ist gleich: Skala 200 bis 800, bestanden ab 500. Die Fragen sind Mehrfachauswahl oder Lückentext.
+
+Neu ist die Voraussetzung: Das Zertifikat bekommst du nur mit einem **gültigen LPIC-1**. Die Prüfungen selbst darfst du in beliebiger Reihenfolge ablegen, auch vor LPIC-1, aber vergeben wird LPIC-2 erst, wenn beides stimmt. Es gilt **fünf Jahre**.
+
+Im Testzentrum gibt es die Prüfungen auf Deutsch, Englisch, Japanisch und Portugiesisch. Online von zu Hause aus nur auf Englisch oder Japanisch.
+</Karte>
+
+<Merke>LPIC-2: 201-450 und 202-450, je 60 Fragen in 90 Minuten, bestanden ab 500. Nur mit gültigem LPIC-1. Gilt fünf Jahre. Deutsch nur im Testzentrum.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: Aufbau" fragen={[
+  { frage: 'Du hast 201 und 202 bestanden, aber dein LPIC-1 ist abgelaufen. Bekommst du LPIC-2?', richtig: 'Nein. LPIC-2 wird nur mit einem gültigen LPIC-1 vergeben.', falsch: ['Ja, die Prüfungen zählen allein.', 'Ja, LPIC-2 verlängert das LPIC-1 automatisch.'], erklaerung: 'Die Prüfungen darfst du trotzdem in jeder Reihenfolge ablegen.' },
+]} />
+
+## Was drankommt
+
+<Karte nr={2} titel="Dreizehn Topics, sieben und sechs">
+Prüfung **201** dreht sich um den Rechner selbst: Kapazität messen und planen (200), der Kernel (201), Systemstart und Rettung (202), Dateisysteme (203), RAID und LVM (204), Netzwerk (205) und Wartung mit Software aus dem Quellcode und Datensicherung (206).
+
+Prüfung **202** dreht sich um Dienste im Netz: einen eigenen Nameserver (207), Webserver und Proxy (208), Samba und NFS (209), DHCP, PAM und LDAP (210), E-Mail (211) und Sicherheit mit Firewall, SSH, FTP und VPN (212).
+
+Die Kacheln zeigen dir die Gewichte. Die größten Brocken sind die Netzwerkkonfiguration in 201 und die Sicherheit in 202.
+</Karte>
+
+<Lernzielkarte kampagne="lpic2" />
+
+<Merke>201: der Rechner (Kapazität, Kernel, Start, Dateisysteme, Speicher, Netz, Wartung). 202: die Dienste (DNS, Web, Freigaben, Clients, Mail, Sicherheit).</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: Topics" fragen={[
+  { frage: 'In welche Prüfung gehört die Konfiguration eines Samba-Servers?', richtig: '202', falsch: ['201', 'In beide'], erklaerung: 'Dateifreigaben sind Topic 209 in Prüfung 202.' },
+  { frage: 'In welche Prüfung gehört das Bauen eines eigenen Kernels?', richtig: '201', falsch: ['202', 'In keine, das war LPIC-1'], erklaerung: 'Der Kernel ist Topic 201 in Prüfung 201.' },
+]} />
+
+## Eine neue Version ist angekündigt
+
+<Karte nr={3} titel="Version 4.5 und der Entwurf 5.0">
+Die Lernziele für 201-450 und 202-450 sind **Version 4.5**, gültig seit 2017. Das LPI hat eine neue Version angekündigt, ein Entwurf 5.0 steht im LPI-Wiki. Ein Termin ist nicht bekannt, er wurde schon mehrfach verschoben. Wenn eine neue Version erscheint, kann man nach den bisherigen Regeln des LPI noch sechs Monate lang die alte Prüfung ablegen.
+
+Dieser Kurs folgt **Version 4.5**, weil das die Prüfung ist, die du heute ablegen kannst. Der Entwurf 5.0 ordnet vieles neu: Kernel und Systemstart werden ein gemeinsames Topic, das Messen der Ressourcen wandert in die Systemwartung, ZFS, Ansible und mehr systemd kommen dazu, einiges fällt weg. Wo eine Mission Stoff behandelt, der im Entwurf 5.0 entfällt oder umzieht, steht es dabei. So weißt du, was sicher bleibt.
+</Karte>
+
+<Hinweis titel="Ehrlich gesagt">
+Ob und wann Version 5.0 kommt und wie sie am Ende aussieht, weiß niemand außer dem LPI. Prüf vor der Anmeldung auf lpi.org, welche Version gerade gilt.
+</Hinweis>
+
+<Merke>Kurs = Version 4.5, die heute prüfbar ist. Entwurf 5.0 angekündigt, Termin offen. Beim Wechsel noch sechs Monate alte Version möglich.</Merke>
+
+<Quiz id="k3" titel="Kurzcheck: Version" fragen={[
+  { frage: 'Warum folgt der Kurs Version 4.5 und nicht dem Entwurf 5.0?', richtig: 'Weil 4.5 die Version ist, die man heute ablegen kann. Der Entwurf kann sich noch ändern.', falsch: ['Weil 5.0 nur auf Japanisch erscheint.', 'Weil 4.5 leichter ist.'], erklaerung: 'Wo sich der Stoff in 5.0 ändert, sagt es die Mission.' },
+]} />
+
+## Dein Plan
+
+<Bestaetigung id="plan" titel="Abmachung mit dir selbst" hardware={false} art="Bestätigung"
+  text="Ich mache weiter jeden Tag zuerst meine fällige Wiederholung. Die Karten aus LPIC-1 kommen dabei mit, denn LPIC-2 baut darauf auf."
+  knopf="Abgemacht" />
+
+Weiter geht es mit dem Labor. Aus einer VM werden drei: ein Router, ein Server und ein Client in einem eigenen Netz.

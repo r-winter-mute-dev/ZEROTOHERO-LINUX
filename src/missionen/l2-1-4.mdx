@@ -1,0 +1,142 @@
+---
+id: l2-1-4
+checks:
+  - id: luecke
+  - id: k1
+  - id: k2
+  - id: server
+  - id: router
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "Wie schnell kann es?"
+    v: "ethtool enp0s8 (Speed) · 1 Gbit/s = 125 MB/s brutto, etwa 112–118 MB/s Nutzdaten bei TCP"
+  - t: "Pro Schnittstelle"
+    v: "sar -n DEV 1 5 (rxkB/s, txkB/s, %ifutil) · ifstat -i enp0s8 1 5 · iptraf-ng -d enp0s8"
+  - t: "Pro Verbindung"
+    v: "sudo iftop -i enp0s8 (-n ohne Namen, -P mit Ports, -t Text) · sudo iptraf-ng -i enp0s8"
+  - t: "Wer?"
+    v: "ss -tnp · netstat -tnp · lsof -i · Prozess hinter einer Verbindung"
+  - t: "Router"
+    v: "Durchsatz = was auf der einen Schnittstelle hinein- und auf der anderen hinausgeht · sar -n DEV auf gw"
+karten:
+  - f: "Wie viele Megabyte pro Sekunde schafft eine 1-Gbit/s-Leitung ungefähr an Nutzdaten?"
+    a: ["etwa 115 mb/s", "110 bis 118 mb/s", "rund 117 mb/s", "125 mb/s brutto"]
+    aufdecken: true
+  - f: "Mit welchem Befehl zeigst du die Geschwindigkeit einer Netzwerkkarte?"
+    a: ["ethtool", "ethtool enp0s8"]
+  - f: "Welche Spalte von sar -n DEV zeigt die Auslastung der Schnittstelle?"
+    a: ["%ifutil", "ifutil"]
+  - f: "Welches Werkzeug zeigt live, welche Rechner wie viel Bandbreite verbrauchen?"
+    a: ["iftop"]
+  - f: "Welches Werkzeug zeigt Netzverkehr pro Verbindung in einer Vollbild-Oberfläche mit Menüs?"
+    a: ["iptraf-ng", "iptraf"]
+  - f: "Mit welchem Befehl findest du den Prozess hinter einer TCP-Verbindung?"
+    a: ["ss -tnp", "ss -tp", "netstat -tnp", "lsof -i"]
+  - f: "Warum braucht iftop Root-Rechte?"
+    a: ["es liest alle pakete der schnittstelle mit", "es lauscht auf der schnittstelle"]
+    aufdecken: true
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Lueckentext from '../components/Lueckentext.astro';
+
+Platte und Speicher sind in Ordnung, und trotzdem lädt die Weboberfläche auf client1 quälend langsam. **Deine Mission: Miss den Netzverkehr pro Schnittstelle und pro Verbindung, erkenne, wann eine Leitung voll ist, und finde heraus, wer die Bandbreite verbraucht, auf dem Server und auf dem Router.** Lernziel 200.1.
+
+## Rechnen, bevor man misst
+
+<Karte nr={1} titel="Wie viel passt durch eine Leitung?">
+Netzwerkgeschwindigkeiten werden in **Bit** pro Sekunde angegeben, Dateigrößen in **Byte**. Ein Byte hat 8 Bit. Eine Gigabit-Leitung schafft also brutto 1000 Mbit/s ÷ 8 = **125 MB/s**. Ethernet-Rahmen, IP- und TCP-Köpfe kosten etwa 5 bis 6 %, praktisch bleiben bei TCP etwa **112 bis 118 MB/s** Nutzdaten.
+
+Damit kannst du schätzen:
+
+- 600 GB Sicherung über 1 Gbit/s: 600 000 MB ÷ 115 MB/s ≈ 5200 s, also knapp **1,5 Stunden**, wenn nichts anderes bremst.
+- Dieselbe Sicherung über 100 Mbit/s: etwa zehnmal so lange.
+
+Die tatsächliche Geschwindigkeit einer Netzwerkkarte zeigt **`ethtool enp0s8`** in der Zeile `Speed`. Ein falsch ausgehandelter Link mit 100 Mb/s statt 1000 Mb/s ist ein Klassiker, oft wegen eines alten Kabels oder eines alten Switch-Ports.
+
+Ein **Engpass** ist die langsamste Stelle in der Kette. Liest die Platte nur 60 MB/s, nützt eine Gigabit-Leitung nichts, und umgekehrt.
+</Karte>
+
+<Merke>Bit ÷ 8 = Byte. 1 Gbit/s ≈ 125 MB/s brutto, etwa 115 MB/s Nutzdaten. ethtool zeigt die ausgehandelte Geschwindigkeit. Der langsamste Teil der Kette bestimmt das Tempo.</Merke>
+
+<Lueckentext id="luecke" titel="Rechnen: Die Nachtsicherung" aufgabe="Die Sicherung von srv1 umfasst 230 GB und geht über eine Gigabit-Leitung, an der sonst nichts hängt. Rechne mit 115 MB/s Nutzdaten."
+  code={`Brutto in MB/s:   1000 Mbit/s ÷ 8 = ___ MB/s
+Dauer in Sekunden: 230 000 MB ÷ 115 MB/s = ___ s
+Dauer in Minuten:  ungefähr ___ Minuten`}
+  luecken={[{ loesungen: ['125'] }, { loesungen: ['2000'] }, { loesungen: ['33', '34', '33,3', '33.3'] }]} />
+
+<Quiz id="k1" titel="Kurzcheck: Rechnen" fragen={[
+  { frage: 'Eine Kopie über das Netz läuft dauerhaft mit 11 MB/s. Was prüfst du zuerst?', richtig: 'Mit ethtool, ob die Karte nur 100 Mb/s ausgehandelt hat', falsch: ['Ob die Platte voll ist', 'Ob der Swap groß genug ist'], erklaerung: '11 MB/s ist ziemlich genau das, was über 100 Mbit/s an Nutzdaten durchgeht.' },
+]} />
+
+## Pro Schnittstelle und pro Verbindung
+
+<Karte nr={2} titel="sar, ifstat, iftop, iptraf-ng, ss">
+**Pro Schnittstelle:**
+- `sar -n DEV 1 5` aus sysstat: rxkB/s und txkB/s (empfangen und gesendet) und **%ifutil**, die Auslastung im Verhältnis zur Geschwindigkeit der Karte.
+- `ifstat -i enp0s8 1 5`: einfache Tabelle KB/s in und out.
+- `iptraf-ng -d enp0s8`: detaillierte Statistik einer Schnittstelle. iptraf-ng ist ein Vollbildprogramm mit Menüs, ohne Option startet es im Hauptmenü. Es braucht Root-Rechte.
+
+**Pro Verbindung:**
+- `sudo iftop -i enp0s8` zeigt live, zwischen welchen Rechnern wie viel fließt, gemittelt über 2, 10 und 40 Sekunden. `=>` heißt vom linken zum rechten Rechner, `<=` zurück. `-n` lässt die Namensauflösung weg, `-P` zeigt Ports, `-t -s 10` gibt nach zehn Sekunden einen Textbericht aus. So ordnest du Bandbreite einzelnen Clients zu („mapping client bandwidth usage“).
+- `sudo iptraf-ng -i enp0s8`: der „IP traffic monitor“ mit einer Zeile pro TCP-Verbindung.
+- `ss -tnp` bzw. `netstat -tnp` und `lsof -i` zeigen, **welcher Prozess** hinter einer Verbindung steckt.
+
+iftop und iptraf-ng lesen alle Pakete der Schnittstelle mit, darum brauchen sie Root-Rechte. Beide sind meist nachzuinstallieren.
+</Karte>
+
+<Merke>Schnittstelle: sar -n DEV mit %ifutil, ifstat, iptraf-ng -d. Verbindung: iftop (`=>` hin, `<=` zurück), iptraf-ng -i. Prozess dazu: ss -tnp, lsof -i.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: Werkzeuge" fragen={[
+  { frage: 'sar -n DEV zeigt für enp0s8 txkB/s 118 000 und %ifutil 95. Was bedeutet das?', richtig: 'Die Schnittstelle sendet fast so viel, wie die Gigabit-Leitung hergibt.', falsch: ['Die Karte hat 95 % Paketfehler.', 'Der Empfang ist gestört.'], erklaerung: '118 000 kB/s sind etwa 115 MB/s, das Maximum an Nutzdaten.' },
+]} />
+
+## Messen auf srv1
+
+<Terminal id="server" titel="Terminal: Wer füllt die Leitung?" welt={{ host: 'srv1', last: { szenario: 'netz' } }} aufgaben={[
+  { text: 'Prüf, mit welcher Geschwindigkeit enp0s8 verbunden ist.', befehl: '^ethtool enp0s8$', frage: 'Speed?', antwort: ['1000Mb/s', '1000 Mb/s', '1000', '1 Gbit/s'] },
+  { text: 'Installiere sysstat, iftop und iptraf-ng.', zustand: 'paket-da:sar && paket-da:iftop && paket-da:iptraf-ng' },
+  { text: 'Miss mit sar den Verkehr pro Schnittstelle, jede Sekunde, dreimal.', befehl: '^sar -n DEV 1 3$', frage: 'Wie hoch ist %ifutil von enp0s8 ungefähr? (ganze Zahl)', antwort: ['93', '94', '95', '96', '97'] },
+  { text: 'Finde mit iftop heraus, zu welchen Rechnern die Daten gehen. Ohne Namensauflösung, als Textbericht.', befehl: '^iftop (-[a-zA-Z]+ )*-t( -[a-zA-Z]+| -i enp0s8| -s \\d+)*$|^iftop -i enp0s8 -n -t$|^iftop -n -t -i enp0s8$|^iftop -t -n -i enp0s8$', frage: 'Welcher Rechner im Netz bekommt am meisten? (IP-Adresse)', antwort: ['192.168.50.30'] },
+  { text: 'Finde den Prozess hinter dieser Verbindung.', befehl: '^ss -t?n?p$|^ss -tnp$|^ss -tpn$|^ss -ntp$|^ss -pnt$|^netstat -tnp$|^netstat -ntp$|^lsof -i( tcp)?$|^lsof -i ?@192\\.168\\.50\\.30$', frage: 'Welches Programm? (Name)', antwort: ['ssh'] },
+  { text: 'Lass dir die Verbindungen im IP traffic monitor von iptraf-ng auf enp0s8 zeigen.', befehl: '^iptraf-ng -i enp0s8$' },
+  { text: 'Die zweite Verbindung geht an client1. Wer hat die Sicherung gestartet, die die Leitung blockiert? Lass dir den Prozessbaum zeigen.', befehl: '^pstree -p( \\| (grep|less|head).*)?$|^pstree -pa$|^pstree -ap$|^ps -ef( \\| grep.*)?$' },
+]} />
+
+<Hinweis titel="Was tun?">
+Hier startete jemand die Sicherung auf den Sicherungsserver um 8:30 statt nachts. Sie belegt die Leitung, und die Weboberfläche für client1 bekommt nur den Rest. Lösungen: die Sicherung in die Nacht legen, rsync mit `--bwlimit` drosseln, oder für Sicherungen eine eigene Netzwerkkarte nehmen.
+</Hinweis>
+
+## Messen am Router
+
+<Karte nr={3} titel="Durchsatz eines Routers oder einer Firewall">
+Ein Router nimmt auf einer Schnittstelle Pakete an und gibt sie auf der anderen aus. Sein **Durchsatz** zeigt sich darum zweimal: Was auf enp0s3 aus dem Internet hereinkommt (rx), geht auf enp0s8 ins Netz hinaus (tx), und umgekehrt. `sar -n DEV 1 5` auf dem Router zeigt beides nebeneinander. Liegt einer der Werte nahe am Maximum der Leitung, ist der Router oder seine Leitung der Engpass. Steigt dabei die CPU-Zeit **si** (Software-Interrupts) stark an, kommt der Router mit dem Weiterleiten oder Filtern nicht mehr nach. Mit `iftop -i enp0s8` siehst du, welcher Client im Netz die Bandbreite verbraucht.
+</Karte>
+
+<Terminal id="router" titel="Terminal: gw unter Last" welt={{ host: 'gw', last: { szenario: 'router' } }} aufgaben={[
+  { text: 'Installiere sysstat und iftop.', zustand: 'paket-da:sar && paket-da:iftop' },
+  { text: 'Miss den Verkehr auf beiden Schnittstellen, jede Sekunde, dreimal.', befehl: '^sar -n DEV 1 3$', frage: 'Auf welcher Schnittstelle kommt der Verkehr aus dem Internet herein? (Name)', antwort: ['enp0s3'] },
+  { text: 'Finde mit iftop auf der Schnittstelle ins Firmennetz heraus, welcher Client so viel herunterlädt. Ohne Namensauflösung, als Text.', befehl: '^iftop (-[a-zA-Z]+ )*-t( -[a-zA-Z]+| -i enp0s8| -s \\d+)*$|^iftop -i enp0s8 -n -t$|^iftop -n -t -i enp0s8$|^iftop -t -n -i enp0s8$', frage: 'Welche Adresse hat der Client?', antwort: ['192.168.50.20'] },
+]} />
+
+<Labor id="labor" titel="Labor: Durchsatz zwischen srv1 und client1"
+  aufgabe="Miss den Durchsatz zwischen zwei VMs mit iperf3. Starte auf srv1 den Server (iperf3 -s), auf client1 den Test. Füge die Ausgabe von client1 ein."
+  befehl={"sudo apt install -y iperf3   # auf beiden, auf AlmaLinux: sudo dnf install iperf3\niperf3 -c 192.168.50.10 -t 10\nsar -n DEV 1 3 | tail -4"}
+  muster={["(sender|receiver)", "bits/sec"]}
+  erfolg="Zwischen zwei VMs auf demselben Rechner sind oft mehrere Gbit/s möglich, weil keine echte Leitung dazwischen liegt. Der Engpass ist dann die CPU des Rechners." />
+
+<Hinweis titel="Prüfungstipp">
+Gefragt werden iptraf (iptraf-ng), ss und netstat zum Finden von Verbindungen, das Umrechnen von Bit und Byte und das Erkennen des Engpasses. iftop und ifstat stehen nicht in den Lernzielen 4.5, wohl aber im Entwurf 5.0 (204.3), zusammen mit iptraf-ng.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'In iftop steht „srv1 => backup 690Mb“. Was heißt das?', richtig: 'srv1 sendet gerade etwa 690 Mbit/s an backup.', falsch: ['backup sendet 690 MB an srv1.', 'Die Verbindung hat 690 Fehler.'], erklaerung: 'iftop zählt in Bit pro Sekunde, => ist die Richtung vom linken zum rechten Rechner.' },
+  { frage: 'Welches Werkzeug ist ein Vollbildprogramm mit Menü für Statistiken pro Schnittstelle und pro Verbindung?', richtig: 'iptraf-ng', falsch: ['ifstat', 'netstat'], erklaerung: 'iptraf heißt in neueren Distributionen iptraf-ng.' },
+  { frage: 'Eine Kopie über eine Gigabit-Leitung läuft mit 60 MB/s, die Leitung ist frei. Was könnte der Engpass sein?', richtig: 'Die Platte, die gelesen oder geschrieben wird', falsch: ['Die Gigabit-Leitung', 'Der DNS-Server'], erklaerung: 'Eine einzelne Festplatte schafft oft nicht mehr. iostat -x auf beiden Seiten zeigt es.' },
+]} />

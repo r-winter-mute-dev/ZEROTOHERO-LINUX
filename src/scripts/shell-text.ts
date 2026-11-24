@@ -825,13 +825,13 @@ export function textBefehle(h: TextHelfer): Record<string, Befehl> {
     const { werte, rest } = mitWert(a.filter((x) => !/^(aux|axu|ef|-ef|-e|-A|a|x|ax|-aux|u)$/.test(x)), ['o', 'u', 'p', 'C'], ['sort', 'pid', 'user']);
     void rest;
     const bsd = /\baux\b|\baxu\b|\bax\b/.test(roh) && !roh.includes('-ef');
-    const alle = bsd || /(^|\s)-(e|ef|A)(\s|$)/.test(roh) || /-e/.test(roh) && !roh.includes('--');
+    const alle = bsd || /(^|\s)-(e|ef|A)(\s|$)/.test(roh) || a.some((x) => /^-[a-zA-Z]*[eA][a-zA-Z]*$/.test(x));
     let liste = sichtbar(w).filter((p) => alle || werte.u || werte.user || werte.p || werte.pid || werte.C ? true : p.tty === 'pts/0');
     if (werte.u || werte.user) liste = liste.filter((p) => p.user === (werte.u ?? werte.user));
     if (werte.p || werte.pid) { const ids = (werte.p ?? werte.pid).split(',').map(Number); liste = liste.filter((p) => ids.includes(p.pid)); }
     if (werte.C) liste = liste.filter((p) => p.cmd.split(' ')[0].split('/').pop() === werte.C);
     const leer = (werte.p || werte.pid || werte.C) && !liste.length;
-    if (werte.sort) { const s = werte.sort; const feld = s.replace(/^[-+]/, ''); const f = (p: Prozess) => feld === '%cpu' || feld === 'pcpu' ? p.cpu ?? 0 : feld === '%mem' || feld === 'pmem' ? p.mem ?? 0 : feld === 'ni' ? p.ni ?? 0 : feld === 'pid' ? p.pid : 0; liste = [...liste].sort((x, y) => (s.startsWith('-') ? f(y) - f(x) : f(x) - f(y))); }
+    if (werte.sort) { const s = werte.sort; const feld = s.replace(/^[-+]/, ''); const f = (p: Prozess) => feld === '%cpu' || feld === 'pcpu' ? p.cpu ?? 0 : feld === '%mem' || feld === 'pmem' ? p.mem ?? 0 : feld === 'ni' ? p.ni ?? 0 : feld === 'pid' ? p.pid : feld === 'rss' || feld === 'rssize' ? p.rss ?? 0 : feld === 'vsz' ? p.vsz ?? 0 : 0; liste = [...liste].sort((x, y) => (s.startsWith('-') ? f(y) - f(x) : f(x) - f(y))); }
     const comm = (p: Prozess) => kurzname(p);
     if (werte.o) {
       const felder = werte.o.split(',').map((x) => x.split('=')[0]);
@@ -850,12 +850,12 @@ export function textBefehle(h: TextHelfer): Record<string, Befehl> {
     const batch = a.some((x) => x.includes('b'));
     const nach = [...sichtbar(w)].sort((x, y) => (y.cpu ?? 0) - (x.cpu ?? 0));
     const lauf = nach.filter((p) => p.stat?.startsWith('R')).length;
-    const kopf = `top - ${datumText(w.uhr).split(' ')[3].slice(0, 8)} up 28 min,  2 users,  load average: 0,82, 0,61, 0,40\nTasks: ${nach.length + 180} total,   ${lauf} running, ${nach.length + 180 - lauf} sleeping,   0 stopped,   0 zombie\n%Cpu(s): 14,2 us,  2,1 sy,  3,9 ni, 79,6 id,  0,1 wa,  0,0 hi,  0,1 si,  0,0 st\nMiB Mem :  15921,3 total,   9642,7 free,   2355,5 used,   3604,0 buff/cache\nMiB Swap:   1953,9 total,   1953,9 free,      0,0 used.  13185,8 avail Mem\n\n    PID USER      PR  NI    VIRT    RES    SHR S  %CPU  %MEM     TIME+ COMMAND`;
+    const kopf = `top - ${datumText(w.uhr).split(' ')[3].slice(0, 8)} up 28 min,  3 users,  load average: 0,82, 0,61, 0,40\nTasks: ${nach.length + 180} total,   ${lauf} running, ${nach.length + 180 - lauf} sleeping,   0 stopped,   0 zombie\n%Cpu(s): 14,2 us,  2,1 sy,  3,9 ni, 79,6 id,  0,1 wa,  0,0 hi,  0,1 si,  0,0 st\nMiB Mem :  15921,3 total,   9642,7 free,   2355,5 used,   3604,0 buff/cache\nMiB Swap:   1953,9 total,   1953,9 free,      0,0 used.  13185,8 avail Mem\n\n    PID USER      PR  NI    VIRT    RES    SHR S  %CPU  %MEM     TIME+ COMMAND`;
     const z = nach.slice(0, 15).map((p) => `${String(p.pid).padStart(7)} ${p.user.padEnd(9)} ${String(p.cmd.startsWith('[') ? 'rt' : 20 + (p.ni ?? 0)).padStart(3)} ${String(p.ni ?? 0).padStart(3)} ${String(p.vsz ?? 12000).padStart(7)} ${String(p.rss ?? 4000).padStart(6)} ${String(Math.round((p.rss ?? 4000) * 0.6)).padStart(6)} ${(p.stat ?? 'S')[0]} ${(p.cpu ?? 0).toFixed(1).padStart(5)} ${(p.mem ?? 0).toFixed(1).padStart(5)} ${((t) => `${Number(t[0]) * 60 + Number(t[1])}:${t[2]}.${String(p.pid % 97).padStart(2, '0')}`)(zeitVon(p).split(':')).padStart(9)} ${p.cmd.startsWith('[') ? p.cmd.slice(1, -1) : kurzname(p)}`);
     if (!batch) w.langlaeufer = 'top';
     return ok(kopf + '\n' + z.join('\n') + (batch ? '' : '\n(top aktualisiert sich jetzt alle 3 Sekunden. q oder Strg+C beendet. Im Simulator: Strg+C.)'));
   };
-  b.uptime = (w, a) => a.includes('-p') ? ok('up 28 minutes') : ok(` ${datumText(w.uhr).split(' ')[3]} up 28 min,  2 users,  load average: 0,82, 0,61, 0,40`);
+  b.uptime = (w, a) => a.includes('-p') ? ok('up 28 minutes') : ok(` ${datumText(w.uhr).split(' ')[3]} up 28 min,  3 users,  load average: 0,82, 0,61, 0,40`);
   b.pgrep = (w, a) => {
     const { werte, flags, rest } = mitWert(a, ['u']);
     const muster = rest[0] ?? ''; const re = regexAus(muster, { ere: true });

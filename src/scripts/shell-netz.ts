@@ -11,8 +11,9 @@ const fehler = (err: string, code = 1): Ergebnis => ({ out: '', err, code });
 export interface NetzKern { datum: (w: Welt, ms: number, fmt?: string) => string }
 export interface Sock { p: string; s: string; l: string; f: string; prog: string; pid: number }
 /** Weitere Sockets (Dienste aus Topic 110, SSH-Tunnel), von anderen Modulen gemeldet. */
-let extraSockets: (w: Welt) => Sock[] = () => [];
-export function netzExtraSockets(f: (w: Welt) => Sock[]) { extraSockets = f; }
+const quellen: ((w: Welt) => Sock[])[] = [];
+const extraSockets = (w: Welt): Sock[] => quellen.flatMap((q) => q(w));
+export function netzExtraSockets(f: (w: Welt) => Sock[]) { quellen.push(f); }
 let K: NetzKern;
 export function netzKern(k: NetzKern) { K = k; }
 

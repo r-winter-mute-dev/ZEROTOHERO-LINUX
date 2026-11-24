@@ -1,0 +1,21 @@
+---
+id: l2-1-probe
+abzeichen: "Topic 200 bestanden"
+checks:
+  - id: probe
+---
+import Probe from '../components/Probe.astro';
+import Karte from '../components/Karte.astro';
+import Hinweis from '../components/Hinweis.astro';
+
+Topic 200 bringt in Prüfung 201 ungefähr **8 von 60 Fragen**. **Deine Mission: Bestehe die Probe mit mindestens 80 %.**
+
+<Karte nr={1} titel="Was diese Probe mischt">
+Neben Topic 200 kommen Fragen aus LPIC-1, auf denen die Messwerkzeuge aufbauen: Prozesse und ihre Prioritäten (103.5, 103.6), Platzbedarf der Dateisysteme mit df und du (104.2) und Netzwerkfehlersuche mit ss und netstat (109.3). LPIC-2 setzt diesen Stoff voraus, und die Prüfung fragt ihn oft im neuen Zusammenhang. Wer `ps` und `kill` aus LPIC-1 nicht mehr sicher kann, verliert hier Punkte.
+</Karte>
+
+<Hinweis titel="Zum Tempo">
+20 Fragen in 30 Minuten. Gemischt nach den Gewichten der Lernziele: etwa acht aus Topic 200, der Rest aus LPIC-1. Falsch beantwortete Fragen landen morgen in deiner Wiederholung.
+</Hinweis>
+
+<Probe id="probe" titel="Probeprüfung: Topic 200 mit Wiederholung aus LPIC-1" ziele={['200.1', '200.2', '103.5', '103.6', '104.2', '109.3']} anzahl={20} />

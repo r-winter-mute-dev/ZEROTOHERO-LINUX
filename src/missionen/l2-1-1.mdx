@@ -1,0 +1,140 @@
+---
+id: l2-1-1
+checks:
+  - id: k1
+  - id: werkzeuge
+  - id: k2
+  - id: last
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "Last"
+    v: "uptime · w · /proc/loadavg · load average: 1, 5, 15 Minuten · mit nproc vergleichen"
+  - t: "Live"
+    v: "top (1 alle Kerne, P nach CPU, M nach Speicher, k beenden, r renice) · htop (F5 Baum, F6 sortieren, F9 kill)"
+  - t: "Einmal"
+    v: "ps -eo pid,ni,pcpu,pmem,stat,cmd --sort=-pcpu · ps aux · pstree -p"
+  - t: "%Cpu(s)"
+    v: "us Programme · sy Kernel · ni mit nice · id frei · wa wartet auf I/O · st von der VM-Umgebung gestohlen"
+  - t: "Entlasten"
+    v: "renice -n 19 -p PID · kill · systemctl stop dienst"
+karten:
+  - f: "Was zeigen die drei Zahlen hinter load average?"
+    a: ["die durchschnittliche last der letzten 1, 5 und 15 minuten", "1, 5 und 15 minuten"]
+  - f: "Ein Rechner mit 4 Kernen hat eine Last von 4. Was heißt das?"
+    a: ["alle kerne sind im mittel voll beschäftigt", "voll ausgelastet, aber keine warteschlange"]
+  - f: "Mit welchem Befehl zeigst du die Zahl der CPU-Kerne?"
+    a: ["nproc", "lscpu"]
+  - f: "Was bedeutet wa in der CPU-Zeile von top?"
+    a: ["zeit, in der die cpu auf ein- und ausgabe wartet", "iowait", "warten auf i/o"]
+  - f: "Was bedeutet st in der CPU-Zeile von top?"
+    a: ["steal", "zeit, die der hypervisor anderen vms gibt", "gestohlene zeit"]
+  - f: "Mit welcher Taste zeigt top jeden Kern einzeln?"
+    a: ["1"]
+  - f: "Mit welchem Befehl siehst du die Prozesse als Baum mit PIDs?"
+    a: ["pstree -p"]
+  - f: "Mit welchem ps-Aufruf sortierst du nach CPU-Last, die größte zuerst?"
+    a: ["ps -eo pid,pcpu,cmd --sort=-pcpu", "ps aux --sort=-pcpu", "ps aux --sort=-%cpu"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Zuordnung from '../components/Zuordnung.astro';
+
+Montag, 8:40. Die Kollegen melden: „Die Weboberfläche auf srv1 ist seit heute früh zäh.“ Bevor du irgendetwas änderst, misst du. **Deine Mission: Lies die Last eines Rechners richtig, finde den Prozess, der die CPU belegt, und entlaste den Rechner, ohne die Arbeit abzubrechen.** Lernziel 200.1.
+
+## Die Last lesen
+
+<Karte nr={1} titel="Was load average wirklich zählt">
+`uptime` und die erste Zeile von `top` und `w` zeigen drei Zahlen: die **Last** (load average) gemittelt über die letzten **1, 5 und 15 Minuten**. Sie zählt die Prozesse, die gerade rechnen oder auf einen Kern warten, und unter Linux zusätzlich die, die im Zustand **D** auf die Platte warten. Darum kann die Last hoch sein, obwohl die CPU fast nichts tut. Das ist der häufigste Denkfehler bei der Fehlersuche.
+
+Die Zahl allein sagt wenig. Vergleiche sie mit der Zahl der Kerne (`nproc` oder `lscpu`):
+
+- Last 2 auf 4 Kernen: halb ausgelastet.
+- Last 4 auf 4 Kernen: voll ausgelastet, aber noch keine Schlange.
+- Last 8 auf 4 Kernen: im Mittel warten vier Prozesse.
+
+Die Reihenfolge der drei Zahlen zeigt die Richtung: 4,2 / 2,0 / 0,8 heißt „gerade erst gestiegen“, 0,8 / 2,0 / 4,2 heißt „es wird besser“. Die Rohwerte stehen in `/proc/loadavg`.
+</Karte>
+
+<Merke>load average = rechnende und wartende Prozesse, auch die im Zustand D, über 1, 5, 15 Minuten. Immer mit nproc vergleichen. Erste Zahl größer als dritte: Es wird schlimmer.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: Last" fragen={[
+  { frage: 'uptime zeigt „load average: 6,10, 5,80, 5,20“ auf einem Rechner mit 8 Kernen. Was heißt das?', richtig: 'Gut drei Viertel der Kerne sind beschäftigt, Tendenz leicht steigend.', falsch: ['Der Rechner ist völlig überlastet.', 'Sechs Prozesse sind abgestürzt.'], erklaerung: 'Erst ab einer Last über 8 warten Prozesse auf einen freien Kern.' },
+  { frage: 'Die Last ist 5 auf 4 Kernen, aber top zeigt 90 % id. Woran liegt das am wahrscheinlichsten?', richtig: 'Prozesse warten im Zustand D auf die Platte und zählen trotzdem zur Last.', falsch: ['top zeigt falsche Werte.', 'Die CPU ist zu langsam getaktet.'], erklaerung: 'Darum schaut man bei hoher Last immer auch auf wa und auf Prozesse im Zustand D.' },
+]} />
+
+## Die Werkzeuge
+
+<Karte nr={2} titel="top, htop, ps, pstree">
+**top** zeigt oben die Zusammenfassung und darunter die Prozesse, sortiert nach CPU. Die Zeile `%Cpu(s)` teilt die Zeit auf:
+
+| Feld | Bedeutung |
+|---|---|
+| us | Programme der Benutzer |
+| sy | der Kernel, etwa für Netz und Dateisystem |
+| ni | Programme mit geänderter Priorität (nice) |
+| id | Leerlauf |
+| wa | Leerlauf, während auf die Platte gewartet wird (iowait) |
+| hi, si | Hardware- und Software-Interrupts |
+| st | „steal“: Zeit, die der Hypervisor anderen VMs gegeben hat |
+
+In top zeigt `1` jeden Kern einzeln, `P` sortiert nach CPU, `M` nach Speicher, `k` beendet einen Prozess, `r` ändert seine Priorität. `top -b -n 1` gibt einen einzigen Bericht aus, gut für Skripte.
+
+**htop** zeigt dasselbe farbig mit Balken pro Kern, ist mit Pfeiltasten bedienbar und meist nicht vorinstalliert (`apt install htop`). F5 zeigt den Baum, F6 sortiert, F9 beendet einen Prozess.
+
+**ps** macht eine Momentaufnahme, die man filtern und sortieren kann: `ps -eo pid,ni,pcpu,pmem,stat,cmd --sort=-pcpu | head`. **pstree -p** zeigt, wer wen gestartet hat. So siehst du, ob ein Prozess zu einem Dienst gehört oder aus einer Anmeldung stammt. **w** zeigt, wer angemeldet ist und was er gerade tut.
+
+Wichtig: Ein Prozess mit 390 % in top belegt fast **vier** Kerne. top zählt pro Kern, 100 % ist ein voller Kern.
+</Karte>
+
+<Merke>top: %Cpu(s) mit us, sy, ni, id, wa, st, 100 % pro Kern. htop: dasselbe bedienbar. ps --sort=-pcpu für Momentaufnahmen, pstree -p für Herkunft, w für Anmeldungen.</Merke>
+
+<Zuordnung id="werkzeuge" titel="Zuordnung: Welches Feld?" aufgabe="Ordne jedem Feld aus der CPU-Zeile von top seine Bedeutung zu." paare={[
+  { links: 'us', rechts: 'Programme der Benutzer' },
+  { links: 'sy', rechts: 'der Kernel' },
+  { links: 'id', rechts: 'Leerlauf' },
+  { links: 'wa', rechts: 'Warten auf die Platte' },
+  { links: 'st', rechts: 'an andere VMs abgegeben' },
+]} />
+
+<Quiz id="k2" titel="Kurzcheck: Werkzeuge" fragen={[
+  { frage: 'Ein Prozess zeigt in top 195 %CPU. Was bedeutet das?', richtig: 'Er belegt fast zwei Kerne voll.', falsch: ['Er braucht doppelt so viel wie erlaubt.', 'top hat sich verrechnet.'], erklaerung: 'top zählt 100 % pro Kern. Mit Irix-Modus aus (Taste I) teilt top durch die Zahl der Kerne.' },
+  { frage: 'Auf einer VM zeigt top dauerhaft 30 % st. Was ist los?', richtig: 'Der Hypervisor gibt die CPU anderen VMs. Die Ursache liegt außerhalb dieser VM.', falsch: ['Ein Prozess hängt.', 'Die Platte ist zu langsam.'], erklaerung: 'Hier hilft nur der Betreiber der Virtualisierung, etwa mit mehr Kernen für die VM.' },
+]} />
+
+## Fehlersuche auf srv1
+
+<Terminal id="last" titel="Terminal: Warum ist srv1 zäh?" welt={{ host: 'srv1', last: { szenario: 'cpu' } }} aufgaben={[
+  { text: 'Lass dir die Last zeigen.', befehl: '^uptime$|^w$|^cat /proc/loadavg$', frage: 'Wie hoch ist die Last der letzten 15 Minuten?', antwort: ['3,60', '3.60', '3,6', '3.6'] },
+  { text: 'Wie viele Kerne hat srv1?', befehl: '^nproc$|^lscpu$', frage: 'Anzahl der Kerne?', antwort: ['4'] },
+  { text: 'Lass dir einen einzelnen Bericht von top zeigen.', befehl: '^top -b -n ?1$|^top -bn ?1$|^top -n ?1 -b$', frage: 'Wie hoch ist der Anteil us in der CPU-Zeile ungefähr? (ganze Zahl)', antwort: ['95', '96', '97', '98'] },
+  { text: 'Finde mit ps den Prozess mit der höchsten CPU-Last, mit PID, Nice-Wert und ganzem Befehl.', befehl: '^ps -eo [\\w,%]+ --sort=-(pcpu|%cpu)( \\| head.*)?$|^ps aux --sort=-(pcpu|%cpu)( \\| head.*)?$', frage: 'Welche PID hat er?', antwort: ['4120'] },
+  { text: 'Lass dir die Prozesse als Baum mit PIDs zeigen.', befehl: '^pstree -p( \\| (head|less).*)?$|^pstree -pa?$|^pstree -ap$', frage: 'Wer hat die Auswertung gestartet? (Name des Elternprozesses)', antwort: ['systemd'] },
+  { text: 'Die Jahresauswertung muss fertig werden, soll aber den anderen Diensten den Vortritt lassen. Gib ihr die niedrigste Priorität.', zustand: 'ni:4120=19' },
+  { text: 'Installiere htop und schau dir die Kerne an.', befehl: '^htop$', tipp: 'sudo apt install htop, danach htop. Strg+C beendet es hier.' },
+]} />
+
+<Hinweis titel="Warum die Last nicht sinkt">
+Nach dem renice bleibt die Last bei etwa 4. Die Auswertung rechnet weiter auf allen Kernen, nur bekommen nginx und PostgreSQL jetzt zuerst Rechenzeit, wenn sie welche brauchen. Die Last zählt Arbeit, nicht Wichtigkeit. Ob die Weboberfläche jetzt flüssig läuft, zeigt dir die Antwortzeit, nicht uptime.
+</Hinweis>
+
+<Labor id="labor" titel="Labor: Last auf srv1 erzeugen"
+  aufgabe="Erzeuge auf srv1 mit einem Befehl eine Minute lang Last auf zwei Kernen und beobachte sie. Füge die Ausgabe ein."
+  befehl={"nproc\n(timeout 60 sh -c 'while :; do :; done' &) ; (timeout 60 sh -c 'while :; do :; done' &)\nsleep 30; uptime\ntop -b -n 1 | head -12"}
+  muster={["load average: \\d+[,.]\\d+", "%Cpu\\(s\\):\\s+\\d+[,.]\\d+ us", "\\bsh\\b"]}
+  erfolg="Zwei Endlosschleifen belegen zwei Kerne. Nach 30 Sekunden steigt die erste Zahl der Last Richtung 2, die anderen beiden folgen langsamer. timeout beendet die Schleifen nach einer Minute." />
+
+<Hinweis titel="Prüfungstipp">
+Gefragt werden die Bedeutung der drei Werte von load average, der Vergleich mit der Zahl der Kerne, die Felder der CPU-Zeile (vor allem wa und st) und welches Werkzeug was zeigt: uptime, w, top, htop, ps, pstree. Im Entwurf 5.0 stehen diese Werkzeuge unter 204.3 Resource Management.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Welcher Befehl zeigt die Last und zusätzlich, welche Benutzer angemeldet sind und was sie gerade ausführen?', richtig: 'w', falsch: ['uptime', 'pstree'], erklaerung: 'uptime zeigt nur die erste Zeile davon.' },
+  { frage: 'Was bewirkt renice -n 19 -p 4120?', richtig: 'Der Prozess bekommt die niedrigste Priorität, andere Prozesse gehen vor.', falsch: ['Der Prozess wird angehalten.', 'Der Prozess darf nur noch 19 % CPU nutzen.'], erklaerung: 'Eine feste Obergrenze setzt man mit cgroups, etwa über systemd mit CPUQuota.' },
+  { frage: 'Die Last steigt von 0,9 auf 7,5 bei 4 Kernen, top zeigt 70 % wa. Wo suchst du weiter?', richtig: 'Bei der Platte: iostat, iotop, Prozesse im Zustand D', falsch: ['Bei der CPU: mehr Kerne einbauen', 'Im Netz: iftop'], erklaerung: 'Die Prozesse warten auf Ein- und Ausgabe. Mission 1.3 zeigt, wie man das misst.' },
+]} />

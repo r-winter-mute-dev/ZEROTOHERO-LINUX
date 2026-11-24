@@ -1,0 +1,36 @@
+---
+id: l2-1-boss
+checks:
+  - id: montag
+spick:
+  - t: "Messen"
+    v: "uptime · nproc · top -b -n 1 · vmstat 1 5 · free -h · iostat -x 1 2 · sudo iotop -o -b -n 1 · ps -eo stat,pid,cmd"
+  - t: "Herkunft"
+    v: "pstree -pa · systemctl status dienst"
+  - t: "Eingreifen"
+    v: "systemctl stop dienst · systemctl restart dienst · renice"
+  - t: "Für morgen"
+    v: "ENABLED=\"true\" in /etc/default/sysstat · systemctl enable --now sysstat"
+  - t: "Rechnen"
+    v: "Restkapazität ÷ Wachstum pro Monat"
+---
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+
+Montag, 8:40. Im Postfach liegen sieben Beschwerden: Die Weboberfläche hängt, die Datenbank antwortet nicht, SSH braucht ewig. Am Telefon fragt die Chefin, ob sie neue Server kaufen muss. **Dein Bosskampf: Finde heraus, was srv1 lahmlegt, behebe es ohne Neustart des Rechners, sorg dafür, dass es beim nächsten Mal eine Vorgeschichte gibt, und beantworte die Frage der Chefin mit Zahlen.** Alles aus Topic 200.
+
+<Hinweis titel="Vorgehen">
+Es ist mehr als ein Problem. Miss zuerst, greif dann ein. Die Aufgaben nennen nur das Ziel.
+</Hinweis>
+
+<Terminal id="montag" titel="Bosskampf: Montagmorgen auf srv1" welt={{ host: 'srv1', last: { szenario: 'montag' } }} aufgaben={[
+  { text: 'Verschaff dir einen Überblick über Last und Kerne.', befehl: '^uptime$|^w$|^top -b -n ?1$|^top -bn ?1$', frage: 'Wie hoch ist die Last der letzten 15 Minuten?', antwort: ['5,10', '5.10', '5,1', '5.1'] },
+  { text: 'Finde heraus, ob die CPU der Engpass ist.', befehl: '^vmstat 1 [3-9]$|^vmstat -w 1 [3-9]$|^top -b -n ?1$|^top -bn ?1$', frage: 'Ist die CPU der Engpass? (ja/nein)', antwort: ['nein'] },
+  { text: 'Der Speicher ist fast voll, und es wird ausgelagert. Welcher Dienst ist es? Gib die PID des Prozesses an.', befehl: '^ps aux --sort=-(rss|%mem|pmem)( \\| head.*)?$|^ps -eo [\\w,%]+ --sort=-(rss|%mem|pmem)( \\| head.*)?$|^free -[hm]$|^top -b -n ?1( -o %MEM)?$', frage: 'PID des größten Speicherverbrauchers?', antwort: ['2870'] },
+  { text: 'Die Platten sind voll ausgelastet. Finde das Programm dahinter.', befehl: '^iotop -o -b -n ?1$|^iotop -b -o -n ?1$|^iotop -bon ?1$|^iotop -obn ?1$|^iostat -x 1 2$', tipp: 'iostat und iotop musst du erst installieren.' },
+  { text: 'Die nächtliche Sicherung hängt noch. Halte sie an, sie läuft heute Nacht neu.', zustand: 'lastprozess:4410=weg && lastprozess:4415=weg' },
+  { text: 'messd hat sein bekanntes Speicherleck. Starte den Dienst neu.', zustand: 'lastprozess:2870=weg && last:swap<100' },
+  { text: 'srv1 ist wieder ruhig: kaum noch Wartezeit auf die Platte, kein Swap mehr.', zustand: 'last:wa<10 && last:swap<100 && last:util<50' },
+  { text: 'Damit es beim nächsten Mal eine Vorgeschichte gibt: sysstat ist installiert und sammelt, auch nach einem Neustart.', zustand: 'datei:/etc/default/sysstat~^ENABLED="true"$ && sysstat:an' },
+  { text: 'Die Frage der Chefin: In <code>/var/log/kapazitaet/srv-daten.csv</code> steht die monatliche Belegung von /srv/daten, die Platte hat 1863 GiB. Lass dir die Datei zeigen und rechne: In wie vielen Monaten ist die Platte ganz voll, wenn das Wachstum so bleibt?', befehl: '^cat /var/log/kapazitaet/srv-daten\\.csv$|^tail( -n ?\\d+)? /var/log/kapazitaet/srv-daten\\.csv$|^head( -n ?\\d+)? /var/log/kapazitaet/srv-daten\\.csv$|^less /var/log/kapazitaet/srv-daten\\.csv$', frage: 'Monate bis ganz voll (gerundet)?', antwort: ['13', '14'] },
+]} />
