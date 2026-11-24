@@ -8,6 +8,7 @@ import { textBefehle } from './shell-text';
 import { SEITEN, EINGEBAUT_OHNE_SEITE, whatis, apropos } from './shell-man';
 import { locateDbAnlegen, rechteBefehle, linksAbgleichen, nurLesbar, zustandRechte, inode, linkZahl } from './shell-rechte';
 import { START_FSTAB, plattenBefehle, startPlatten, zustandPlatten, plattenKaputt, type PlattenStand } from './shell-platten';
+import { skriptKern, programm, funktionAufrufen, istZusammengesetzt, zerlegenProgramm, BrauchtEingabe, stand, rechnen, RechenFehler, parameter, skriptEingebaut, skriptBefehle, suBefehl, shellStarten, shellBeenden, zustandSkript } from './shell-skript';
 import { START_UHR, beruehren, darf, darfImOrdner, meta, neuMeta, type Meta } from './shell-dateien';
 
 export interface Modul { name: string; groesse: number; abh: string[]; beschreibung: string; parameter?: Record<string, string>; datei?: string; }
@@ -201,6 +202,12 @@ function grundFs(): Record<string, string | null> {
     '/home/lena/.bashrc': "# ~/.bashrc: executed by bash(1) for non-login shells.\n# If not running interactively, don't do anything\ncase $- in\n    *i*) ;;\n      *) return;;\nesac\n\n# don't put duplicate lines or lines starting with space in the history.\nHISTCONTROL=ignoreboth\n\n# append to the history file, don't overwrite it\nshopt -s histappend\n\n# for setting history length see HISTSIZE and HISTFILESIZE in bash(1)\nHISTSIZE=1000\nHISTFILESIZE=2000\n\n# enable color support of ls\nif [ -x /usr/bin/dircolors ]; then\n    alias ls='ls --color=auto'\n    #alias grep='grep --color=auto'\nfi\n\n# some more ls aliases\n#alias ll='ls -l'\n#alias la='ls -A'\n#alias l='ls -CF'\n",
     '/home/lena/.profile': "# ~/.profile: executed by the command interpreter for login shells.\n# if running bash\nif [ -n \"$BASH_VERSION\" ]; then\n    # include .bashrc if it exists\n    if [ -f \"$HOME/.bashrc\" ]; then\n\t. \"$HOME/.bashrc\"\n    fi\nfi\n\n# set PATH so it includes user's private bin if it exists\nif [ -d \"$HOME/bin\" ] ; then\n    PATH=\"$HOME/bin:$PATH\"\nfi\n",
     '/home/lena/.bash_history': "ls\ncd downloads\nls -l\ncd\nsudo apt update\nsudo apt upgrade\ncat notizen.txt\nlsusb\nsudo dmesg | tail\n",
+    '/home/lena/.bash_logout': "# ~/.bash_logout: executed by bash(1) when login shell exits.\n\n# when leaving the console clear the screen to increase privacy\n\nif [ \"$SHLVL\" = 1 ]; then\n    [ -x /usr/bin/clear_console ] && /usr/bin/clear_console -q\nfi\n",
+    '/etc/profile': "# /etc/profile: system-wide .profile file for the Bourne shell (sh(1))\n# and Bourne compatible shells (bash(1), ksh(1), ash(1), ...).\n\nif [ \"$(id -u)\" -eq 0 ]; then\n  PATH=\"/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\"\nelse\n  PATH=\"/usr/local/bin:/usr/bin:/bin:/usr/local/games:/usr/games\"\nfi\nexport PATH\n\nif [ \"${PS1-}\" ]; then\n  if [ \"${BASH-}\" ] && [ \"$BASH\" != \"/bin/sh\" ]; then\n    # The file bash.bashrc already sets the default PS1.\n    # PS1='\\h:\\w\\$ '\n    if [ -f /etc/bash.bashrc ]; then\n      . /etc/bash.bashrc\n    fi\n  else\n    if [ \"$(id -u)\" -eq 0 ]; then\n      PS1='# '\n    else\n      PS1='$ '\n    fi\n  fi\nfi\n\nif [ -d /etc/profile.d ]; then\n  for i in /etc/profile.d/*.sh; do\n    if [ -r $i ]; then\n      . $i\n    fi\n  done\n  unset i\nfi\n",
+    '/etc/bash.bashrc': "# System-wide .bashrc file for interactive bash(1) shells.\n\n# To enable the settings / commands in this file for login shells as well,\n# this file has to be sourced in /etc/profile.\n\n# If not running interactively, don't do anything\n[ -z \"${PS1-}\" ] && return\n\n# check the window size after each command and, if necessary,\n# update the values of LINES and COLUMNS.\nshopt -s checkwinsize\n\n# set a fancy prompt (non-color, overwrite the one in /etc/profile)\nPS1='${debian_chroot:+($debian_chroot)}\\u@\\h:\\w\\$ '\n",
+    '/etc/profile.d': null, '/etc/skel': null,
+    '/etc/skel/.bash_logout': "# ~/.bash_logout: executed by bash(1) when login shell exits.\n\n# when leaving the console clear the screen to increase privacy\n\nif [ \"$SHLVL\" = 1 ]; then\n    [ -x /usr/bin/clear_console ] && /usr/bin/clear_console -q\nfi\n",
+    '/var/mail': null,
     '/home/max': null,
     '/root': null,
     '/home/lena/notizen.txt': 'Labor-Notizen\nUSB-Stick nicht einfach abziehen!\n',
@@ -235,6 +242,8 @@ function grundFs(): Record<string, string | null> {
     '/usr/lib/systemd/system/runlevel3.target': '-> multi-user.target', '/usr/lib/systemd/system/runlevel5.target': '-> graphical.target',
     '/etc/systemd/system/default.target': '-> /usr/lib/systemd/system/graphical.target',
   };
+  // Vorlagen für neue Benutzer und die Startdateien von root
+  for (const n of ['.bashrc', '.profile']) { fs['/etc/skel/' + n] = fs['/home/lena/' + n]; fs['/root/' + n] = fs['/home/lena/' + n]; }
   for (const p of PCI) {
     fs[`/sys/bus/pci/devices/0000:${p.slot}`] = null;
     fs[`/sys/bus/pci/devices/0000:${p.slot}/vendor`] = '0x' + p.ids.match(/\[(\w{4}):/)![1] + '\n';
@@ -260,8 +269,8 @@ export function neueWelt(o: WeltOptionen = {}): Welt {
     shutdown: null, aus: null, walls: [], verlauf: [], kernel: KERNEL, cmdline: `BOOT_IMAGE=/boot/vmlinuz-${KERNEL} root=UUID=3f1c0d6e-8a2b-4c51-9a0e-2d7b1e5c9f40 ro quiet`,
     distro: o.distro ?? 'debian', virt: o.virt ?? 'none',
     // Auf „werkstatt“ hat lena /usr/sbin im PATH. Der Debian-Standard für normale Benutzer hat es nicht (Mission 3.2).
-    env: { HOME: '/home/lena', USER: 'lena', LOGNAME: 'lena', PATH: o.pathStandard ? '/usr/local/bin:/usr/bin:/bin:/usr/local/games:/usr/games' : '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games', SHELL: '/bin/bash', LANG: 'de_DE.UTF-8', PWD: '/home/lena', TERM: 'xterm-256color' },
-    vars: { HISTSIZE: '1000', HISTFILESIZE: '2000', HISTCONTROL: 'ignoreboth' }, wartet: null,
+    env: { HOME: '/home/lena', USER: 'lena', LOGNAME: 'lena', PATH: o.pathStandard ? '/usr/local/bin:/usr/bin:/bin:/usr/local/games:/usr/games' : '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games', SHELL: '/bin/bash', LANG: 'de_DE.UTF-8', PWD: '/home/lena', TERM: 'xterm-256color', SHLVL: '1' },
+    vars: { HISTSIZE: '1000', HISTFILESIZE: '2000', HISTCONTROL: 'ignoreboth', BASH: '/usr/bin/bash', BASH_VERSION: '5.2.15(1)-release', PS1: '\\u@\\h:\\w\\$ ' }, wartet: null,
     umask: 0o022, uhr: START_UHR, jobs: [], vordergrund: null, langlaeufer: null, historie: [], aliase: o.aliase ?? { ls: 'ls --color=auto' },
     nice: 0, nohup: false, naechstePid: 4012, letzterCode: 0, args: [], meldungen: [],
     prozesse: [...(o.prozesse ?? STANDARD_PROZESSE), ...(o.extraProzesse ?? [])].map((p) => ({ ...p })),
@@ -299,7 +308,7 @@ export function neueWelt(o: WeltOptionen = {}): Welt {
 }
 
 // Die wichtigsten Programme liegen als Platzhalter in /usr/bin und /usr/sbin, damit ls, file, find und which sie finden.
-const PROGRAMME = ['passwd', 'su', 'chsh', 'chfn', 'newgrp', 'gpasswd', 'chage', 'expiry', 'crontab', 'stat', 'readlink', 'mount', 'umount', 'df', 'du', 'findmnt', 'lsblk', 'ln', 'chgrp', 'locate', 'plocate', 'bash', 'cat', 'cp', 'mv', 'rm', 'ls', 'mkdir', 'rmdir', 'touch', 'ln', 'chmod', 'chown', 'head', 'tail', 'wc', 'sort', 'uniq', 'cut', 'paste', 'tr', 'od', 'split', 'nl', 'tac', 'sed', 'grep', 'find', 'xargs', 'tar', 'gzip', 'gunzip', 'zcat', 'bzip2', 'bunzip2', 'bzcat', 'xz', 'unxz', 'xzcat', 'cpio', 'dd', 'md5sum', 'sha256sum', 'sha512sum', 'file', 'ps', 'top', 'free', 'uptime', 'pgrep', 'pkill', 'killall', 'kill', 'watch', 'nice', 'renice', 'nohup', 'sleep', 'tee', 'env', 'printenv', 'uname', 'which', 'whereis', 'man', 'date', 'echo', 'printf', 'pwd', 'less', 'more', 'vim.tiny', 'nano', 'screen', 'tmux', 'basename', 'dirname', 'id', 'whoami', 'hostname', 'sudo', 'lspci', 'lsusb', 'lsblk', 'dmesg', 'journalctl', 'systemctl', 'apt', 'apt-get', 'apt-cache', 'dpkg', 'ldd'];
+const PROGRAMME = ['passwd', 'su', 'chsh', 'chfn', 'newgrp', 'gpasswd', 'chage', 'expiry', 'crontab', 'stat', 'readlink', 'mount', 'umount', 'df', 'du', 'findmnt', 'lsblk', 'ln', 'chgrp', 'locate', 'plocate', 'bash', 'cat', 'cp', 'mv', 'rm', 'ls', 'mkdir', 'rmdir', 'touch', 'ln', 'chmod', 'chown', 'head', 'tail', 'wc', 'sort', 'uniq', 'cut', 'paste', 'tr', 'od', 'split', 'nl', 'tac', 'sed', 'grep', 'find', 'xargs', 'tar', 'gzip', 'gunzip', 'zcat', 'bzip2', 'bunzip2', 'bzcat', 'xz', 'unxz', 'xzcat', 'cpio', 'dd', 'md5sum', 'sha256sum', 'sha512sum', 'file', 'ps', 'top', 'free', 'uptime', 'pgrep', 'pkill', 'killall', 'kill', 'watch', 'nice', 'renice', 'nohup', 'sleep', 'tee', 'env', 'printenv', 'uname', 'which', 'whereis', 'man', 'date', 'echo', 'printf', 'pwd', 'less', 'more', 'vim.tiny', 'nano', 'screen', 'tmux', 'basename', 'dirname', 'id', 'whoami', 'hostname', 'sudo', 'lspci', 'lsusb', 'lsblk', 'dmesg', 'journalctl', 'systemctl', 'apt', 'apt-get', 'apt-cache', 'dpkg', 'ldd', 'seq', 'expr', 'mail', 'dircolors', 'dash', 'test', '['];
 const SBIN_PROGRAMME = ['mkfs', 'mkfs.ext2', 'mkfs.ext3', 'mkfs.ext4', 'mkfs.xfs', 'mkfs.vfat', 'mkfs.fat', 'mkfs.exfat', 'mkswap', 'swapoff', 'blkid', 'e2fsck', 'fsck', 'fsck.ext4', 'tune2fs', 'xfs_repair', 'xfs_fsr', 'xfs_db', 'parted', 'gdisk', 'fdisk', 'modprobe', 'insmod', 'rmmod', 'lsmod', 'modinfo', 'shutdown', 'reboot', 'poweroff', 'halt', 'ldconfig', 'update-grub', 'grub-install', 'swapon', 'dpkg-reconfigure', 'sshd', 'telinit', 'runlevel'];
 function programmeAblegen(w: Welt) {
   if (w.distro !== 'debian') return;
@@ -382,7 +391,7 @@ function pfad(w: Welt, p: string): string {
 }
 const kinder = (w: Welt, dir: string) => Object.keys(w.fs).filter((k) => k !== dir && k.startsWith(dir === '/' ? '/' : dir + '/') && !k.slice(dir === '/' ? 1 : dir.length + 1).includes('/')).map((k) => k.split('/').pop()!).sort();
 
-interface Ergebnis { out: string; code: number; err?: string; }
+interface Ergebnis { out: string; code: number; err?: string; ende?: unknown }
 const ok = (out = ''): Ergebnis => ({ out, code: 0 });
 // Fehlermeldungen gehen auf stderr: Sie landen nicht in Pipes und nicht in „> datei“, wohl aber in „2> datei“.
 const fehler = (msg: string, code = 1): Ergebnis => ({ out: '', err: msg || undefined, code });
@@ -453,7 +462,13 @@ const befehle: Record<string, Befehl> = {
   hilfe: () => ok(HILFE),
   clear: () => ok('\u001bclear'),
   whoami: (w, _a, _i, root) => ok(root ? 'root' : w.user),
-  id: (w, _a, _i, root) => ok(root ? 'uid=0(root) gid=0(root) Gruppen=0(root)' : 'uid=1000(lena) gid=1000(lena) Gruppen=1000(lena),24(cdrom),27(sudo),46(plugdev),100(users)'),
+  id: (w, a, _i, root) => {
+    const r = root || w.root; const opt = a.filter((x) => x.startsWith('-')).join('').replace(/-/g, '');
+    if (opt.includes('u')) return ok(opt.includes('n') ? (r ? 'root' : 'lena') : r ? '0' : '1000');
+    if (opt.includes('g')) return ok(opt.includes('n') ? (r ? 'root' : 'lena') : r ? '0' : '1000');
+    if (opt.includes('G')) return ok(opt.includes('n') ? (r ? 'root' : 'lena cdrom sudo plugdev users') : r ? '0' : '1000 24 27 46 100');
+    return ok(r ? 'uid=0(root) gid=0(root) Gruppen=0(root)' : 'uid=1000(lena) gid=1000(lena) Gruppen=1000(lena),24(cdrom),27(sudo),46(plugdev),100(users)');
+  },
   hostname: (w) => ok(w.host),
   pwd: (w) => ok(w.cwd),
   groups: (_w, a, _i, root) => ok(a[0] && a[0] !== 'lena' ? `${a[0]} : ${a[0]}` : root ? 'root' : 'lena cdrom sudo plugdev users'),
@@ -870,7 +885,7 @@ function schreiben(w: Welt, ziel: string, text: string, anhaengen: boolean, root
 // ---------- Zerlegen: Wörter und Operatoren ----------
 
 type Token = { t: 'w'; v: string } | { t: 'op'; v: string };
-const OPS = ['2>&1', '1>&2', '>&2', '&>>', '2>>', '1>>', '&&', '||', '|&', '>>', '&>', '2>', '1>', '|', '&', ';', '>', '<'];
+const OPS = ['2>&1', '1>&2', '>&2', '&>>', '2>>', '1>>', '&&', '||', '|&', '>>', '&>', '2>', '1>', '|', '&', ';', '>', '<<<', '<'];
 
 function lexen(zeile: string): Token[] {
   const out: Token[] = []; let cur = ''; let hat = false;
@@ -921,12 +936,13 @@ function klammern(wort: string): string[] {
 
 function variable(w: Welt, n: string): string {
   if (n === '?') return String(w.letzterCode);
+  if (n === '-') return stand(w).skript ? 'hB' : 'himBHs';
   if (n === '$') return '1203';
   if (n === '!') return String(w.jobs[w.jobs.length - 1]?.pid ?? '');
   const a = w.args[w.args.length - 1];
   if (n === '#') return String(a ? a.length - 1 : 0);
   if (n === '@' || n === '*') return a ? a.slice(1).join(' ') : '';
-  if (/^\d$/.test(n)) return n === '0' ? (a?.[0] ?? 'bash') : (a?.[Number(n)] ?? '');
+  if (/^\d$/.test(n)) return n === '0' ? (a?.[0] ?? (stand(w).login ? '-bash' : 'bash')) : (a?.[Number(n)] ?? '');
   if (n === 'PWD') return w.cwd;
   if (n === 'RANDOM') return String(Math.floor(Math.random() * 32768));
   return w.env[n] ?? w.vars[n] ?? '';
@@ -937,6 +953,7 @@ function erweitern(w: Welt, roh: string, root: boolean, globben = true): string[
   // In Zuweisungen ersetzt die Bash ~ auch nach = und :, etwa in PATH=$PATH:~/bin
   if (/^[A-Za-z_]\w*=/.test(roh)) roh = roh.replace(/(^[A-Za-z_]\w*=|:)~(?=\/|:|$)/g, '$1/home/lena');
   for (const wort of klammern(roh)) {
+    if (wort === '"$@"' || wort === '"${@}"') { ergebnis.push(...(w.args[w.args.length - 1]?.slice(1) ?? [])); continue; }
     const felder: string[] = []; let cur = ''; let hat = false; let glob = false;
     const anhaengen = (s: string, geteilt: boolean) => {
       if (!geteilt) { cur += s; return; }
@@ -947,10 +964,15 @@ function erweitern(w: Welt, roh: string, root: boolean, globben = true): string[
     };
     const ersetzung = (befehl: string) => intern(w, befehl, '', root).out.replace(/\n+$/, '');
     const dollar = (s: string, i: number): [string, number] | null => {
+      if (s[i + 1] === '(' && s[i + 2] === '(') {
+        let tiefe = 0; let j = i + 1; for (; j < s.length; j++) { if (s[j] === '(') tiefe++; else if (s[j] === ')' && --tiefe === 0) break; }
+        const innen = s.slice(i + 3, j - 1).replace(/\$\(([^()]*)\)/g, (_, b) => ersetzung(b));
+        try { return [String(rechnen(w, innen)), j]; } catch (e) { if (e instanceof RechenFehler) { w.meldungen.push('bash: ' + e.text); return ['', j]; } throw e; }
+      }
       if (s[i + 1] === '(') { let tiefe = 0; let j = i + 1; for (; j < s.length; j++) { if (s[j] === '(') tiefe++; else if (s[j] === ')' && --tiefe === 0) break; } return [ersetzung(s.slice(i + 2, j)), j]; }
-      const m = s.slice(i + 1).match(/^\{([^}]+)\}|^([A-Za-z_]\w*)|^([?$#@*!0-9])/);
+      const m = s.slice(i + 1).match(/^\{([^}]+)\}|^([A-Za-z_]\w*)|^([?$#@*!0-9-])/);
       if (!m) return null;
-      if (m[1]) { const k = m[1].match(/^#(\w+)$/); if (k) return [String(variable(w, k[1]).length), i + m[0].length]; const d = m[1].match(/^(\w+):-(.*)$/); if (d) return [variable(w, d[1]) || d[2], i + m[0].length]; return [variable(w, m[1]), i + m[0].length]; }
+      if (m[1]) { try { const p = parameter(w, m[1], root); if (p !== null) return [p, i + m[0].length]; } catch (e) { if (e instanceof RechenFehler) { w.meldungen.push('bash: ' + e.text); return ['', i + m[0].length]; } throw e; } const k = m[1].match(/^#(\w+)$/); if (k) return [String(variable(w, k[1]).length), i + m[0].length]; const d = m[1].match(/^(\w+):-(.*)$/); if (d) return [variable(w, d[1]) || d[2], i + m[0].length]; return [variable(w, m[1]), i + m[0].length]; }
       return [variable(w, m[2] ?? m[3]), i + m[0].length];
     };
     if (/^~(\/|$)/.test(wort)) { cur = '/home/lena'; hat = true; }
@@ -1021,7 +1043,7 @@ function wildcards(w: Welt, muster: string): string[] {
 // Wo die Programme auf Debian 12 liegen (merged /usr: /bin -> usr/bin, /sbin -> usr/sbin)
 const SBIN = new Set(['mkfs', 'mkfs.ext2', 'mkfs.ext3', 'mkfs.ext4', 'mkfs.xfs', 'mkfs.vfat', 'mkfs.fat', 'mkfs.exfat', 'mkfs.btrfs', 'mke2fs', 'mkswap', 'swapoff', 'blkid', 'e2fsck', 'fsck.ext2', 'fsck.ext3', 'fsck.ext4', 'tune2fs', 'e2label', 'xfs_repair', 'xfs_fsr', 'xfs_db', 'xfs_admin', 'parted', 'gdisk', 'updatedb', 'chroot', 'fdisk', 'modprobe', 'insmod', 'rmmod', 'lsmod', 'modinfo', 'depmod', 'shutdown', 'reboot', 'poweroff', 'halt', 'telinit', 'init', 'runlevel', 'ldconfig', 'update-grub', 'grub-install', 'grub-mkconfig', 'swapon', 'swapoff', 'dpkg-reconfigure', 'sshd', 'mkfs', 'fsck', 'blkid', 'parted', 'useradd', 'usermod', 'ifconfig']);
 const ROOT_PATH = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin';
-const AUCH_EXTERN = new Set(['echo', 'pwd', 'kill', 'true', 'false', 'printf']);   // gibt es auch als Programm in /usr/bin
+const AUCH_EXTERN = new Set(['echo', 'pwd', 'kill', 'true', 'false', 'printf', 'test', '[']);   // gibt es auch als Programm in /usr/bin
 const EIGENER_ORT: Record<string, string> = { 'apt-file': '/usr/bin' };
 function ortVon(name: string) { return EIGENER_ORT[name] ?? (SBIN.has(name) ? '/usr/sbin' : '/usr/bin'); }
 const gleichwertig = (dir: string) => dir === '/bin' ? '/usr/bin' : dir === '/sbin' ? '/usr/sbin' : dir.replace(/\/$/, '');
@@ -1070,8 +1092,25 @@ const EINGEBAUT: Record<string, (w: Welt, a: string[], stdin: string, root: bool
     }
     return ok();
   },
-  unset: (w, a) => { for (const n of a.filter((x) => !x.startsWith('-'))) { delete w.env[n]; delete w.vars[n]; } return ok(); },
-  set: (w) => ok([...Object.entries(w.env), ...Object.entries(w.vars)].sort(([x], [y]) => x.localeCompare(y)).map(([k, v]) => `${k}=${/\s/.test(v) ? `'${v}'` : v}`).join('\n')),
+  unset: (w, a) => {
+    const st = stand(w);
+    if (a.includes('-f')) { for (const n of a.filter((x) => !x.startsWith('-'))) { delete st.funktionen[n]; delete st.funkText[n]; } return ok(); }
+    for (const n of a.filter((x) => !x.startsWith('-'))) { if (!/^[A-Za-z_]\w*$/.test(n)) return fehler(`bash: unset: »${n}«: Ist kein gültiger Bezeichner`); if (n in w.env || n in w.vars || a.includes('-v')) { delete w.env[n]; delete w.vars[n]; } else { delete st.funktionen[n]; delete st.funkText[n]; } }
+    return ok();
+  },
+  set: (w, a) => {
+    const st = stand(w);
+    if (!a.length) return ok([...[...Object.entries(w.env), ...Object.entries(w.vars)].sort(([x], [y]) => x.localeCompare(y)).map(([k, v]) => `${k}=${/[\s'\\]/.test(v) ? `'${v.replace(/\t/g, '\\t').replace(/\n/g, '\\n')}'` : v}`), ...Object.keys(st.funkText).sort().map((n) => st.funkText[n])].join('\n'));
+    for (let i = 0; i < a.length; i++) {
+      const x = a[i];
+      if (x === '--') { const top = w.args[w.args.length - 1]; const neu = [top?.[0] ?? 'bash', ...a.slice(i + 1)]; if (top) w.args[w.args.length - 1] = neu; else w.args.push(neu); return ok(); }
+      if (x === '-o' || x === '+o') { const n = a[++i]; const k = ({ xtrace: 'x', errexit: 'e', nounset: 'u' } as Record<string, 'x' | 'e' | 'u'>)[n]; if (!n) return ok(['errexit', 'nounset', 'xtrace'].map((o) => `${o.padEnd(15)}\t${st.optionen[({ errexit: 'e', nounset: 'u', xtrace: 'x' } as Record<string, 'x' | 'e' | 'u'>)[o]] ? 'on' : 'off'}`).join('\n')); if (!k) return fehler(`bash: set: ${n}: Ungültiger Optionsname.`); st.optionen[k] = x === '-o'; continue; }
+      const m = x.match(/^([-+])([a-zA-Z]+)$/);
+      if (!m) { const top = w.args[w.args.length - 1]; const neu = [top?.[0] ?? 'bash', ...a.slice(i)]; if (top) w.args[w.args.length - 1] = neu; else w.args.push(neu); return ok(); }
+      for (const c of m[2]) { if ('xeu'.includes(c)) st.optionen[c as 'x'] = m[1] === '-'; else if (!'vhBHmCfnab'.includes(c)) return fehler(`bash: set: ${m[1]}${c}: Ungültige Option.`, 2); }
+    }
+    return ok();
+  },
   alias: (w, a) => {
     if (!a.length) return ok(Object.entries(w.aliase).sort().map(([k, v]) => `alias ${k}='${v}'`).join('\n'));
     const out: string[] = []; const err: string[] = [];
@@ -1085,6 +1124,7 @@ const EINGEBAUT: Record<string, (w: Welt, a: string[], stdin: string, root: bool
     for (const n of a.filter((x) => !x.startsWith('-'))) {
       const f: string[] = [];
       if (!nurPfad && w.aliase[n] !== undefined) f.push(kurz ? 'alias' : `${n} ist ein Alias von »${w.aliase[n]}«.`);
+      if (!nurPfad && stand(w).funkText[n]) f.push(kurz ? 'function' : `${n} ist eine Funktion.\n${stand(w).funkText[n]}`);
       if (!nurPfad && ['if', 'then', 'else', 'fi', 'for', 'while', 'do', 'done', 'case', 'esac', 'function', 'time', '!', '[['].includes(n)) f.push(kurz ? 'keyword' : `${n} Ist ein reserviertes Schlüsselwort der Shell.`);
       if (!nurPfad && EINGEBAUT[n]) f.push(kurz ? 'builtin' : `${n} ist eine von der Shell mitgelieferte Funktion.`);
       for (const p of imPath(w, n)) f.push(kurz ? 'file' : nurPfad ? p : `${n} ist ${p}`);
@@ -1119,7 +1159,14 @@ const EINGEBAUT: Record<string, (w: Welt, a: string[], stdin: string, root: bool
   },
   source: (w, a, stdin, root) => skript(w, a[0], a, stdin, root, true),
   '.': (w, a, stdin, root) => skript(w, a[0], a, stdin, root, true),
-  exit: (w) => { if (w.args.length) return { out: '', code: w.letzterCode, ende: true } as Ergebnis; if (w.root) { w.root = false; return ok('abgemeldet'); } return ok('(Im Simulator bleibst du angemeldet.)'); },
+  exit: (w, a) => {
+    if (a[0] !== undefined && !/^-?\d+$/.test(a[0])) return { out: '', err: `bash: exit: ${a[0]}: Ein numerischer Parameter ist erforderlich.`, code: 2, ende: 'exit' };
+    const code = a[0] !== undefined ? Number(a[0]) & 255 : w.letzterCode;
+    if (w.args.length) return { out: '', code, ende: 'exit' };
+    if (stand(w).shells.length) return shellBeenden(w, code, false);
+    if (w.root) { w.root = false; return ok('abgemeldet'); }
+    return ok('exit\n(Das wäre die letzte Shell dieses Terminals. Im Simulator bleibst du angemeldet.)');
+  },
   jobs: (w, a, i, r) => SHELL_INTERN.jobs(w, a, i, r), fg: (w, a, i, r) => SHELL_INTERN.fg(w, a, i, r), bg: (w, a, i, r) => SHELL_INTERN.bg(w, a, i, r),
   kill: (w, a, i, r) => {
     const fehlt = a.find((x) => /^%/.test(x) && !jobAus(w, x));
@@ -1127,7 +1174,8 @@ const EINGEBAUT: Record<string, (w: Welt, a: string[], stdin: string, root: bool
     return befehle.kill(w, a.map((x) => (/^%/.test(x) ? String(jobAus(w, x)!.pid) : x)), i, r);
   },
 };
-EINGEBAUT.logout = EINGEBAUT.exit;
+EINGEBAUT.logout = (w, a) => (stand(w).shells.length ? shellBeenden(w, a[0] ? Number(a[0]) & 255 : w.letzterCode, true) : fehler('bash: logout: Keine Loginshell: Mit »exit« abmelden!'));
+Object.assign(EINGEBAUT, skriptEingebaut());
 function jobAus(w: Welt, x: string) { const m = x.match(/^%(\d+|[+%-]?)$/); if (!m) return undefined; return m[1] && /^\d+$/.test(m[1]) ? w.jobs.find((j) => j.nr === Number(m[1])) : m[1] === '-' ? w.jobs[w.jobs.length - 2] : w.jobs[w.jobs.length - 1]; }
 const SHELL_INTERN: Record<string, Befehl> = {};
 const PROGRAMME_SHELL: Record<string, Befehl> = {
@@ -1144,27 +1192,27 @@ function skript(w: Welt, datei: string | undefined, args: string[], stdin: strin
   if (!datei) return fehler('bash: source: Dateiname als Argument erforderlich.', 2);
   const p = datei.includes('/') ? pfad(w, datei) : (quelle ? (imPathDatei(w, datei) ?? pfad(w, datei)) : pfad(w, datei));
   if (!(p in w.fs)) return fehler(`bash: ${datei}: Datei oder Verzeichnis nicht gefunden`, quelle ? 1 : 127);
+  if (w.fs[p] === null) return fehler(`bash: ${datei}: ist ein Verzeichnis.`, quelle ? 1 : 126);
   if (!darf(w, p, 'r', root)) return fehler(`bash: ${datei}: Keine Berechtigung`, 126);
   const text = w.fs[p] ?? '';
-  const altVars = w.vars; const altEnv = w.env; const altCwd = w.cwd;
-  if (!quelle) { w.vars = {}; w.env = { ...w.env }; }
-  w.args.push([datei, ...args.slice(1)]);
-  const out: string[] = []; const err: string[] = []; let code = 0;
-  try {
-    for (const z of text.split('\n')) {
-      if (!z.trim() || z.trim().startsWith('#')) continue;
-      const r = intern(w, z, stdin, root);
-      if (r.out) out.push(r.out); if (r.err) err.push(r.err);
-      code = r.code; w.letzterCode = code;
-      if ((r as any).ende) break;
-      // Ein Befehl im Skript läuft weiter (sleep, tail -f): Das Skript wartet an dieser Stelle
-      if (w.langlaeufer) break;
-    }
-  } finally {
+  const st = stand(w);
+  const alt = { vars: w.vars, env: w.env, cwd: w.cwd, aliase: w.aliase, funktionen: st.funktionen, funkText: st.funkText, optionen: st.optionen };
+  // Ein Skript läuft in einer eigenen Shell: Es erbt nur die Umgebung, keine Shell-Variablen, Aliase oder Funktionen
+  if (!quelle) { w.vars = {}; w.env = { ...w.env }; w.aliase = {}; st.funktionen = {}; st.funkText = {}; st.optionen = {}; st.skript++; }
+  else st.quelle++;
+  const name = args[0] ?? datei;
+  if (!quelle || args.length > 1) w.args.push([quelle ? (w.args[w.args.length - 1]?.[0] ?? 'bash') : name, ...args.slice(1)]);
+  else w.args.push([...(w.args[w.args.length - 1] ?? ['bash'])]);
+  let r: ReturnType<typeof programm>;
+  try { r = programm(w, text, stdin, root, { name: quelle ? `bash: ${datei}` : name }); }
+  finally {
     w.args.pop();
-    if (!quelle) { w.vars = altVars; w.env = altEnv; w.cwd = altCwd; }
+    if (!quelle) { Object.assign(w, { vars: alt.vars, env: alt.env, cwd: alt.cwd, aliase: alt.aliase }); st.funktionen = alt.funktionen; st.funkText = alt.funkText; st.optionen = alt.optionen; st.skript--; }
+    else st.quelle--;
   }
-  return { out: out.join('\n'), err: err.join('\n') || undefined, code };
+  // exit in einer mit source gelesenen Datei beendet auch das Skript, das sie gelesen hat
+  const ende = quelle && r.ende === 'exit' && (st.skript > 0 || st.funk > 0) ? 'exit' : undefined;
+  return { out: r.out, err: r.err, code: r.code, misch: r.misch, ...(ende ? { ende } : {}) } as Ergebnis;
 }
 function imPathDatei(w: Welt, n: string) { for (const d of (w.env.PATH ?? '').split(':')) { const p = d + '/' + n; if (typeof w.fs[p] === 'string') return p; } return null; }
 
@@ -1179,6 +1227,15 @@ function pfadStarten(w: Welt, name: string, z: string, args: string[], stdin: st
   if (c.startsWith(BIN_MARKE) && befehle[basis]) return befehle[basis](w, args, stdin, root);
   const prog = programmStarten(w, z);
   if (prog) return prog.code ? { out: '', err: prog.out, code: prog.code } : prog;
+  if (c.startsWith('#!')) {
+    // Die Shebang-Zeile bestimmt den Interpreter
+    const interp = c.slice(2).split('\n')[0].trim().split(/\s+/)[0];
+    const ip = pfad(w, interp);
+    if (!(ip in w.fs)) return fehler(`bash: ${name}: ${interp}: Defekter Interpreter: Datei oder Verzeichnis nicht gefunden`, 126);
+    const basis = interp.split('/').pop()!;
+    if (basis === 'env') { const n = c.slice(2).split('\n')[0].trim().split(/\s+/)[1] ?? ''; if (!['bash', 'sh', 'dash'].includes(n)) return fehler(`(Der Simulator führt nur Shell-Skripte aus. ${n || 'Dieser Interpreter'} läuft hier nicht.)`, 126); }
+    else if (!['bash', 'sh', 'dash'].includes(basis)) return fehler(`(Der Simulator führt nur Shell-Skripte aus. ${interp} läuft hier nicht.)`, 126);
+  }
   if (c.startsWith('#!') || !c.startsWith('\u0007')) return skript(w, z, [name, ...args], stdin, root, false);
   return fehler(`bash: ${name}: Kann die Binärdatei nicht ausführen: Fehler im Format der Programmdatei`, 126);
 }
@@ -1204,9 +1261,9 @@ function parsen(w: Welt, zeile: string): Kette[] | string {
   for (let i = 0; i < tokens.length; i++) {
     const t = tokens[i];
     if (t.t === 'w') { cmd.woerter.push(t.v); textTeile.push(t.v); continue; }
-    if (['>', '>>', '<', '2>', '2>>', '1>', '1>>', '&>', '&>>'].includes(t.v)) {
+    if (['>', '>>', '<', '<<<', '2>', '2>>', '1>', '1>>', '&>', '&>>'].includes(t.v)) {
       const z = tokens[i + 1]; if (!z || z.t !== 'w') return `bash: Syntaxfehler beim unerwarteten Symbol »${z ? z.v : 'newline'}«`;
-      const fd = t.v.startsWith('2') ? 2 : t.v.startsWith('&') ? 3 : t.v === '<' ? 0 : 1;
+      const fd = t.v.startsWith('2') ? 2 : t.v.startsWith('&') ? 3 : t.v.startsWith('<') ? 0 : 1;
       cmd.umleitungen.push({ fd, op: t.v.replace(/^[12&]/, '') || '>', ziel: z.v }); textTeile.push(t.v, z.v); i++; continue;
     }
     if (t.v === '2>&1') { cmd.umleitungen.push({ fd: 2, op: 'dup1' }); textTeile.push(t.v); continue; }
@@ -1251,6 +1308,7 @@ function einfachAusfuehren(w: Welt, c: Einfach, stdin: string, rootStart: boolea
   for (const u of c.umleitungen) {
     if (u.op === 'dup1') { fd2 = { ...fd1 }; continue; }
     if (u.op === 'dup2') { fd1 = { ...fd2 }; continue; }
+    if (u.op === '<<<') { stdin = erweitern(w, u.ziel!, root, false).join(' ') + '\n'; stand(w).eingabeTty = false; continue; }
     const ziele = erweitern(w, u.ziel!, w.root);
     if (ziele.length !== 1) return frueh(`bash: ${u.ziel}: Mehrdeutige Umlenkung.`);
     const z = ziele[0];
@@ -1259,7 +1317,7 @@ function einfachAusfuehren(w: Welt, c: Einfach, stdin: string, rootStart: boolea
       if (!(p in w.fs)) return frueh(`bash: ${z}: Datei oder Verzeichnis nicht gefunden`);
       if (w.fs[p] === null) return frueh(`bash: ${z}: Ist ein Verzeichnis`);
       if (!darf(w, p, 'r', w.root)) return frueh(`bash: ${z}: Keine Berechtigung`);
-      stdin = w.fs[p] ?? ''; continue;
+      stdin = w.fs[p] ?? ''; stand(w).eingabeTty = false; continue;
     }
     const anh = u.op === '>>';
     const p = pfad(w, z);
@@ -1272,6 +1330,8 @@ function einfachAusfuehren(w: Welt, c: Einfach, stdin: string, rootStart: boolea
     if (u.fd === 1 || u.fd === 3) fd1 = ziel;
     if (u.fd === 2 || u.fd === 3) fd2 = ziel;
   }
+  // set -x: Die Shell zeigt jeden Befehl nach der Erweiterung mit „+ “ davor
+  const spur = stand(w).optionen.x ? (args.length ? '+ ' + args.map((x) => (/[\s'"]/.test(x) || x === '' ? `'${x}'` : x)).join(' ') : Object.entries(temp).map(([k, v]) => `+ ${k}=${v}`).join('\n')) : '';
   let r: Ergebnis;
   // Manche Programme (ls) verhalten sich anders, wenn ihre Ausgabe nicht im Terminal landet
   w.stdoutTty = fd1.art === 'tty';
@@ -1280,7 +1340,12 @@ function einfachAusfuehren(w: Welt, c: Einfach, stdin: string, rootStart: boolea
     if (args[0] === 'sudo') {
       args = args.slice(1);
       while (args[0]?.startsWith('-') && args[0] !== '-i' && args[0] !== '-s') args.shift();
-      if (args[0] === '-i' || args[0] === '-s' || (args[0] === 'su' && args.length <= 2)) { w.root = true; return { ...ok('[sudo] Passwort für lena: (im Simulator nicht nötig)\nDu bist jetzt root. Mit "exit" kommst du zurück.'), tty: '[sudo] Passwort für lena: (im Simulator nicht nötig)\nDu bist jetzt root. Mit "exit" kommst du zurück.' }; }
+      if (args[0] === '-i' || args[0] === '-s' || (args[0] === 'su' && args.length <= 2 && (!args[1] || ['-', '-l', '--login', 'root'].includes(args[1])))) {
+        const login = args[0] === '-i' || args[1] === '-' || args[1] === '-l' || args[1] === '--login';
+        const st = shellStarten(w, { login, root: true });
+        const t = ['[sudo] Passwort für lena: (im Simulator nicht nötig)', st.err, st.out, 'Du bist jetzt root. Mit "exit" kommst du zurück.'].filter(Boolean).join('\n');
+        return { ...ok(t), tty: t };
+      }
       if (!args.length) return frueh('usage: sudo -h | -K | -k | -V');
       root = true;
       // sudo nutzt secure_path und kennt keine Aliase und keine eingebauten Befehle der Shell
@@ -1290,14 +1355,23 @@ function einfachAusfuehren(w: Welt, c: Einfach, stdin: string, rootStart: boolea
     const altEnv = w.env;
     if (Object.keys(temp).length) w.env = { ...w.env, ...temp };
     try {
-      if (EINGEBAUT[name] && (!viaSudo || AUCH_EXTERN.has(name))) r = EINGEBAUT[name](w, args.slice(1), stdin, root);
+      const fn = !viaSudo ? funktionAufrufen(w, name, args.slice(1), stdin, root) : null;
+      if (fn) r = fn;
+      else if (EINGEBAUT[name] && (!viaSudo || AUCH_EXTERN.has(name))) r = EINGEBAUT[name](w, args.slice(1), stdin, root);
       // sudo startet Programme und kennt die eingebauten Befehle der Shell nicht
       else if (EINGEBAUT[name]) r = fehler(`sudo: ${name}: Befehl nicht gefunden`);
+      else if (['bash', 'sh', 'dash'].includes(name) && (!args[1] || ['-l', '--login', '-i'].includes(args[1]))) {
+        if (viaSudo) { const st = shellStarten(w, { login: args[1] === '-l' || args[1] === '--login', root: true }); r = { ...st, out: [st.out, 'Du bist jetzt root. Mit "exit" kommst du zurück.'].filter(Boolean).join('\n') }; }
+        else r = shellStarten(w, { login: args[1] === '-l' || args[1] === '--login' });
+      }
       else if (['bash', 'sh'].includes(name) && args[1] === '-c') {
         // Eine neue Shell erbt nur exportierte Variablen, keine Shell-Variablen und keine Aliase
         const alt = { vars: w.vars, env: w.env, cwd: w.cwd, aliase: w.aliase };
         w.vars = {}; w.env = { ...w.env }; w.aliase = {};
-        try { r = intern(w, args[2] ?? '', stdin, root); } finally { Object.assign(w, alt); }
+        const sk = stand(w); const altF = { f: sk.funktionen, t: sk.funkText }; sk.funktionen = {}; sk.funkText = {}; sk.skript++;
+        w.args.push([args[3] ?? name, ...args.slice(4)]);
+        try { const p = programm(w, args[2] ?? '', stdin, root, { name: `${name}: -c` }); r = { out: p.out, err: p.err, code: p.code }; }
+        finally { Object.assign(w, alt); w.args.pop(); sk.funktionen = altF.f; sk.funkText = altF.t; sk.skript--; }
       }
       else if (['bash', 'sh'].includes(name) && args[1]) r = skript(w, args[1], args.slice(1), stdin, root, false);
       else if (name.includes('/')) r = pfadStarten(w, name, pfad(w, name), args.slice(1), stdin, root);
@@ -1321,7 +1395,10 @@ function einfachAusfuehren(w: Welt, c: Einfach, stdin: string, rootStart: boolea
     else if (z.datei !== '/dev/null') { w.fs[z.datei!] = (w.fs[z.datei!] ?? '') + text + (stdout && ohneNL ? '' : '\n'); beruehren(w, z.datei!); }
   };
   // Meist erscheint stderr zuerst (ungepuffert). Manche Befehle melden ihre Zusammenfassung erst am Ende.
-  if ((r as any).errNach) { ablegen(fd1, out, true); ablegen(fd2, r.err ?? '', false); }
+  if (spur) ablegen(fd2, spur, false);
+  // Skripte und Funktionen: Ausgabe und Fehler erscheinen im Terminal in der Reihenfolge, in der sie entstanden
+  if (fd1.art === 'tty' && fd2.art === 'tty' && typeof (r as any).misch === 'string') ablegen(fd1, (r as any).misch.replace(/\u0000ohneNL/g, ''), true);
+  else if ((r as any).errNach) { ablegen(fd1, out, true); ablegen(fd2, r.err ?? '', false); }
   else { ablegen(fd2, r.err ?? '', false); ablegen(fd1, out, true); }
   // Harte Links: Was über einen Namen geschrieben wurde, gilt für alle
   linksAbgleichen(w);
@@ -1336,20 +1413,43 @@ function prozessName(text: string, lang: string) {
   return lang;
 }
 
-function zeileAusfuehren(w: Welt, zeile: string, stdin: string, root: boolean, interaktiv: boolean): { tty: string; out: string; err: string; code: number; ende?: boolean } {
+type ZeilenErgebnis = { tty: string; out: string; err: string; code: number; ende?: unknown };
+function vordergrundBelegen(w: Welt, text: string, root: boolean, tty: string[]) {
+  const pid = w.naechstePid++;
+  w.prozesse.push({ pid, user: root || w.root ? 'root' : 'lena', cmd: prozessName(text, w.langlaeufer!), ppid: 1203, ni: w.langNice ?? w.nice, tty: 'pts/0', stat: 'S+', start: '08:41', cpu: /render|yes/.test(text) ? 49.8 : 0.3, mem: 0.1 });
+  w.vordergrund = { pid, cmd: text };
+  w.langlaeufer = null;
+  tty.push(`(${text} läuft im Vordergrund. Strg+Z hält den Befehl an, Strg+C bricht ihn ab.)`);
+}
+function zeileAusfuehren(w: Welt, zeile: string, stdin: string, root: boolean, interaktiv: boolean, roh = false, schlicht = false): ZeilenErgebnis {
+  // Kontrollstrukturen (if, for, while, case, Funktionen) übernimmt der Interpreter in shell-skript.ts
+  if (!schlicht && istZusammengesetzt(zeile)) {
+    w.langlaeufer = null;
+    const r = programm(w, zeile, stdin, root, interaktiv ? { tty: stand(w).eingabeTty } : {});
+    if (interaktiv) {
+      const tty = [r.misch.replace(/\u0000ohneNL/g, '')];
+      if (w.langlaeufer) vordergrundBelegen(w, zeile.split('\n')[0], root, tty);
+      return { tty: tty.filter(Boolean).join('\n'), out: '', err: '', code: r.code, ende: r.ende };
+    }
+    const o = r.out.endsWith('\u0000ohneNL') ? r.out.slice(0, -7) : r.out;
+    return { tty: '', out: roh ? (r.out.endsWith('\u0000ohneNL') ? o : o ? o + '\n' : '') : o, err: r.err ?? '', code: r.code, ende: r.ende };
+  }
   const ketten = parsen(w, zeile);
   if (typeof ketten === 'string') return { tty: ketten, out: '', err: ketten, code: 2 };
   const tty: string[] = []; let code = w.letzterCode; const outs: string[] = []; const errs: string[] = [];
+  const st = stand(w); const ttyVorher = st.eingabeTty;
+  try {
   for (const k of ketten) {
     if (k.verbinder === '&&' && code !== 0) continue;
     if (k.verbinder === '||' && code === 0) continue;
-    let eingabe = stdin; let ende = false;
+    let eingabe = stdin; let ende: unknown = false;
     if (k.hintergrund) {
       const nr = (w.jobs.length ? Math.max(...w.jobs.map((j) => j.nr)) : 0) + 1; const pid = w.naechstePid++;
       w.langlaeufer = null; w.langNice = undefined;
       const altNohup = w.nohup;
       const tt: string[] = [];
-      for (const [i, c] of k.pipeline.entries()) { const r = einfachAusfuehren(w, c, eingabe, root, i === k.pipeline.length - 1); if (r.tty) tt.push(r.tty); eingabe = r.out; code = r.code; }
+      for (const [i, c] of k.pipeline.entries()) { st.eingabeTty = i === 0 && ttyVorher; const r = einfachAusfuehren(w, c, eingabe, root, i === k.pipeline.length - 1); if (r.tty) tt.push(r.tty); eingabe = r.out; code = r.code; }
+      st.eingabeTty = ttyVorher;
       const laeuft = w.langlaeufer;
       const job: Job = { nr, pid, cmd: k.text, status: laeuft ? 'Running' : 'Done' };
       if (laeuft) { w.prozesse.push({ pid, user: root || w.root ? 'root' : 'lena', cmd: prozessName(k.text, laeuft), ppid: 1203, ni: w.langNice ?? w.nice, tty: 'pts/0', stat: 'S', start: '08:41', cpu: /render|yes|make/.test(k.text) ? 49.8 : 0, mem: 0.1, nohup: w.nohup }); }
@@ -1360,27 +1460,30 @@ function zeileAusfuehren(w: Welt, zeile: string, stdin: string, root: boolean, i
       continue;
     }
     w.langNice = undefined;
+    const nicht = k.pipeline[0]?.woerter[0] === '!';
+    if (nicht) k.pipeline[0].woerter.shift();
     for (const [i, c] of k.pipeline.entries()) {
       w.langlaeufer = null;
+      st.eingabeTty = i === 0 && ttyVorher;
       const r = einfachAusfuehren(w, c, eingabe, root, i === k.pipeline.length - 1 && interaktiv);
+      st.eingabeTty = ttyVorher;
       if (r.tty === '\u001bclear') return { tty: '\u001bclear', out: '', err: '', code: 0 };
       if (r.tty) { if (interaktiv) tty.push(r.tty); else errs.push(r.tty); }
-      eingabe = r.out; code = r.code; if ((r as any).ende) ende = true;
+      eingabe = r.out; code = r.code; if ((r as any).ende) ende = (r as any).ende;
     }
-    if (!interaktiv) outs.push(eingabe.replace(/\n$/, ''));
+    if (nicht) code = code ? 0 : 1;
+    if (!interaktiv) outs.push(roh ? eingabe : eingabe.replace(/\n$/, ''));
     w.letzterCode = code;
     // Ein Befehl, der weiterläuft (sleep 100, top, tail -f), belegt jetzt den Vordergrund
-    if (interaktiv && w.langlaeufer) {
-      const pid = w.naechstePid++;
-      w.prozesse.push({ pid, user: root || w.root ? 'root' : 'lena', cmd: prozessName(k.text, w.langlaeufer), ppid: 1203, ni: w.langNice ?? w.nice, tty: 'pts/0', stat: 'S+', start: '08:41', cpu: /render|yes/.test(k.text) ? 49.8 : 0.3, mem: 0.1 });
-      w.vordergrund = { pid, cmd: k.text };
-      w.langlaeufer = null;
-      tty.push(`(${k.text} läuft im Vordergrund. Strg+Z hält den Befehl an, Strg+C bricht ihn ab.)`);
-      break;
-    }
-    if (ende) return { tty: tty.join('\n'), out: outs.join('\n'), err: errs.join('\n'), code, ende: true };
+    if (interaktiv && w.langlaeufer) { vordergrundBelegen(w, k.text, root, tty); break; }
+    if (ende) return { tty: tty.join('\n'), out: roh ? outs.join('') : outs.join('\n'), err: errs.join('\n'), code, ende };
   }
-  return { tty: tty.filter((x) => x !== '').join('\n'), out: outs.filter(Boolean).join('\n'), err: errs.join('\n'), code };
+  } catch (e) {
+    st.eingabeTty = ttyVorher;
+    if (e instanceof BrauchtEingabe) e.bisher = [...tty, ...errs, ...outs].filter(Boolean).map((x) => x.replace(/\n$/, '')).join('\n') + (tty.length + errs.length + outs.length ? '\n' : '') + e.bisher;
+    throw e;
+  }
+  return { tty: tty.filter((x) => x !== '').join('\n'), out: roh ? outs.join('') : outs.filter(Boolean).join('\n'), err: errs.join('\n'), code };
 }
 
 /** Für Befehlsersetzung, xargs, find -exec, Skripte: stdout getrennt von stderr. */
@@ -1417,7 +1520,11 @@ export function ausfuehren(w: Welt, zeile: string): Lauf {
   // Strg+C und Strg+Z aus dem Terminal
   if (zeile === '\u0003' || zeile === '\u001a') {
     const v = w.vordergrund;
-    if (!v) { w.verlauf.push({ zeile: zeile === '\u0003' ? '#strg-c' : '#strg-z', code: 0, ausgabe: '' }); return { ausgabe: zeile === '\u0003' ? '^C' : '', code: 0 }; }
+    if (!v) {
+      const sk = stand(w);
+      if (zeile === '\u0003' && (sk.fortsetzung !== undefined || w.dialog)) { sk.fortsetzung = undefined; w.dialog = null; w.letzterCode = 130; }
+      w.verlauf.push({ zeile: zeile === '\u0003' ? '#strg-c' : '#strg-z', code: 0, ausgabe: '' }); return { ausgabe: zeile === '\u0003' ? '^C' : '', code: 0 };
+    }
     w.vordergrund = null;
     const p = w.prozesse.find((x) => x.pid === v.pid);
     if (zeile === '\u0003') {
@@ -1442,8 +1549,12 @@ export function ausfuehren(w: Welt, zeile: string): Lauf {
     return { ausgabe: out.replace(/^\n+/, ''), code: 0 };
   }
   let roh = zeile.replace(/\s+$/, '');
+  // Unvollständige Eingabe (if ohne fi, offene Anführungszeichen): weiter mit dem Prompt „> “
+  const sk = stand(w);
+  let fortsetzungAlt: string | undefined;
+  if (sk.fortsetzung !== undefined && !w.wartet && !w.vordergrund) { fortsetzungAlt = sk.fortsetzung; sk.fortsetzung = undefined; }
   if (w.vordergrund && !w.wartet) return { ausgabe: `(${w.vordergrund.cmd} läuft noch im Vordergrund. Drücke Strg+Z zum Anhalten oder Strg+C zum Abbrechen.)`, code: 0 };
-  if (!roh.trim() && !w.wartet) return { ausgabe: meldungenAbholen(w), code: 0 };
+  if (!roh.trim() && !w.wartet && fortsetzungAlt === undefined) return { ausgabe: meldungenAbholen(w), code: 0 };
   if (w.aus) return { ausgabe: `Das System ist ${w.aus === 'reboot' ? 'gerade beim Neustart' : 'heruntergefahren'}. Mit "Neu starten" unter dem Terminal geht es weiter.`, code: 1 };
   // Offene Rückfrage wie „Do you want to continue? [Y/n]“
   if (w.wartet) {
@@ -1456,18 +1567,52 @@ export function ausfuehren(w: Welt, zeile: string): Lauf {
     return { ausgabe: text, code: r.code };
   }
   // Verlauf: !! und Co. erweitern; die Bash zeigt die erweiterte Zeile vorher an
-  const erw = verlaufErweitern(w, roh);
+  // In Fortsetzungszeilen gilt das nur für die neue Zeile, in Here-Dokumenten gar nicht
+  const imHereDok = fortsetzungAlt !== undefined && /Here-Dokument/.test(((zerlegenProgramm(fortsetzungAlt) as { fehler?: string }).fehler) ?? '');
+  const erw = imHereDok ? roh : verlaufErweitern(w, roh);
   if (typeof erw !== 'string') { w.verlauf.push({ zeile: roh, code: 1, ausgabe: erw.fehler }); w.letzterCode = 1; return { ausgabe: erw.fehler, code: 1 }; }
   const vorspann = erw !== roh ? erw + '\n' : '';
   if (erw !== roh) w.verlauf.push({ zeile: '#roh ' + roh.trim(), code: 0, ausgabe: '' });
-  roh = erw;
+  roh = fortsetzungAlt !== undefined ? fortsetzungAlt + '\n' + erw : erw;
+  // Unvollständige Eingabe (if ohne fi, offene Anführungszeichen, Here-Dokument): weiter mit dem Prompt „> “
+  if (roh.trim() && !w.aus && istZusammengesetzt(roh)) {
+    const p = zerlegenProgramm(roh);
+    if ('fehler' in p && p.eof) { sk.fortsetzung = roh; return { ausgabe: vorspann.replace(/\n$/, ''), code: 0 }; }
+  }
   // HISTCONTROL=ignoreboth: Zeilen mit Leerzeichen am Anfang und direkte Wiederholungen kommen nicht in den Verlauf
   const hc = w.vars.HISTCONTROL ?? w.env.HISTCONTROL ?? '';
   const ignSpace = /ignorespace|ignoreboth/.test(hc); const ignDup = /ignoredups|ignoreboth/.test(hc);
-  if (!(ignSpace && roh.startsWith(' ')) && !(ignDup && w.historie[w.historie.length - 1] === roh.trim())) w.historie.push(roh.trim());
-  const altRoot = w.root;
-  const r = zeileAusfuehren(w, roh.trim(), '', w.root, true);
-  void altRoot;
+  // Mehrzeilige Befehle speichert die Bash als eine Zeile im Verlauf
+  const histZeile = roh.trim().split('\n').map((x) => x.trim()).filter(Boolean).reduce((a, x) => (!a ? x : /(\bdo|\bthen|\belse|\bin|[{|]|&&|\|\|)$/.test(a) || x === ';;' ? a + ' ' + x : a + '; ' + x), '');
+  if (!(ignSpace && roh.startsWith(' ')) && !(ignDup && w.historie[w.historie.length - 1] === histZeile)) w.historie.push(histZeile);
+  // read darf im Terminal nach einer Eingabe fragen. Dann läuft die Zeile mit der Antwort noch einmal von vorn.
+  const { dialog: _d, wartet: _wt, ...rest } = w; void _d; void _wt;
+  const sicherung = structuredClone(rest);
+  const lauf = (antworten: string[], gezeigt: number): { r: ZeilenErgebnis } | { warte: string; text: string } => {
+    for (const k of Object.keys(w)) if (!(k in sicherung) && k !== 'dialog' && k !== 'wartet') delete (w as any)[k];
+    Object.assign(w, structuredClone(sicherung));
+    const s2 = stand(w); s2.terminal = { antworten: [...antworten] }; s2.eingabeTty = true;
+    try { return { r: zeileAusfuehren(w, roh.trim(), '', w.root, true) }; }
+    catch (e) {
+      if (!(e instanceof BrauchtEingabe)) throw e;
+      const text = e.bisher.slice(gezeigt);
+      w.dialog = { prompt: e.prompt, eingabe: (z: string) => {
+        w.dialog = null;
+        const neu = [...antworten, z];
+        const weiter = lauf(neu, gezeigt + text.length);
+        if ('warte' in weiter) return weiter.text.replace(/\n$/, '');
+        const r2 = weiter.r;
+        const alles = [r2.tty, meldungenAbholen(w)].filter(Boolean).join('\n');
+        w.verlauf.push({ zeile: roh.trim(), code: r2.code, ausgabe: alles });
+        return alles.slice(gezeigt + text.length).replace(/^\n/, '');
+      } };
+      return { warte: e.prompt, text };
+    }
+    finally { stand(w).terminal = null; stand(w).eingabeTty = false; }
+  };
+  const erster = lauf([], 0);
+  if ('warte' in erster) return { ausgabe: vorspann + erster.text.replace(/\n$/, ''), code: 0 };
+  const r = erster.r;
   if (r.tty === '\u001bclear') { w.verlauf.push({ zeile: roh.trim(), code: 0, ausgabe: '' }); return { ausgabe: '', code: 0, clear: true }; }
   const ausgabe = vorspann + [r.tty, meldungenAbholen(w)].filter(Boolean).join('\n');
   w.verlauf.push({ zeile: roh.trim(), code: r.code, ausgabe });
@@ -1482,6 +1627,7 @@ function meldungenAbholen(w: Welt) {
 
 export function prompt(w: Welt) {
   if (w.dialog) return w.dialog.prompt;
+  if (stand(w).fortsetzung !== undefined) return '> ';
   if (w.wartet || w.vordergrund) return '';
   const ort = w.cwd === '/home/lena' ? '~' : w.cwd.startsWith('/home/lena/') ? '~' + w.cwd.slice('/home/lena'.length) : w.cwd;
   const user = w.root ? 'root' : 'lena';
@@ -1501,11 +1647,32 @@ export function neuStarten(w: Welt) {
   for (const n of Object.keys(w.geladen)) if (schwarz.has(n) || install[n]) delete w.geladen[n];
   // Nach dem Neustart sind alle Sitzungen, Jobs und gestarteten Prozesse weg
   w.jobs = []; w.vordergrund = null; w.langlaeufer = null; w.meldungen = [];
+  // Nach dem Neustart gibt es nur noch die erste Shell
+  const sk = stand(w);
+  while (sk.shells.length) { const f = sk.shells.shift()!; if (!sk.shells.length) { w.vars = f.vars; w.env = f.env; w.aliase = f.aliase; sk.funktionen = f.funktionen; sk.funkText = f.funkText; w.cwd = f.cwd; } }
+  sk.funktionen = {}; sk.funkText = {}; sk.fortsetzung = undefined; sk.optionen = {}; sk.login = false; w.dialog = null;
+  w.env.SHLVL = '1';
   w.prozesse = w.prozesse.filter((p) => p.pid < 4000 && p.user !== 'max');
   benutzerBerechnen(w);
 }
 
 Object.assign(befehle, paketBefehle({ ok, fehler, optionen, pfad, schreiben }));
+Object.assign(befehle, skriptBefehle());
+befehle.su = (w, a, _i, root) => {
+  const r = suBefehl(w, a, root);
+  if (r.dialog) { const d = r.dialog; w.dialog = { prompt: 'Passwort: ', eingabe: (z) => { w.dialog = null; return d(z); } }; return ok(''); }
+  return r;
+};
+for (const n of ['test', '[']) befehle[n] = (w, a, i, r) => EINGEBAUT[n](w, a, i, r);
+skriptKern({
+  zeile: (w, text, stdin, root) => zeileAusfuehren(w, text, stdin, root, false, true, true),
+  woerter: (w, text, root) => lexen(text).filter((t) => t.t === 'w').flatMap((t) => erweitern(w, t.v, root)),
+  erweitern, variable, pfad, darf, schreiben,
+  muster: (m) => new RegExp(musterRegex(m).source.replace(/\[\^\/\]\*/g, '.*').replace(/\[\^\/\]/g, '.'), 's'),
+  mtime: (w, p) => meta(w, p).mtime,
+  quelle: (w, p, root) => skript(w, p, [p], '', root, true),
+  rechte: (w, p, mode, owner, group) => { const m = meta(w, p); m.mode = mode; m.owner = owner; m.group = group; },
+});
 Object.assign(befehle, plattenBefehle({ ok, fehler, pfad, kinder }));
 Object.assign(befehle, rechteBefehle({ ok, fehler, pfad, kinder }));
 // systemctl: Mount-Units und daemon-reload gehen an das Plattenmodell
@@ -1559,7 +1726,20 @@ Object.assign(befehle, PROGRAMME_SHELL, {
     for (const d of dateien) { const e = schreiben(w, d, '', false, root); if (e) return fehler(`truncate: '${d}' kann nicht zum Schreiben geöffnet werden: ${e}`); }
     return ok();
   },
-  env: (w: Welt, a: string[], stdin: string, root: boolean) => a.length ? intern(w, a.join(' '), stdin, root) : ok(Object.entries(w.env).map(([k, v]) => `${k}=${v}`).join('\n')),
+  env: (w: Welt, a: string[], stdin: string, root: boolean) => {
+    let neu = { ...w.env }; let i = 0;
+    for (; i < a.length; i++) {
+      const x = a[i];
+      if (x === '-i' || x === '-' || x === '--ignore-environment') neu = {};
+      else if (x === '-u') delete neu[a[++i] ?? ''];
+      else if (/^[A-Za-z_]\w*=/.test(x)) { const k = x.indexOf('='); neu[x.slice(0, k)] = x.slice(k + 1); }
+      else break;
+    }
+    if (i >= a.length) return ok(Object.entries(neu).map(([k, v]) => `${k}=${v}`).join('\n'));
+    const alt = w.env; const altVars = w.vars; w.env = neu; w.vars = {};
+    const zitiert = a.slice(i).map((x) => (/^[\w./@%+:,-]+$/.test(x) ? x : `'${x.replace(/'/g, `'\\''`)}'`)).join(' ');
+    try { return intern(w, zitiert, stdin, root); } finally { w.env = alt; w.vars = altVars; }
+  },
   printenv: (w: Welt, a: string[]) => a[0] ? (w.env[a[0]] !== undefined ? ok(w.env[a[0]]) : { out: '', code: 1 }) : ok(Object.entries(w.env).map(([k, v]) => `${k}=${v}`).join('\n')),
 });
 // Diese Namen sind nur in der Shell eingebaut und liegen nicht in /usr/bin
@@ -1605,6 +1785,7 @@ export function zustandStimmt(w: Welt, z: string): boolean {
     const p = zustandPakete(w, s); if (p !== undefined) return p;
     const pl = zustandPlatten(w, s); if (pl !== undefined) return pl;
     const re = zustandRechte(w, s, pfad); if (re !== undefined) return re;
+    const sz = zustandSkript(w, s); if (sz !== undefined) return sz;
     if (s === 'neustart') return w.verlauf.some((v) => v.zeile === '#neustart');
     // ---- ab Topic 103 ----
     // vi:ohne = beendet, ohne zu speichern (mit oder ohne Änderungen)
