@@ -86,7 +86,7 @@ Ein Passwort kann man erraten, abfangen oder auf einer gefälschten Seite eingeb
 ssh-keygen -t ed25519 -C "lena@werkstatt"
 ```
 
-legt `~/.ssh/id_ed25519` (privat) und `~/.ssh/id_ed25519.pub` (öffentlich) an. Die **Passphrase** schützt den privaten Schlüssel, falls jemand die Datei stiehlt. Typen: **ed25519** (kurz, schnell, empfohlen), **ecdsa**, **rsa** (dann mindestens 3072 Bit, `-b 4096`), **dsa** (veraltet, aktuelle OpenSSH-Versionen lehnen DSA ab). Die Dateien heißen entsprechend `id_rsa`, `id_ecdsa`, `id_dsa`. Ohne `-t` erzeugt OpenSSH 9.2 auf Debian 12 einen RSA-Schlüssel.
+legt `~/.ssh/id_ed25519` (privat) und `~/.ssh/id_ed25519.pub` (öffentlich) an. Die **Passphrase** schützt den privaten Schlüssel, falls jemand die Datei stiehlt. Typen: **ed25519** (kurz, schnell, empfohlen), **ecdsa**, **rsa** (dann mindestens 3072 Bit, `-b 4096`), **dsa** (veraltet, aktuelle OpenSSH-Versionen lehnen DSA ab). Die Dateien heißen entsprechend `id_rsa` und `id_rsa.pub`, `id_ecdsa` und `id_ecdsa.pub`, `id_dsa` und `id_dsa.pub`. Ohne `-t` erzeugt OpenSSH 9.2 auf Debian 12 einen RSA-Schlüssel.
 
 `ssh-copy-id labor2` hängt deinen öffentlichen Schlüssel auf labor2 an **~/.ssh/authorized_keys** an, ein Schlüssel pro Zeile. Ab dann fragt ssh nur noch nach der Passphrase.
 
