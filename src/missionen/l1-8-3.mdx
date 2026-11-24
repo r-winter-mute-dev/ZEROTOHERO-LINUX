@@ -109,10 +109,12 @@ mail.___          /var/log/mail.err
 <Karte nr={2} titel="Zentrale Logserver">
 Auf einem einzelnen Rechner kann ein Angreifer seine Spuren in den Logs löschen. Darum schicken Server ihre Meldungen zusätzlich an einen **zentralen Logserver**. Dort muss rsyslog Meldungen annehmen: In `/etc/rsyslog.conf` werden dafür die Module `imudp` oder `imtcp` mit `port="514"` aktiviert, die in der Debian-Datei schon als Kommentar stehen. TCP (`@@`) verliert keine Meldungen, wenn das Netz kurz hakt, UDP (`@`) schon.
 
+**rsyslog ist nicht der einzige Syslog-Dienst.** Der ursprüngliche **syslogd** (bei Linux sysklogd) kannte nur die einfachen Regeln aus Selektor und Ziel. rsyslog versteht diese Regeln weiterhin und kann zusätzlich Filter, Vorlagen und TCP. **syslog-ng** ist eine weitere Alternative mit eigener Syntax in `/etc/syslog-ng/syslog-ng.conf`, mit Quellen, Filtern und Zielen als benannten Blöcken. Für die Prüfung genügt es, die drei Namen einordnen zu können.
+
 Auf systemd-Systemen sammelt zuerst das Journal alle Meldungen (Mission 8.4). rsyslog liest sie dort ab und verteilt sie in seine Dateien. Die Programme müssen davon nichts wissen.
 </Karte>
 
-<Merke>Zentraler Logserver gegen gelöschte Spuren. Empfang: imudp/imtcp mit Port 514. @@ TCP ist zuverlässiger als @ UDP. Das Journal sammelt zuerst, rsyslog verteilt.</Merke>
+<Merke>syslogd/sysklogd ist der Vorgänger, syslog-ng eine Alternative mit eigener Syntax. Zentraler Logserver gegen gelöschte Spuren. Empfang: imudp/imtcp mit Port 514. @@ TCP ist zuverlässiger als @ UDP. Das Journal sammelt zuerst, rsyslog verteilt.</Merke>
 
 <Quiz id="k2" titel="Kurzcheck: Remote" fragen={[
   { frage: 'Welcher Port ist für Syslog über das Netz üblich?', richtig: '514', falsch: ['123', '631'], erklaerung: '123 ist NTP, 631 ist CUPS.' },

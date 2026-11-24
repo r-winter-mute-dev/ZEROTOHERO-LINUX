@@ -114,21 +114,24 @@ Ein Skript bekommt seine Argumente als **Positionsparameter**:
 Jeder Befehl endet mit einem **Rückgabewert** (exit status) zwischen 0 und 255. **0 heißt Erfolg**, alles andere ein Fehler. Welche Zahl welchen Fehler bedeutet, legt jedes Programm selbst fest. Die Bash meldet 126 für „nicht ausführbar“ und 127 für „nicht gefunden“. Dein Skript beendet sich mit `exit 2` und dem Wert 2. Ohne exit gilt der Wert des letzten Befehls. Mit `&&` und `||` kannst du direkt darauf reagieren: `befehl || exit 1`.
 
 Mit `"$@"` reichst du Argumente mit Leerzeichen sauber weiter. Ohne Anführungszeichen würde `"b c"` zu zwei Wörtern.
+
+**exec** ersetzt die laufende Shell durch ein anderes Programm, ohne einen neuen Prozess zu starten. In einem Skript ist `exec programm "$@"` darum immer die letzte Zeile, die läuft: Alles danach wird nie ausgeführt, und der Rückgabewert des Skripts ist der des Programms. Das nutzen kleine Startskripte, die nur Variablen setzen und dann das eigentliche Programm starten. Tippst du `exec ls` in einem Terminal, ist das Terminal danach zu.
 </Karte>
 
-<Merke>$0 Name, $1 … $9, `${10}`, $# Anzahl, "$@" alle einzeln. $? ist der letzte Rückgabewert: 0 Erfolg. exit n beendet das Skript mit n. 127 nicht gefunden, 126 nicht ausführbar.</Merke>
+<Merke>$0 Name, $1 … $9, `${10}`, $# Anzahl, "$@" alle einzeln. $? ist der letzte Rückgabewert: 0 Erfolg. exit n beendet das Skript mit n. 127 nicht gefunden, 126 nicht ausführbar. exec ersetzt die Shell, danach läuft nichts mehr.</Merke>
 
 <Quiz id="k2" titel="Kurzcheck: Parameter" fragen={[
   { frage: 'Das Skript zeige.sh enthält „echo $#“. Was gibt „./zeige.sh a \"b c\" d“ aus?', richtig: '3', falsch: ['4', '5'], erklaerung: '"b c" ist ein einziges Argument.' },
   { frage: 'Was liefert „echo $?“ direkt nach dem Aufruf eines Befehls, den es nicht gibt?', richtig: '127', falsch: ['1', '126'], erklaerung: '126 meldet die Bash, wenn eine Datei da ist, aber nicht ausführbar.' },
 ]} />
 
-<Terminal id="parameter" titel="Terminal: Argumente und Rückgabewerte" welt={{ dateien: { '/home/lena/bin/args': '#!/bin/bash\necho "Name: $0"\necho "Anzahl: $#"\necho "Erstes: $1"\nfor a in "$@"; do echo "- $a"; done\n', '/home/lena/bin/pruefe': '#!/bin/bash\n# pruefe DATEI: gibt 2 zurück, wenn es die Datei nicht gibt\n[ -e "$1" ] || exit 2\necho "$1 ist da"\n' }, rechte: { '/home/lena/bin/args': '755', '/home/lena/bin/pruefe': '755' } }} aufgaben={[
+<Terminal id="parameter" titel="Terminal: Argumente und Rückgabewerte" welt={{ dateien: { '/home/lena/bin/args': '#!/bin/bash\necho "Name: $0"\necho "Anzahl: $#"\necho "Erstes: $1"\nfor a in "$@"; do echo "- $a"; done\n', '/home/lena/bin/pruefe': '#!/bin/bash\n# pruefe DATEI: gibt 2 zurück, wenn es die Datei nicht gibt\n[ -e "$1" ] || exit 2\necho "$1 ist da"\n', '/home/lena/bin/heute': '#!/bin/bash\n# heute: zeigt das Datum im Format JJJJ-MM-TT\nexport LANG=C\nexec date +%F\necho "Diese Zeile erscheint nie"\n' }, rechte: { '/home/lena/bin/args': '755', '/home/lena/bin/pruefe': '755', '/home/lena/bin/heute': '755' } }} aufgaben={[
   { text: 'Starte <code>bin/args a "b c" d</code>.', befehl: '^bin/args a "b c" d$|^\\./bin/args a "b c" d$', frage: 'Welche Anzahl meldet das Skript?', antwort: ['3'] },
   { text: 'Lass dir das Skript <code>bin/pruefe</code> anzeigen und prüf damit <code>/etc/hostname</code>.', befehl: '^(\\./)?bin/pruefe /etc/hostname$' },
   { text: 'Prüf damit die Datei <code>/gibtsnicht</code> und lass dir den Rückgabewert ausgeben.', befehl: '^echo "?\\$\\?"?$', frage: 'Welchen Rückgabewert hat pruefe geliefert?', antwort: ['2'] },
   { text: 'Starte einen Befehl, den es nicht gibt, etwa <code>gibtsnicht</code>, und frag wieder nach dem Rückgabewert.', befehl: '^gibtsnicht$', auchFehler: true, frage: 'Welcher Wert?', antwort: ['127'] },
   { text: 'Reagiere direkt: Gib „fehlt“ aus, wenn <code>bin/pruefe /gibtsnicht</code> scheitert.', befehl: '^(\\./)?bin/pruefe /gibtsnicht \\|\\| echo "?fehlt"?$' },
+  { text: 'Lies <code>bin/heute</code> und starte es.', befehl: '^(\\./)?bin/heute$', frage: 'Warum fehlt die letzte Zeile in der Ausgabe?', antwort: ['weil exec die shell durch date ersetzt', 'exec ersetzt die shell', 'wegen exec'] },
 ]} />
 
 <Lueckentext id="luecke" titel="Code-Puzzle: Ein Skript mit Aufrufhilfe" aufgabe="Das Skript soll ohne Argument eine Hilfe ausgeben und mit 1 enden. Ergänze die Lücken."
@@ -153,5 +156,6 @@ Merk dir die Sonderparameter $0, $1, $#, $@, $? und die Bedeutung von 0 als Erfo
 <Quiz id="k3" titel="Abschluss" fragen={[
   { frage: 'Ein Skript endet ohne exit. Welchen Rückgabewert hat es?', richtig: 'Den Rückgabewert des letzten ausgeführten Befehls', falsch: ['Immer 0', 'Immer 1'], erklaerung: 'exit ohne Zahl verhält sich genauso.' },
   { frage: 'Was bewirkt „shift“ in einem Skript, das mit „a b c“ gestartet wurde?', richtig: '$1 ist danach b und $# ist 2.', falsch: ['$1 ist danach leer.', '$0 wird zu a.'], erklaerung: 'shift entfernt das erste Argument, $0 bleibt.' },
+  { frage: 'Ein Skript endet mit „exec /usr/bin/messprog "$@"“. Was passiert mit Zeilen danach?', richtig: 'Sie laufen nie, weil messprog die Shell ersetzt.', falsch: ['Sie laufen, sobald messprog fertig ist.', 'Sie laufen parallel zu messprog.'], erklaerung: 'exec startet keinen neuen Prozess, das Programm übernimmt den Prozess der Shell.' },
   { frage: 'Welche Shebang-Zeile wählt auf Debian dash?', richtig: '#!/bin/sh', falsch: ['#!/bin/bash', '#!/usr/bin/env bash'], erklaerung: '/bin/sh zeigt auf Debian auf dash.' },
 ]} />

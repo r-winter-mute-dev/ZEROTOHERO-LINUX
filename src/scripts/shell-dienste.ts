@@ -424,6 +424,18 @@ export function dienstBefehle(alt: Record<string, B>): Record<string, B> {
   };
   b.journalctl = (w, a, i, root) => {
     const st = ds(w);
+    // Journal eines fremden Systems lesen: -D Verzeichnis, --file Datei, --root Wurzel
+    const di = a.findIndex((x) => x === '-D' || x === '--directory' || x === '--file' || x === '--root' || /^--(directory|file|root)=/.test(x));
+    if (di >= 0) {
+      const opt = a[di]; const wert = opt.includes('=') ? opt.split('=')[1] : a[di + 1] ?? '';
+      const p = K.pfad(w, wert); const ziel = opt.startsWith('--root') ? p.replace(/\/$/, '') + '/var/log/journal' : p;
+      const da = opt.startsWith('--file') ? typeof w.fs[ziel] === 'string' : Object.keys(w.fs).some((k) => k.startsWith(ziel + '/') && k.endsWith('.journal'));
+      if (!(root || w.root) && da) return fehler(`Failed to open ${opt.startsWith('--file') ? 'files' : 'journal directory'} '${wert}': Permission denied`);
+      if (!da) return ok('No journal files were found.\n-- No entries --');
+      const fremd = w.fs[Object.keys(w.fs).find((k) => k.startsWith(opt.startsWith('--file') ? ziel : ziel + '/') && k.endsWith('.journal'))!] ?? '';
+      const text = fremd.startsWith('\u0007JOURNAL:') ? fremd.slice(9) : alt.journalctl(w, ['-b', '-1'], i, root).out;
+      return ok(text);
+    }
     if (a.includes('--disk-usage')) return ok(`Archived and active journals take up ${st.journalFluechtig ? '1.5M in the file system.' : '24.0M in the file system.'}`);
     const vac = a.find((x) => x.startsWith('--vacuum-')); if (vac) { if (!(root || w.root)) return fehler('Failed to open journal: Permission denied'); return ok(`Vacuuming done, freed 0B of archived journals from /var/log/journal/4c2d8b1e7f9a4b03b5e2c1d6a8f7e9b0.\nVacuuming done, freed 0B of archived journals from /run/log/journal.`); }
     if (a.includes('--list-boots') && st.journalFluechtig) return ok('IDX BOOT ID                          FIRST ENTRY                 LAST ENTRY\n  0 4c2d8b1e7f9a4b03b5e2c1d6a8f7e9b0 Mon 2026-11-23 08:12:01 CET Mon 2026-11-23 08:15:42 CET');

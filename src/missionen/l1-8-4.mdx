@@ -67,23 +67,26 @@ Auf systemd-Systemen nimmt **systemd-journald** zuerst alle Meldungen an: vom Ke
 
 **Wo liegt das Journal?** Gibt es `/var/log/journal`, speichert journald dauerhaft dort. Sonst nur flüchtig in `/run/log/journal`, und beim Neustart ist alles weg. Fest einstellen lässt sich das in **/etc/systemd/journald.conf** mit `Storage=persistent`, `volatile`, `auto` (die Vorgabe, abhängig vom Verzeichnis) oder `none`. Dort steht auch, wie groß es werden darf (`SystemMaxUse=`). Nach einer Änderung: `systemctl restart systemd-journald`.
 
+**Journal eines anderen Systems lesen**: Startet ein Rechner nicht mehr, bootest du ein Rettungssystem, hängst seine Platte ein (etwa unter `/mnt`) und liest dort das Journal mit `journalctl -D /mnt/var/log/journal`. `--root /mnt` sucht das Journal unterhalb einer anderen Wurzel, `--file datei.journal` liest eine einzelne kopierte Datei. Ohne diese Optionen würdest du nur das Journal des Rettungssystems sehen.
+
 Platz: `journalctl --disk-usage` zeigt den Verbrauch, `--vacuum-size=200M` und `--vacuum-time=2weeks` löschen alte Teile. Eigene Meldungen schreibst du mit `logger` oder mit **systemd-cat**: `echo "Sicherung fertig" | systemd-cat -t sicherung -p info`.
 </Karte>
 
-<Merke>journalctl -u -b -p -t -k -n -f --since. Dauerhaft mit /var/log/journal oder Storage=persistent in journald.conf. --disk-usage, --vacuum-size. systemd-cat -t tag schreibt hinein.</Merke>
+<Merke>journalctl -u -b -p -t -k -n -f --since. Dauerhaft mit /var/log/journal oder Storage=persistent in journald.conf. --disk-usage, --vacuum-size. systemd-cat -t tag schreibt hinein. Fremdes Journal: -D Verzeichnis, --root, --file.</Merke>
 
 <Quiz id="k1" titel="Kurzcheck: Journal" fragen={[
   { frage: 'journalctl -b -1 meldet „No such boot ID“. Was ist wahrscheinlich?', richtig: 'Das Journal ist flüchtig und hat den vorigen Start nicht gespeichert.', falsch: ['Der Rechner wurde nie neu gestartet.', 'journald läuft nicht.'], erklaerung: 'Ohne /var/log/journal oder Storage=persistent liegt das Journal nur in /run.' },
   { frage: 'Welcher Befehl zeigt die Fehler des aktuellen Starts?', richtig: 'journalctl -b -p err', falsch: ['journalctl -e err', 'journalctl --errors -1'], erklaerung: '-b wählt den Start, -p die Stufe.' },
 ]} />
 
-<Terminal id="journal" titel="Terminal: Das Journal soll bleiben" welt={{ dienste: { journalFluechtig: true } }} aufgaben={[
+<Terminal id="journal" titel="Terminal: Das Journal soll bleiben" welt={{ dienste: { journalFluechtig: true }, dateien: { '/mnt/labor2/var/log/journal/8e1f2a3b4c5d6e7f8091a2b3c4d5e6f7/system.journal': '\u0007JOURNAL:Nov 22 23:58:12 labor2 systemd[1]: Started messd.service - Messdienst.\nNov 23 03:14:07 labor2 kernel: EXT4-fs error (device sda2): ext4_find_entry:1683: inode #131073: comm messd: reading directory lblock 0\nNov 23 03:14:07 labor2 messd[911]: Kann /var/lib/messd/puffer nicht lesen: Eingabe-/Ausgabefehler\nNov 23 03:14:08 labor2 systemd[1]: messd.service: Main process exited, code=exited, status=1/FAILURE\nNov 23 03:14:08 labor2 systemd[1]: messd.service: Failed with result \'exit-code\'.' } }} aufgaben={[
   { text: 'Versuch, die Meldungen des vorigen Starts zu lesen.', befehl: '^journalctl -b -1$', auchFehler: true },
   { text: 'Prüf, ob es <code>/var/log/journal</code> gibt.', befehl: '^ls( -\\w+)? /var/log/journal/?$', auchFehler: true },
   { text: 'Setze in <code>/etc/systemd/journald.conf</code> die Speicherart fest auf dauerhaft und starte journald neu.', zustand: 'datei:/etc/systemd/journald.conf~^Storage=persistent$ && journal:dauerhaft' },
   { text: 'Prüf, wie viel Platz das Journal belegt.', befehl: '^journalctl --disk-usage$' },
   { text: 'Schreib mit systemd-cat die Meldung „Sicherung fertig“ mit der Kennung <code>sicherung</code> ins Journal.', zustand: 'journal~^sicherung: Sicherung fertig$' },
   { text: 'Lass dir nur die Meldungen mit dieser Kennung zeigen.', befehl: '^journalctl -t sicherung$|^journalctl --identifier=sicherung$' },
+  { text: 'Unter <code>/mnt/labor2</code> ist die Platte von labor2 eingehängt, das nicht mehr startet. Lies als root sein Journal.', befehl: '^sudo journalctl (-D|--directory=?) ?/mnt/labor2/var/log/journal/?$|^sudo journalctl --root=? ?/mnt/labor2/?$', frage: 'Welcher Dienst ist auf labor2 zuletzt gescheitert?', antwort: ['messd.service', 'messd'] },
 ]} />
 
 ## Logs rotieren
@@ -145,5 +148,6 @@ Merk dir die Speicherorte (/var/log/journal dauerhaft, /run/log/journal flüchti
 <Quiz id="k3" titel="Abschluss" fragen={[
   { frage: 'Welche Datei bestimmt, ob das Journal dauerhaft gespeichert wird?', richtig: '/etc/systemd/journald.conf', falsch: ['/etc/rsyslog.conf', '/etc/logrotate.conf'], erklaerung: 'Mit Storage=auto entscheidet zusätzlich, ob /var/log/journal existiert.' },
   { frage: 'Welche Option verhindert, dass eine leere Logdatei rotiert wird?', richtig: 'notifempty', falsch: ['missingok', 'nocreate'], erklaerung: 'missingok gilt für eine Datei, die es gar nicht gibt.' },
+  { frage: 'Von einem Rettungssystem aus ist die kaputte Platte unter /mnt eingehängt. Wie liest du deren Journal?', richtig: 'journalctl -D /mnt/var/log/journal', falsch: ['journalctl -b -1', 'journalctl /mnt'], erklaerung: 'Ohne -D, --root oder --file zeigt journalctl das Journal des laufenden Rettungssystems.' },
   { frage: 'Welcher Befehl liest das Journal laufend mit, wie tail -f?', richtig: 'journalctl -f', falsch: ['journalctl -l', 'journalctl --tail'], erklaerung: '-f steht für follow.' },
 ]} />
