@@ -51,7 +51,7 @@ Jeder PC hat zwei Uhren:
 - Die **Hardware-Uhr** (RTC, Real Time Clock, früher CMOS-Uhr) sitzt auf der Hauptplatine und läuft mit einer Knopfzelle weiter, wenn der Rechner aus ist. Sie ist ungenau, typisch einige Sekunden pro Tag.
 - Die **Systemuhr** zählt der Kernel. Beim Start liest er die Hardware-Uhr einmal, danach zählt er selbst. Alle Programme, Logs und Dateizeiten nutzen die Systemuhr.
 
-Linux führt beide Uhren in **UTC** und rechnet erst bei der Anzeige in die Zeitzone um (Mission 7.5). Ob die Hardware-Uhr in UTC oder Ortszeit läuft, steht in der dritten Zeile von **/etc/adjtime**. Ortszeit ist nur nötig, wenn auf demselben Rechner auch Windows startet. Mit UTC muss niemand die Hardware-Uhr bei der Umstellung auf Sommerzeit anfassen.
+Linux führt beide Uhren in **UTC** und rechnet erst bei der Anzeige in die Zeitzone um (Mission 7.5). Welche Zeitzone gilt, sagt **/etc/localtime**, ein Verweis auf eine Datei unter **/usr/share/zoneinfo/**. Debian schreibt den Namen zusätzlich in **/etc/timezone**. Ob die Hardware-Uhr in UTC oder Ortszeit läuft, steht in der dritten Zeile von **/etc/adjtime**. Ortszeit ist nur nötig, wenn auf demselben Rechner auch Windows startet. Mit UTC muss niemand die Hardware-Uhr bei der Umstellung auf Sommerzeit anfassen.
 
 **Systemuhr**: `date` zeigt sie, `date -u` in UTC, `date -s "2026-11-23 08:45"` stellt sie (nur root).
 
