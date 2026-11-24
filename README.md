@@ -46,7 +46,8 @@ Jede Prüfung hat 60 Fragen in 90 Minuten. Bestanden ist ab 500 auf einer Skala 
 | 5 | 105 | Variablen und Umgebung, Startdateien und /etc/skel, Aliase und Funktionen, das erste Skript, test und if/case, Schleifen und read, Bosskampf, Probeprüfung mit Interleaving | ✅ |
 | 6 | 106 | X11 und Wayland, xorg.conf.d und Logs, xhost, xauth und ssh -X, Desktops und Display-Manager, VNC, RDP, Spice, XDMCP, Barrierefreiheit mit gsettings, Bosskampf | ✅ |
 | 7 | 107 | Konten und Kontodateien, Gruppen und Passwortregeln, cron, at und systemd-Timer, Locales, iconv und Zeitzonen, Bosskampf, Probeprüfung 106 und 107 | ✅ |
-| 8–10 | 108–110 | Systemdienste, Netzwerk, Sicherheit, Generalprobe 102 | 📝 |
+| 8 | 108 | Systemuhr und Hardware-Uhr, NTP mit chrony und ntpd, rsyslog, Journal und logrotate, Mail-Aliase und ~/.forward, Drucken mit CUPS, Bosskampf, Probeprüfung | ✅ |
+| 9–10 | 109–110 | Netzwerk, Sicherheit, Generalprobe 102 | 📝 |
 
 ✅ spielbar · 📝 Lehrplan steht, Missionen folgen
 
@@ -94,7 +95,8 @@ Am meisten hilft gerade:
 - [x] Topic 105 (Akt 5)
 - [x] Topic 106 (Akt 6)
 - [x] Topic 107 (Akt 7)
-- [ ] **Missionen für Prüfung 102** (Topic 108 bis 110).
+- [x] Topic 108 (Akt 8)
+- [ ] **Missionen für Prüfung 102** (Topic 109 und 110).
 - [ ] **Labor-Aufgaben testen** auf anderen Distributionen und mit anderen Virtualisierern.
 
 ## Entstehung

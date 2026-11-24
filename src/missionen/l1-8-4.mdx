@@ -1,0 +1,149 @@
+---
+id: l1-8-4
+checks:
+  - id: k1
+  - id: journal
+  - id: k2
+  - id: rotieren
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "Filtern"
+    v: "journalctl -u UNIT · -b (-b -1) · -p err · -t TAG · -n 20 · -f · --since \"1 hour ago\" · -k"
+  - t: "Speicher"
+    v: "/var/log/journal (dauerhaft) · /run/log/journal (flüchtig) · Storage= in /etc/systemd/journald.conf"
+  - t: "Platz"
+    v: "journalctl --disk-usage · --vacuum-size=200M · --vacuum-time=2weeks · SystemMaxUse="
+  - t: "Selbst schreiben"
+    v: "echo Text | systemd-cat -t tag -p warning · systemd-cat befehl"
+  - t: "logrotate"
+    v: "/etc/logrotate.conf · /etc/logrotate.d/* · rotate N, daily/weekly, compress, delaycompress, missingok, notifempty, create"
+  - t: "Testen"
+    v: "logrotate -d datei (nur zeigen) · logrotate -f datei (jetzt rotieren)"
+karten:
+  - f: "Welcher Befehl zeigt nur die Meldungen von ssh.service?"
+    a: ["journalctl -u ssh", "journalctl -u ssh.service"]
+  - f: "Welcher Befehl zeigt die Meldungen des vorigen Starts?"
+    a: ["journalctl -b -1"]
+  - f: "In welchem Verzeichnis speichert journald dauerhaft?"
+    a: ["/var/log/journal", "/var/log/journal/"]
+  - f: "Welche Einstellung in journald.conf macht das Journal dauerhaft?"
+    a: ["Storage=persistent"]
+  - f: "Wie schrumpfst du das Journal auf 200 MB?"
+    a: ["journalctl --vacuum-size=200M"]
+  - f: "Wie schreibst du von der Shell eine Meldung ins Journal?"
+    a: ["systemd-cat", "logger"]
+  - f: "Welche logrotate-Option behält 4 alte Dateien?"
+    a: ["rotate 4"]
+  - f: "Welche logrotate-Option lässt die jüngste alte Datei unkomprimiert?"
+    a: ["delaycompress"]
+  - f: "Wie testest du eine logrotate-Konfiguration, ohne etwas zu ändern?"
+    a: ["logrotate -d", "logrotate -d datei"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+
+Nach dem Absturz von heute Nacht willst du die Meldungen vor dem Neustart lesen, aber das Journal kennt nur den aktuellen Start. Und `/var/log/messd.log` ist auf 3 GB gewachsen. **Deine Mission: Mach das Journal dauerhaft, finde darin schnell das Richtige und lass alte Logs automatisch verschwinden.** Lernziel 108.2.
+
+## Das Journal
+
+<Karte nr={1} titel="journald, journalctl und journald.conf">
+Auf systemd-Systemen nimmt **systemd-journald** zuerst alle Meldungen an: vom Kernel, von Diensten, von syslog-Programmen und aus deren Standardausgabe. Es speichert sie in einem binären Format mit vielen Feldern. Lesen kannst du sie nur mit **journalctl** (Mission 1.5):
+
+| Option | zeigt |
+|---|---|
+| `-u ssh.service` | eine Unit |
+| `-b`, `-b -1`, `--list-boots` | aktueller Start, voriger Start, alle Starts |
+| `-p err` | Stufe err und schwerer, wie bei syslog |
+| `-t messd` | eine Kennung (das Tag von logger) |
+| `-k` | nur Kernelmeldungen |
+| `-n 20`, `-r`, `-f` | die letzten 20, die neuesten zuerst, laufend mitlesen |
+| `--since "1 hour ago"`, `--until` | einen Zeitraum |
+
+**Wo liegt das Journal?** Gibt es `/var/log/journal`, speichert journald dauerhaft dort. Sonst nur flüchtig in `/run/log/journal`, und beim Neustart ist alles weg. Fest einstellen lässt sich das in **/etc/systemd/journald.conf** mit `Storage=persistent`, `volatile`, `auto` (die Vorgabe, abhängig vom Verzeichnis) oder `none`. Dort steht auch, wie groß es werden darf (`SystemMaxUse=`). Nach einer Änderung: `systemctl restart systemd-journald`.
+
+Platz: `journalctl --disk-usage` zeigt den Verbrauch, `--vacuum-size=200M` und `--vacuum-time=2weeks` löschen alte Teile. Eigene Meldungen schreibst du mit `logger` oder mit **systemd-cat**: `echo "Sicherung fertig" | systemd-cat -t sicherung -p info`.
+</Karte>
+
+<Merke>journalctl -u -b -p -t -k -n -f --since. Dauerhaft mit /var/log/journal oder Storage=persistent in journald.conf. --disk-usage, --vacuum-size. systemd-cat -t tag schreibt hinein.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: Journal" fragen={[
+  { frage: 'journalctl -b -1 meldet „No such boot ID“. Was ist wahrscheinlich?', richtig: 'Das Journal ist flüchtig und hat den vorigen Start nicht gespeichert.', falsch: ['Der Rechner wurde nie neu gestartet.', 'journald läuft nicht.'], erklaerung: 'Ohne /var/log/journal oder Storage=persistent liegt das Journal nur in /run.' },
+  { frage: 'Welcher Befehl zeigt die Fehler des aktuellen Starts?', richtig: 'journalctl -b -p err', falsch: ['journalctl -e err', 'journalctl --errors -1'], erklaerung: '-b wählt den Start, -p die Stufe.' },
+]} />
+
+<Terminal id="journal" titel="Terminal: Das Journal soll bleiben" welt={{ dienste: { journalFluechtig: true } }} aufgaben={[
+  { text: 'Versuch, die Meldungen des vorigen Starts zu lesen.', befehl: '^journalctl -b -1$', auchFehler: true },
+  { text: 'Prüf, ob es <code>/var/log/journal</code> gibt.', befehl: '^ls( -\\w+)? /var/log/journal/?$', auchFehler: true },
+  { text: 'Setze in <code>/etc/systemd/journald.conf</code> die Speicherart fest auf dauerhaft und starte journald neu.', zustand: 'datei:/etc/systemd/journald.conf~^Storage=persistent$ && journal:dauerhaft' },
+  { text: 'Prüf, wie viel Platz das Journal belegt.', befehl: '^journalctl --disk-usage$' },
+  { text: 'Schreib mit systemd-cat die Meldung „Sicherung fertig“ mit der Kennung <code>sicherung</code> ins Journal.', zustand: 'journal~^sicherung: Sicherung fertig$' },
+  { text: 'Lass dir nur die Meldungen mit dieser Kennung zeigen.', befehl: '^journalctl -t sicherung$|^journalctl --identifier=sicherung$' },
+]} />
+
+## Logs rotieren
+
+<Karte nr={2} titel="logrotate">
+Logdateien wachsen, bis die Platte voll ist. **logrotate** benennt sie regelmäßig um, komprimiert alte und löscht die ältesten. Gestartet wird es täglich von einem systemd-Timer (oder `/etc/cron.daily`, Mission 7.3). Die Grundeinstellungen stehen in **/etc/logrotate.conf**, die Regeln der Pakete in **/etc/logrotate.d/**:
+
+```
+/var/log/messd.log {
+    daily
+    rotate 7
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 640 root adm
+    postrotate
+        systemctl reload messd
+    endscript
+}
+```
+
+| Option | Wirkung |
+|---|---|
+| `daily`, `weekly`, `monthly`, `size 100M` | wann rotiert wird |
+| `rotate 7` | so viele alte Dateien bleiben, die achte wird gelöscht |
+| `compress`, `delaycompress` | alte Dateien mit gzip packen, die jüngste (.1) erst beim nächsten Mal |
+| `missingok`, `notifempty` | fehlende Datei ist kein Fehler, leere wird nicht rotiert |
+| `create 640 root adm` | neue leere Datei mit diesen Rechten anlegen |
+| `postrotate … endscript` | Befehl danach, etwa damit der Dienst die neue Datei öffnet |
+
+Aus `messd.log` wird `messd.log.1`, aus `.1` wird `.2.gz` und so weiter. `logrotate -d datei` zeigt, was passieren würde, ohne etwas zu ändern. `logrotate -f datei` rotiert sofort.
+</Karte>
+
+<Merke>/etc/logrotate.conf und /etc/logrotate.d/. rotate N, daily/weekly/size, compress, delaycompress, missingok, notifempty, create, postrotate. -d testet, -f erzwingt.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: logrotate" fragen={[
+  { frage: 'Was bewirkt „rotate 3“?', richtig: 'Drei alte Fassungen bleiben, ältere werden gelöscht.', falsch: ['Die Datei wird dreimal am Tag rotiert.', 'Die Datei wird erst nach drei Tagen rotiert.'], erklaerung: 'Wie oft rotiert wird, legen daily, weekly oder size fest.' },
+]} />
+
+<Terminal id="rotieren" titel="Terminal: messd.log zähmen" welt={{ dienste: { rsyslog: true }, dateien: { '/var/log/messd.log': '2026-11-23T08:00:01 werkstatt messd: Messung 1\n2026-11-23T08:00:02 werkstatt messd: Messung 2\n' } }} aufgaben={[
+  { text: 'Lies <code>/etc/logrotate.conf</code>.', befehl: '^(cat|less|grep .*) /etc/logrotate\\.conf$', frage: 'Wie oft wird standardmäßig rotiert?', antwort: ['weekly', 'wöchentlich'] },
+  { text: 'Lege <code>/etc/logrotate.d/messd</code> an: täglich, 7 alte Fassungen, komprimiert mit Verzögerung, fehlende und leere Dateien ignorieren, neue Datei mit <code>create 640 root adm</code>.', zustand: 'datei:/etc/logrotate.d/messd~^/var/log/messd\\.log \\{ && datei:/etc/logrotate.d/messd~^\\s*daily$ && datei:/etc/logrotate.d/messd~^\\s*rotate 7$ && datei:/etc/logrotate.d/messd~^\\s*delaycompress$ && datei:/etc/logrotate.d/messd~^\\s*create 640 root adm$' },
+  { text: 'Lass logrotate zeigen, was es tun würde.', befehl: '^sudo logrotate -d /etc/logrotate\\.d/messd$' },
+  { text: 'Rotiere jetzt sofort.', zustand: 'da:/var/log/messd.log.1 && leer:/var/log/messd.log' },
+  { text: 'Häng als root eine Zeile an <code>/var/log/messd.log</code> an (wegen notifempty), rotiere ein zweites Mal und schau dir die Dateien an.', zustand: 'da:/var/log/messd.log.2.gz', befehl: '^sudo ls( -\\w+)? /var/log/messd\\*$|^ls( -\\w+)? /var/log/messd\\*$', frage: 'Welche Endung hat die ältere Fassung?', antwort: ['.2.gz', 'gz', '.gz'] },
+]} />
+
+<Labor id="labor" titel="Aufgabe im Labor: Journal und logrotate in der VM"
+  aufgabe="Prüf in deiner Debian-VM, ob das Journal dauerhaft ist, und lass logrotate im Testmodus laufen. Füge die Ausgabe ein."
+  befehl={"journalctl --list-boots --no-pager | tail -2\njournalctl --disk-usage\necho 'Labortest' | systemd-cat -t labortest; journalctl -t labortest --no-pager | tail -1\nsudo logrotate -d /etc/logrotate.d/dpkg 2>&1 | grep -m1 'rotating pattern'"}
+  muster={["^\\s*-?\\d+ [0-9a-f]{32} ", "take up [\\d.]+[KMG]", "labortest\\[?\\d*\\]?: Labortest$", "rotating pattern: /var/log/dpkg.log"]}
+  erfolg="Debian 12 legt /var/log/journal an. Darum kennt das Journal auch frühere Starts." />
+
+<Hinweis titel="Prüfungstipp">
+Merk dir die Speicherorte (/var/log/journal dauerhaft, /run/log/journal flüchtig), die Datei journald.conf mit Storage= und die wichtigsten Filter von journalctl. Bei logrotate wird gern nach rotate, compress, delaycompress, notifempty und missingok gefragt.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Welche Datei bestimmt, ob das Journal dauerhaft gespeichert wird?', richtig: '/etc/systemd/journald.conf', falsch: ['/etc/rsyslog.conf', '/etc/logrotate.conf'], erklaerung: 'Mit Storage=auto entscheidet zusätzlich, ob /var/log/journal existiert.' },
+  { frage: 'Welche Option verhindert, dass eine leere Logdatei rotiert wird?', richtig: 'notifempty', falsch: ['missingok', 'nocreate'], erklaerung: 'missingok gilt für eine Datei, die es gar nicht gibt.' },
+  { frage: 'Welcher Befehl liest das Journal laufend mit, wie tail -f?', richtig: 'journalctl -f', falsch: ['journalctl -l', 'journalctl --tail'], erklaerung: '-f steht für follow.' },
+]} />

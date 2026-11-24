@@ -1,0 +1,112 @@
+---
+id: l1-8-2
+checks:
+  - id: k1
+  - id: ntp
+  - id: zuordnung
+  - id: k2
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "Pools"
+    v: "pool.ntp.org · 0.debian.pool.ntp.org · Stratum 1 hängt direkt an einer Referenzuhr"
+  - t: "chrony"
+    v: "/etc/chrony/chrony.conf (Debian) bzw. /etc/chrony.conf · chronyc sources · chronyc tracking · chronyc makestep"
+  - t: "ntpd (klassisch)"
+    v: "/etc/ntp.conf · ntpq -p · ntpdate SERVER (einmalig, nur ohne laufenden Dienst)"
+  - t: "systemd"
+    v: "systemd-timesyncd · timedatectl set-ntp true · timedatectl timesync-status"
+  - t: "Langsam oder springen"
+    v: "kleine Abweichung: nachziehen (slew) · große: springen (step, makestep)"
+karten:
+  - f: "Wofür steht NTP?"
+    a: ["network time protocol"]
+  - f: "Auf welchem Port arbeitet NTP?"
+    a: ["123", "udp 123", "123/udp"]
+  - f: "Was bedeutet Stratum 1?"
+    a: ["der server hängt direkt an einer referenzuhr", "direkt an einer atomuhr oder gps"]
+  - f: "Welcher Befehl zeigt die Zeitquellen von chrony?"
+    a: ["chronyc sources"]
+  - f: "Welcher Befehl zeigt, wie weit die Uhr bei chrony abweicht?"
+    a: ["chronyc tracking"]
+  - f: "Welcher Befehl lässt chrony die Uhr sofort springen?"
+    a: ["chronyc makestep"]
+  - f: "Welcher Befehl zeigt die Zeitquellen von ntpd?"
+    a: ["ntpq -p"]
+  - f: "Wie heißt die Konfigurationsdatei von ntpd?"
+    a: ["/etc/ntp.conf"]
+  - f: "Wie heißt das große, offene Netz öffentlicher Zeitserver?"
+    a: ["pool.ntp.org", "ntp pool"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Zuordnung from '../components/Zuordnung.astro';
+
+Die Uhr von werkstatt geht wieder sieben Minuten vor, obwohl ein Zeitdienst läuft. **Deine Mission: Verstehe NTP, lies den Zustand von chrony und lass die Uhr wieder richtig gehen.** Lernziel 108.1.
+
+## NTP
+
+<Karte nr={1} titel="Zeitserver, Stratum und die drei Programme">
+**NTP** (Network Time Protocol, UDP-Port 123) gleicht Uhren über das Netz ab und rechnet dabei die Laufzeit der Pakete heraus. Die Server bilden Schichten: **Stratum 1** hängt direkt an einer Referenzuhr (GPS, Funkuhr, Atomuhr), Stratum 2 fragt Stratum 1 und so weiter. Für die meisten Rechner genügt das **NTP Pool Project** mit Namen wie `pool.ntp.org` oder `2.debian.pool.ntp.org`. Hinter jedem Namen stehen viele Freiwillige.
+
+Ein NTP-Client stellt die Uhr nicht hart um, sondern lässt sie ein wenig schneller oder langsamer laufen, bis sie stimmt (**slew**). So springt die Zeit nie zurück. Nur bei großen Abständen springt er (**step**). Unter Linux gibt es drei Programme dafür:
+
+| Programm | Konfiguration | Werkzeuge |
+|---|---|---|
+| **chrony** (chronyd) | `/etc/chrony/chrony.conf` (Debian), `/etc/chrony.conf` (Red Hat) | `chronyc sources`, `chronyc tracking`, `chronyc makestep` |
+| **ntpd** (klassisch, heute oft ntpsec) | `/etc/ntp.conf` | `ntpq -p`, einmalig `ntpdate server` |
+| **systemd-timesyncd** (nur Client) | `/etc/systemd/timesyncd.conf` | `timedatectl timesync-status` |
+
+Red Hat setzt chrony ein, Debian 12 ohne weitere Pakete systemd-timesyncd. Die Prüfung verlangt alle drei. In der Konfiguration stehen die Quellen mit `server` oder `pool`, etwa `pool 2.debian.pool.ntp.org iburst`. `iburst` beschleunigt den ersten Abgleich. **ntpdate** stellt die Uhr einmalig und ist veraltet. Läuft schon ein Dienst, verweigert es die Arbeit, und `ntpdate -q` fragt nur ab.
+
+`timedatectl set-ntp true` schaltet den Zeitdienst ein, `timedatectl` zeigt mit „System clock synchronized“, ob die Uhr stimmt.
+</Karte>
+
+<Merke>NTP, UDP 123, Stratum 1 an der Referenzuhr. pool.ntp.org. chrony: chrony.conf, chronyc sources/tracking/makestep. ntpd: /etc/ntp.conf, ntpq -p, ntpdate einmalig. timesyncd: timedatectl.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: NTP" fragen={[
+  { frage: 'Ein Server bekommt seine Zeit von einem Stratum-2-Server. Welches Stratum hat er selbst?', richtig: '3', falsch: ['2', '1'], erklaerung: 'Jede Stufe zählt eins weiter.' },
+  { frage: 'Warum stellt ein NTP-Dienst kleine Abweichungen nicht einfach hart um?', richtig: 'Damit die Zeit nie rückwärts springt, das würde Logs und Programme verwirren.', falsch: ['Weil die Hardware-Uhr das nicht erlaubt.', 'Weil NTP nur Minuten kennt.'], erklaerung: 'Er lässt die Uhr etwas schneller oder langsamer laufen (slew).' },
+]} />
+
+<Terminal id="ntp" titel="Terminal: chrony fragen" welt={{ dienste: { uhrFalsch: 7 } }} aufgaben={[
+  { text: 'Lies die Konfiguration von chrony und such die Zeile mit den Quellen.', befehl: '^grep .*pool.* /etc/chrony/chrony\\.conf$|^grep .*(server|pool).* /etc/chrony/chrony\\.conf$', frage: 'Welcher Pool ist eingetragen?', antwort: ['2.debian.pool.ntp.org'] },
+  { text: 'Lass dir die Zeitquellen zeigen.', befehl: '^chronyc sources( -v)?$', frage: 'Welche Quelle ist mit * als beste markiert?', antwort: ['time1.example-ntp.de'] },
+  { text: 'Lass dir zeigen, wie weit die Systemuhr abweicht.', befehl: '^chronyc tracking$', frage: 'Wie viele Sekunden geht sie vor?', antwort: ['420', '420.000000000', '420 sekunden'] },
+  { text: 'Versuch, die Uhr einmalig mit ntpdate zu stellen.', befehl: '^sudo ntpdate ', auchFehler: true },
+  { text: 'Frag mit ntpdate nur ab, ohne zu stellen.', befehl: '^ntpdate -q ' },
+  { text: 'Lass chrony die Uhr sofort richtig stellen.', zustand: 'uhr:richtig', befehl: '^sudo chronyc makestep$' },
+  { text: 'Prüf mit timedatectl, ob die Uhr jetzt synchronisiert ist.', befehl: '^timedatectl( status)?$', frage: 'yes oder no?', antwort: ['yes', 'ja'] },
+]} />
+
+<Zuordnung id="zuordnung" titel="Zuordnung: Welches Werkzeug gehört wozu?" aufgabe="Ordne jedem Befehl oder jeder Datei den Zeitdienst zu." paare={[
+  { links: 'ntpq -p', rechts: 'ntpd' },
+  { links: 'chronyc sources', rechts: 'chrony' },
+  { links: '/etc/ntp.conf', rechts: 'ntpd' },
+  { links: '/etc/chrony.conf', rechts: 'chrony' },
+  { links: 'timedatectl timesync-status', rechts: 'systemd-timesyncd' },
+]} />
+
+<Quiz id="k2" titel="Kurzcheck: Werkzeuge" fragen={[
+  { frage: 'Welcher Befehl zeigt bei ntpd die Liste der Zeitquellen?', richtig: 'ntpq -p', falsch: ['ntpdate -l', 'chronyc peers'], erklaerung: 'chronyc sources ist die Entsprechung bei chrony.' },
+]} />
+
+<Labor id="labor" titel="Aufgabe im Labor: Zeitdienst in der VM"
+  aufgabe="Prüf in deiner Debian-VM, welcher Zeitdienst läuft. Installiere chrony und lass dir die Quellen zeigen. Füge die Ausgabe ein."
+  befehl={"timedatectl | grep -E 'NTP service|synchronized'\nsudo apt install -y chrony >/dev/null\nchronyc sources | head -5\nchronyc tracking | grep -E 'Stratum|System time'"}
+  muster={["NTP service: active", "^\\^[*+-] ", "^Stratum\\s+: \\d+", "System time\\s+: [\\d.]+ seconds (fast|slow)"]}
+  erfolg="Beim Installieren ersetzt chrony systemd-timesyncd. Die Quellen kommen aus dem Debian-Pool." />
+
+<Hinweis titel="Prüfungstipp">
+Lern die Paare auswendig: ntpd mit /etc/ntp.conf und ntpq -p, chrony mit chrony.conf und chronyc, timesyncd mit timedatectl. Dazu Port 123, Stratum und pool.ntp.org.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Was bedeutet iburst hinter einer server- oder pool-Zeile?', richtig: 'Beim Start werden mehrere Anfragen schnell hintereinander geschickt, damit der erste Abgleich zügig geht.', falsch: ['Die Uhr darf große Sprünge machen.', 'Der Server wird nur im Notfall gefragt.'], erklaerung: 'Große Sprünge erlaubt bei chrony die Direktive makestep.' },
+  { frage: 'Warum meldet „ntpdate pool.ntp.org“ einen Fehler, obwohl das Netz geht?', richtig: 'Ein laufender NTP-Dienst belegt den Port 123.', falsch: ['ntpdate braucht eine IP-Adresse.', 'pool.ntp.org ist kein Zeitserver.'], erklaerung: 'Mit -q fragt ntpdate nur ab und stört den Dienst nicht.' },
+]} />

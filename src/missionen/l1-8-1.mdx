@@ -1,0 +1,107 @@
+---
+id: l1-8-1
+checks:
+  - id: k1
+  - id: uhren
+  - id: k2
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "Zwei Uhren"
+    v: "Systemuhr (Kernel, ab dem Start) · Hardware-Uhr (RTC, auf der Hauptplatine, mit Batterie)"
+  - t: "Systemuhr"
+    v: "date · date -u · date -s \"2026-11-23 08:45\" (root)"
+  - t: "Hardware-Uhr"
+    v: "hwclock (lesen) · hwclock --systohc (System → RTC) · hwclock --hctosys (RTC → System)"
+  - t: "UTC oder Ortszeit"
+    v: "/etc/adjtime, dritte Zeile UTC oder LOCAL · hwclock --utc/--localtime"
+  - t: "systemd"
+    v: "timedatectl · timedatectl set-time … (nur mit NTP aus) · set-ntp true|false"
+karten:
+  - f: "Wie heißt die Uhr auf der Hauptplatine, die auch bei ausgeschaltetem Rechner weiterläuft?"
+    a: ["hardware-uhr", "rtc", "real time clock", "cmos-uhr"]
+  - f: "Welcher Befehl zeigt die Hardware-Uhr an?"
+    a: ["hwclock", "hwclock --show", "hwclock -r"]
+  - f: "Welcher Befehl schreibt die Systemzeit in die Hardware-Uhr?"
+    a: ["hwclock --systohc", "hwclock -w"]
+  - f: "Welcher Befehl stellt die Systemuhr nach der Hardware-Uhr?"
+    a: ["hwclock --hctosys", "hwclock -s"]
+  - f: "Wie stellst du die Systemuhr mit date auf 8:45 Uhr?"
+    a: ["date -s 08:45", "date -s \"08:45\"", "sudo date -s 08:45"]
+  - f: "In welcher Datei steht, ob die Hardware-Uhr in UTC oder Ortszeit läuft?"
+    a: ["/etc/adjtime"]
+  - f: "Warum sollte die Hardware-Uhr unter Linux in UTC laufen?"
+    a: ["wegen der sommerzeit", "dann muss sie bei der zeitumstellung nicht geändert werden"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+
+Die Logs von werkstatt und labor2 passen nicht zusammen: Ein Fehler auf labor2 scheint vor seiner Ursache auf werkstatt passiert zu sein. **Deine Mission: Verstehe, welche Uhren ein Linux-Rechner hat, und stell sie richtig.** Lernziel 108.1.
+
+## Zwei Uhren
+
+<Karte nr={1} titel="Systemuhr und Hardware-Uhr">
+Jeder PC hat zwei Uhren:
+
+- Die **Hardware-Uhr** (RTC, Real Time Clock, früher CMOS-Uhr) sitzt auf der Hauptplatine und läuft mit einer Knopfzelle weiter, wenn der Rechner aus ist. Sie ist ungenau, typisch einige Sekunden pro Tag.
+- Die **Systemuhr** zählt der Kernel. Beim Start liest er die Hardware-Uhr einmal, danach zählt er selbst. Alle Programme, Logs und Dateizeiten nutzen die Systemuhr.
+
+Linux führt beide Uhren in **UTC** und rechnet erst bei der Anzeige in die Zeitzone um (Mission 7.5). Ob die Hardware-Uhr in UTC oder Ortszeit läuft, steht in der dritten Zeile von **/etc/adjtime**. Ortszeit ist nur nötig, wenn auf demselben Rechner auch Windows startet. Mit UTC muss niemand die Hardware-Uhr bei der Umstellung auf Sommerzeit anfassen.
+
+**Systemuhr**: `date` zeigt sie, `date -u` in UTC, `date -s "2026-11-23 08:45"` stellt sie (nur root).
+
+**Hardware-Uhr**: `hwclock` (oder `--show`, `-r`) zeigt sie an. `hwclock --systohc` (`-w`) schreibt die Systemzeit hinein, `hwclock --hctosys` (`-s`) stellt umgekehrt die Systemuhr danach. `--utc` und `--localtime` legen fest, wie die Hardware-Uhr zu lesen ist. Auch dafür braucht es root.
+
+Unter systemd fasst **timedatectl** alles zusammen: Es zeigt Ortszeit, UTC, Hardware-Uhr („RTC time“) und Zeitzone. `timedatectl set-time "2026-11-23 08:45:00"` stellt die Uhr, aber nur, wenn die Zeitsynchronisierung aus ist (`timedatectl set-ntp false`). Sonst würde NTP die Uhr sofort wieder umstellen (Mission 8.2).
+</Karte>
+
+<Merke>Hardware-Uhr (RTC) läuft mit Batterie, Systemuhr zählt der Kernel. Beide in UTC, eingestellt in /etc/adjtime. date -s stellt die Systemuhr, hwclock --systohc schreibt sie in die RTC, --hctosys umgekehrt. timedatectl set-time nur mit NTP aus.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: Uhren" fragen={[
+  { frage: 'Du hast die Systemuhr mit date -s richtig gestellt. Was solltest du danach tun, damit die Zeit auch nach dem nächsten Start stimmt?', richtig: 'hwclock --systohc', falsch: ['hwclock --hctosys', 'timedatectl set-ntp false'], erklaerung: 'Beim Start liest der Kernel die Hardware-Uhr. --hctosys würde die richtige Systemzeit wieder überschreiben.' },
+  { frage: 'Welche Uhr verwenden Programme, wenn sie Zeitstempel in Logs schreiben?', richtig: 'Die Systemuhr', falsch: ['Die Hardware-Uhr', 'Die Uhr des NTP-Servers'], erklaerung: 'Die Hardware-Uhr liest der Kernel nur beim Start.' },
+]} />
+
+<Terminal id="uhren" titel="Terminal: Die falsche Uhr" welt={{ dienste: { uhrFalsch: 7, rtcFalsch: 7 } }} aufgaben={[
+  { text: 'Lass dir die Systemzeit zeigen, einmal als Ortszeit und einmal in UTC.', befehl: '^date -u$' },
+  { text: 'Lies die Hardware-Uhr.', befehl: '^sudo hwclock( --show| -r)?$' },
+  { text: 'Lass dir von timedatectl alles zusammen zeigen.', befehl: '^timedatectl( status)?$', frage: 'Ist die Systemuhr synchronisiert? (yes/no)', antwort: ['no', 'nein'] },
+  { text: 'Prüf in <code>/etc/adjtime</code>, wie die Hardware-Uhr läuft.', befehl: '^cat /etc/adjtime$', frage: 'UTC oder LOCAL?', antwort: ['UTC'] },
+  { text: 'Versuch, die Uhr mit timedatectl auf <code>2026-11-23 08:41:00</code> zu stellen.', befehl: '^sudo timedatectl set-time ', auchFehler: true, frage: 'Was verhindert das?', antwort: ['die automatische zeitsynchronisierung', 'ntp', 'automatic time synchronization is enabled'] },
+  { text: 'Stell die Systemuhr mit <code>date -s</code> auf die richtige Zeit <code>08:41</code>.', zustand: 'uhr:richtig' },
+  { text: 'Schreib die richtige Systemzeit in die Hardware-Uhr.', zustand: 'rtc:richtig' },
+]} />
+
+## Wer stellt die Uhr?
+
+<Karte nr={2} titel="Von Hand oder automatisch">
+Eine Uhr von Hand zu stellen ist nur eine Notlösung. Selbst ein guter Quarz läuft im Monat um Sekunden bis Minuten falsch, und schon wenige Sekunden Unterschied machen Logs verschiedener Rechner schwer vergleichbar. Kerberos lehnt Anmeldungen bei mehr als fünf Minuten Abweichung sogar ab, und TLS-Zertifikate scheinen bei falscher Uhr ungültig.
+
+Darum gleicht jeder Server seine Uhr laufend mit Zeitservern im Netz ab, über das **Network Time Protocol (NTP)**. Das ist die nächste Mission. Für den Kurs gilt: Von Hand nur, wenn kein Netz da ist, und danach immer `hwclock --systohc`.
+</Karte>
+
+<Merke>Von Hand nur ohne Netz, danach hwclock --systohc. Sonst NTP. Zeitabweichungen stören Logs, Kerberos (5 Minuten) und Zertifikate.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: Warum NTP?" fragen={[
+  { frage: 'Ab welcher Zeitabweichung lehnt Kerberos Anmeldungen in der Voreinstellung ab?', richtig: 'Mehr als 5 Minuten', falsch: ['Mehr als 1 Sekunde', 'Mehr als 1 Stunde'], erklaerung: 'Die Grenze heißt clockskew und ist standardmäßig 300 Sekunden.' },
+]} />
+
+<Labor id="labor" titel="Aufgabe im Labor: Die Uhren deiner VM"
+  aufgabe="Vergleiche in deiner Debian-VM die Uhren. Füge die Ausgabe ein."
+  befehl={"date -u\nsudo hwclock --show\ntimedatectl | grep -E 'RTC|synchronized'\ntail -1 /etc/adjtime"}
+  muster={["UTC 20\\d\\d$", "^20\\d\\d-\\d\\d-\\d\\d \\d\\d:\\d\\d:\\d\\d\\.\\d+[+-]\\d\\d:\\d\\d$", "RTC time:", "^(UTC|LOCAL)$"]}
+  erfolg="In einer VM liefert der Hypervisor die Hardware-Uhr. Darum stimmt sie meist von selbst." />
+
+<Hinweis titel="Prüfungstipp">
+Verwechsle die Richtungen von hwclock nicht: systohc heißt „system to hardware clock“, hctosys „hardware clock to system“. Gefragt wird auch, wo die Einstellung UTC oder LOCAL steht (/etc/adjtime).
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Welcher Befehl liest die Hardware-Uhr und stellt danach die Systemuhr?', richtig: 'hwclock --hctosys', falsch: ['hwclock --systohc', 'date --hwclock'], erklaerung: 'Das macht der Start von selbst.' },
+  { frage: 'Wann ist es sinnvoll, die Hardware-Uhr in Ortszeit laufen zu lassen?', richtig: 'Wenn auf dem Rechner auch Windows startet', falsch: ['Immer auf Servern', 'Wenn NTP läuft'], erklaerung: 'Windows erwartet die Hardware-Uhr standardmäßig in Ortszeit.' },
+]} />

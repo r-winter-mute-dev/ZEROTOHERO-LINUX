@@ -1,0 +1,34 @@
+---
+id: l1-8-boss
+checks:
+  - id: montag
+spick:
+  - t: "Uhr"
+    v: "chronyc tracking · chronyc makestep · hwclock --systohc"
+  - t: "Journal"
+    v: "Storage=persistent in /etc/systemd/journald.conf · systemctl restart systemd-journald"
+  - t: "rsyslog"
+    v: "local0.err  /var/log/datei · rsyslogd -N1 · systemctl restart rsyslog · logger -p local0.crit"
+  - t: "Mail"
+    v: "root: lena in /etc/aliases · newaliases"
+  - t: "Drucker"
+    v: "lpstat -t · cupsenable laser"
+---
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+
+Montag, 7 Uhr. Am Wochenende ist werkstatt abgestürzt. Die Uhr geht vor, das Journal weiß nichts mehr vom Freitag, Fehler des Messdienstes verschwinden im allgemeinen Syslog, Warnungen an root liest niemand, und der Drucker steht seit Freitag still. **Dein Bosskampf: Bring alle Systemdienste in Ordnung, damit der nächste Absturz Spuren hinterlässt und jemand davon erfährt.** Alles aus Topic 108.
+
+<Hinweis titel="Reihenfolge">
+Stell zuerst die Uhr. Sonst tragen alle Meldungen, die du beim Reparieren erzeugst, falsche Zeitstempel.
+</Hinweis>
+
+<Terminal id="montag" titel="Bosskampf: Montagmorgen" welt={{ dienste: { rsyslog: true, uhrFalsch: 7, journalFluechtig: true, druckerAngehalten: true, druckJobs: 2 } }} aufgaben={[
+  { text: 'Die Systemuhr geht richtig, und die Hardware-Uhr hat dieselbe Zeit.', zustand: 'uhr:richtig && rtc:richtig' },
+  { text: 'Das Journal speichert dauerhaft.', zustand: 'datei:/etc/systemd/journald.conf~^Storage=persistent$ && journal:dauerhaft' },
+  { text: 'Meldungen von messd (Einrichtung local0) ab der Stufe err landen zusätzlich in <code>/var/log/messd-fehler.log</code>, über eine eigene Datei in <code>/etc/rsyslog.d/</code>, und rsyslog hat die Regel übernommen.', zustand: 'datei:/etc/rsyslog.d/*~^local0\\.err\\s+-?/var/log/messd-fehler\\.log$ && rsyslog:aktuell' },
+  { text: 'Probe: Eine Meldung von messd mit der Stufe crit steht in der neuen Datei.', zustand: 'datei:/var/log/messd-fehler.log~messd: && journal~^messd: ' },
+  { text: '<code>/var/log/messd-fehler.log</code> wird wöchentlich rotiert, 8 Fassungen bleiben, alte werden komprimiert.', zustand: 'datei:/etc/logrotate.d/*~/var/log/messd-fehler\\.log && datei:/etc/logrotate.d/*~^\\s*weekly$ && datei:/etc/logrotate.d/*~^\\s*rotate 8$ && datei:/etc/logrotate.d/*~^\\s*compress$' },
+  { text: 'Mail an root landet bei lena. Eine Testmail an root ist bei ihr angekommen.', zustand: 'aliasdb:root=lena && post:lena~.' },
+  { text: 'Der Drucker laser druckt wieder, und die Warteschlange ist leer.', zustand: 'drucker:laser=aktiv && keinjob:laser' },
+]} />

@@ -1,0 +1,131 @@
+---
+id: l1-8-6
+checks:
+  - id: k1
+  - id: drucken
+  - id: k2
+  - id: verwalten
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "CUPS"
+    v: "cupsd · Port 631 · Weboberfläche http://localhost:631 · /etc/cups/cupsd.conf · /etc/cups/printers.conf"
+  - t: "Drucken"
+    v: "lp -d drucker datei · lpr -P drucker datei · -n 2 bzw. -#2 Kopien"
+  - t: "Warteschlange"
+    v: "lpq -P drucker · lpstat -o · lprm NR · cancel drucker-NR · cancel -a"
+  - t: "Zustand"
+    v: "lpstat -t (alles) · -p Drucker · -d Standard · -v Geräte · -a nimmt an"
+  - t: "Steuern"
+    v: "cupsdisable/cupsenable (druckt) · cupsreject/cupsaccept (nimmt an)"
+  - t: "Einrichten"
+    v: "lpadmin -p name -E -v ipp://… -m everywhere · lpadmin -d name · lpadmin -x name · lpoptions -d name"
+karten:
+  - f: "Auf welchem Port arbeitet CUPS?"
+    a: ["631"]
+  - f: "Wie heißt die Hauptkonfigurationsdatei von CUPS?"
+    a: ["/etc/cups/cupsd.conf"]
+  - f: "Wie druckst du bericht.pdf auf dem Drucker laser mit lp?"
+    a: ["lp -d laser bericht.pdf"]
+  - f: "Wie druckst du bericht.pdf auf dem Drucker laser mit lpr?"
+    a: ["lpr -P laser bericht.pdf", "lpr -Plaser bericht.pdf"]
+  - f: "Welcher Befehl zeigt die Warteschlange im BSD-Stil?"
+    a: ["lpq"]
+  - f: "Wie löschst du den Auftrag 12 im BSD-Stil?"
+    a: ["lprm 12"]
+  - f: "Welcher Befehl zeigt den gesamten Zustand von CUPS?"
+    a: ["lpstat -t"]
+  - f: "Wie hältst du den Drucker laser an, ohne neue Aufträge abzulehnen?"
+    a: ["cupsdisable laser"]
+  - f: "Wie machst du laser zum Standarddrucker des Systems?"
+    a: ["lpadmin -d laser"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+
+Der Laserdrucker meldet Papierstau, drei Aufträge hängen, und für das Labor kommt ein zweiter Drucker dazu. **Deine Mission: Drucke, verwalte die Warteschlange und richte einen Drucker mit CUPS ein.** Lernziel 108.4.
+
+## Drucken und Warteschlangen
+
+<Karte nr={1} titel="CUPS und die zwei Befehlsfamilien">
+Unter Linux druckt **CUPS** (Common UNIX Printing System). Der Dienst **cupsd** nimmt Aufträge an, wandelt sie mit Filtern in die Sprache des Druckers um und schickt sie über ein Backend (ipp, usb, socket, lpd) an das Gerät. Er spricht **IPP** auf **Port 631**. Dort gibt es auch eine Weboberfläche: `http://localhost:631`.
+
+Für das Drucken gibt es zwei Familien von Befehlen. Beide funktionieren unter CUPS:
+
+| Aufgabe | System V | BSD (lpd) |
+|---|---|---|
+| drucken | `lp -d laser datei` | `lpr -P laser datei` |
+| Kopien | `lp -n 2` | `lpr -#2` |
+| Warteschlange | `lpstat -o` | `lpq -P laser` |
+| Auftrag löschen | `cancel laser-12` | `lprm 12` |
+| alle eigenen löschen | `cancel -a` | `lprm -` |
+
+Ohne Druckername geht der Auftrag an den Standarddrucker. `lpstat -t` zeigt alles auf einmal: läuft der Dienst, welcher Drucker ist Standard, welche Geräte, nimmt er an, druckt er, welche Aufträge warten.
+
+Ein Drucker hat zwei Schalter. **cupsdisable** hält ihn an: Er nimmt weiter Aufträge an, druckt aber nicht. **cupsenable** lässt ihn weiterdrucken. **cupsreject** lehnt neue Aufträge ab, **cupsaccept** nimmt wieder an. So kannst du einen Drucker für eine Reparatur anhalten, ohne dass Aufträge verloren gehen.
+</Karte>
+
+<Merke>CUPS: cupsd, IPP, Port 631, Weboberfläche. lp -d / lpr -P drucken, lpq / lpstat -o zeigen, lprm / cancel löschen. lpstat -t zeigt alles. cupsdisable hält an, cupsreject lehnt ab.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: Drucken" fragen={[
+  { frage: 'Welcher Befehl druckt zwei Kopien von plan.pdf auf laser?', richtig: 'lp -d laser -n 2 plan.pdf', falsch: ['lp -P laser -2 plan.pdf', 'lpq -d laser plan.pdf'], erklaerung: 'Im BSD-Stil wäre es lpr -P laser -#2 plan.pdf.' },
+  { frage: 'Ein Drucker ist mit cupsdisable angehalten. Was passiert mit einem neuen Auftrag?', richtig: 'Er wird angenommen und wartet in der Schlange.', falsch: ['Er wird abgelehnt.', 'Er wird an einen anderen Drucker geschickt.'], erklaerung: 'Ablehnen würde der Drucker erst nach cupsreject.' },
+]} />
+
+<Terminal id="drucken" titel="Terminal: Der Papierstau" welt={{ dienste: { druckerAngehalten: true, druckJobs: 3 }, dateien: { '/home/lena/messbericht-13.pdf': '\u0007BIN:47110' } }} aufgaben={[
+  { text: 'Lass dir den gesamten Zustand von CUPS zeigen.', befehl: '^lpstat -t$', frage: 'Warum ist laser deaktiviert?', antwort: ['Papierstau in Fach 2', 'papierstau'] },
+  { text: 'Lass dir die Warteschlange im BSD-Stil zeigen.', befehl: '^lpq( -P ?laser)?$', frage: 'Wie viele Aufträge warten?', antwort: ['3', 'drei'] },
+  { text: 'Druck <code>messbericht-13.pdf</code> mit lp auf laser.', zustand: 'druckjob:laser~messbericht-13' },
+  { text: 'Max hat seinen Auftrag schon auf Papier. Lösch als root den Auftrag von max.', zustand: 'nicht:druckjob:laser~kalibrierung' },
+  { text: 'Der Papierstau ist behoben. Lass laser weiterdrucken.', zustand: 'drucker:laser=aktiv && keinjob:laser && gedruckt~messbericht-13' },
+]} />
+
+## Drucker einrichten
+
+<Karte nr={2} titel="lpadmin, lpoptions und die Dateien">
+Moderne Netzwerkdrucker verstehen **IPP Everywhere**: CUPS fragt sie selbst nach ihren Fähigkeiten und braucht keinen Treiber. Einrichten geht in der Weboberfläche oder mit **lpadmin**:
+
+```
+lpadmin -p labor -E -v ipp://192.168.1.41/ipp/print -m everywhere
+```
+
+`-p` gibt den Namen, `-E` aktiviert den Drucker und lässt ihn Aufträge annehmen, `-v` ist das Gerät (Device URI), `-m` das Modell. `lpinfo -v` zeigt die gefundenen Geräte, `lpinfo -m` die verfügbaren Modelle. `lpadmin -d labor` macht labor zum Standard des Systems, `lpadmin -x labor` löscht ihn. Jeder Benutzer kann mit `lpoptions -d labor` einen eigenen Standard wählen. Der steht dann in `~/.cups/lpoptions`.
+
+Die Dateien liegen unter **/etc/cups/**: `cupsd.conf` steuert den Dienst (`Listen`, Zugriffsrechte in `<Location>`-Abschnitten, `WebInterface`), `printers.conf` schreibt cupsd selbst, solange er läuft. Fehler stehen in `/var/log/cups/error_log`, Aufträge warten in `/var/spool/cups/`. Wer Drucker verwalten darf, regelt auf Debian die Gruppe **lpadmin**.
+</Karte>
+
+<Merke>lpadmin -p NAME -E -v URI -m everywhere, -d Standard, -x löschen. lpoptions -d für den eigenen Standard. /etc/cups/cupsd.conf, printers.conf (nicht von Hand), /var/log/cups/error_log, Gruppe lpadmin.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: Einrichten" fragen={[
+  { frage: 'Welche Datei solltest du nicht bearbeiten, solange cupsd läuft?', richtig: '/etc/cups/printers.conf', falsch: ['/etc/cups/cupsd.conf', '~/.cups/lpoptions'], erklaerung: 'cupsd schreibt sie selbst und würde Änderungen überschreiben.' },
+]} />
+
+<Terminal id="verwalten" titel="Terminal: Ein Drucker für das Labor" aufgaben={[
+  { text: 'Lass dir als root die Geräte zeigen, die CUPS findet.', befehl: '^sudo lpinfo -v$' },
+  { text: 'Richte den Drucker <code>labor</code> mit dem Gerät <code>ipp://192.168.1.41/ipp/print</code> und dem Modell <code>everywhere</code> ein und aktiviere ihn.', zustand: 'drucker:labor=aktiv && drucker:labor=akzeptiert' },
+  { text: 'Mach labor nur für dich zum Standarddrucker.', zustand: 'datei:/home/lena/.cups/lpoptions~^Default labor$' },
+  { text: 'Druck <code>/etc/hostname</code> mit lpr, ohne einen Drucker anzugeben.', befehl: '^lpr /etc/hostname$', zustand: 'gedruckt~hostname' },
+  { text: 'Der Drucker labor bekommt neuen Toner. Lass ihn für diese Zeit Aufträge ablehnen.', zustand: 'drucker:labor=abgelehnt' },
+  { text: 'Prüf mit lpstat, welche Drucker Aufträge annehmen.', befehl: '^lpstat -a$' },
+  { text: 'Lass ihn wieder annehmen und prüf, wo cupsd lauscht.', zustand: 'drucker:labor=akzeptiert', befehl: '^grep .*Listen.* /etc/cups/cupsd\\.conf$', frage: 'Auf welchem Port?', antwort: ['631'] },
+]} />
+
+<Labor id="labor" titel="Aufgabe im Labor: CUPS in der VM"
+  aufgabe="Installiere CUPS in deiner Debian-VM und richte einen Drucker ein, der in eine Datei druckt. Druck eine Testseite und prüf die Schlange. Füge die Ausgabe ein."
+  befehl={"sudo apt install -y cups >/dev/null\nsudo lpadmin -p testdrucker -E -v file:///dev/null -m raw 2>&1 | grep -v deprecated\nlp -d testdrucker /etc/hostname\nlpstat -p testdrucker; lpstat -r"}
+  muster={["^(Anfrage-ID ist|request id is) testdrucker-\\d+", "testdrucker", "(Zeitplandienst läuft|scheduler is running)"]}
+  erfolg="CUPS warnt, dass raw-Warteschlangen veraltet sind. Für echte Drucker nimmst du -m everywhere." />
+
+<Hinweis titel="Prüfungstipp">
+Topic 108.4 hat das Gewicht 2. Gefragt werden vor allem die Befehle beider Familien (lp, lpr, lpq, lprm, lpstat, cancel), der Unterschied von cupsdisable und cupsreject, Port 631 und die Dateien unter /etc/cups.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Welcher Befehl löscht alle eigenen Aufträge im BSD-Stil?', richtig: 'lprm -', falsch: ['lpq -d', 'cupsreject -a'], erklaerung: 'Im System-V-Stil wäre es cancel -a.' },
+  { frage: 'Was bewirkt cupsreject laser?', richtig: 'laser nimmt keine neuen Aufträge mehr an, wartende werden weiter gedruckt.', falsch: ['laser druckt nicht mehr, nimmt aber an.', 'laser wird gelöscht.'], erklaerung: 'Das Gegenstück ist cupsaccept.' },
+]} />

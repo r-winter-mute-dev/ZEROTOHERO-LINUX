@@ -283,15 +283,21 @@ export function zeitBefehle(): Record<string, B> {
 
   b.timedatectl = (w, a, _i, root) => {
     const cmd = a[0] ?? 'status'; const zone = zoneVon({ ...w, env: { ...w.env, TZ: undefined as unknown as string } } as Welt);
+    const d = (w as Welt & { dienste?: { ntp: boolean; uhrAbw: number } }).dienste; const ntp = d ? d.ntp : true; const sync = ntp && (!d || Math.abs(d.uhrAbw) < 1000);
     if (cmd === 'status' || cmd === 'show') {
       const [off, abk] = ZONEN[zone] ?? [0, 'UTC'];
-      return ok(`               Local time: ${datumFormat({ ...w, env: { LANG: 'C' } } as Welt, w.uhr, '%a %F %T %Z')}\n           Universal time: ${datumFormat({ ...w, env: { LANG: 'C' } } as Welt, w.uhr, '%a %F %T UTC', true)}\n                 RTC time: ${datumFormat({ ...w, env: { LANG: 'C' } } as Welt, w.uhr - 2000, '%a %F %T', true)}\n                Time zone: ${zone} (${abk}, ${off >= 0 ? '+' : '-'}${zz(Math.abs(off))}00)\nSystem clock synchronized: yes\n              NTP service: active\n          RTC in local TZ: no`);
+      return ok(`               Local time: ${datumFormat({ ...w, env: { LANG: 'C' } } as Welt, w.uhr, '%a %F %T %Z')}\n           Universal time: ${datumFormat({ ...w, env: { LANG: 'C' } } as Welt, w.uhr, '%a %F %T UTC', true)}\n                 RTC time: ${datumFormat({ ...w, env: { LANG: 'C' } } as Welt, w.uhr - 2000, '%a %F %T', true)}\n                Time zone: ${zone} (${abk}, ${off >= 0 ? '+' : '-'}${zz(Math.abs(off))}00)\nSystem clock synchronized: ${sync ? 'yes' : 'no'}\n              NTP service: ${ntp ? 'active' : 'inactive'}\n          RTC in local TZ: no`);
     }
     if (cmd === 'list-timezones') return ok(Object.keys(ZONEN).filter((z) => z !== 'Etc/UTC').sort().join('\n'));
     if (!root && !w.root) return fehler('Interaktive Authentifizierung erforderlich.\n(Im Simulator: Nimm sudo.)');
     if (cmd === 'set-timezone') { const z = a[1] ?? ''; if (!ZONEN[z]) return fehler(`Failed to set time zone: Invalid or not installed time zone '${z}'`); w.fs['/etc/localtime'] = `-> /usr/share/zoneinfo/${z}`; w.fs['/etc/timezone'] = z + '\n'; return ok(); }
-    if (cmd === 'set-ntp') return ok();
-    if (cmd === 'set-time') return fehler('Failed to set time: Automatic time synchronization is enabled');
+    if (cmd === 'set-ntp') { if (d) d.ntp = /^(1|yes|true|on)$/.test(a[1] ?? ''); return ok(); }
+    if (cmd === 'set-time') {
+      if (ntp) return fehler('Failed to set time: Automatic time synchronization is enabled');
+      const m = (a[1] ?? '').match(/^(\d{4})-(\d{2})-(\d{2}) (\d{1,2}):(\d{2})(?::(\d{2}))?$/); if (!m) return fehler(`Failed to parse time specification '${a[1] ?? ''}': Invalid argument`);
+      const [off] = ZONEN[zone] ?? [0]; const t = Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +(m[6] ?? 0)) - off * 3600000;
+      if (d) d.uhrAbw += t - w.uhr; w.uhr = t; return ok();
+    }
     return fehler(`Unknown command verb ${cmd}.`);
   };
 

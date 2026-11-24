@@ -1,0 +1,135 @@
+---
+id: l1-8-3
+checks:
+  - id: k1
+  - id: luecke
+  - id: regeln
+  - id: k2
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "Regel"
+    v: "einrichtung.stufe   ziel   ·   mehrere mit ; trennen"
+  - t: "Einrichtungen"
+    v: "auth authpriv cron daemon kern lpr mail news syslog user uucp local0 … local7"
+  - t: "Stufen (absteigend)"
+    v: "emerg alert crit err warning notice info debug"
+  - t: "Selektoren"
+    v: "mail.err = err und schlimmer · mail.=err nur err · mail.!err bis vor err · mail.none nichts · *.* alles"
+  - t: "Ziele"
+    v: "/var/log/datei (- = ohne sync) · @host UDP · @@host TCP · :omusrmsg:* an alle"
+  - t: "Testen"
+    v: "logger -p local0.warning -t messd \"Text\" · rsyslogd -N1 · systemctl restart rsyslog"
+karten:
+  - f: "Welche Stufe ist die schwerste im Syslog?"
+    a: ["emerg", "emergency"]
+  - f: "Welche Stufe ist die leichteste im Syslog?"
+    a: ["debug"]
+  - f: "Was erfasst der Selektor mail.warning?"
+    a: ["mail ab warning und schlimmer", "warning, err, crit, alert und emerg der einrichtung mail"]
+  - f: "Was erfasst der Selektor mail.=warning?"
+    a: ["nur warning", "genau die stufe warning"]
+  - f: "Welche Einrichtungen sind für eigene Programme frei?"
+    a: ["local0 bis local7", "local0-local7"]
+  - f: "Wie schickt eine Regel alles per TCP an logserver?"
+    a: ["*.* @@logserver", "*.* @@logserver:514"]
+  - f: "Mit welchem Befehl schreibst du eine Testmeldung ins Syslog?"
+    a: ["logger"]
+  - f: "Wie heißt die Hauptkonfigurationsdatei von rsyslog?"
+    a: ["/etc/rsyslog.conf"]
+  - f: "Was bedeutet das Minus vor einem Dateinamen in einer rsyslog-Regel?"
+    a: ["nicht nach jeder meldung synchronisieren", "ohne sync"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Lueckentext from '../components/Lueckentext.astro';
+
+Der Messdienst `messd` meldet Fehler, aber sie gehen in der allgemeinen Syslog-Datei unter. Außerdem sollen alle Meldungen zusätzlich auf den zentralen Logserver der Abteilung. **Deine Mission: Schreib Regeln für rsyslog, die jede Meldung dahin bringen, wo sie hingehört.** Lernziel 108.2.
+
+## Einrichtung, Stufe, Ziel
+
+<Karte nr={1} titel="Wie rsyslog sortiert">
+Programme schicken ihre Meldungen an den Syslog-Dienst. Unter Linux ist das meist **rsyslog**, auf Debian 12 nachinstalliert, auf Red Hat von Anfang an da. Jede Meldung trägt zwei Merkmale:
+
+- **Einrichtung** (facility): woher sie kommt. `kern` (Kernel), `user` (Programme), `mail`, `daemon` (Dienste), `auth` und `authpriv` (Anmeldungen), `cron`, `lpr` (Drucken), `syslog` (rsyslog selbst) und `local0` bis `local7` für eigene Zwecke.
+- **Stufe** (priority) von schwer nach leicht: `emerg`, `alert`, `crit`, `err`, `warning`, `notice`, `info`, `debug`.
+
+Die Regeln in **/etc/rsyslog.conf** und in den Dateien unter **/etc/rsyslog.d/*.conf** bestehen aus einem Selektor und einem Ziel:
+
+```
+*.*;auth,authpriv.none     -/var/log/syslog
+auth,authpriv.*            /var/log/auth.log
+mail.err                   /var/log/mail.err
+local0.*                   /var/log/messd.log
+*.emerg                    :omusrmsg:*
+*.*                        @@logserver.example.org:514
+```
+
+`mail.err` heißt: Stufe err **und alles Schwerere**. `mail.=err` nur genau err, `mail.!err` alles Leichtere als err, `mail.none` nichts von mail. Mehrere Einrichtungen trennt ein Komma, mehrere Selektoren ein Semikolon. Eine Meldung kann mehrere Regeln erfüllen und landet dann an mehreren Stellen.
+
+Ziele: ein Dateipfad (mit `-` davor schreibt rsyslog ohne sofortiges sync, das spart Zeit), `@host` schickt per UDP, `@@host` per TCP an einen anderen Server, `:omusrmsg:*` an alle angemeldeten Benutzer.
+
+rsyslog liest die Regeln nur beim Start. Nach einer Änderung prüft `rsyslogd -N1` die Syntax, `systemctl restart rsyslog` übernimmt sie. Testen kannst du mit **logger**: `logger -p local0.warning -t messd "Sensor 3 zu heiß"`.
+</Karte>
+
+<Merke>einrichtung.stufe ziel. Stufen: emerg alert crit err warning notice info debug. .err = err und schwerer, .=err genau, .none nichts. Ziel: Datei, @UDP, @@TCP. Nach Änderung rsyslogd -N1 und systemctl restart rsyslog, testen mit logger.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: Selektoren" fragen={[
+  { frage: 'Welche Meldungen erfasst „kern.crit“?', richtig: 'Kernelmeldungen der Stufen crit, alert und emerg', falsch: ['Nur Kernelmeldungen der Stufe crit', 'Alle Kernelmeldungen außer crit'], erklaerung: 'Ohne = gilt die Stufe und alles Schwerere.' },
+  { frage: 'Was bewirkt „*.info;mail.none /var/log/messages“?', richtig: 'Alles ab info landet dort, nur nichts von mail.', falsch: ['Nur mail-Meldungen ab info', 'Alles, auch mail'], erklaerung: 'Das Semikolon verbindet Selektoren, none nimmt eine Einrichtung wieder heraus.' },
+]} />
+
+<Lueckentext id="luecke" titel="Code-Puzzle: Regeln für das Labor" aufgabe="Ergänze die Regeln passend zu den Kommentaren."
+  code={`# alles von messd (local0) in eine eigene Datei
+local0.___        /var/log/messd.log
+# nur Mail-Fehler ab err
+mail.___          /var/log/mail.err
+# alles per TCP an den Logserver
+*.*               ___logserver.example.org:514`}
+  luecken={[{ loesungen: ['*'] }, { loesungen: ['err'] }, { loesungen: ['@@'] }]} />
+
+<Terminal id="regeln" titel="Terminal: Eine eigene Logdatei für messd" welt={{ dienste: { rsyslog: true } }} aufgaben={[
+  { text: 'Lass dir die Regeln in <code>/etc/rsyslog.conf</code> zeigen, ohne Kommentare und Leerzeilen.', befehl: '^grep -v ', frage: 'In welche Datei gehen Anmeldungen (auth)?', antwort: ['/var/log/auth.log'] },
+  { text: 'Schick eine Testmeldung von messd mit der Einrichtung local0 und der Stufe warning.', zustand: 'journal~^messd: ', befehl: '^logger -p local0\\.warning -t messd ' },
+  { text: 'Such sie als root in <code>/var/log/syslog</code>.', befehl: '^sudo (grep|tail).*/var/log/syslog$' },
+  { text: 'Lege <code>/etc/rsyslog.d/messd.conf</code> an: alles von local0 nach <code>/var/log/messd.log</code>.', zustand: 'datei:/etc/rsyslog.d/messd.conf~^local0\\.\\*\\s+-?/var/log/messd\\.log$' },
+  { text: 'Prüf die Syntax und lass rsyslog die neue Regel übernehmen.', befehl: '^sudo rsyslogd -N ?1$', zustand: 'rsyslog:aktuell' },
+  { text: 'Schick noch eine Meldung und prüf <code>/var/log/messd.log</code>.', zustand: 'datei:/var/log/messd.log~messd: ' },
+  { text: 'Ergänze in derselben Datei eine Regel, die alles per TCP an <code>logserver.example.org:514</code> schickt, und übernimm sie.', zustand: 'datei:/etc/rsyslog.d/messd.conf~^\\*\\.\\*\\s+@@logserver\\.example\\.org(:514)?$ && rsyslog:aktuell' },
+  { text: 'Schick eine Meldung, damit sie beim Logserver ankommt.', zustand: 'fernlog:logserver.example.org' },
+]} />
+
+## Remote-Logs und die Grenzen von Syslog
+
+<Karte nr={2} titel="Zentrale Logserver">
+Auf einem einzelnen Rechner kann ein Angreifer seine Spuren in den Logs löschen. Darum schicken Server ihre Meldungen zusätzlich an einen **zentralen Logserver**. Dort muss rsyslog Meldungen annehmen: In `/etc/rsyslog.conf` werden dafür die Module `imudp` oder `imtcp` mit `port="514"` aktiviert, die in der Debian-Datei schon als Kommentar stehen. TCP (`@@`) verliert keine Meldungen, wenn das Netz kurz hakt, UDP (`@`) schon.
+
+Auf systemd-Systemen sammelt zuerst das Journal alle Meldungen (Mission 8.4). rsyslog liest sie dort ab und verteilt sie in seine Dateien. Die Programme müssen davon nichts wissen.
+</Karte>
+
+<Merke>Zentraler Logserver gegen gelöschte Spuren. Empfang: imudp/imtcp mit Port 514. @@ TCP ist zuverlässiger als @ UDP. Das Journal sammelt zuerst, rsyslog verteilt.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: Remote" fragen={[
+  { frage: 'Welcher Port ist für Syslog über das Netz üblich?', richtig: '514', falsch: ['123', '631'], erklaerung: '123 ist NTP, 631 ist CUPS.' },
+]} />
+
+<Labor id="labor" titel="Aufgabe im Labor: rsyslog in der VM"
+  aufgabe="Installiere rsyslog in deiner Debian-VM, schick eine Testmeldung und such sie. Füge die Ausgabe ein."
+  befehl={"sudo apt install -y rsyslog >/dev/null\nlogger -p local0.warning -t labortest \"Hallo rsyslog\"\nsudo grep labortest /var/log/syslog\nsudo rsyslogd -N1 2>&1 | tail -1"}
+  muster={["labortest: Hallo rsyslog$", "End of config validation run"]}
+  erfolg="Die Meldung landet in /var/log/syslog, weil die Regel *.* dort alles außer auth und authpriv sammelt." />
+
+<Hinweis titel="Prüfungstipp">
+Lern die Reihenfolge der Stufen und die Bedeutung von ., .= und .none. Dazu kommen die Ziele @ und @@ und der Befehl logger. Die Einrichtungen local0 bis local7 sind für eigene Programme gedacht.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Welcher Befehl schreibt die Meldung „Test“ mit der Einrichtung user und der Stufe notice ins Syslog?', richtig: 'logger -p user.notice Test', falsch: ['syslog -p user.notice Test', 'echo Test > /var/log/syslog'], erklaerung: 'logger nutzt ohne -p die Vorgabe user.notice.' },
+  { frage: 'Welche Stufe ist schwerer: warning oder err?', richtig: 'err', falsch: ['warning', 'beide gleich'], erklaerung: 'Reihenfolge: emerg, alert, crit, err, warning, notice, info, debug.' },
+  { frage: 'Du hast /etc/rsyslog.d/messd.conf geändert, aber nichts passiert. Was fehlt?', richtig: 'systemctl restart rsyslog', falsch: ['logrotate -f', 'journalctl --sync'], erklaerung: 'rsyslog liest seine Regeln nur beim Start.' },
+]} />

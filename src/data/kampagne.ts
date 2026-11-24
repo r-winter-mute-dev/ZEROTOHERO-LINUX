@@ -165,7 +165,20 @@ const LPIC1: Akt[] = [
       m('l1-7-probe', 'Probe 7', 'Probeprüfung Topic 106 und 107', 'Topic 106 und 107 gemischt mit Topic 105, mit Zeitlimit.', 'Topic 106, 107 und Wiederholung von 105', 'Prüfungssimulation', { probe: true, ziele: ['106.1', '106.2', '106.3', '107.1', '107.2', '107.3', '105.1', '105.2'], bereit: true }),
     ],
   },
-  geplanterAkt('l1', 8, 'Systemdienste', '108', 'Zeit, Protokollierung, Mail und Drucken.', 'lpic1'),
+  {
+    nr: 8, titel: 'Systemdienste', teil: 'l1-8', teilName: 'Topic 108',
+    ziel: 'Die Uhren stellen und mit NTP abgleichen, Meldungen mit rsyslog und dem Journal sammeln und rotieren, Mail an root zustellen und mit CUPS drucken. 12 von 60 Fragen in Prüfung 102.',
+    missionen: [
+      m('l1-8-1', '8.1', 'Systemuhr und Hardware-Uhr', 'Verstehen, welche Uhren ein Rechner hat, und sie von Hand stellen.', 'Systemuhr, RTC, date -s, hwclock --systohc und --hctosys, /etc/adjtime, timedatectl', 'Terminal-Simulator und Quiz', { ziele: ['108.1'], bereit: true }),
+      m('l1-8-2', '8.2', 'Zeit aus dem Netz', 'NTP verstehen und chrony, ntpd und timesyncd auseinanderhalten.', 'NTP, Stratum, pool.ntp.org, chrony, chronyc, ntpd, ntpq, ntpdate, /etc/ntp.conf, /etc/chrony.conf, systemd-timesyncd', 'Terminal-Simulator, Zuordnung, Quiz', { ziele: ['108.1'], bereit: true }),
+      m('l1-8-3', '8.3', 'rsyslog', 'Meldungen nach Einrichtung und Stufe in Dateien und an einen Logserver verteilen.', 'Einrichtungen, Stufen, Selektoren, /etc/rsyslog.conf, /etc/rsyslog.d, logger, @ und @@', 'Terminal-Simulator, Lückentext, Quiz', { ziele: ['108.2'], bereit: true }),
+      m('l1-8-4', '8.4', 'Journal und logrotate', 'Das Journal dauerhaft machen, gezielt durchsuchen und Logs rotieren.', 'journalctl, journald.conf, /var/log/journal, systemd-cat, logrotate, /etc/logrotate.conf, /etc/logrotate.d', 'Terminal-Simulator und Quiz', { ziele: ['108.2'], bereit: true }),
+      m('l1-8-5', '8.5', 'Mail-Grundlagen', 'Verstehen, wie Mail zugestellt wird, und Mail an root umleiten.', 'MUA, MTA, MDA, Postfix, Exim, Sendmail, sendmail-Schnittstelle, /etc/aliases, newaliases, ~/.forward, mail, mailq', 'Terminal-Simulator, Zuordnung, Quiz', { ziele: ['108.3'], bereit: true }),
+      m('l1-8-6', '8.6', 'Drucken mit CUPS', 'Drucken, Warteschlangen verwalten und einen Drucker einrichten.', 'CUPS, Port 631, lp, lpr, lpq, lprm, cancel, lpstat, cupsenable, cupsdisable, cupsaccept, cupsreject, lpadmin, lpoptions, /etc/cups', 'Terminal-Simulator und Quiz', { ziele: ['108.4'], bereit: true }),
+      m('l1-8-boss', 'Boss 8', 'Montagmorgen', 'Uhr, Journal, rsyslog, logrotate, Mail und Drucker nach einem Absturz in Ordnung bringen.', 'Alles aus Topic 108', 'Terminal-Simulator', { boss: true, ziele: ['108.1', '108.2', '108.3', '108.4'], bereit: true }),
+      m('l1-8-probe', 'Probe 8', 'Probeprüfung Topic 108', 'Topic 108 gemischt mit Topic 107, mit Zeitlimit.', 'Topic 108 und Wiederholung von 107', 'Prüfungssimulation', { probe: true, ziele: ['108.1', '108.2', '108.3', '108.4', '107.1', '107.2', '107.3'], bereit: true }),
+    ],
+  },
   geplanterAkt('l1', 9, 'Netzwerk', '109', 'IP-Grundlagen, dauerhafte Konfiguration, Fehlersuche und DNS auf dem Client.', 'lpic1'),
   geplanterAkt('l1', 10, 'Sicherheit', '110', 'Rechner absichern und Daten mit SSH und GnuPG schützen.', 'lpic1', [
     m('l1-10-probe', 'Probe 102', 'Generalprobe Prüfung 102', '60 Fragen, 90 Minuten, gewichtet wie die echte Prüfung 102-500.', 'Topics 105 bis 110', 'Prüfungssimulation', { probe: true }),

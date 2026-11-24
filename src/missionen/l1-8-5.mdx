@@ -1,0 +1,129 @@
+---
+id: l1-8-5
+checks:
+  - id: k1
+  - id: zuordnung
+  - id: weiterleiten
+  - id: k2
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "Rollen"
+    v: "MUA (mail, Thunderbird) → MTA (Postfix, Exim, Sendmail) → MDA (Zustellung ins Postfach)"
+  - t: "Kompatibel"
+    v: "jeder MTA bringt /usr/sbin/sendmail, mailq und newaliases mit"
+  - t: "Aliase"
+    v: "/etc/aliases: name: ziel1, ziel2 · danach newaliases"
+  - t: "Weiterleiten"
+    v: "~/.forward: eine Adresse pro Zeile · \\lena behält eine Kopie"
+  - t: "Warteschlange"
+    v: "mailq (= sendmail -bp, postqueue -p) · postsuper -d ALL (Postfix)"
+  - t: "Senden"
+    v: "echo Text | mail -s Betreff root · sendmail -t < nachricht"
+karten:
+  - f: "Wie nennt man das Programm, das Mails zwischen Servern transportiert?"
+    a: ["mta", "mail transfer agent"]
+  - f: "Nenne drei MTAs unter Linux."
+    a: ["postfix, exim, sendmail", "postfix exim sendmail"]
+  - f: "In welcher Datei stehen systemweite Mail-Aliase?"
+    a: ["/etc/aliases"]
+  - f: "Welcher Befehl liest /etc/aliases neu ein?"
+    a: ["newaliases"]
+  - f: "Welche Datei im Home leitet eigene Mails weiter?"
+    a: ["~/.forward", ".forward"]
+  - f: "Welcher Befehl zeigt die Mail-Warteschlange?"
+    a: ["mailq", "sendmail -bp", "postqueue -p"]
+  - f: "Wie schickst du die Mail „Platte voll“ mit dem Betreff Warnung an root?"
+    a: ["echo \"Platte voll\" | mail -s Warnung root", "echo Platte voll | mail -s Warnung root"]
+  - f: "Auf welchem Port nehmen MTAs Mails entgegen?"
+    a: ["25", "tcp 25"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Zuordnung from '../components/Zuordnung.astro';
+
+Der Nachtwächter aus Akt 5 schickt seine Warnungen an root, aber niemand liest das Postfach von root. **Deine Mission: Verstehe, wie Mail unter Linux zugestellt wird, und sorge dafür, dass Warnungen bei einem Menschen ankommen.** Lernziel 108.3.
+
+## Wer transportiert Mail?
+
+<Karte nr={1} titel="MUA, MTA und die sendmail-Schnittstelle">
+Drei Rollen bringen eine Mail ans Ziel:
+
+- Der **MUA** (Mail User Agent) ist das Programm zum Schreiben und Lesen: `mail` in der Shell, Thunderbird, Mutt.
+- Der **MTA** (Mail Transfer Agent) nimmt die Mail an und transportiert sie zum Zielserver, über SMTP auf **Port 25**. Unter Linux üblich: **Postfix** (Standard bei vielen Distributionen), **Exim** (lange Debians Vorgabe) und der Urahn **Sendmail**.
+- Der **MDA** (Mail Delivery Agent) legt sie ins Postfach, etwa nach `/var/mail/lena`.
+
+Damit Skripte nicht wissen müssen, welcher MTA läuft, bringt jeder MTA dieselben Befehle mit: **/usr/sbin/sendmail** zum Einliefern, **mailq** für die Warteschlange und **newaliases** für die Aliase. Das nennt man die Sendmail-Kompatibilitätsschicht. `echo "Text" | mail -s Betreff root` ruft im Hintergrund genau dieses sendmail auf.
+
+Auf einem einzelnen Server lauscht der MTA oft nur lokal (bei Postfix `inet_interfaces = loopback-only`). Er stellt Mails an lokale Benutzer zu und schickt alles andere an einen Relay-Server weiter (`relayhost`). Mails, die nicht sofort zugestellt werden können, warten in der **Warteschlange**. `mailq` zeigt sie samt Grund.
+</Karte>
+
+<Merke>MUA schreibt, MTA transportiert (SMTP, Port 25), MDA stellt zu. Postfix, Exim, Sendmail. Jeder MTA bringt sendmail, mailq und newaliases mit.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: Rollen" fragen={[
+  { frage: 'Zu welcher Rolle gehört Postfix?', richtig: 'MTA', falsch: ['MUA', 'MDA'], erklaerung: 'Postfix transportiert Mail. Für die lokale Zustellung bringt es auch einen eigenen MDA mit.' },
+  { frage: 'Ein Skript ruft /usr/sbin/sendmail auf. Auf dem Server läuft Exim statt Sendmail. Was passiert?', richtig: 'Es klappt, weil Exim einen kompatiblen sendmail-Befehl mitbringt.', falsch: ['Das Skript scheitert, sendmail fehlt.', 'Die Mail landet in /dev/null.'], erklaerung: 'Genau dafür gibt es die Kompatibilitätsschicht.' },
+]} />
+
+<Zuordnung id="zuordnung" titel="Zuordnung: Was ist was?" aufgabe="Ordne jedem Begriff die Beschreibung zu." paare={[
+  { links: 'mail, Thunderbird', rechts: 'MUA' },
+  { links: 'Postfix, Exim', rechts: 'MTA' },
+  { links: '/etc/aliases', rechts: 'systemweite Weiterleitungen' },
+  { links: '~/.forward', rechts: 'persönliche Weiterleitung' },
+  { links: 'mailq', rechts: 'Mails, die noch warten' },
+]} />
+
+## Mails umleiten
+
+<Karte nr={2} titel="/etc/aliases, newaliases und ~/.forward">
+**/etc/aliases** leitet Adressen auf dem ganzen System um. Jede Zeile hat die Form `name: ziel1, ziel2`:
+
+```
+postmaster:  root
+webmaster:   root
+root:        lena
+```
+
+Ziele können lokale Benutzer, andere Aliase, externe Adressen, eine Datei (`/var/log/mails`) oder ein Programm (`|/usr/local/bin/auswerten`) sein. Der MTA liest nicht die Textdatei, sondern eine Datenbank daraus (`/etc/aliases.db`). Nach jeder Änderung baut **newaliases** sie neu, sonst wirkt nichts.
+
+**~/.forward** leitet die Mails eines einzelnen Benutzers um, und das darf jeder selbst. Eine Adresse pro Zeile oder durch Komma getrennt. Ein Backslash vor dem eigenen Namen (`\lena`) behält zusätzlich eine Kopie im eigenen Postfach. Ohne ihn wird nur weitergeleitet.
+
+Häufigster Einsatz: **Mail an root an einen Menschen**. Cron-Ausgaben, Warnungen von smartd und Skripten gehen an root. Mit `root: lena` in /etc/aliases liest sie lena.
+</Karte>
+
+<Merke>/etc/aliases: name: ziel, danach newaliases. ~/.forward für einen Benutzer, \name behält eine Kopie. Typisch: root: lena.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: Aliase" fragen={[
+  { frage: 'Du hast „root: lena“ in /etc/aliases eingetragen, aber Mails an root kommen weiter nicht bei lena an. Was fehlt?', richtig: 'newaliases', falsch: ['systemctl restart cron', 'chmod 644 /etc/aliases'], erklaerung: 'Der MTA liest die Datenbank /etc/aliases.db, nicht die Textdatei.' },
+  { frage: 'lena hat in ~/.forward „\\lena, lena@labor2.example.org“. Wo landen ihre Mails?', richtig: 'In ihrem eigenen Postfach und bei lena@labor2.example.org', falsch: ['Nur bei lena@labor2.example.org', 'Nur im eigenen Postfach'], erklaerung: 'Der Backslash verhindert, dass die Weiterleitung sich selbst wieder aufruft.' },
+]} />
+
+<Terminal id="weiterleiten" titel="Terminal: Wer liest die Post von root?" aufgaben={[
+  { text: 'Schick eine Testmail mit dem Betreff „Test 1“ an root.', zustand: 'post:root~Test 1' },
+  { text: 'Lies <code>/etc/aliases</code>.', befehl: '^cat /etc/aliases$', frage: 'Wohin gehen Mails an postmaster?', antwort: ['root', 'an root'] },
+  { text: 'Trag als root ein, dass Mails an root zu lena gehen.', zustand: 'datei:/etc/aliases~^root:\\s*lena$' },
+  { text: 'Schick „Test 2“ an root und prüf mit mail, ob lena sie bekommen hat.', zustand: 'post:root~Test 2', frage: 'Ist „Test 2“ bei lena angekommen? (ja/nein)', antwort: ['nein'] },
+  { text: 'Lass den MTA die Aliase neu einlesen und schick „Test 3“ an root.', zustand: 'aliasdb:root=lena && post:lena~Test 3' },
+  { text: 'lena ist bis Freitag im Partnerlabor. Leite ihre Mails nach <code>lena@labor2.example.org</code> weiter und behalte eine Kopie.', zustand: 'datei:/home/lena/.forward~\\\\lena && datei:/home/lena/.forward~lena@labor2\\.example\\.org' },
+  { text: 'Schick „Test 4“ an root und schau in die Warteschlange.', befehl: '^(mailq|postqueue -p|sendmail -bp)$', zustand: 'mailq~labor2', frage: 'Warum hängt die Mail in der Warteschlange?', antwort: ['connection refused', 'der server lehnt die verbindung ab', 'keine verbindung'] },
+]} />
+
+<Labor id="labor" titel="Aufgabe im Labor: Mail an root in der VM"
+  aufgabe="Installiere in deiner Debian-VM Postfix für die lokale Zustellung (im Dialog „Local only“ wählen) und ein Mailprogramm. Leite root an dich weiter und schick eine Testmail. Füge die Ausgabe ein."
+  befehl={"sudo apt install -y postfix bsd-mailx\necho \"root: $USER\" | sudo tee -a /etc/aliases\nsudo newaliases\necho 'Hallo vom Labor' | mail -s Labortest root\nsleep 2; tail -3 /var/mail/$USER\nmailq"}
+  muster={["^root: \\w+$", "^Hallo vom Labor$", "Mail queue is empty"]}
+  erfolg="Die Mail an root ist über den Alias bei dir gelandet." />
+
+<Hinweis titel="Prüfungstipp">
+Gefragt wird kein MTA im Detail, sondern das Zusammenspiel: Rollen MUA, MTA, MDA, die Namen Postfix, Exim und Sendmail, /etc/aliases mit newaliases, ~/.forward und mailq.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Welcher Befehl zeigt die Mails, die noch nicht zugestellt wurden?', richtig: 'mailq', falsch: ['mail -q', 'newaliases -l'], erklaerung: 'Bei Postfix ist mailq dasselbe wie postqueue -p.' },
+  { frage: 'Wer darf ~/.forward anlegen?', richtig: 'Jeder Benutzer für sich selbst', falsch: ['Nur root', 'Nur der Postmaster'], erklaerung: '/etc/aliases kann dagegen nur root ändern.' },
+]} />
