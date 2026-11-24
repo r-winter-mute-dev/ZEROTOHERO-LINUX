@@ -1,0 +1,136 @@
+---
+id: l1-5-2
+checks:
+  - id: k1
+  - id: reihenfolge
+  - id: start
+  - id: k2
+  - id: skel
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "Login-Shell"
+    v: "/etc/profile, dann die erste von ~/.bash_profile, ~/.bash_login, ~/.profile"
+  - t: "Interaktiv, kein Login"
+    v: "/etc/bash.bashrc (Debian), dann ~/.bashrc"
+  - t: "Beim Abmelden"
+    v: "~/.bash_logout (nur Login-Shells)"
+  - t: "Login-Shell starten"
+    v: "bash -l · su - lena · sudo -i · Anmeldung per SSH oder Konsole"
+  - t: "Datei in dieser Shell lesen"
+    v: "source ~/.bashrc   oder   . ~/.bashrc"
+  - t: "Vorlage für neue Benutzer"
+    v: "/etc/skel wird beim Anlegen ins Home kopiert"
+karten:
+  - f: "Welche Datei liest jede Login-Shell der Bash zuerst?"
+    a: ["/etc/profile"]
+  - f: "In welcher Reihenfolge sucht eine Login-Shell die persönlichen Startdateien?"
+    a: ["~/.bash_profile, ~/.bash_login, ~/.profile", ".bash_profile .bash_login .profile"]
+  - f: "Welche persönliche Datei liest eine interaktive Shell, die keine Login-Shell ist?"
+    a: ["~/.bashrc", ".bashrc"]
+  - f: "Welche Datei liest die Bash beim Beenden einer Login-Shell?"
+    a: ["~/.bash_logout", ".bash_logout"]
+  - f: "Wie liest du ~/.bashrc in der laufenden Shell neu ein?"
+    a: ["source ~/.bashrc", ". ~/.bashrc"]
+  - f: "Aus welchem Verzeichnis kommen die Startdateien neuer Benutzer?"
+    a: ["/etc/skel"]
+  - f: "Wie startest du eine Login-Shell als lena?"
+    a: ["su - lena", "su -l lena", "su --login lena"]
+  - f: "In welchem Verzeichnis legen Pakete eigene Ergänzungen für /etc/profile ab?"
+    a: ["/etc/profile.d", "/etc/profile.d/"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Reihenfolge from '../components/Reihenfolge.astro';
+
+Gestern hast du ein Alias in eine Startdatei geschrieben. Im neuen Terminal ist es da, nach der Anmeldung per SSH fehlt es. **Deine Mission: Finde heraus, welche Shell welche Startdatei liest, und richte neuen Benutzern ihre Dateien ein.** Lernziel 105.1.
+
+## Welche Shell liest was?
+
+<Karte nr={1} titel="Login-Shell und interaktive Shell">
+Die Bash unterscheidet beim Start zwei Fälle (Handbuchseite bash(1), Abschnitt INVOCATION):
+
+**Login-Shell**: die erste Shell nach einer Anmeldung, also an der Konsole, per SSH, mit `su - lena`, `sudo -i` oder `bash -l`. Sie liest:
+
+1. `/etc/profile` für alle Benutzer. Debian lässt von dort auch `/etc/bash.bashrc` und alle Dateien `/etc/profile.d/*.sh` lesen.
+2. Dann **die erste vorhandene** von `~/.bash_profile`, `~/.bash_login`, `~/.profile`. Nur eine! Legst du `~/.bash_profile` an, ignoriert die Bash ab sofort `~/.profile`.
+
+Beim Abmelden liest sie `~/.bash_logout`.
+
+**Interaktive Shell ohne Login**: jedes neue Terminalfenster auf dem Desktop und jedes `bash` aus einer anderen Shell heraus. Sie liest `/etc/bash.bashrc` (eine Debian-Ergänzung) und `~/.bashrc`.
+
+Damit beide Fälle gleich aussehen, liest das `~/.profile` von Debian am Anfang selbst die `~/.bashrc` ein. Aliase und Funktionen gehören darum in `~/.bashrc`, Umgebungsvariablen wie PATH in `~/.profile`.
+
+**Skripte** sind weder Login- noch interaktive Shells. Sie lesen keine dieser Dateien. Darum steht am Anfang der `~/.bashrc` von Debian eine Prüfung: Ist die Shell nicht interaktiv, kehrt sie sofort zurück.
+
+`source datei` oder kurz `. datei` lässt die **laufende** Shell eine Datei lesen. Nach einer Änderung an `~/.bashrc` brauchst du also kein neues Terminal.
+</Karte>
+
+<Merke>Login: /etc/profile, dann die erste von ~/.bash_profile, ~/.bash_login, ~/.profile. Ohne Login: ~/.bashrc. Abmelden: ~/.bash_logout. source liest in der laufenden Shell.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: Startdateien" fragen={[
+  { frage: 'Im Home von lena gibt es ~/.bash_profile und ~/.profile. Welche liest eine Login-Shell?', richtig: 'Nur ~/.bash_profile', falsch: ['Beide nacheinander', 'Nur ~/.profile'], erklaerung: 'Die Bash nimmt die erste vorhandene der drei und hört dann auf.' },
+  { frage: 'Welche Datei liest ein neues Terminalfenster auf dem Debian-Desktop?', richtig: '~/.bashrc', falsch: ['~/.profile', '~/.bash_logout'], erklaerung: 'Das Fenster startet eine interaktive Shell ohne Login.' },
+]} />
+
+<Reihenfolge id="reihenfolge" titel="Reihenfolge: Die Anmeldung per SSH" aufgabe="lena meldet sich per SSH an, ohne ~/.bash_profile und ~/.bash_login. In welcher Reihenfolge liest die Bash die Dateien?" schritte={['/etc/profile', '/etc/bash.bashrc (von /etc/profile eingelesen)', '~/.profile', '~/.bashrc (von ~/.profile eingelesen)', '~/.bash_logout (beim Abmelden)']} />
+
+<Terminal id="start" titel="Terminal: Wer liest was?" aufgaben={[
+  { text: 'Häng an <code>~/.bashrc</code> die Zeile <code>echo "bashrc gelesen"</code> an.', zustand: 'datei:/home/lena/.bashrc~^echo "?bashrc gelesen"?$' },
+  { text: 'Häng an <code>~/.profile</code> die Zeile <code>echo "profile gelesen"</code> an.', zustand: 'datei:/home/lena/.profile~^echo "?profile gelesen"?$' },
+  { text: 'Starte eine interaktive Shell ohne Login.', zustand: 'shlvl=2 && gelesen:/home/lena/.bashrc && nicht:login', frage: 'Wie viele der beiden Meldungen erscheinen?', antwort: ['1', 'eine'] },
+  { text: 'Verlass sie wieder.', zustand: 'shlvl=1' },
+  { text: 'Starte eine Login-Shell mit <code>bash -l</code>.', zustand: 'login && gelesen:/home/lena/.profile && gelesen:/etc/profile', frage: 'Welche Meldung erscheint zuerst?', antwort: ['bashrc gelesen', 'bashrc'] },
+  { text: 'Prüf den Suchpfad dieser Login-Shell.', befehl: '^(echo "?\\$\\{?PATH\\}?"?|printenv PATH)$', frage: 'Steht /usr/sbin darin? (ja/nein)', antwort: ['nein'] },
+  { text: 'Melde dich mit <code>logout</code> ab.', zustand: 'shlvl=1 && nicht:login' },
+  { text: 'Lege <code>~/.bash_profile</code> mit der Zeile <code>echo "bash_profile gelesen"</code> an und starte wieder eine Login-Shell.', zustand: 'login && gelesen:/home/lena/.bash_profile && nicht:gelesen:/home/lena/.profile', frage: 'Wird ~/.profile noch gelesen? (ja/nein)', antwort: ['nein'] },
+  { text: 'Melde dich ab, lösche <code>~/.bash_profile</code> wieder und lies <code>~/.bashrc</code> in der laufenden Shell neu ein.', zustand: 'shlvl=1 && fehlt:/home/lena/.bash_profile', befehl: '^(source|\\.) (~|\\$HOME|/home/lena)/\\.bashrc$' },
+]} />
+
+## Vorlagen für neue Benutzer
+
+<Karte nr={2} titel="/etc/skel und systemweite Einstellungen">
+Legt root mit `useradd -m` oder `adduser` einen Benutzer an, kopiert das System den Inhalt von **/etc/skel** in das neue Home-Verzeichnis (Mission 7.1). Auf Debian liegen dort `.bashrc`, `.profile` und `.bash_logout`. Was du in `/etc/skel` änderst, bekommen nur Benutzer, die **danach** angelegt werden. Bestehende Konten behalten ihre Dateien.
+
+Für Einstellungen, die alle Benutzer sofort betreffen:
+
+- `/etc/profile` gilt für alle Login-Shells. Pakete und Administratoren legen eigene Dateien lieber nach `/etc/profile.d/` (Endung `.sh`), statt `/etc/profile` selbst zu ändern. So überschreibt kein Update ihre Arbeit.
+- `/etc/bash.bashrc` gilt auf Debian für alle interaktiven Bash-Shells. Red Hat nennt die Datei `/etc/bashrc`.
+- `/etc/environment` setzt einfache Variablen der Form `NAME=wert` für alle Anmeldungen, ganz ohne Shell. Gelesen wird die Datei vom PAM-Modul pam_env.
+</Karte>
+
+<Merke>/etc/skel ist die Vorlage für neue Homes. Systemweit: /etc/profile und besser /etc/profile.d/*.sh, /etc/bash.bashrc (Red Hat: /etc/bashrc), /etc/environment.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: Vorlagen" fragen={[
+  { frage: 'Du fügst ein Alias in /etc/skel/.bashrc ein. Wer bekommt es?', richtig: 'Nur Benutzer, die danach angelegt werden', falsch: ['Alle Benutzer beim nächsten Login', 'Nur root'], erklaerung: '/etc/skel wird nur beim Anlegen kopiert.' },
+  { frage: 'Ein Paket soll für alle Login-Shells eine Variable setzen. Wohin gehört seine Datei?', richtig: '/etc/profile.d/paket.sh', falsch: ['/etc/skel/.profile', '~/.bash_profile'], erklaerung: '/etc/profile liest alle .sh-Dateien in /etc/profile.d.' },
+]} />
+
+<Terminal id="skel" titel="Terminal: Die Vorlage für Neue" aufgaben={[
+  { text: 'Lass dir alle Dateien in <code>/etc/skel</code> anzeigen, auch die versteckten.', befehl: '^ls -\\w*a\\w* /etc/skel/?$', frage: 'Wie viele Dateien liegen dort (ohne . und ..)?', antwort: ['3', 'drei'] },
+  { text: 'Vergleiche die Vorlage <code>/etc/skel/.bashrc</code> mit deiner eigenen <code>~/.bashrc</code>.', befehl: '^diff ', auchFehler: true, frage: 'Welche Zeile hast du selbst hinzugefügt? (der Befehl)', antwort: ['echo "bashrc gelesen"', 'echo bashrc gelesen'] },
+  { text: 'Lege als root die Datei <code>/etc/profile.d/labor.sh</code> mit der Zeile <code>export LABOR=werkstatt</code> an.', zustand: 'datei:/etc/profile.d/labor.sh~^export LABOR=werkstatt$' },
+  { text: 'Starte eine Login-Shell und prüf, ob <code>LABOR</code> gesetzt ist.', zustand: 'login && gelesen:/etc/profile.d/labor.sh && var:LABOR~^werkstatt$' },
+  { text: 'Melde dich wieder ab.', zustand: 'shlvl=1' },
+]} />
+
+<Labor id="labor" titel="Aufgabe im Labor: Welche Shell ist das?"
+  aufgabe="Führe in deiner VM die Zeilen nacheinander aus. shopt zeigt, ob die Shell eine Login-Shell ist. Füge die gesamte Ausgabe ein."
+  befehl={"shopt login_shell\nbash -l -c 'shopt login_shell'\nls -a /etc/skel"}
+  muster={["^login_shell\\s+off$", "^login_shell\\s+on$", "\\.bashrc"]}
+  erfolg="Dein Terminalfenster ist keine Login-Shell, bash -l schon." />
+
+<Hinweis titel="Prüfungstipp">
+Die Reihenfolge ~/.bash_profile, ~/.bash_login, ~/.profile und die Regel „nur die erste“ kommt fast sicher dran. Merk dir außerdem: ~/.bash_logout nur bei Login-Shells, /etc/skel nur für neue Benutzer, source liest in der laufenden Shell.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Welcher Befehl startet eine Login-Shell als root und liest root’s Startdateien?', richtig: 'su -', falsch: ['su', 'sudo bash'], erklaerung: 'Ohne Bindestrich bleibt su in einer Shell ohne Login und behält viel von deiner Umgebung.' },
+  { frage: 'Du hast ~/.bashrc geändert. Wie wird die Änderung in deinem offenen Terminal sofort wirksam?', richtig: 'source ~/.bashrc', falsch: ['bash ~/.bashrc', 'chmod +x ~/.bashrc && ~/.bashrc'], erklaerung: 'Ein Aufruf als Skript liefe in einer Kind-Shell, und alles wäre danach weg.' },
+  { frage: 'Welche Datei liest die Bash, wenn sie ein Skript ausführt?', richtig: 'Keine der Startdateien', falsch: ['~/.bashrc', '~/.profile'], erklaerung: 'Skripte sind weder Login- noch interaktive Shells. Eine Ausnahme wäre BASH_ENV, die ist aber normalerweise nicht gesetzt.' },
+]} />

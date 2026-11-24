@@ -308,7 +308,7 @@ export function neueWelt(o: WeltOptionen = {}): Welt {
 }
 
 // Die wichtigsten Programme liegen als Platzhalter in /usr/bin und /usr/sbin, damit ls, file, find und which sie finden.
-const PROGRAMME = ['passwd', 'su', 'chsh', 'chfn', 'newgrp', 'gpasswd', 'chage', 'expiry', 'crontab', 'stat', 'readlink', 'mount', 'umount', 'df', 'du', 'findmnt', 'lsblk', 'ln', 'chgrp', 'locate', 'plocate', 'bash', 'cat', 'cp', 'mv', 'rm', 'ls', 'mkdir', 'rmdir', 'touch', 'ln', 'chmod', 'chown', 'head', 'tail', 'wc', 'sort', 'uniq', 'cut', 'paste', 'tr', 'od', 'split', 'nl', 'tac', 'sed', 'grep', 'find', 'xargs', 'tar', 'gzip', 'gunzip', 'zcat', 'bzip2', 'bunzip2', 'bzcat', 'xz', 'unxz', 'xzcat', 'cpio', 'dd', 'md5sum', 'sha256sum', 'sha512sum', 'file', 'ps', 'top', 'free', 'uptime', 'pgrep', 'pkill', 'killall', 'kill', 'watch', 'nice', 'renice', 'nohup', 'sleep', 'tee', 'env', 'printenv', 'uname', 'which', 'whereis', 'man', 'date', 'echo', 'printf', 'pwd', 'less', 'more', 'vim.tiny', 'nano', 'screen', 'tmux', 'basename', 'dirname', 'id', 'whoami', 'hostname', 'sudo', 'lspci', 'lsusb', 'lsblk', 'dmesg', 'journalctl', 'systemctl', 'apt', 'apt-get', 'apt-cache', 'dpkg', 'ldd', 'seq', 'expr', 'mail', 'dircolors', 'dash', 'test', '['];
+const PROGRAMME = ['passwd', 'su', 'chsh', 'chfn', 'newgrp', 'gpasswd', 'chage', 'expiry', 'crontab', 'stat', 'readlink', 'mount', 'umount', 'df', 'du', 'findmnt', 'lsblk', 'ln', 'chgrp', 'locate', 'plocate', 'bash', 'cat', 'cp', 'mv', 'rm', 'ls', 'mkdir', 'rmdir', 'touch', 'ln', 'chmod', 'chown', 'head', 'tail', 'wc', 'sort', 'uniq', 'cut', 'paste', 'tr', 'od', 'split', 'nl', 'tac', 'sed', 'grep', 'find', 'xargs', 'tar', 'gzip', 'gunzip', 'zcat', 'bzip2', 'bunzip2', 'bzcat', 'xz', 'unxz', 'xzcat', 'cpio', 'dd', 'md5sum', 'sha256sum', 'sha512sum', 'file', 'ps', 'top', 'free', 'uptime', 'pgrep', 'pkill', 'killall', 'kill', 'watch', 'nice', 'renice', 'nohup', 'sleep', 'tee', 'env', 'printenv', 'uname', 'which', 'whereis', 'man', 'date', 'echo', 'printf', 'pwd', 'less', 'more', 'vim.tiny', 'nano', 'screen', 'tmux', 'basename', 'dirname', 'id', 'whoami', 'hostname', 'sudo', 'lspci', 'lsusb', 'lsblk', 'dmesg', 'journalctl', 'systemctl', 'apt', 'apt-get', 'apt-cache', 'dpkg', 'ldd', 'seq', 'expr', 'mail', 'dircolors', 'dash', 'test', '[', 'diff'];
 const SBIN_PROGRAMME = ['mkfs', 'mkfs.ext2', 'mkfs.ext3', 'mkfs.ext4', 'mkfs.xfs', 'mkfs.vfat', 'mkfs.fat', 'mkfs.exfat', 'mkswap', 'swapoff', 'blkid', 'e2fsck', 'fsck', 'fsck.ext4', 'tune2fs', 'xfs_repair', 'xfs_fsr', 'xfs_db', 'parted', 'gdisk', 'fdisk', 'modprobe', 'insmod', 'rmmod', 'lsmod', 'modinfo', 'shutdown', 'reboot', 'poweroff', 'halt', 'ldconfig', 'update-grub', 'grub-install', 'swapon', 'dpkg-reconfigure', 'sshd', 'telinit', 'runlevel'];
 function programmeAblegen(w: Welt) {
   if (w.distro !== 'debian') return;
@@ -1198,8 +1198,8 @@ function skript(w: Welt, datei: string | undefined, args: string[], stdin: strin
   const st = stand(w);
   const alt = { vars: w.vars, env: w.env, cwd: w.cwd, aliase: w.aliase, funktionen: st.funktionen, funkText: st.funkText, optionen: st.optionen };
   // Ein Skript läuft in einer eigenen Shell: Es erbt nur die Umgebung, keine Shell-Variablen, Aliase oder Funktionen
-  if (!quelle) { w.vars = {}; w.env = { ...w.env }; w.aliase = {}; st.funktionen = {}; st.funkText = {}; st.optionen = {}; st.skript++; }
-  else st.quelle++;
+  if (!quelle) { w.vars = {}; w.env = { ...w.env }; w.aliase = {}; st.funktionen = {}; st.funkText = {}; st.optionen = { ...(st.startOptionen ?? {}) }; st.startOptionen = undefined; st.skript++; }
+  else { st.quelle++; if (!st.gelesen.includes(p)) st.gelesen.push(p); }
   const name = args[0] ?? datei;
   if (!quelle || args.length > 1) w.args.push([quelle ? (w.args[w.args.length - 1]?.[0] ?? 'bash') : name, ...args.slice(1)]);
   else w.args.push([...(w.args[w.args.length - 1] ?? ['bash'])]);
@@ -1213,6 +1213,10 @@ function skript(w: Welt, datei: string | undefined, args: string[], stdin: strin
   // exit in einer mit source gelesenen Datei beendet auch das Skript, das sie gelesen hat
   const ende = quelle && r.ende === 'exit' && (st.skript > 0 || st.funk > 0) ? 'exit' : undefined;
   return { out: r.out, err: r.err, code: r.code, misch: r.misch, ...(ende ? { ende } : {}) } as Ergebnis;
+}
+function skriptMitOptionen(w: Welt, datei: string, args: string[], stdin: string, root: boolean, opts: { x?: boolean; e?: boolean }): Ergebnis {
+  stand(w).startOptionen = opts;
+  try { return skript(w, datei, args, stdin, root, false); } finally { stand(w).startOptionen = undefined; }
 }
 function imPathDatei(w: Welt, n: string) { for (const d of (w.env.PATH ?? '').split(':')) { const p = d + '/' + n; if (typeof w.fs[p] === 'string') return p; } return null; }
 
@@ -1373,7 +1377,17 @@ function einfachAusfuehren(w: Welt, c: Einfach, stdin: string, rootStart: boolea
         try { const p = programm(w, args[2] ?? '', stdin, root, { name: `${name}: -c` }); r = { out: p.out, err: p.err, code: p.code }; }
         finally { Object.assign(w, alt); w.args.pop(); sk.funktionen = altF.f; sk.funkText = altF.t; sk.skript--; }
       }
-      else if (['bash', 'sh'].includes(name) && args[1]) r = skript(w, args[1], args.slice(1), stdin, root, false);
+      else if (['bash', 'sh', 'dash'].includes(name) && args[1]) {
+        // bash -x skript zeigt jede Zeile, bash -n prüft nur die Syntax
+        const opt = new Set<string>(); let k = 1;
+        while (args[k] && /^-[xnev]+$/.test(args[k])) { for (const c of args[k].slice(1)) opt.add(c); k++; }
+        if (!args[k]) r = shellStarten(w, { login: false });
+        else if (opt.has('n')) {
+          const p = pfad(w, args[k]);
+          if (!(p in w.fs) || w.fs[p] === null) r = fehler(`${name}: ${args[k]}: Datei oder Verzeichnis nicht gefunden`, 127);
+          else { const z = zerlegenProgramm(w.fs[p] ?? ''); r = 'fehler' in z ? fehler(`${args[k]}: Zeile ${z.z}: ${z.fehler}`, 2) : ok(); }
+        } else r = skriptMitOptionen(w, args[k], args.slice(k), stdin, root, { x: opt.has('x'), e: opt.has('e') });
+      }
       else if (name.includes('/')) r = pfadStarten(w, name, pfad(w, name), args.slice(1), stdin, root);
       else {
         // root (sudo, sudo -i) sucht in secure_path, lena in ihrem eigenen PATH

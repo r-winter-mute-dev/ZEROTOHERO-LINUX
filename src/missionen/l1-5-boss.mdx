@@ -1,0 +1,48 @@
+---
+id: l1-5-boss
+checks:
+  - id: reparieren
+  - id: rundgang
+  - id: einbauen
+spick:
+  - t: "Skript ansehen"
+    v: "cat -n skript · bash -n skript (nur Syntax prüfen) · bash -x skript (jede Zeile zeigen)"
+  - t: "Zahlen vergleichen"
+    v: "[ \"$a\" -gt \"$b\" ]"
+  - t: "Mail an root"
+    v: "echo \"Text\" | mail -s \"Betreff\" root"
+  - t: "Ersetzen in der Datei"
+    v: "sed -i 's/alt/neu/' datei"
+  - t: "Für alle"
+    v: "sudo cp skript /usr/local/bin/name · Besitzer root, Rechte 755"
+---
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+
+Die Werkstatt hat seit gestern einen Nachtwächter: ein Skript, das jede Nacht die Platte prüfen und root warnen soll. Bisher hat es nie eine Warnung geschickt, aber heute Morgen lag im Home eine seltsame Datei namens `90`. **Dein Bosskampf: Finde die Fehler im Nachtwächter, gib ihm einen Rundgang durch alle Home-Verzeichnisse und richte ihn für alle Benutzer ein.** Alles aus Topic 105.
+
+<Hinweis titel="So gehst du vor">
+Lies das Skript zuerst mit `cat -n bin/waechter`. `bash -x bin/waechter 5` zeigt jede Zeile, so wie die Shell sie nach der Erweiterung ausführt. Mail an root liest du mit `sudo cat /var/mail/root`.
+</Hinweis>
+
+<Terminal id="reparieren" titel="Teil 1: Was ist kaputt?" welt={{ dateien: { '/home/lena/bin/waechter': '#!/bin/bsh\n# waechter [GRENZE]: warnt root, wenn / stärker belegt ist als GRENZE Prozent\ngrenze=${1:-90}\nbelegt=$(df / | tail -1 | tr -s " " | cut -d" " -f5 | tr -d "%")\nif [ $belegt > $grenze ]; then\n  echo "/ ist zu $belegt % belegt (Grenze $grenze %)" | mail -s "Platz auf $(hostname)" root\n  exit 0\nfi\necho "Alles in Ordnung: $belegt %"\n', '/home/lena/90': '' }, rechte: { '/home/lena/bin/waechter': '644' } }} aufgaben={[
+  { text: 'Der Nachtwächter startet mit <code>bin/waechter</code>, ohne dass du <code>bash</code> davor schreibst.', zustand: 'modus:/home/lena/bin/waechter=755 && datei:/home/lena/bin/waechter~^#!/bin/bash$' },
+  { text: 'Die leere Datei <code>90</code> ist weg, und der Vergleich in Zeile 5 vergleicht Zahlen statt eine Datei anzulegen.', zustand: 'fehlt:/home/lena/90 && datei:/home/lena/bin/waechter~-gt' },
+  { text: 'Bei einer Warnung endet das Skript mit dem Rückgabewert 1, sonst mit 0.', zustand: 'datei:/home/lena/bin/waechter~exit 1' },
+  { text: 'Probelauf mit der Grenze 5: root hat eine Warnung bekommen, und im Home ist keine Datei namens <code>5</code> entstanden.', zustand: 'post:root~Grenze 5 && fehlt:/home/lena/5' },
+  { text: 'Probelauf mit der Grenze 95: Das Skript meldet „Alles in Ordnung“.', zustand: 'ausgabe~^Alles in Ordnung: \\d+ %$' },
+]} />
+
+<Terminal id="rundgang" titel="Teil 2: Der Rundgang" welt={{ dateien: { '/home/max/projekt/daten.bin': '\u0007BIN:1000', '/home/lena/bin/rundgang': '#!/bin/bash\n# rundgang: zeigt für jedes Home-Verzeichnis den Besitzer\n' }, rechte: { '/home/lena/bin/rundgang': '755' } }} aufgaben={[
+  { text: 'Ergänze <code>bin/rundgang</code> um eine for-Schleife über <code>/home/*</code>, die für jedes Verzeichnis eine Zeile <code>VERZEICHNIS gehört BESITZER</code> ausgibt. Den Besitzer liefert <code>stat -c %U</code>.', zustand: 'datei:/home/lena/bin/rundgang~^for \\w+ in /home/\\*' },
+  { text: 'Starte den Rundgang.', befehl: '^(\\./)?bin/rundgang$|^rundgang$', zustand: 'ausgabe~^/home/max gehört max$' },
+  { text: 'Startet jemand das Skript mit <code>-h</code>, gibt es eine Aufrufhilfe auf stderr aus und endet mit dem Rückgabewert 2. Prüf es mit <code>bin/rundgang -h; echo $?</code>.', zustand: 'ausgabe~^2$ && datei:/home/lena/bin/rundgang~exit 2' },
+]} />
+
+<Terminal id="einbauen" titel="Teil 3: Für alle einrichten" welt={{ dateien: { '/home/lena/bin/waechter': '#!/bin/bash\n# waechter [GRENZE]: warnt root, wenn / stärker belegt ist als GRENZE Prozent\ngrenze=${1:-90}\nbelegt=$(df / | tail -1 | tr -s " " | cut -d" " -f5 | tr -d "%")\nif [ "$belegt" -gt "$grenze" ]; then\n  echo "/ ist zu $belegt % belegt (Grenze $grenze %)" | mail -s "Platz auf $(hostname)" root\n  exit 1\nfi\necho "Alles in Ordnung: $belegt %"\n' }, rechte: { '/home/lena/bin/waechter': '755' } }} aufgaben={[
+  { text: 'Der Nachtwächter liegt als <code>/usr/local/bin/waechter</code> bereit, gehört root und hat die Rechte 755.', zustand: 'besitzer:/usr/local/bin/waechter=root && modus:/usr/local/bin/waechter=755' },
+  { text: 'Jede Login-Shell bekommt die Variable <code>WAECHTER_GRENZE=80</code> über eine eigene Datei in <code>/etc/profile.d</code>.', zustand: 'datei:/etc/profile.d/*~^export WAECHTER_GRENZE=80$' },
+  { text: 'In einer Login-Shell startet <code>waechter "$WAECHTER_GRENZE"</code> nur mit seinem Namen und meldet „Alles in Ordnung“.', zustand: 'login && ausgabe~^Alles in Ordnung' },
+  { text: 'In der Login-Shell gibt es eine Funktion <code>platz</code>, die <code>waechter</code> mit <code>$WAECHTER_GRENZE</code> aufruft und danach „Rückgabe: N“ ausgibt.', zustand: 'funktion:platz && ausgabe~^Rückgabe: 0$' },
+  { text: 'Abgemeldet: Du bist wieder in deiner ersten Shell.', zustand: 'shlvl=1 && nicht:login' },
+]} />

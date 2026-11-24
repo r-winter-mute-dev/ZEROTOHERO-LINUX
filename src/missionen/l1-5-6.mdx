@@ -1,0 +1,155 @@
+---
+id: l1-5-6
+checks:
+  - id: k1
+  - id: schleifen
+  - id: k2
+  - id: eingaben
+  - id: reihe
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "for über Wörter"
+    v: "for f in *.csv; do wc -l \"$f\"; done"
+  - t: "for über Zahlen"
+    v: "for i in $(seq 1 5); do …; done · for ((i=1; i<=5; i++))"
+  - t: "while und until"
+    v: "while [ $n -lt 3 ]; do …; done · until befehl; do …; done"
+  - t: "Zeilen lesen"
+    v: "while IFS=: read -r user x uid rest; do …; done < /etc/passwd"
+  - t: "Rechnen"
+    v: "n=$((n + 1)) · let n++ · expr 3 + 4"
+  - t: "Eingabe"
+    v: "read -p \"Name: \" name"
+  - t: "Abbrechen"
+    v: "break · continue"
+karten:
+  - f: "Welches Wort leitet den Rumpf einer Schleife ein?"
+    a: ["do"]
+  - f: "Welches Wort beendet eine Schleife?"
+    a: ["done"]
+  - f: "Welcher Befehl gibt die Zahlen 1 bis 10 aus?"
+    a: ["seq 10", "seq 1 10"]
+  - f: "Wie erhöhst du n mit der Arithmetik der Bash um 1?"
+    a: ["n=$((n + 1))", "n=$((n+1))", "((n++))", "let n++", "let n=n+1"]
+  - f: "Welcher Befehl liest eine Zeile von der Tastatur in die Variable name?"
+    a: ["read name"]
+  - f: "Wie liest du /etc/passwd Zeile für Zeile in einer Schleife?"
+    a: ["while read zeile; do ...; done < /etc/passwd", "while read -r zeile; do …; done < /etc/passwd", "while read"]
+  - f: "Welcher Befehl verlässt eine Schleife sofort?"
+    a: ["break"]
+  - f: "Welcher Befehl springt zum nächsten Durchlauf?"
+    a: ["continue"]
+  - f: "Was unterscheidet until von while?"
+    a: ["until läuft, solange die bedingung falsch ist", "until wiederholt bis die bedingung wahr ist"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Reihenfolge from '../components/Reihenfolge.astro';
+
+Im Ordner `messung` liegen sieben CSV-Dateien, und in `/etc/passwd` stehen Dutzende Konten. Einzeln abtippen willst du das nicht. **Deine Mission: Lass Schleifen die Arbeit tun, rechne mit der Shell und frag den Benutzer, wenn dem Skript etwas fehlt.** Lernziel 105.2.
+
+## Wiederholen
+
+<Karte nr={1} titel="for, while, until">
+**for** geht eine Liste von Wörtern durch:
+
+```
+for f in messung/*.csv; do
+  echo "$f: $(wc -l < "$f") Zeilen"
+done
+```
+
+Die Liste kann aus Wildcards kommen, aus festen Wörtern (`for farbe in rot grün blau`) oder aus einer Befehlsersetzung wie `$(seq 1 5)`. **seq** zählt: `seq 5` gibt 1 bis 5 aus, `seq 2 2 10` die geraden Zahlen bis 10. Die Bash kennt außerdem die Zählschleife `for ((i=1; i<=5; i++))`. Ohne `in …` geht for über alle Argumente des Skripts, wie `for a in "$@"`.
+
+**while** wiederholt, **solange** ein Befehl Erfolg meldet, **until**, **bis** er Erfolg meldet:
+
+```
+n=0
+while [ "$n" -lt 3 ]; do
+  n=$((n + 1))
+done
+until ping -c1 server >/dev/null; do sleep 5; done
+```
+
+**Rechnen**: `$(( … ))` rechnet mit ganzen Zahlen: `+ - * / %` und Vergleiche. Variablen brauchen darin kein `$`. `let n++` und `(( n++ ))` gehen auch. Das ältere Programm **expr** braucht Leerzeichen und einen geschützten Stern: `expr 3 \* 4`.
+
+`break` verlässt eine Schleife sofort, `continue` springt zum nächsten Durchlauf.
+</Karte>
+
+<Merke>for x in liste; do …; done. while solange Erfolg, until bis Erfolg. seq zählt. $(( n + 1 )) rechnet. break raus, continue weiter.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: Schleifen" fragen={[
+  { frage: 'Was gibt „for i in $(seq 3); do echo -n $i; done“ aus?', richtig: '123', falsch: ['3', '1 2 3 untereinander'], erklaerung: 'echo -n verzichtet auf den Zeilenumbruch.' },
+  { frage: 'Wie oft läuft „n=5; until [ $n -le 3 ]; do n=$((n-1)); done“?', richtig: 'Zweimal', falsch: ['Dreimal', 'Unendlich oft'], erklaerung: 'Nach 4 und 3 ist die Bedingung erfüllt, dann hört until auf.' },
+]} />
+
+<Terminal id="schleifen" titel="Terminal: Die Shell arbeitet" welt={{ dateien: { '/home/lena/messung/mo.csv': 'zeit;wert\n1;3.3\n2;3.2\n', '/home/lena/messung/di.csv': 'zeit;wert\n1;3.1\n2;3.3\n3;3.4\n4;3.2\n', '/home/lena/messung/mi.csv': 'zeit;wert\n1;3.0\n', '/home/lena/messung/do.csv': 'zeit;wert\n1;3.3\n2;3.3\n3;3.1\n', '/home/lena/messung/fr.csv': '' } }} aufgaben={[
+  { text: 'Lass dir mit einer for-Schleife für jede CSV-Datei in <code>messung</code> die Zeilenzahl ausgeben.', befehl: '^for \\w+ in (\\./)?messung/\\*\\.csv', frage: 'Welche Datei hat die meisten Zeilen?', antwort: ['di.csv', 'di', 'messung/di.csv'] },
+  { text: 'Gib die Zahlen von 10 bis 50 in Zehnerschritten aus.', befehl: '^seq 10 10 50$' },
+  { text: 'Addiere die Zahlen 1 bis 100 in der Variable <code>summe</code>, mit for und <code>$(( ))</code>.', zustand: 'var:summe~^5050$' },
+  { text: 'Zähle mit while von 1 bis 3 und gib jede Zahl aus.', befehl: '^\\w+=\\d+; ?while |^while ', zustand: 'ausgabe~^1\\n2\\n3$' },
+  { text: 'Lösche mit einer Schleife alle leeren CSV-Dateien. Der Test <code>-s</code> hilft.', zustand: 'fehlt:/home/lena/messung/fr.csv && da:/home/lena/messung/mi.csv' },
+]} />
+
+## Eingaben lesen
+
+<Karte nr={2} titel="read und while read">
+**read** liest eine Zeile von der Standardeingabe und verteilt sie auf Variablen:
+
+```
+read -p "Wie heißt die Messreihe? " reihe
+read vorname nachname
+```
+
+`-p` zeigt eine Frage an, `-s` verbirgt die Eingabe (für Passwörter), `-r` lässt Backslashes stehen. Bei mehreren Namen bekommt jeder ein Wort, der letzte den ganzen Rest. Ohne Namen landet die Zeile in `REPLY`. Am Ende der Eingabe liefert read den Rückgabewert 1.
+
+Genau das macht read zum Motor für Dateien:
+
+```
+while IFS=: read -r user x uid rest; do
+  [ "$uid" -ge 1000 ] && echo "$user"
+done < /etc/passwd
+```
+
+Die Umleitung `< /etc/passwd` steht hinter `done` und gilt für die ganze Schleife. Jeder Durchlauf liest eine Zeile, `IFS=:` trennt am Doppelpunkt statt an Leerzeichen.
+
+Eine Falle: Leitest du die Daten mit einer Pipe hinein (`cut … | while read …`), läuft die Schleife in einer **Subshell**. Variablen, die du darin setzt, sind nach `done` wieder weg. Mit `done < datei` bleiben sie erhalten.
+</Karte>
+
+<Merke>read -p "Frage " var, -s still, -r roh. while IFS=: read -r a b rest; do …; done < datei liest Zeile für Zeile. Pipe in die Schleife = Subshell, Variablen gehen verloren.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: read" fragen={[
+  { frage: 'Du tippst bei „read a b“ die Zeile „eins zwei drei“. Was steht in b?', richtig: 'zwei drei', falsch: ['zwei', 'drei'], erklaerung: 'Die letzte Variable bekommt den Rest der Zeile.' },
+  { frage: '„n=0; cut -d: -f1 /etc/passwd | while read u; do n=$((n+1)); done; echo $n“ gibt 0 aus. Warum?', richtig: 'Die Schleife hinter der Pipe läuft in einer Subshell.', falsch: ['read liest aus einer Pipe nichts.', '$((n+1)) rechnet in der Schleife nicht.'], erklaerung: 'Die Subshell zählt richtig, aber ihr n verschwindet mit ihr.' },
+]} />
+
+<Terminal id="eingaben" titel="Terminal: Zeilen und Antworten" welt={{ dateien: { '/home/lena/bin/anmeldung': '#!/bin/bash\nread -p "Name der Messreihe: " reihe\nread -p "Anzahl der Proben: " proben\necho "Lege $reihe mit $proben Proben an."\nfor i in $(seq 1 "$proben"); do echo "  Probe $i"; done\n' }, rechte: { '/home/lena/bin/anmeldung': '755' } }} aufgaben={[
+  { text: 'Gib mit <code>while IFS=: read</code> und <code>done &lt; /etc/passwd</code> die Namen aller Konten mit einer UID ab 1000 aus.', befehl: '^while IFS=: read ', zustand: 'ausgabe~^lena$', frage: 'Wie viele Namen erscheinen?', antwort: ['3', 'drei'] },
+  { text: 'Starte <code>bin/anmeldung</code> und beantworte die Fragen mit <code>reihe-09</code> und <code>3</code>.', befehl: '^(\\./)?bin/anmeldung$', zustand: 'ausgabe~Probe 3' },
+  { text: 'Zähle die Konten in <code>/etc/passwd</code> mit einer Pipe in eine while-Schleife: <code>n=0; cut -d: -f1 /etc/passwd | while read u; do n=$((n+1)); done; echo $n</code>.', befehl: '\\| ?while read ', frage: 'Welche Zahl gibt echo aus?', antwort: ['0'] },
+  { text: 'Mach es jetzt richtig, mit <code>done &lt; /etc/passwd</code>, und speichere die Zahl in <code>n</code>.', zustand: 'var:n~^19$' },
+]} />
+
+<Reihenfolge id="reihe" titel="Code-Puzzle: Sicherung aller Konfigurationen" aufgabe="Die Schleife soll jede .conf-Datei aus /etc mit der Endung .bak nach ~/sicherung kopieren und mitzählen. Bring die Zeilen in die richtige Reihenfolge." schritte={['n=0', 'for f in /etc/*.conf; do', 'cp "$f" ~/sicherung/"$(basename "$f")".bak', 'n=$((n + 1))', 'done', 'echo "$n Dateien gesichert"']} />
+
+<Labor id="labor" titel="Aufgabe im Labor: Schleifen in der VM"
+  aufgabe="Führe die Zeilen in deiner VM aus und füge die Ausgabe ein."
+  befehl={"for i in $(seq 1 3); do echo \"Runde $i\"; done\nn=0; while IFS=: read -r u x uid rest; do [ \"$uid\" -ge 1000 ] && n=$((n+1)); done < /etc/passwd; echo \"Konten ab UID 1000: $n\""}
+  muster={["^Runde 3$", "^Konten ab UID 1000: \\d+$"]}
+  erfolg="Zu deinem Konto zählt meist auch nobody mit UID 65534." />
+
+<Hinweis titel="Prüfungstipp">
+Die Prüfung zeigt kurze Schleifen und fragt nach der Ausgabe. Lies sie Zeile für Zeile wie die Shell: Was steht nach der Erweiterung in der Liste? Wann ist die while-Bedingung falsch? Verwechsle nicht do/done mit then/fi, und denk an seq für Zahlenfolgen.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Was gibt „for x in a b c; do [ $x = b ] && continue; echo $x; done“ aus?', richtig: 'a und c', falsch: ['a', 'a, b und c'], erklaerung: 'continue überspringt den Rest des Durchlaufs für b.' },
+  { frage: 'Welche Zeile gibt 1 bis 5 aus?', richtig: 'for i in $(seq 5); do echo $i; done', falsch: ['for i in seq 5; do echo $i; done', 'for (i=1; i<=5; i++) echo $i'], erklaerung: 'Ohne $( ) wären „seq“ und „5“ nur zwei Wörter der Liste.' },
+  { frage: 'Welcher Ausdruck ergibt 7?', richtig: '$(( 17 % 10 ))', falsch: ['$(( 17 / 10 ))', '$( 17 % 10 )'], erklaerung: '% ist der Rest der Division. $( ) wäre eine Befehlsersetzung.' },
+]} />

@@ -1,0 +1,164 @@
+---
+id: l1-5-5
+checks:
+  - id: k1
+  - id: tests
+  - id: zuordnung
+  - id: k2
+  - id: verzweigen
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "Test"
+    v: "test -f datei  =  [ -f datei ]   (Leerzeichen innen!)"
+  - t: "Dateien"
+    v: "-e da · -f Datei · -d Verzeichnis · -r -w -x Rechte · -s nicht leer · -L Link"
+  - t: "Texte"
+    v: "[ \"$a\" = \"$b\" ] · != · -z leer · -n nicht leer"
+  - t: "Zahlen"
+    v: "-eq -ne -lt -le -gt -ge"
+  - t: "Verknüpfen"
+    v: "! nicht · -a und · -o oder · besser: [ … ] && [ … ]"
+  - t: "if"
+    v: "if befehl; then …; elif befehl; then …; else …; fi"
+  - t: "case"
+    v: "case \"$1\" in start|stop) …;; *) …;; esac"
+karten:
+  - f: "Welcher Test prüft, ob /etc/hostname eine normale Datei ist?"
+    a: ["[ -f /etc/hostname ]", "test -f /etc/hostname"]
+  - f: "Welcher Test prüft, ob ein Verzeichnis existiert?"
+    a: ["-d", "[ -d verzeichnis ]"]
+  - f: "Welcher Operator vergleicht Zahlen auf größer?"
+    a: ["-gt"]
+  - f: "Welcher Test ist wahr, wenn $name leer ist?"
+    a: ["[ -z \"$name\" ]", "-z"]
+  - f: "Welches Wort beendet einen if-Block?"
+    a: ["fi"]
+  - f: "Welches Wort beendet einen case-Block?"
+    a: ["esac"]
+  - f: "Womit endet jeder Zweig in case?"
+    a: [";;"]
+  - f: "Was entscheidet bei if, welcher Zweig läuft?"
+    a: ["der rückgabewert", "der rückgabewert des befehls", "der exit-status"]
+  - f: "Warum gehören Variablen in Tests in Anführungszeichen?"
+    a: ["damit leere werte und leerzeichen den test nicht zerstören", "sonst fehlt bei leeren variablen ein argument"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Zuordnung from '../components/Zuordnung.astro';
+
+Dein Skript tut immer dasselbe, egal ob die Datei fehlt, das Verzeichnis voll ist oder jemand ein falsches Argument eingibt. **Deine Mission: Bring ihm bei, Bedingungen zu prüfen und je nach Ergebnis etwas anderes zu tun.** Lernziel 105.2.
+
+## Prüfen mit test
+
+<Karte nr={1} titel="test und [ ]">
+`test` prüft eine Bedingung und meldet das Ergebnis **nur über den Rückgabewert**: 0 heißt wahr, 1 heißt falsch, 2 heißt Fehler. Ausgegeben wird nichts. Die Schreibweise `[ … ]` ist derselbe Befehl. Die Klammer `[` ist ein Befehl, darum braucht sie Leerzeichen innen und eine schließende `]` als letztes Argument.
+
+| Art | Beispiele |
+|---|---|
+| Dateien | `-e` existiert, `-f` normale Datei, `-d` Verzeichnis, `-L` symbolischer Link, `-s` größer als 0, `-r` `-w` `-x` Rechte des Aufrufers, `a -nt b` neuer als |
+| Texte | `"$a" = "$b"`, `!=`, `-z` leer, `-n` nicht leer |
+| Zahlen | `-eq` gleich, `-ne` ungleich, `-lt` kleiner, `-le`, `-gt` größer, `-ge` |
+| Logik | `!` nicht, `-a` und, `-o` oder |
+
+Zwei Fallen kommen in fast jedem Skript vor:
+
+- **Fehlende Anführungszeichen.** Ist `$name` leer, wird aus `[ $name = lena ]` der Befehl `[ = lena ]`, und test meldet `Einstelliger (unärer) Operator erwartet`. Mit `[ "$name" = lena ]` bleibt ein leeres Argument stehen. Darum gilt: **Variablen in Tests immer in Anführungszeichen.**
+- **`>` statt `-gt`.** In `[ $a > $b ]` ist `>` eine Umleitung. Die Shell legt eine Datei namens `$b` an, und der Test ist fast immer wahr. Zahlen vergleichst du mit `-gt`.
+
+Die Bash kennt zusätzlich `[[ … ]]`. Dort stören leere Variablen nicht, `==` vergleicht mit Mustern wie `*.txt` und `=~` mit regulären Ausdrücken. `[[ ]]` gibt es aber nur in der Bash, nicht in sh.
+</Karte>
+
+<Merke>[ ] ist test und braucht Leerzeichen. Ergebnis nur im Rückgabewert. Dateien -e -f -d -r -w -x -s, Texte = != -z -n, Zahlen -eq -ne -lt -le -gt -ge. Variablen immer in "".</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: test" fragen={[
+  { frage: 'Was gibt „[ 5 -gt 10 ]; echo $?“ aus?', richtig: '1', falsch: ['0', 'false'], erklaerung: '5 ist nicht größer als 10. Falsch bedeutet Rückgabewert 1.' },
+  { frage: 'Welcher Test vergleicht zwei Zahlen korrekt?', richtig: '[ "$a" -lt "$b" ]', falsch: ['[ "$a" < "$b" ]', '[ "$a" -lt "$b"]'], erklaerung: '< wäre eine Umleitung, und vor ] fehlt im letzten Beispiel das Leerzeichen.' },
+]} />
+
+<Terminal id="tests" titel="Terminal: Bedingungen prüfen" aufgaben={[
+  { text: 'Prüf mit <code>[ ]</code>, ob <code>/etc/hostname</code> eine normale Datei ist, und lass dir den Rückgabewert zeigen.', befehl: '^\\[ -f /etc/hostname \\]; ?echo "?\\$\\?"?$' },
+  { text: 'Prüf genauso, ob du <code>/etc/shadow</code> lesen darfst.', befehl: '^\\[ -r /etc/shadow \\]; ?echo "?\\$\\?"?$', frage: 'Welcher Rückgabewert?', antwort: ['1'] },
+  { text: 'Setze <code>name=""</code> und teste <code>[ $name = lena ]</code> ohne Anführungszeichen.', befehl: '^\\[ \\$name = lena \\]$', auchFehler: true, frage: 'Welcher Rückgabewert folgt auf die Fehlermeldung? (echo $?)', antwort: ['2'] },
+  { text: 'Teste dasselbe mit <code>"$name"</code> und frag nach dem Rückgabewert.', befehl: '^\\[ "\\$name" = lena \\]', frage: 'Welcher Rückgabewert jetzt?', antwort: ['1'] },
+  { text: 'Vergleiche <code>[ 10 &gt; 9 ]</code> und lass dir danach das Verzeichnis anzeigen.', befehl: '^ls', frage: 'Welche neue Datei liegt jetzt im Home?', antwort: ['9'] },
+  { text: 'Räum die Datei weg und vergleiche richtig, mit <code>-gt</code>.', zustand: 'fehlt:/home/lena/9', befehl: '^\\[ 10 -gt 9 \\]' },
+  { text: 'Gib mit einer einzigen Zeile „vorhanden“ oder „fehlt“ aus, je nachdem, ob <code>lena</code> in <code>/etc/passwd</code> steht. Nutze <code>grep -q</code>, <code>&amp;&amp;</code> und <code>||</code>.', befehl: '^grep -q .*lena.* /etc/passwd && echo "?vorhanden"? \\|\\| echo "?fehlt"?$' },
+]} />
+
+<Zuordnung id="zuordnung" titel="Zuordnung: Welcher Test?" aufgabe="Ordne jeder Frage den passenden Test zu." paare={[
+  { links: 'Gibt es /srv/team als Verzeichnis?', rechts: '[ -d /srv/team ]' },
+  { links: 'Ist die Variable eingabe leer?', rechts: '[ -z "$eingabe" ]' },
+  { links: 'Hat das Skript genau zwei Argumente?', rechts: '[ $# -eq 2 ]' },
+  { links: 'Darf ich backup.sh ausführen?', rechts: '[ -x backup.sh ]' },
+  { links: 'Ist log.txt neuer als log.bak?', rechts: '[ log.txt -nt log.bak ]' },
+  { links: 'Steht in $antwort genau ja?', rechts: '[ "$antwort" = ja ]' },
+]} />
+
+## Verzweigen
+
+<Karte nr={2} titel="if, elif, else und case">
+**if** führt einen Befehl aus und entscheidet nach seinem Rückgabewert. Das muss kein test sein, jeder Befehl geht:
+
+```
+if [ -d "$ziel" ]; then
+  echo "Ziel ist da"
+elif mkdir -p "$ziel"; then
+  echo "Ziel angelegt"
+else
+  echo "Kann $ziel nicht anlegen" >&2
+  exit 1
+fi
+```
+
+`then` steht nach einem Semikolon oder in einer neuen Zeile. `elif` und `else` sind freiwillig, `fi` schließt den Block. Für kurze Fälle reichen `&&` (nur bei Erfolg) und `||` (nur bei Fehler): `[ -d "$ziel" ] || mkdir "$ziel"`.
+
+**case** vergleicht einen Wert mit Mustern, wie bei der Shell-Wildcard:
+
+```
+case "$1" in
+  start|stop)  echo "$1 wird ausgeführt" ;;
+  status)      echo "läuft" ;;
+  *)           echo "Aufruf: $0 start|stop|status" >&2; exit 1 ;;
+esac
+```
+
+Jeder Zweig endet mit `;;`, `|` trennt mehrere Muster, `*` fängt alles Übrige. Nur der erste passende Zweig läuft. Der Block endet mit `esac`, das ist case rückwärts.
+</Karte>
+
+<Merke>if befehl; then … elif …; else …; fi entscheidet nach dem Rückgabewert. case "$x" in muster) …;; *) …;; esac. && bei Erfolg, || bei Fehler.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: Verzweigen" fragen={[
+  { frage: 'Was gibt „case dienst.log in *.txt) echo A;; *.log) echo B;; *) echo C;; esac“ aus?', richtig: 'B', falsch: ['A', 'B und C'], erklaerung: 'Nur der erste passende Zweig läuft.' },
+  { frage: 'Welche Zeile ist ein gültiges if?', richtig: 'if grep -q root /etc/passwd; then echo ja; fi', falsch: ['if [ grep -q root /etc/passwd ] then echo ja fi', 'if (grep root) { echo ja }'], erklaerung: 'Jeder Befehl kann als Bedingung dienen, eckige Klammern braucht nur test.' },
+]} />
+
+<Terminal id="verzweigen" titel="Terminal: Das Skript entscheidet" welt={{ dateien: { '/home/lena/bin/dienst': '#!/bin/bash\n# dienst start|stop|status\ncase "$1" in\n  start|stop) echo "messd: $1 ausgeführt" ;;\n  status) echo "messd läuft" ;;\n  *) echo "Aufruf: $0 start|stop|status" >&2; exit 1 ;;\nesac\n' }, rechte: { '/home/lena/bin/dienst': '755' } }} aufgaben={[
+  { text: 'Schreib eine if-Abfrage über eine oder mehrere Zeilen: Ist <code>/etc/passwd</code> für dich schreibbar, gib „schreibbar“ aus, sonst „nur lesen“.', befehl: '^if \\[ -w /etc/passwd \\]', zustand: 'ausgabe~^nur lesen$' },
+  { text: 'Lege mit einer Zeile das Verzeichnis <code>sicherung</code> an, aber nur, wenn es noch nicht existiert.', befehl: '^\\[ -d (\\./)?sicherung/? \\] \\|\\| mkdir|^test -d (\\./)?sicherung/? \\|\\| mkdir|^if ', zustand: 'ordner:/home/lena/sicherung' },
+  { text: 'Lies <code>bin/dienst</code> und starte es mit <code>status</code>.', befehl: '^(\\./)?bin/dienst status$' },
+  { text: 'Starte es mit <code>neustart</code> und lass dir den Rückgabewert ausgeben.', befehl: '^echo "?\\$\\?"?$', frage: 'Welcher Wert?', antwort: ['1'] },
+  { text: 'Ergänze das Skript um den Fall <code>neustart</code>, der „messd: neustart ausgeführt“ ausgibt. Am einfachsten setzt du ihn zu <code>start|stop</code> dazu, etwa mit sed.', zustand: 'datei:/home/lena/bin/dienst~neustart' },
+  { text: 'Starte <code>bin/dienst neustart</code> noch einmal.', befehl: '^(\\./)?bin/dienst neustart$' },
+]} />
+
+<Labor id="labor" titel="Aufgabe im Labor: if in der echten Bash"
+  aufgabe="Führe die beiden Zeilen in deiner VM aus und füge die Ausgabe ein."
+  befehl={"if [ -r /etc/shadow ]; then echo lesbar; else echo gesperrt; fi\ncase \"$(id -un)\" in root) echo admin;; *) echo \"normaler Benutzer: $(id -un)\";; esac"}
+  muster={["^gesperrt$", "^normaler Benutzer: \\w+$"]}
+  erfolg="Als normaler Benutzer darfst du /etc/shadow nicht lesen." />
+
+<Hinweis titel="Prüfungstipp">
+Lerne die Testoperatoren als Gruppen: Dateien mit Buchstaben, Zahlen mit -eq bis -ge, Texte mit = und !=. Die Prüfung legt gern Zeilen vor, in denen Leerzeichen in [ ] fehlen, < statt -lt steht oder fi und esac vertauscht sind.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Was ist an „if [$1 = start]; then“ falsch?', richtig: 'Nach [ und vor ] fehlen die Leerzeichen.', falsch: ['Es muss == heißen.', 'then muss in eine neue Zeile.'], erklaerung: 'Ohne Leerzeichen sucht die Shell einen Befehl namens [start oder ähnlich.' },
+  { frage: 'Welcher Test ist wahr, wenn eine Datei existiert und nicht leer ist?', richtig: '[ -s datei ]', falsch: ['[ -e datei ]', '[ -n datei ]'], erklaerung: '-e prüft nur, ob es sie gibt. -n prüft einen Text, keine Datei.' },
+  { frage: 'Was bewirkt „[ -f /etc/os-release ] && echo ja || echo nein“, wenn die Datei existiert?', richtig: 'Es gibt ja aus.', falsch: ['Es gibt ja und nein aus.', 'Es gibt nichts aus.'], erklaerung: 'echo ja gelingt, darum läuft der Teil hinter || nicht.' },
+]} />

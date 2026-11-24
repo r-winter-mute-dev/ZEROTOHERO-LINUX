@@ -1,0 +1,21 @@
+---
+id: l1-5-probe
+abzeichen: "Topic 105 bestanden"
+checks:
+  - id: probe
+---
+import Probe from '../components/Probe.astro';
+import Karte from '../components/Karte.astro';
+import Hinweis from '../components/Hinweis.astro';
+
+Topic 105 bringt in Prüfung 102 ungefähr **8 von 60 Fragen**. Skripte bauen aber auf allem auf, was du in Topic 103 an der Befehlszeile gelernt hast. **Deine Mission: Bestehe die Probe mit mindestens 80 %.**
+
+<Karte nr={1} titel="Gemischt statt am Stück">
+Diese Probe mischt Topic 105 mit drei Lernzielen aus Topic 103: Arbeiten auf der Befehlszeile, Ströme und Umleitungen, reguläre Ausdrücke. Dieses Mischen heißt Interleaving. Eine Meta-Analyse über 59 Studien (Brunmair und Richter 2019, Psychological Bulletin) fand im Mittel einen mittleren Vorteil gegenüber geblocktem Üben (Hedges’ g = 0,42), bei großer Streuung zwischen den Studien. Je nach Stoff war er unterschiedlich groß, am deutlichsten dort, wo man Ähnliches auseinanderhalten muss. Genau das verlangt die Prüfung, wenn sie `[ ]` und `[[ ]]` oder `>` und `-gt` nebeneinanderstellt. Gemischtes Üben fühlt sich schwerer an, und das gehört dazu. Außerdem liegt Topic 103 inzwischen Wochen zurück. Gerade jetzt lohnt sich das Wiederholen.
+</Karte>
+
+<Hinweis titel="Zum Tempo">
+24 Fragen in 36 Minuten. Ungefähr vier von zehn Fragen stammen aus Topic 105, der Rest aus Topic 103. Falsch beantwortete Fragen landen morgen in deiner Wiederholung.
+</Hinweis>
+
+<Probe id="probe" titel="Probeprüfung: Topic 105 mit Wiederholung" ziele={['105.1', '105.2', '103.1', '103.4', '103.7']} anzahl={24} />

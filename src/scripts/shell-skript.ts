@@ -41,6 +41,7 @@ export interface SkriptStand {
   eingabeTty: boolean;           // stdin des aktuellen Befehls ist das Terminal
   fortsetzung?: string;          // unvollständige Eingabe (PS2-Prompt „> “)
   post: { an: string; von: string; betreff: string; text: string }[];
+  startOptionen?: Optionen;
 }
 export function stand(w: Welt): SkriptStand {
   const x = w as Welt & { skript?: SkriptStand };
@@ -943,6 +944,35 @@ export function skriptBefehle(): Record<string, B> {
       if (neu) K.rechte(w, p, 0o660, user, 'mail');
     }
     return { out: '', code: 0 };
+  };
+  b.diff = (w, a, stdin, root) => {
+    const namen = a.filter((x) => !x.startsWith('-') || x === '-');
+    if (namen.length !== 2) return fehler(`diff: ${namen.length < 2 ? 'Fehlender Operand nach »' + (namen[0] ?? 'diff') + '«' : 'Zusätzlicher Operand »' + namen[2] + '«'}\ndiff: „diff --help“ gibt weitere Informationen.`, 2);
+    const lies = (n: string): string[] | string => {
+      if (n === '-') return stdin.replace(/\n$/, '').split('\n');
+      const p = K.pfad(w, n);
+      if (!(p in w.fs)) return `diff: ${n}: Datei oder Verzeichnis nicht gefunden`;
+      if (w.fs[p] === null) return `diff: ${n}: Ist ein Verzeichnis`;
+      if (!K.darf(w, p, 'r', root || w.root)) return `diff: ${n}: Keine Berechtigung`;
+      const t = w.fs[p] ?? ''; return t === '' ? [] : t.replace(/\n$/, '').split('\n');
+    };
+    const x = lies(namen[0]); const y = lies(namen[1]);
+    if (typeof x === 'string') return fehler(x, 2); if (typeof y === 'string') return fehler(y, 2);
+    const n = x.length; const m = y.length;
+    const L: number[][] = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0));
+    for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--) L[i][j] = x[i] === y[j] ? L[i + 1][j + 1] + 1 : Math.max(L[i + 1][j], L[i][j + 1]);
+    const out: string[] = []; let i = 0; let j = 0;
+    const bereich = (a1: number, b1: number) => (b1 - a1 > 1 ? `${a1 + 1},${b1}` : `${b1 > a1 ? a1 + 1 : a1}`);
+    while (i < n || j < m) {
+      if (i < n && j < m && x[i] === y[j]) { i++; j++; continue; }
+      const i0 = i; const j0 = j;
+      while ((i < n || j < m) && !(i < n && j < m && x[i] === y[j])) { if (j >= m || (i < n && L[i + 1][j] >= L[i][j + 1])) i++; else j++; }
+      const weg = x.slice(i0, i); const neu = y.slice(j0, j);
+      if (weg.length && neu.length) out.push(`${bereich(i0, i)}c${bereich(j0, j)}`, ...weg.map((z) => '< ' + z), '---', ...neu.map((z) => '> ' + z));
+      else if (weg.length) out.push(`${bereich(i0, i)}d${j0}`, ...weg.map((z) => '< ' + z));
+      else out.push(`${i0}a${bereich(j0, j)}`, ...neu.map((z) => '> ' + z));
+    }
+    return { out: out.join('\n'), code: out.length ? 1 : 0 };
   };
   b.dircolors = () => ({ out: "LS_COLORS='rs=0:di=01;34:ln=01;36:mh=00:pi=40;33:so=01;35:do=01;35:bd=40;33;01:cd=40;33;01:ex=01;32';\nexport LS_COLORS", code: 0 });
   return b;

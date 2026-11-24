@@ -1,0 +1,140 @@
+---
+id: l1-5-3
+checks:
+  - id: k1
+  - id: aliase
+  - id: k2
+  - id: funktionen
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "Alias anlegen"
+    v: "alias ll='ls -l'"
+  - t: "Aliase zeigen und löschen"
+    v: "alias · alias ll · unalias ll · unalias -a"
+  - t: "Alias umgehen"
+    v: "\\ls · command ls · /usr/bin/ls"
+  - t: "Funktion"
+    v: "mkcd() { mkdir -p \"$1\" && cd \"$1\"; }"
+  - t: "Funktion zeigen und löschen"
+    v: "type mkcd · declare -f mkcd · unset -f mkcd"
+  - t: "Dauerhaft"
+    v: "in ~/.bashrc (oder ~/.bash_aliases), dann source ~/.bashrc"
+karten:
+  - f: "Wie legst du das Alias ll für ls -l an?"
+    a: ["alias ll='ls -l'", "alias ll=\"ls -l\""]
+  - f: "Wie entfernst du das Alias ll?"
+    a: ["unalias ll"]
+  - f: "Wie startest du ls ohne das gleichnamige Alias?"
+    a: ["\\ls", "command ls", "/usr/bin/ls"]
+  - f: "Welcher Befehl zeigt, ob ll ein Alias, eine Funktion oder ein Programm ist?"
+    a: ["type ll", "type"]
+  - f: "Wie heißt in einer Funktion das erste Argument?"
+    a: ["$1"]
+  - f: "Wie löschst du die Funktion mkcd?"
+    a: ["unset -f mkcd"]
+  - f: "Welcher Befehl gibt den Quelltext der Funktion mkcd aus?"
+    a: ["declare -f mkcd", "type mkcd", "typeset -f mkcd"]
+  - f: "Warum kann eine Funktion das Verzeichnis der Shell wechseln, ein Skript aber nicht?"
+    a: ["weil die funktion in der laufenden shell läuft", "funktionen laufen in der aktuellen shell, skripte in einer neuen"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+
+Jeden Morgen tippst du dieselben drei Befehle, um in den Ordner der neuen Messreihe zu kommen. **Deine Mission: Mach daraus Abkürzungen und Funktionen, die auch morgen noch da sind.** Lernziel 105.1.
+
+## Aliase
+
+<Karte nr={1} titel="Abkürzungen mit alias">
+Ein **Alias** ersetzt das erste Wort einer Befehlszeile durch einen Text:
+
+```
+alias ll='ls -l'
+alias rm='rm -i'
+```
+
+Die Anführungszeichen sind nötig, weil der Text Leerzeichen enthält. `alias` ohne Argument zeigt alle Aliase, `alias ll` nur eines, `unalias ll` löscht es, `unalias -a` alle.
+
+Ein Alias kann einen Befehl gleichen Namens verdecken, wie oben `rm`. Willst du einmal das Original, schreibst du einen Backslash davor (`\rm`), nimmst `command rm` oder den vollen Pfad `/usr/bin/rm`.
+
+Aliase haben Grenzen: Sie wirken nur am Anfang einer Zeile, sie kennen keine Argumente in der Mitte, und in Skripten sind sie normalerweise aus. Für alles, was mehr als eine feste Abkürzung ist, nimmst du eine Funktion.
+
+`type ll` zeigt, was hinter einem Namen steckt. Die Bash sucht in dieser Reihenfolge: **Alias, Schlüsselwort, Funktion, eingebauter Befehl, Programm im PATH.**
+</Karte>
+
+<Merke>alias ll='ls -l', unalias ll. \ls oder command ls umgeht das Alias. Reihenfolge: Alias, Schlüsselwort, Funktion, eingebaut, PATH. type zeigt, was gewinnt.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: Aliase" fragen={[
+  { frage: 'Es gibt das Alias rm=\'rm -i\'. Wie löschst du eine Datei ohne Rückfrage, ohne das Alias zu entfernen?', richtig: '\\rm datei', falsch: ['rm datei', 'unalias rm datei'], erklaerung: 'Ein Backslash vor dem Namen verhindert, dass die Bash das Alias einsetzt.' },
+  { frage: 'Du hast in der Shell ein Alias angelegt. Was passiert nach dem Schließen des Terminals?', richtig: 'Es ist weg, solange es nicht in einer Startdatei steht.', falsch: ['Es bleibt bis zum Neustart.', 'Es landet automatisch in ~/.bashrc.'], erklaerung: 'Aliase gehören zur laufenden Shell. Dauerhaft werden sie erst in ~/.bashrc.' },
+]} />
+
+<Terminal id="aliase" titel="Terminal: Abkürzungen" welt={{ dateien: { '/home/lena/messung/reihe-07/werte.csv': 'zeit;wert\n1;3.3\n' } }} aufgaben={[
+  { text: 'Lass dir alle Aliase anzeigen.', befehl: '^alias$', frage: 'Welches Alias gibt es schon?', antwort: ['ls', "ls='ls --color=auto'", 'ls --color=auto'] },
+  { text: 'Lege das Alias <code>ll</code> für <code>ls -l</code> an und probier es aus.', zustand: 'alias:ll~^ls -l$', befehl: '^ll' },
+  { text: 'Lege das Alias <code>reihe</code> an, das nach <code>~/messung/reihe-07</code> wechselt.', zustand: 'alias:reihe~cd .*messung/reihe-07' },
+  { text: 'Benutze es.', zustand: 'cwd=/home/lena/messung/reihe-07' },
+  { text: 'Frag die Shell, was <code>ll</code> und <code>ls</code> sind.', befehl: '^type (ll ls|ls ll)$', frage: 'Was ist ls laut type?', antwort: ['alias', 'ein alias'] },
+  { text: 'Starte <code>ls</code> einmal ohne das Alias.', befehl: '^(\\\\ls|command ls|/usr/bin/ls|/bin/ls)$' },
+  { text: 'Entferne das Alias <code>reihe</code>.', zustand: 'nicht:alias:reihe~.' },
+]} />
+
+## Funktionen
+
+<Karte nr={2} titel="Eigene Befehle mit Funktionen">
+Eine **Funktion** ist ein kleines Programm in der Shell selbst. Zwei Schreibweisen sind erlaubt:
+
+```
+mkcd() {
+  mkdir -p "$1" && cd "$1"
+}
+
+function mkcd { mkdir -p "$1" && cd "$1"; }
+```
+
+In einer Zeile braucht die Bash ein Semikolon vor der schließenden Klammer und Leerzeichen hinter `{`. Im Rumpf sind `$1`, `$2` … die Argumente des Aufrufs, `$#` ihre Anzahl und `"$@"` alle zusammen. `local name=wert` legt eine Variable an, die nur in der Funktion gilt. `return 3` beendet die Funktion mit einem Rückgabewert.
+
+Eine Funktion läuft **in der laufenden Shell**, nicht in einem Kindprozess. Darum wirkt ihr `cd` hinterher, und sie sieht auch Variablen, die nicht exportiert sind. Ein Skript kann das nicht.
+
+`type mkcd` und `declare -f mkcd` zeigen den Quelltext, `declare -f` alle Funktionen, `set` ebenfalls. `unset -f mkcd` löscht eine Funktion.
+
+Wie Aliase leben Funktionen nur bis zum Ende der Shell. Damit sie in jedem neuen Terminal da sind, gehören beide in `~/.bashrc`. Auf Debian liest die `~/.bashrc` außerdem `~/.bash_aliases`, wenn die Datei existiert. Nach einer Änderung liest du sie mit `source ~/.bashrc` neu ein.
+</Karte>
+
+<Merke>`name() { befehle; }` mit $1, $2, $#, "$@", local, return. Läuft in der laufenden Shell, darum wirkt cd. Dauerhaft in ~/.bashrc. unset -f löscht.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: Funktionen" fragen={[
+  { frage: 'Was gibt „zeige() { echo \"$2\"; }; zeige a b c“ aus?', richtig: 'b', falsch: ['a', 'a b c'], erklaerung: '$2 ist das zweite Argument des Aufrufs.' },
+  { frage: 'Warum klappt „cd“ in einer Funktion, in einem Skript aber nicht?', richtig: 'Die Funktion läuft in der aktuellen Shell, das Skript in einem eigenen Prozess.', falsch: ['Skripte dürfen kein cd benutzen.', 'Funktionen haben mehr Rechte.'], erklaerung: 'Das cd des Skripts wirkt nur in seinem eigenen Prozess, und der endet gleich darauf.' },
+]} />
+
+<Terminal id="funktionen" titel="Terminal: Eigene Befehle" aufgaben={[
+  { text: 'Schreib die Funktion <code>mkcd</code>, die ein Verzeichnis samt Eltern anlegt und hineinwechselt.', zustand: 'funktion:mkcd' },
+  { text: 'Leg damit <code>messung/reihe-08</code> an.', zustand: 'cwd=/home/lena/messung/reihe-08' },
+  { text: 'Geh zurück ins Home und lass dir den Quelltext der Funktion zeigen.', befehl: '^(type|declare -f|typeset -f) mkcd$', zustand: 'cwd=/home/lena' },
+  { text: 'Häng die Funktion dauerhaft an <code>~/.bashrc</code> an. Am schnellsten geht das mit <code>declare -f mkcd</code> und einer Umleitung.', zustand: 'datei:/home/lena/.bashrc~^mkcd \\(\\)|^mkcd\\(\\)|^function mkcd' },
+  { text: 'Lösche die Funktion in der laufenden Shell.', zustand: 'nicht:funktion:mkcd' },
+  { text: 'Starte eine neue Shell und prüf, ob <code>mkcd</code> dort wieder da ist.', zustand: 'shlvl=2 && funktion:mkcd', befehl: '^type mkcd$', frage: 'Was ist mkcd laut type?', antwort: ['eine funktion', 'funktion', 'function'] },
+  { text: 'Kehre in die erste Shell zurück.', zustand: 'shlvl=1' },
+]} />
+
+<Labor id="labor" titel="Aufgabe im Labor: Eine Funktion für immer"
+  aufgabe="Hänge in deiner VM die Funktion an ~/.bashrc an, lies die Datei neu ein und lass sie dir zeigen. Füge die Ausgabe von type ein."
+  befehl={"echo 'mkcd() { mkdir -p \"$1\" && cd \"$1\"; }' >> ~/.bashrc\nsource ~/.bashrc\ntype mkcd"}
+  muster={["mkcd ist eine Funktion|mkcd is a function", "mkdir -p \"\\$1\""]}
+  erfolg="Ab jetzt hat jedes neue Terminal deinen eigenen Befehl mkcd." />
+
+<Hinweis titel="Prüfungstipp">
+Die Prüfung fragt nach der Syntax (`name() { …; }` oder `function name { …; }`), nach dem Ort für dauerhafte Aliase und Funktionen (~/.bashrc) und danach, wie man ein Alias umgeht. Denk an das Semikolon vor der schließenden geschweiften Klammer, wenn alles in einer Zeile steht.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Welche Zeile definiert eine gültige Funktion?', richtig: 'gruss() { echo hallo; }', falsch: ['gruss() {echo hallo}', 'function gruss() = echo hallo'], erklaerung: 'Nach { kommt ein Leerzeichen, vor } ein Semikolon oder Zeilenumbruch.' },
+  { frage: 'Es gibt ein Alias ls, eine Funktion ls und /usr/bin/ls. Was startet „ls“?', richtig: 'Das Alias', falsch: ['Die Funktion', '/usr/bin/ls'], erklaerung: 'Aliase werden zuerst eingesetzt, dann folgen Funktionen, eingebaute Befehle und PATH.' },
+  { frage: 'Welcher Befehl zeigt alle Shell-Funktionen mit ihrem Quelltext?', richtig: 'declare -f', falsch: ['env', 'alias -f'], erklaerung: 'set zeigt sie ebenfalls, zusammen mit allen Variablen.' },
+]} />

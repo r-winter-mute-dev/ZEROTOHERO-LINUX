@@ -1,0 +1,157 @@
+---
+id: l1-5-4
+checks:
+  - id: k1
+  - id: erstes
+  - id: k2
+  - id: parameter
+  - id: luecke
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "Erste Zeile"
+    v: "#!/bin/bash   (Shebang: welcher Interpreter)"
+  - t: "Starten"
+    v: "chmod +x skript.sh && ./skript.sh  ·  oder  bash skript.sh"
+  - t: "Argumente"
+    v: "$0 Name, $1 … $9, ${10}, $# Anzahl, \"$@\" alle einzeln"
+  - t: "Rückgabewert"
+    v: "$? nach jedem Befehl, 0 = Erfolg · exit 2 beendet das Skript mit 2"
+  - t: "Wohin?"
+    v: "~/bin für dich, /usr/local/bin für alle (root, 755)"
+  - t: "SUID"
+    v: "Linux ignoriert SUID und SGID bei Skripten"
+karten:
+  - f: "Wie heißt die erste Zeile #!/bin/bash eines Skripts?"
+    a: ["shebang", "die shebang-zeile", "shebang zeile"]
+  - f: "Wie startest du skript.sh im aktuellen Verzeichnis, wenn es ausführbar ist?"
+    a: ["./skript.sh"]
+  - f: "Wie startest du skript.sh ohne Ausführrecht?"
+    a: ["bash skript.sh", "sh skript.sh", "source skript.sh", ". skript.sh"]
+  - f: "Welche Variable enthält die Anzahl der Argumente?"
+    a: ["$#"]
+  - f: "Welche Variable enthält den Rückgabewert des letzten Befehls?"
+    a: ["$?"]
+  - f: "Welcher Rückgabewert bedeutet Erfolg?"
+    a: ["0", "null"]
+  - f: "Wie sprichst du das zehnte Argument an?"
+    a: ["${10}"]
+  - f: "Was macht der Kernel mit dem SUID-Bit eines Shell-Skripts?"
+    a: ["nichts", "er ignoriert es", "ignoriert"]
+  - f: "Wohin legt root ein Skript, das alle Benutzer starten sollen?"
+    a: ["/usr/local/bin", "/usr/local/bin/"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Lueckentext from '../components/Lueckentext.astro';
+
+Die Funktionen aus Mission 5.3 sind praktisch, aber nur in deiner eigenen Shell. **Deine Mission: Schreib dein erstes echtes Skript, gib ihm Argumente und einen sinnvollen Rückgabewert und leg es so ab, dass alle es benutzen können.** Lernziel 105.2.
+
+## Das Gerüst
+
+<Karte nr={1} titel="Shebang, Ausführrecht, Ablageort">
+Ein Skript ist eine Textdatei mit Befehlen. Die erste Zeile heißt **Shebang** und sagt dem Kernel, welches Programm die Datei ausführen soll:
+
+```
+#!/bin/bash
+# gruss: begrüßt den Benutzer
+echo "Hallo $USER"
+```
+
+`#!/bin/sh` wählt die schlichte POSIX-Shell, auf Debian ist das **dash**, nicht bash. Bash-Eigenheiten wie `[[ ]]` laufen dort nicht. Steht in der Shebang-Zeile ein Programm, das es nicht gibt, meldet die Bash `Defekter Interpreter`. Alles andere hinter `#` ist ein Kommentar.
+
+Starten kannst du ein Skript auf zwei Arten:
+
+- **Mit Ausführrecht**: `chmod +x gruss` und dann `./gruss` oder, wenn es im PATH liegt, einfach `gruss`. Ohne x meldet die Shell `Keine Berechtigung`.
+- **Über den Interpreter**: `bash gruss` braucht kein x, nur Leserecht. Die Shebang-Zeile ist dann nur ein Kommentar.
+
+In beiden Fällen läuft das Skript in einer **neuen Shell**. Mit `source gruss` liest dagegen die laufende Shell die Datei (Mission 5.2).
+
+**Ablage und Besitz**: Für dich allein gehört ein Skript nach `~/bin`. Für alle Benutzer legt root es nach `/usr/local/bin`, mit Besitzer root und den Rechten 755, damit niemand sonst es ändern kann. `/usr/bin` gehört dem Paketmanager. Das **SUID-Bit** wirkt bei Skripten nicht: Linux ignoriert SUID und SGID bei Dateien, die über eine Shebang-Zeile starten. Ein Skript läuft immer mit den Rechten dessen, der es startet. Braucht es root, ruft man es mit sudo auf.
+</Karte>
+
+<Merke>#!/bin/bash in Zeile 1. chmod +x und ./skript, oder bash skript ohne x. Für alle: /usr/local/bin, root, 755. SUID ist bei Skripten wirkungslos.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: Gerüst" fragen={[
+  { frage: 'Ein Skript hat die Rechte 644. Was klappt?', richtig: 'bash skript.sh', falsch: ['./skript.sh', 'Beides'], erklaerung: 'Für ./skript.sh braucht die Datei das Ausführrecht, bash skript.sh liest sie nur.' },
+  { frage: 'root setzt bei einem Skript das SUID-Bit. Mit welchen Rechten läuft es, wenn lena es startet?', richtig: 'Mit den Rechten von lena', falsch: ['Mit Root-Rechten', 'Gar nicht, SUID-Skripte sind verboten'], erklaerung: 'Linux beachtet SUID nur bei echten Programmen, nicht bei Skripten.' },
+]} />
+
+<Terminal id="erstes" titel="Terminal: Das erste Skript" welt={{ dateien: { '/home/lena/bin': '/', '/home/lena/alt.sh': '#!/bin/bsh\necho "Ich bin alt"\n' }, rechte: { '/home/lena/alt.sh': '755' } }} aufgaben={[
+  { text: 'Schreib das Skript <code>~/bin/gruss</code> mit der Shebang-Zeile <code>#!/bin/bash</code> und der Zeile <code>echo "Hallo $1"</code>. Mit vi, oder mit <code>cat &gt; bin/gruss &lt;&lt;\'EOF\'</code>, dann den Zeilen und zuletzt <code>EOF</code>.', zustand: 'datei:/home/lena/bin/gruss~^#!/bin/bash$ && datei:/home/lena/bin/gruss~^echo "Hallo \\$1"$' },
+  { text: 'Versuch, es mit <code>./bin/gruss Welt</code> zu starten.', befehl: '^\\./bin/gruss', auchFehler: true },
+  { text: 'Starte es über den Interpreter, ohne die Rechte zu ändern.', befehl: '^(bash|sh) (\\./)?bin/gruss' },
+  { text: 'Gib dem Skript die Rechte 755.', zustand: 'modus:/home/lena/bin/gruss=755' },
+  { text: 'Hänge <code>$HOME/bin</code> vorne an den PATH an und starte <code>gruss Welt</code> nur mit seinem Namen.', befehl: '^gruss Welt$', zustand: 'var:PATH~^/home/lena/bin:' },
+  { text: 'Lass dir den Rückgabewert des letzten Befehls ausgeben.', befehl: '^echo "?\\$\\?"?$', frage: 'Welcher Wert steht da?', antwort: ['0'] },
+  { text: 'Starte <code>./alt.sh</code>.', befehl: '^\\./alt\\.sh$', auchFehler: true, frage: 'Welchen Interpreter sucht das Skript vergeblich?', antwort: ['/bin/bsh', 'bsh'] },
+  { text: 'Korrigiere die Shebang-Zeile von <code>alt.sh</code> und starte es noch einmal.', zustand: 'datei:/home/lena/alt.sh~^#!/bin/(ba)?sh$', befehl: '^\\./alt\\.sh$' },
+  { text: 'Kopiere <code>gruss</code> als root nach <code>/usr/local/bin</code>.', zustand: 'besitzer:/usr/local/bin/gruss=root && modus:/usr/local/bin/gruss=755' },
+]} />
+
+## Argumente und Rückgabewerte
+
+<Karte nr={2} titel="$0, $1, $#, $@ und $?">
+Ein Skript bekommt seine Argumente als **Positionsparameter**:
+
+| Variable | Inhalt |
+|---|---|
+| `$0` | der Name, unter dem das Skript gestartet wurde |
+| `$1` bis `$9` | die ersten neun Argumente, ab dem zehnten `${10}` |
+| `$#` | die Anzahl der Argumente |
+| `"$@"` | alle Argumente, jedes als eigenes Wort |
+| `"$*"` | alle Argumente als ein einziges Wort |
+| `$?` | der Rückgabewert des letzten Befehls |
+| `$$` | die PID der Shell |
+
+`shift` schiebt alle Argumente um eins nach links: `$2` wird zu `$1`, und `$#` sinkt um eins.
+
+Jeder Befehl endet mit einem **Rückgabewert** (exit status) zwischen 0 und 255. **0 heißt Erfolg**, alles andere ein Fehler. Welche Zahl welchen Fehler bedeutet, legt jedes Programm selbst fest. Die Bash meldet 126 für „nicht ausführbar“ und 127 für „nicht gefunden“. Dein Skript beendet sich mit `exit 2` und dem Wert 2. Ohne exit gilt der Wert des letzten Befehls. Mit `&&` und `||` kannst du direkt darauf reagieren: `befehl || exit 1`.
+
+Mit `"$@"` reichst du Argumente mit Leerzeichen sauber weiter. Ohne Anführungszeichen würde `"b c"` zu zwei Wörtern.
+</Karte>
+
+<Merke>$0 Name, $1 … $9, `${10}`, $# Anzahl, "$@" alle einzeln. $? ist der letzte Rückgabewert: 0 Erfolg. exit n beendet das Skript mit n. 127 nicht gefunden, 126 nicht ausführbar.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: Parameter" fragen={[
+  { frage: 'Das Skript zeige.sh enthält „echo $#“. Was gibt „./zeige.sh a \"b c\" d“ aus?', richtig: '3', falsch: ['4', '5'], erklaerung: '"b c" ist ein einziges Argument.' },
+  { frage: 'Was liefert „echo $?“ direkt nach dem Aufruf eines Befehls, den es nicht gibt?', richtig: '127', falsch: ['1', '126'], erklaerung: '126 meldet die Bash, wenn eine Datei da ist, aber nicht ausführbar.' },
+]} />
+
+<Terminal id="parameter" titel="Terminal: Argumente und Rückgabewerte" welt={{ dateien: { '/home/lena/bin/args': '#!/bin/bash\necho "Name: $0"\necho "Anzahl: $#"\necho "Erstes: $1"\nfor a in "$@"; do echo "- $a"; done\n', '/home/lena/bin/pruefe': '#!/bin/bash\n# pruefe DATEI: gibt 2 zurück, wenn es die Datei nicht gibt\n[ -e "$1" ] || exit 2\necho "$1 ist da"\n' }, rechte: { '/home/lena/bin/args': '755', '/home/lena/bin/pruefe': '755' } }} aufgaben={[
+  { text: 'Starte <code>bin/args a "b c" d</code>.', befehl: '^bin/args a "b c" d$|^\\./bin/args a "b c" d$', frage: 'Welche Anzahl meldet das Skript?', antwort: ['3'] },
+  { text: 'Lass dir das Skript <code>bin/pruefe</code> anzeigen und prüf damit <code>/etc/hostname</code>.', befehl: '^(\\./)?bin/pruefe /etc/hostname$' },
+  { text: 'Prüf damit die Datei <code>/gibtsnicht</code> und lass dir den Rückgabewert ausgeben.', befehl: '^echo "?\\$\\?"?$', frage: 'Welchen Rückgabewert hat pruefe geliefert?', antwort: ['2'] },
+  { text: 'Starte einen Befehl, den es nicht gibt, etwa <code>gibtsnicht</code>, und frag wieder nach dem Rückgabewert.', befehl: '^gibtsnicht$', auchFehler: true, frage: 'Welcher Wert?', antwort: ['127'] },
+  { text: 'Reagiere direkt: Gib „fehlt“ aus, wenn <code>bin/pruefe /gibtsnicht</code> scheitert.', befehl: '^(\\./)?bin/pruefe /gibtsnicht \\|\\| echo "?fehlt"?$' },
+]} />
+
+<Lueckentext id="luecke" titel="Code-Puzzle: Ein Skript mit Aufrufhilfe" aufgabe="Das Skript soll ohne Argument eine Hilfe ausgeben und mit 1 enden. Ergänze die Lücken."
+  code={`___/bin/bash
+# sichere QUELLE: kopiert QUELLE nach ~/sicherung
+[ ___ -eq 0 ] && { echo "Aufruf: ___ QUELLE" >&2; exit ___; }
+cp -r "___" ~/sicherung/`}
+  luecken={[
+    { loesungen: ['#!'] }, { loesungen: ['$#'] }, { loesungen: ['$0'] }, { loesungen: ['1'] }, { loesungen: ['$1'] },
+  ]} />
+
+<Labor id="labor" titel="Aufgabe im Labor: Dein Skript in der VM"
+  aufgabe="Leg in deiner VM das Skript an, mach es ausführbar und starte es mit Argumenten. Füge die gesamte Ausgabe ein."
+  befehl={"mkdir -p ~/bin\nprintf '#!/bin/bash\\necho \"$# Argumente, erstes: $1\"\\nexit 3\\n' > ~/bin/probe\nchmod 755 ~/bin/probe\n~/bin/probe eins \"zwei drei\"; echo \"Rückgabe: $?\"\nls -l ~/bin/probe"}
+  muster={["^2 Argumente, erstes: eins$", "^Rückgabe: 3$", "^-rwxr-xr-x .* /home/\\w+/bin/probe$"]}
+  erfolg="Zwei Argumente, weil die Anführungszeichen „zwei drei“ zusammenhalten." />
+
+<Hinweis titel="Prüfungstipp">
+Merk dir die Sonderparameter $0, $1, $#, $@, $? und die Bedeutung von 0 als Erfolg. Fragen zu Rechten drehen sich um chmod +x gegenüber bash skript.sh und um den Ablageort. Dass Linux SUID bei Skripten ignoriert, ist ein beliebter Fallstrick.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Ein Skript endet ohne exit. Welchen Rückgabewert hat es?', richtig: 'Den Rückgabewert des letzten ausgeführten Befehls', falsch: ['Immer 0', 'Immer 1'], erklaerung: 'exit ohne Zahl verhält sich genauso.' },
+  { frage: 'Was bewirkt „shift“ in einem Skript, das mit „a b c“ gestartet wurde?', richtig: '$1 ist danach b und $# ist 2.', falsch: ['$1 ist danach leer.', '$0 wird zu a.'], erklaerung: 'shift entfernt das erste Argument, $0 bleibt.' },
+  { frage: 'Welche Shebang-Zeile wählt auf Debian dash?', richtig: '#!/bin/sh', falsch: ['#!/bin/bash', '#!/usr/bin/env bash'], erklaerung: '/bin/sh zeigt auf Debian auf dash.' },
+]} />

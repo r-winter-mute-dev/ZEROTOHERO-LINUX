@@ -1,0 +1,139 @@
+---
+id: l1-5-1
+checks:
+  - id: k1
+  - id: vererben
+  - id: k2
+  - id: pfad
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "Shell-Variable"
+    v: "PROJEKT=messung   (kein Leerzeichen um =)"
+  - t: "Umgebungsvariable"
+    v: "export PROJEKT   oder   export PROJEKT=messung"
+  - t: "Anzeigen"
+    v: "echo $PROJEKT · env · printenv PATH · set"
+  - t: "Entfernen"
+    v: "unset PROJEKT · export -n gibt es, unset löscht ganz"
+  - t: "Nur für einen Aufruf"
+    v: "EINHEIT=mV messen · env -i befehl (leere Umgebung)"
+  - t: "Suchpfad erweitern"
+    v: "PATH=\"$HOME/bin:$PATH\""
+karten:
+  - f: "Wie setzt du die Shell-Variable ZIEL auf den Wert labor?"
+    a: ["ZIEL=labor"]
+  - f: "Welcher Befehl macht die Shell-Variable ZIEL zu einer Umgebungsvariable?"
+    a: ["export ZIEL"]
+  - f: "Welcher Befehl zeigt nur die Umgebungsvariablen?"
+    a: ["env", "printenv"]
+  - f: "Welcher Befehl zeigt alle Variablen der Shell, auch die nicht exportierten?"
+    a: ["set"]
+  - f: "Welcher Befehl entfernt die Variable ZIEL?"
+    a: ["unset ZIEL"]
+  - f: "Wie hängst du ~/bin vorne an den Suchpfad an?"
+    a: ["PATH=\"$HOME/bin:$PATH\"", "PATH=$HOME/bin:$PATH", "export PATH=\"$HOME/bin:$PATH\"", "export PATH=$HOME/bin:$PATH", "PATH=~/bin:$PATH"]
+  - f: "Wie startest du einen Befehl mit einer völlig leeren Umgebung?"
+    a: ["env -i befehl", "env -i"]
+  - f: "Welche Variable zählt, wie tief Shells ineinander stecken?"
+    a: ["SHLVL", "$SHLVL"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+
+Willkommen in Prüfung 102. Dein erstes eigenes Messprogramm liegt schon in `~/bin`, aber die Shell findet es nicht. Und eine Einstellung, die du gerade gesetzt hast, kommt bei einem Skript nie an. **Deine Mission: Verstehe, welche Variablen eine Shell an ihre Kinder weitergibt und wie der Suchpfad funktioniert.** Lernziel 105.1.
+
+## Wer erbt was?
+
+<Karte nr={1} titel="Shell-Variablen und Umgebungsvariablen">
+Jede Shell hat zwei Sorten von Variablen:
+
+- **Shell-Variablen** gelten nur in dieser einen Shell. `PROJEKT=messung` legt so eine an. Um das Gleichheitszeichen darf kein Leerzeichen stehen.
+- **Umgebungsvariablen** gibt die Shell an jedes Programm weiter, das sie startet, also auch an Skripte und neue Shells. `export PROJEKT` macht aus einer Shell-Variable eine Umgebungsvariable. `export PROJEKT=messung` macht beides in einem Schritt.
+
+Die Weitergabe geht nur in eine Richtung: vom Elternprozess zum Kind, als **Kopie**. Ändert ein Kind eine Variable, merkt die Eltern-Shell davon nichts. Darum kann ein Skript nie die Variablen der Shell ändern, aus der du es startest. Das geht nur, wenn die Shell die Datei selbst liest, mit `source` (Mission 5.2).
+
+Zum Anschauen:
+
+| Befehl | zeigt |
+|---|---|
+| `echo $PROJEKT` | den Wert einer Variable |
+| `env` oder `printenv` | alle Umgebungsvariablen |
+| `printenv PATH` | eine Umgebungsvariable |
+| `set` | alle Variablen der Shell (auch nicht exportierte) und alle Funktionen |
+
+`unset PROJEKT` entfernt die Variable ganz. Jede neue Shell erhöht übrigens `SHLVL` um eins. Daran siehst du, wie tief du gerade steckst.
+</Karte>
+
+<Merke>VAR=wert gilt nur in dieser Shell. export VAR gibt sie an Kinder weiter, als Kopie. Kinder können die Eltern nie ändern. env zeigt die Umgebung, set alles.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: Variablen" fragen={[
+  { frage: 'Du tippst „PROJEKT=messung“ und startest dann ein Skript, das „echo $PROJEKT“ ausführt. Was gibt das Skript aus?', richtig: 'Eine leere Zeile, weil PROJEKT nicht exportiert ist', falsch: ['messung', 'Eine Fehlermeldung „Variable nicht gesetzt“'], erklaerung: 'Ein Skript läuft in einer neuen Shell und bekommt nur die Umgebung.' },
+  { frage: 'Ein Skript setzt mit „export ZIEL=/srv“ eine Variable. Was siehst du danach in deiner Shell mit „echo $ZIEL“?', richtig: 'Nichts, das Skript hat nur seine eigene Kopie geändert', falsch: ['/srv', '/srv, aber erst nach einem neuen Login'], erklaerung: 'Vererbung geht nur von den Eltern zum Kind.' },
+]} />
+
+<Terminal id="vererben" titel="Terminal: Was kommt beim Kind an?" aufgaben={[
+  { text: 'Lege die Shell-Variable <code>PROJEKT</code> mit dem Wert <code>messung</code> an.', zustand: 'var:PROJEKT~^messung$' },
+  { text: 'Starte mit <code>bash</code> eine neue Shell.', zustand: 'shlvl=2' },
+  { text: 'Lass dir dort <code>PROJEKT</code> und <code>SHLVL</code> ausgeben.', befehl: '^echo .*\\$\\{?PROJEKT', frage: 'Kennt die neue Shell den Wert messung? (ja/nein)', antwort: ['nein'] },
+  { text: 'Kehre mit <code>exit</code> in deine erste Shell zurück.', zustand: 'shlvl=1' },
+  { text: 'Exportiere <code>PROJEKT</code>.', zustand: 'export:PROJEKT' },
+  { text: 'Starte wieder eine neue Shell, setze dort <code>PROJEKT=anders</code> und kehre zurück.', befehl: '^PROJEKT=anders$', zustand: 'shlvl=1' },
+  { text: 'Prüf den Wert in deiner ersten Shell.', befehl: '^echo .*\\$\\{?PROJEKT', frage: 'Welchen Wert hat PROJEKT hier?', antwort: ['messung'] },
+  { text: 'Such <code>PROJEKT</code> in der Umgebung, mit env und grep.', befehl: '^env \\| grep ' },
+  { text: 'Entferne die Variable wieder.', zustand: 'nicht:export:PROJEKT && nicht:var:PROJEKT~.' },
+]} />
+
+## Der Suchpfad
+
+<Karte nr={2} titel="PATH und Variablen für einen einzigen Aufruf">
+Tippst du einen Befehl ohne Schrägstrich, sucht die Shell ihn in den Verzeichnissen aus **PATH**, von links nach rechts. Der erste Treffer gewinnt. Das aktuelle Verzeichnis steht absichtlich nicht drin. Darum startest du ein Skript im aktuellen Verzeichnis mit `./skript`.
+
+Eigene Programme legst du nach `~/bin` und hängst das Verzeichnis an den Pfad an:
+
+```
+PATH="$HOME/bin:$PATH"
+```
+
+Vorne angehängt gewinnt dein Programm gegen gleichnamige Systemprogramme, hinten angehängt (`PATH="$PATH:$HOME/bin"`) verliert es. Die Anführungszeichen schützen vor Leerzeichen. Das gilt bis zum Ende der Sitzung. Dauerhaft wird es erst in einer Startdatei (Mission 5.2). Debian macht das in `~/.profile` übrigens schon selbst, sobald `~/bin` beim Login existiert.
+
+Eine Variable nur für **einen** Befehl setzt du direkt davor: `EINHEIT=mV messen`. Die Shell legt sie in die Umgebung dieses einen Programms und lässt deine eigene Shell unverändert. `env` kann noch mehr: `env -i befehl` startet mit leerer Umgebung, `env -u VAR befehl` ohne eine bestimmte Variable.
+</Karte>
+
+<Merke>PATH wird von links durchsucht, . steht nicht drin. PATH="$HOME/bin:$PATH" hängt vorne an. VAR=wert befehl gilt nur für diesen Aufruf.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: PATH" fragen={[
+  { frage: 'In ~/bin und in /usr/bin liegt je ein Programm namens „messen“. PATH ist „/home/lena/bin:/usr/bin:/bin“. Welches startet?', richtig: '/home/lena/bin/messen', falsch: ['/usr/bin/messen', 'Die Shell fragt nach'], erklaerung: 'Der erste Treffer von links gewinnt.' },
+  { frage: 'Was bewirkt „LANG=C ls /gibtsnicht“?', richtig: 'ls läuft mit englischen Meldungen, deine Shell behält ihr LANG.', falsch: ['LANG bleibt danach dauerhaft C.', 'Die Shell meldet einen Syntaxfehler.'], erklaerung: 'Eine Zuweisung vor dem Befehl gilt nur für diesen einen Aufruf.' },
+]} />
+
+<Terminal id="pfad" titel="Terminal: Das eigene Programm finden" welt={{ dateien: { '/home/lena/bin/messen': '#!/bin/bash\necho "Messung läuft, Einheit: ${EINHEIT:-V}"\n' }, rechte: { '/home/lena/bin/messen': '755' } }} aufgaben={[
+  { text: 'Lass dir deinen Suchpfad anzeigen.', befehl: '^(echo "?\\$\\{?PATH\\}?"?|printenv PATH)$', frage: 'Steht /home/lena/bin darin? (ja/nein)', antwort: ['nein'] },
+  { text: 'Versuch, <code>messen</code> zu starten.', befehl: '^messen$', auchFehler: true },
+  { text: 'Hänge <code>$HOME/bin</code> vorne an den Suchpfad an.', zustand: 'var:PATH~^/home/lena/bin:' },
+  { text: 'Starte <code>messen</code> noch einmal.', befehl: '^messen$', frage: 'Welche Einheit meldet es?', antwort: ['V'] },
+  { text: 'Starte <code>messen</code> so, dass es nur dieses eine Mal die Einheit <code>mV</code> bekommt.', befehl: '^EINHEIT=mV messen$' },
+  { text: 'Prüf, ob deine Shell <code>EINHEIT</code> jetzt kennt.', befehl: '^echo .*\\$\\{?EINHEIT', frage: 'Hat EINHEIT in deiner Shell einen Wert? (ja/nein)', antwort: ['nein'] },
+  { text: 'Starte <code>bash -c \'echo $HOME\'</code> mit völlig leerer Umgebung.', befehl: '^env -i bash -c ' },
+]} />
+
+<Labor id="labor" titel="Aufgabe im Labor: Vererbung in echt"
+  aufgabe="Führe die drei Zeilen in deiner Debian-VM nacheinander aus und füge die gesamte Ausgabe ein."
+  befehl={"A=1; export B=2\nbash -c 'echo \"A=[$A] B=[$B] SHLVL=$SHLVL\"'\nenv | grep -c ="}
+  muster={["^A=\\[\\] B=\\[2\\] SHLVL=2$", "^\\d+$"]}
+  erfolg="A kommt beim Kind nicht an, B schon. Die letzte Zahl ist die Größe deiner Umgebung." />
+
+<Hinweis titel="Prüfungstipp">
+Typische Fragen: Warum sieht ein Skript eine Variable nicht? (nicht exportiert) Was zeigt set, was env? (set auch Shell-Variablen und Funktionen) Wie wird PATH erweitert? Achte auf das Leerzeichen-Verbot um das Gleichheitszeichen und darauf, dass ein Kind die Eltern nie ändern kann.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Welche Zeile setzt eine Variable falsch?', richtig: 'ZIEL = /srv', falsch: ['ZIEL=/srv', 'export ZIEL=/srv'], erklaerung: 'Mit Leerzeichen sucht die Shell einen Befehl namens ZIEL.' },
+  { frage: 'Welcher Befehl zeigt auch Shell-Funktionen an?', richtig: 'set', falsch: ['env', 'printenv'], erklaerung: 'env und printenv kennen nur die Umgebung.' },
+  { frage: 'Warum steht das aktuelle Verzeichnis nicht im PATH?', richtig: 'Sonst könnte ein fremdes Programm im aktuellen Verzeichnis einen Systembefehl ersetzen.', falsch: ['Weil PATH nur absolute Pfade erlaubt', 'Weil Skripte sonst nicht starten'], erklaerung: 'Ein „ls“ im Ordner eines Angreifers würde sonst statt /usr/bin/ls laufen.' },
+]} />

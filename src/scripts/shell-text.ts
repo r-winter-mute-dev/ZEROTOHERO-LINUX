@@ -52,6 +52,9 @@ export function regexAus(muster: string, o: { ere?: boolean; fest?: boolean; i?:
       }
       if (!o.ere && '(){}|+?'.includes(c)) { js += '\\' + c; continue; }  // BRE: ( ) { } | + ? sind normale Zeichen
       if (c === '/') { js += '\\/'; continue; }
+      // BRE: ^ und $ sind nur am Anfang bzw. Ende Anker, sonst normale Zeichen
+      if (!o.ere && c === '$' && i < muster.length - 1 && !(muster[i + 1] === '\\' && muster[i + 2] === ')')) { js += '\\$'; continue; }
+      if (!o.ere && c === '^' && i > 0 && !(muster[i - 1] === '(' && muster[i - 2] === '\\')) { js += '\\^'; continue; }
       js += c;
     }
   }
@@ -732,7 +735,8 @@ export function textBefehle(h: TextHelfer): Record<string, Befehl> {
     }
     const warnung = art !== 'grep' ? `${art}: warning: ${art} is obsolescent; using grep ${art === 'egrep' ? '-E' : '-F'}` : '';
     const fehlerText = [warnung, ...(flags.has('-s') ? [] : err)].filter(Boolean);
-    return { out: out.join('\n'), err: fehlerText.length ? fehlerText.join('\n') : undefined, code: err.length && !treffer ? 2 : treffer || (flags.has('-L') && out.length) ? 0 : 1 };
+    const still = flags.has('-q') || a.includes('--quiet') || a.includes('--silent');
+    return { out: still ? '' : out.join('\n'), err: fehlerText.length ? fehlerText.join('\n') : undefined, code: still && treffer ? 0 : err.length && !treffer ? 2 : treffer || (flags.has('-L') && out.length) ? 0 : 1 };
   };
   b.grep = (w, a, i, r) => grepKern(w, a, i, r, 'grep');
   b.egrep = (w, a, i, r) => grepKern(w, a, i, r, 'egrep');

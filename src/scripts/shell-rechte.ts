@@ -182,9 +182,22 @@ export function rechteBefehle(h: RechteHelfer): Record<string, Befehl> {
   b.unlink = (w, a, _i, root) => { const p = pfad(w, a[0] ?? ''); if (!(p in w.fs)) return fehler(`unlink: '${a[0] ?? ''}' kann nicht gelöscht werden: Datei oder Verzeichnis nicht gefunden`); if (w.fs[p] === null) return fehler(`unlink: '${a[0]}' kann nicht gelöscht werden: Ist ein Verzeichnis`); void root; delete w.fs[p]; return ok(); };
   b.stat = (w, a) => {
     const out: string[] = []; const err: string[] = [];
-    for (const d of a.filter((x) => !x.startsWith('-'))) {
+    // -c FORMAT bzw. --format=FORMAT, --printf=FORMAT
+    let format: string | undefined; const namen: string[] = [];
+    for (let i = 0; i < a.length; i++) { const x = a[i]; if (x === '-c' || x === '--format' || x === '--printf') format = a[++i] ?? ''; else if (x.startsWith('--format=') || x.startsWith('--printf=')) format = x.slice(x.indexOf('=') + 1); else if (!x.startsWith('-')) namen.push(x); }
+    const uid = (n: string) => String(n === 'root' ? 0 : n === 'lena' ? 1000 : n === 'max' ? 1001 : n === 'users' ? 100 : 1001);
+    for (const d of namen) {
       const p = pfad(w, d); if (!(p in w.fs)) { err.push(`stat: '${d}' kann nicht statusermittelt werden: Datei oder Verzeichnis nicht gefunden`); continue; }
       const m = meta(w, p); const c = w.fs[p]; const link = typeof c === 'string' && c.startsWith('-> ');
+      if (format !== undefined) {
+        const modus = link ? 0o777 : m.mode;
+        out.push(format.replace(/%([aAnsUGugihFy%])/g, (_, k) => ({
+          a: (modus & 0o7777).toString(8), A: (c === null ? 'd' : link ? 'l' : '-') + rwx(modus), n: d, s: String(groesse(c)), U: m.owner, G: m.group, u: uid(m.owner), g: uid(m.group),
+          i: String(inode(w, p)), h: String(linkZahl(w, p)), F: c === null ? 'Verzeichnis' : link ? 'symbolische Verknüpfung' : groesse(c) ? 'reguläre Datei' : 'reguläre leere Datei',
+          y: new Date(m.mtime + 3600000).toISOString().replace('T', ' ').slice(0, 19) + '.000000000 +0100', '%': '%',
+        } as Record<string, string>)[k]).replace(/\\n/g, '\n'));
+        continue;
+      }
       const typ = c === null ? 'Verzeichnis' : link ? 'symbolische Verknüpfung' : groesse(c) ? 'reguläre Datei' : 'reguläre leere Datei';
       const zeit = new Date(m.mtime + 3600000).toISOString().replace('T', ' ').slice(0, 19) + '.000000000 +0100';
       out.push(`  Datei: ${d}${link ? ' -> ' + c!.slice(3) : ''}\n  Größe: ${groesse(c)}\tBlöcke: ${Math.ceil(groesse(c) / 4096) * 8}\tEA Block: 4096   ${typ}\nGerät: ${geraetVon(w, p) === '/dev/sdb1' ? '8/17' : '259/2'}\tInode: ${inode(w, p)}\tVerknüpfungen: ${linkZahl(w, p)}\nZugriff: (${(link ? 0o777 : m.mode).toString(8).padStart(4, '0')}/${(c === null ? 'd' : link ? 'l' : '-') + rwx(link ? 0o777 : m.mode)})  Uid: (${String(m.owner === 'root' ? 0 : m.owner === 'lena' ? 1000 : 1001).padStart(5)}/${m.owner.padStart(8)})   Gid: (${String(m.group === 'root' ? 0 : m.group === 'lena' ? 1000 : 1001).padStart(5)}/${m.group.padStart(8)})\nZugriff    : ${zeit}\nModifiziert: ${zeit}\nGeändert   : ${zeit}\n Geburt    : ${zeit}`);
