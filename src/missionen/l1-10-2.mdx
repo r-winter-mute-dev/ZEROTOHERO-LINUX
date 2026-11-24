@@ -1,0 +1,176 @@
+---
+id: l1-10-2
+checks:
+  - id: anmeldungen
+  - id: grenzen
+  - id: k1
+  - id: sudoregel
+  - id: sudo
+  - id: ausgesperrt
+  - id: k2
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "Wer ist da, wer war da?"
+    v: "who · w · last (aus /var/log/wtmp) · last max · last reboot · lastb (root, Fehlversuche aus /var/log/btmp) · lastlog"
+  - t: "Grenzen der Shell"
+    v: "ulimit -a · ulimit -n (offene Dateien) · ulimit -u (Prozesse) · -S weich · -H hart · nur root darf hart erhöhen"
+  - t: "Grenzen beim Anmelden"
+    v: "/etc/security/limits.conf: <domain> <soft|hard|-> <item> <wert> · @gruppe · * · nproc, nofile, maxlogins, core"
+  - t: "su und sudo"
+    v: "su - (root-Passwort) · sudo befehl (eigenes Passwort, Regel in /etc/sudoers) · sudo -i · sudo -l · sudo -l -U max"
+  - t: "sudoers"
+    v: "nur mit visudo bearbeiten · visudo -c prüft · visudo -f /etc/sudoers.d/datei · wer rechner=(als) [NOPASSWD:] befehle · %gruppe"
+karten:
+  - f: "Welcher Befehl zeigt, wer gerade angemeldet ist und was er tut?"
+    a: ["w"]
+  - f: "Aus welcher Datei liest last die Anmeldungen?"
+    a: ["/var/log/wtmp"]
+  - f: "Welcher Befehl zeigt fehlgeschlagene Anmeldungen?"
+    a: ["lastb"]
+  - f: "Mit welchem Befehl zeigst du alle Grenzen der aktuellen Shell?"
+    a: ["ulimit -a"]
+  - f: "In welcher Datei legst du Grenzen für Benutzer beim Anmelden fest?"
+    a: ["/etc/security/limits.conf"]
+  - f: "Wie heißt das Element in limits.conf für die Zahl der Prozesse?"
+    a: ["nproc"]
+  - f: "Mit welchem Befehl bearbeitest du /etc/sudoers sicher?"
+    a: ["visudo"]
+  - f: "Mit welchem Befehl zeigst du, was du per sudo darfst?"
+    a: ["sudo -l"]
+  - f: "Wessen Passwort fragt sudo ab?"
+    a: ["das eigene", "das des aufrufenden benutzers", "eigenes"]
+  - f: "Wessen Passwort fragt su ab?"
+    a: ["das des zielkontos", "root", "das von root", "des zielbenutzers"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Lueckentext from '../components/Lueckentext.astro';
+
+Zum Audit gehört auch die Frage, wer sich wann angemeldet hat und wer was darf. Das Messteam soll den Messdienst neu starten können, ohne volle Root-Rechte zu bekommen. **Deine Mission: Lies die Anmeldespuren, setze Grenzen für Benutzer und vergib Rechte mit sudo, ohne dich selbst auszusperren.** Lernziel 110.1.
+
+## Anmeldungen
+
+<Karte nr={1} titel="who, w, last, lastb">
+- **who** zeigt, wer gerade angemeldet ist, an welchem Terminal und woher.
+- **w** zeigt dasselbe und zusätzlich die Last und was jeder gerade ausführt.
+- **last** liest **/var/log/wtmp** und listet alle Anmeldungen und Neustarts, die neuesten zuerst. `last max` zeigt nur max, `last reboot` die Neustarts, `last -5` die letzten fünf. „still logged in“ heißt: noch angemeldet.
+- **lastb** liest **/var/log/btmp**, die fehlgeschlagenen Anmeldungen. Nur root darf das lesen. Viele Fehlversuche für root oder admin aus dem Internet sind ein Zeichen für Passwortraten.
+- **lastlog** zeigt für jedes Konto die letzte Anmeldung. Systemkonten stehen bei „Noch nie angemeldet“. Steht dort bei einem Systemkonto eine Anmeldung, ist das verdächtig.
+
+Die Dateien sind binär, `cat` hilft nicht. Wer sie löscht, verwischt Spuren. Darum gehören sie in jedes Backup und in die zentrale Protokollierung.
+</Karte>
+
+<Terminal id="anmeldungen" titel="Terminal: Anmeldespuren" aufgaben={[
+  { text: 'Lass dir zeigen, wer gerade angemeldet ist und was er tut.', befehl: '^w$', frage: 'Was führt max gerade aus?', antwort: ['make -j8', 'make'] },
+  { text: 'Lass dir die letzten Anmeldungen von max zeigen.', befehl: '^last max$', frage: 'Von welcher Adresse meldet sich max an?', antwort: ['192.168.1.17'] },
+  { text: 'Lass dir als root die fehlgeschlagenen Anmeldungen zeigen.', befehl: '^lastb$', frage: 'Von welcher Adresse kommen die meisten Fehlversuche?', antwort: ['203.0.113.66'] },
+]} />
+
+## Grenzen
+
+<Karte nr={2} titel="ulimit und limits.conf">
+Ein Programm mit einem Fehler kann unbegrenzt Prozesse starten (eine „Fork-Bombe“) oder Speicher fressen, bis der Rechner steht. **Grenzen** (resource limits) verhindern das pro Prozess und pro Benutzer.
+
+**ulimit** ist in die Shell eingebaut und gilt für die Shell und alles, was sie startet:
+
+| Befehl | Wirkung |
+|---|---|
+| `ulimit -a` | alle Grenzen zeigen |
+| `ulimit -n` | höchstens offene Dateien (weiche Grenze) |
+| `ulimit -Hn` | dieselbe, harte Grenze |
+| `ulimit -u 200` | höchstens 200 Prozesse |
+| `ulimit -c 0` | keine Speicherabbilder (core dumps) |
+| `ulimit -v 2000000` | höchstens etwa 2 GB virtueller Speicher (in KB) |
+
+Es gibt zwei Grenzen. Die **weiche** gilt, jeder darf sie bis zur **harten** anheben. Die harte darf jeder senken, aber nur root erhöhen. Ohne `-S` oder `-H` setzt ulimit beide.
+
+Dauerhaft für Benutzer setzt man Grenzen in **/etc/security/limits.conf** oder in einer Datei unter `/etc/security/limits.d/`. Das PAM-Modul `pam_limits` liest sie beim Anmelden:
+
+```
+#<domain>   <type>  <item>      <value>
+@messteam   hard    nproc       200
+max         -       maxlogins   2
+*           soft    core        0
+```
+
+`<domain>` ist ein Benutzer, `@gruppe` oder `*` für alle. `soft`, `hard` oder `-` für beides. Wichtige Elemente: `nproc` (Prozesse), `nofile` (offene Dateien), `maxlogins` (gleichzeitige Anmeldungen), `core`, `as` (Adressraum), `cpu` (Minuten). Die Änderung gilt ab der nächsten Anmeldung.
+</Karte>
+
+<Terminal id="grenzen" titel="Terminal: Grenzen setzen" aufgaben={[
+  { text: 'Lass dir alle Grenzen deiner Shell zeigen.', befehl: '^ulimit -a$', frage: 'Wie viele Dateien darfst du gleichzeitig offen haben?', antwort: ['1024'] },
+  { text: 'Lass dir die harte Grenze für offene Dateien zeigen.', befehl: '^ulimit -Hn$|^ulimit -H -n$|^ulimit -n -H$' },
+  { text: 'Begrenz die Zahl der Prozesse in dieser Shell auf 500.', zustand: 'limit:u=500' },
+  { text: 'Trag in <code>/etc/security/limits.conf</code> ein: Die Gruppe messteam darf höchstens 200 Prozesse haben, als harte Grenze.', zustand: 'datei:/etc/security/limits.conf~^@messteam\\s+hard\\s+nproc\\s+200\\s*$' },
+  { text: 'Und max darf höchstens zweimal gleichzeitig angemeldet sein, weich und hart.', zustand: 'datei:/etc/security/limits.conf~^max\\s+-\\s+maxlogins\\s+2\\s*$' },
+]} />
+
+<Merke>who, w: jetzt. last: wtmp, alle Anmeldungen und Neustarts. lastb: btmp, Fehlversuche, nur root. ulimit -a zeigen, -S weich, -H hart, nur root erhöht hart. Dauerhaft: /etc/security/limits.conf mit domain type item value, gilt ab der nächsten Anmeldung.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: Grenzen" fragen={[
+  { frage: 'lena setzt ulimit -Hu 100 und will danach ulimit -u 300. Was passiert?', richtig: 'Es schlägt fehl: Die harte Grenze ist 100, und nur root darf sie erhöhen.', falsch: ['Es klappt, weil weiche Grenzen beliebig sind.', 'Die harte Grenze wird automatisch angehoben.'], erklaerung: 'Erst eine neue Anmeldung bringt die Standardwerte zurück.' },
+  { frage: 'Was bedeutet die Zeile @dev - nofile 4096 in limits.conf?', richtig: 'Mitglieder der Gruppe dev dürfen höchstens 4096 Dateien offen haben, weich und hart.', falsch: ['Der Benutzer dev darf 4096 Dateien anlegen.', 'Die Gruppe dev darf 4096 Prozesse starten.'], erklaerung: '- heißt beide Grenzen.' },
+]} />
+
+## su und sudo
+
+<Karte nr={3} titel="Root-Rechte ausleihen">
+- **su** wechselt das Konto. Es fragt nach dem Passwort des **Zielkontos**, bei `su -` also nach dem Root-Passwort. Wer su benutzen darf, kennt das Root-Passwort und kann alles. `su -` startet eine Login-Shell mit der Umgebung von root, `su` ohne Strich behält die eigene Umgebung.
+- **sudo** führt einen einzelnen Befehl als root aus. Es fragt nach dem **eigenen** Passwort und prüft in **/etc/sudoers**, ob du das darfst. Jeder Aufruf wird protokolliert (im Journal bzw. in /var/log/auth.log). Auf Debian und Ubuntu ist das Root-Konto oft gesperrt, und alle Admins arbeiten nur mit sudo.
+
+Eine Regel in /etc/sudoers hat diese Form:
+
+```
+wer     rechner = (als_wer)  [NOPASSWD:]  befehle
+lena    ALL     = (ALL:ALL)               ALL
+%sudo   ALL     = (ALL:ALL)               ALL
+%messteam ALL   = (root)     NOPASSWD:    /usr/bin/systemctl restart messd
+```
+
+`%` steht für eine Gruppe. Befehle immer mit vollem Pfad, sonst ist die Regel ungültig. `NOPASSWD:` erspart die Passworteingabe. **/etc/sudoers bearbeitest du nur mit `visudo`.** Es öffnet eine Kopie und prüft vor dem Speichern die Syntax. Ein einziger Tippfehler in /etc/sudoers oder einer Datei in /etc/sudoers.d/ sperrt sonst **alle** aus sudo aus, und auf einem System ohne Root-Passwort kommst du dann nur noch über den Rettungsmodus hinein. Eigene Regeln gehören in eine Datei unter `/etc/sudoers.d/`: `visudo -f /etc/sudoers.d/messteam`. Dateinamen mit einem Punkt darin werden dort ignoriert. `visudo -c` prüft alle Dateien, `sudo -l` zeigt deine Rechte, `sudo -l -U max` die von max.
+</Karte>
+
+<Lueckentext id="sudoregel" titel="Lückentext: Eine sudo-Regel" aufgabe="Ergänze die Regel: Die Gruppe messteam darf auf allen Rechnern als root ohne Passwort den Messdienst neu starten."
+  code={`___messteam   ___ = (root) ___: /usr/bin/systemctl restart messd`}
+  luecken={[{ loesungen: ['%'] }, { loesungen: ['ALL'] }, { loesungen: ['NOPASSWD'] }]} />
+
+<Terminal id="sudo" titel="Terminal: Rechte für das Messteam" aufgaben={[
+  { text: 'Zeig, was du selbst per sudo darfst.', befehl: '^sudo -l$', frage: 'Was darfst du? (wie in der letzten Zeile)', antwort: ['(ALL:ALL) ALL', 'ALL'] },
+  { text: 'Leg die Gruppe <code>messteam</code> an und nimm max auf.', zustand: 'gruppe-da:messteam && mitglied:messteam=max' },
+  { text: 'Schreib mit visudo die Datei <code>/etc/sudoers.d/messteam</code>: Die Gruppe messteam darf als root ohne Passwort <code>/usr/bin/systemctl restart messd</code> ausführen.', zustand: 'sudoers:gueltig && sudo:max=/usr/bin/systemctl restart messd && keinsudo:max=/usr/bin/ls', tipp: 'sudo visudo -f /etc/sudoers.d/messteam, dann i, die Regel tippen, Esc und :wq' },
+  { text: 'Prüf mit visudo alle sudoers-Dateien.', befehl: '^visudo -c$' },
+  { text: 'Lass dir zeigen, was max jetzt darf.', befehl: '^sudo -l -U max$|^sudo -U max -l$' },
+]} />
+
+<Terminal id="ausgesperrt" titel="Terminal: Jemand war ohne visudo da" welt={{ root: true, sicherheit: { sudoersKaputt: true } }} aufgaben={[
+  { text: 'Ein Kollege hat <code>/etc/sudoers.d/messteam</code> mit einem normalen Editor geschrieben. Seitdem geht sudo für niemanden mehr. Zum Glück hast du noch eine Root-Shell offen. Prüf die sudoers-Dateien.', befehl: '^visudo -c$', auchFehler: true, frage: 'In welcher Zeile welcher Datei steckt der Fehler? (Zeilennummer)', antwort: ['2'] },
+  { text: 'Lass dir die Datei zeigen. Was fehlt?', befehl: '^cat /etc/sudoers\\.d/messteam$' },
+  { text: 'Repariere die Regel. Hinter NOPASSWD gehört ein Doppelpunkt.', zustand: 'sudoers:gueltig && datei:/etc/sudoers.d/messteam~NOPASSWD:\\s*/usr/bin/systemctl restart messd', tipp: 'visudo -f /etc/sudoers.d/messteam oder sed -i \'s/NOPASSWD /NOPASSWD: /\' /etc/sudoers.d/messteam, danach visudo -c' },
+]} />
+
+<Merke>su: Passwort des Zielkontos. sudo: eigenes Passwort plus Regel in /etc/sudoers, wird protokolliert. Regel: wer rechner=(als) [NOPASSWD:] /voller/pfad. %gruppe. Nur visudo, eigene Regeln in /etc/sudoers.d/. Ein Syntaxfehler sperrt alle aus.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: sudo" fragen={[
+  { frage: 'Warum soll man /etc/sudoers nur mit visudo bearbeiten?', richtig: 'visudo prüft die Syntax vor dem Speichern. Ein Fehler würde sonst sudo für alle sperren.', falsch: ['Andere Editoren können die Datei nicht öffnen.', 'visudo verschlüsselt die Datei.'], erklaerung: 'Es sperrt die Datei auch gegen gleichzeitiges Bearbeiten.' },
+]} />
+
+<Labor id="labor" titel="Aufgabe im Labor: Spuren und Rechte in der VM"
+  aufgabe="Lass dir in deiner VM die letzten Anmeldungen, deine Grenzen und deine sudo-Rechte zeigen. Füge die Ausgabe ein."
+  befehl={"last -3\nulimit -n -u\nsudo -l | tail -2\nsudo visudo -c"}
+  muster={["wtmp", "open files|offene Dateien|^\\d+$", "parsed OK|Analyse OK"]}
+  erfolg="Auf Debian ist dein Konto meist über die Gruppe sudo berechtigt. Das zeigt die Zeile (ALL : ALL) ALL." />
+
+<Hinweis titel="Prüfungstipp">
+Merk dir die Dateien hinter last (wtmp) und lastb (btmp), den Aufbau von limits.conf mit seinen vier Spalten, die Optionen -S und -H von ulimit und die Form einer sudoers-Regel. Häufig gefragt: Wessen Passwort fragen su und sudo ab?
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Welcher Befehl listet die Neustarts des Systems?', richtig: 'last reboot', falsch: ['lastb reboot', 'w -r'], erklaerung: 'reboot ist in wtmp ein Pseudobenutzer.' },
+  { frage: 'Welche Zeile in /etc/sudoers.d/ ist gültig?', richtig: 'max ALL=(root) /usr/bin/apt update', falsch: ['max ALL=(root) apt update', 'max = ALL /usr/bin/apt'], erklaerung: 'Befehle brauchen einen vollen Pfad.' },
+  { frage: 'Wer darf eine harte Grenze erhöhen?', richtig: 'Nur root', falsch: ['Jeder Benutzer für seine eigenen Prozesse', 'Mitglieder der Gruppe sudo ohne sudo'], erklaerung: 'Senken darf sie jeder.' },
+]} />

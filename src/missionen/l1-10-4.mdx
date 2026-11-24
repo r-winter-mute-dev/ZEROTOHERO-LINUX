@@ -1,0 +1,198 @@
+---
+id: l1-10-4
+checks:
+  - id: k1
+  - id: erstkontakt
+  - id: schluessel
+  - id: k2
+  - id: agent
+  - id: hostkey
+  - id: tunnel
+  - id: server
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "Verbinden"
+    v: "ssh benutzer@rechner · ssh -p 2222 · ssh rechner befehl · ssh -i ~/.ssh/schluessel · ~/.ssh/config: Host, HostName, User, Port, IdentityFile"
+  - t: "Schlüssel"
+    v: "ssh-keygen -t ed25519 · ~/.ssh/id_ed25519 (privat, 600) und .pub · ssh-copy-id rechner · Server: ~/.ssh/authorized_keys"
+  - t: "Typen"
+    v: "ed25519 (empfohlen) · ecdsa · rsa (mind. 3072 Bit) · dsa (veraltet, abgeschaltet)"
+  - t: "Host-Schlüssel"
+    v: "Server: /etc/ssh/ssh_host_*_key(.pub) · Client merkt sie in ~/.ssh/known_hosts und /etc/ssh/ssh_known_hosts · ssh-keygen -R rechner · ssh-keygen -lf datei.pub"
+  - t: "Agent"
+    v: "eval $(ssh-agent) · ssh-add · ssh-add -l · ssh-add -D"
+  - t: "Tunnel"
+    v: "ssh -L 8080:localhost:80 rechner · ssh -R 9000:localhost:22 rechner · -N ohne Befehl · -f Hintergrund · ssh -X / -Y für X11"
+  - t: "Server"
+    v: "/etc/ssh/sshd_config und sshd_config.d/*.conf · PermitRootLogin no · PasswordAuthentication no · sshd -t prüft · systemctl restart ssh"
+karten:
+  - f: "Mit welchem Befehl erzeugst du ein Ed25519-Schlüsselpaar?"
+    a: ["ssh-keygen -t ed25519"]
+  - f: "In welcher Datei auf dem Server stehen die erlaubten öffentlichen Schlüssel?"
+    a: ["~/.ssh/authorized_keys", "authorized_keys"]
+  - f: "Mit welchem Befehl überträgst du deinen öffentlichen Schlüssel auf einen Server?"
+    a: ["ssh-copy-id", "ssh-copy-id rechner"]
+  - f: "Welche Rechte braucht der private Schlüssel?"
+    a: ["600", "0600", "rw-------"]
+  - f: "Wo merkt sich der Client die Host-Schlüssel der Server?"
+    a: ["~/.ssh/known_hosts", "known_hosts"]
+  - f: "Wo liegen die Host-Schlüssel des Servers?"
+    a: ["/etc/ssh", "/etc/ssh/ssh_host_*_key", "/etc/ssh/"]
+  - f: "Mit welchem Befehl entfernst du einen veralteten Eintrag aus known_hosts?"
+    a: ["ssh-keygen -R rechner", "ssh-keygen -R"]
+  - f: "Mit welchen zwei Befehlen startest du den Agenten und lädst deinen Schlüssel?"
+    a: ["eval $(ssh-agent) und ssh-add", "ssh-agent und ssh-add", "eval $(ssh-agent); ssh-add"]
+  - f: "Wie leitest du lokal Port 8080 auf Port 80 von labor2 weiter?"
+    a: ["ssh -L 8080:localhost:80 labor2"]
+  - f: "Welche Option leitet X11-Fenster durch SSH?"
+    a: ["-X", "-x", "-Y"]
+  - f: "Welche Option in sshd_config verbietet die Anmeldung als root?"
+    a: ["PermitRootLogin no"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+
+Telnet ist weg. Ab jetzt meldet sich jeder per SSH an, am besten mit Schlüssel statt Passwort. **Deine Mission: Melde dich bei labor2 an, richte Schlüssel und den Agenten ein, erkenne einen geänderten Host-Schlüssel, baue einen Tunnel und härte den SSH-Server von werkstatt.** Lernziel 110.3.
+
+## Die erste Verbindung
+
+<Karte nr={1} titel="Wie SSH Vertrauen aufbaut">
+SSH verschlüsselt die ganze Sitzung. Vorher müssen sich beide Seiten ausweisen:
+
+1. **Der Server zeigt seinen Host-Schlüssel.** Jeder SSH-Server hat eigene Schlüsselpaare in `/etc/ssh/ssh_host_ed25519_key`, `…_ecdsa_key` und `…_rsa_key`, jeweils mit `.pub`. Sie entstehen bei der Installation. Beim ersten Kontakt kennt der Client den Schlüssel nicht und zeigt seinen **Fingerabdruck**: „The authenticity of host … can't be established“. Wer sicher gehen will, vergleicht den Fingerabdruck mit dem, den der Admin des Servers mit `ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub` abliest. Mit `yes` speichert der Client den Schlüssel in **~/.ssh/known_hosts**. Systemweit bekannte Schlüssel stehen in `/etc/ssh/ssh_known_hosts`. Debian speichert die Namen gehasht (`HashKnownHosts yes`), darum steht in known_hosts `|1|…` statt `labor2`.
+2. **Der Benutzer weist sich aus**, mit Passwort oder mit Schlüssel.
+
+`ssh lena@labor2` meldet lena an, `ssh labor2` nimmt den eigenen Benutzernamen. `ssh labor2 hostname` führt nur einen Befehl aus und kommt zurück. `-p 2222` wählt einen anderen Port.
+</Karte>
+
+<Terminal id="erstkontakt" titel="Terminal: Hallo labor2" aufgaben={[
+  { text: 'Führ auf labor2 den Befehl <code>hostname</code> aus. Bestätige den Host-Schlüssel mit yes. Das Passwort von lena auf labor2 ist <code>Labor2026</code>.', befehl: '^ssh (lena@)?labor2 hostname$', zustand: 'knownhost:labor2=alt' },
+  { text: 'Lass dir deine known_hosts zeigen.', befehl: '^cat ~/\\.ssh/known_hosts$|^cat /home/lena/\\.ssh/known_hosts$|^cat \\.ssh/known_hosts$', frage: 'Womit beginnt der Eintrag, weil der Name gehasht ist?', antwort: ['|1|'] },
+  { text: 'Lass dir den Fingerabdruck des eigenen Host-Schlüssels von werkstatt zeigen.', befehl: '^ssh-keygen -l ?f /etc/ssh/ssh_host_ed25519_key\\.pub$|^ssh-keygen -l -f /etc/ssh/ssh_host_ed25519_key\\.pub$' },
+]} />
+
+## Schlüssel statt Passwort
+
+<Karte nr={2} titel="Schlüsselpaare">
+Ein Passwort kann man erraten, abfangen oder auf einer gefälschten Seite eingeben. Ein **Schlüsselpaar** nicht: Der private Schlüssel verlässt nie deinen Rechner, der Server bekommt nur den öffentlichen.
+
+```
+ssh-keygen -t ed25519 -C "lena@werkstatt"
+```
+
+legt `~/.ssh/id_ed25519` (privat) und `~/.ssh/id_ed25519.pub` (öffentlich) an. Die **Passphrase** schützt den privaten Schlüssel, falls jemand die Datei stiehlt. Typen: **ed25519** (kurz, schnell, empfohlen), **ecdsa**, **rsa** (dann mindestens 3072 Bit, `-b 4096`), **dsa** (veraltet, aktuelle OpenSSH-Versionen lehnen DSA ab). Die Dateien heißen entsprechend `id_rsa`, `id_ecdsa`, `id_dsa`. Ohne `-t` erzeugt OpenSSH 9.2 auf Debian 12 einen RSA-Schlüssel.
+
+`ssh-copy-id labor2` hängt deinen öffentlichen Schlüssel auf labor2 an **~/.ssh/authorized_keys** an, ein Schlüssel pro Zeile. Ab dann fragt ssh nur noch nach der Passphrase.
+
+SSH ist streng mit Rechten. Der private Schlüssel braucht **600**, `~/.ssh` 700. Ist der Schlüssel für andere lesbar, ignoriert ssh ihn mit „UNPROTECTED PRIVATE KEY FILE“.
+</Karte>
+
+<Terminal id="schluessel" titel="Terminal: Ein Schlüssel für lena" aufgaben={[
+  { text: 'Erzeuge ein Ed25519-Schlüsselpaar am Standardort. Gib die Passphrase <code>Messwert-42</code> ein.', zustand: 'sshkey:~/.ssh/id_ed25519 && sshkeypass:~/.ssh/id_ed25519' },
+  { text: 'Lass dir die Rechte in <code>~/.ssh</code> zeigen.', befehl: '^ls -la? ~/\\.ssh/?$|^ls -la? /home/lena/\\.ssh/?$|^ls -la? \\.ssh/?$', frage: 'Welche Rechte hat id_ed25519? (oktal)', antwort: ['600', '0600'] },
+  { text: 'Übertrag den öffentlichen Schlüssel auf labor2.', zustand: 'fern:/home/lena/.ssh/authorized_keys~^ssh-ed25519 ' },
+  { text: 'Melde dich jetzt mit dem Schlüssel an und führ <code>whoami</code> aus.', befehl: '^ssh (lena@)?labor2 whoami$' },
+  { text: 'Mach den privaten Schlüssel versehentlich für alle lesbar (644) und versuch es noch einmal. Lies die Warnung, dann stell 600 wieder her.', zustand: 'modus:/home/lena/.ssh/id_ed25519=600', befehl: '^chmod (0?644|go\\+r|a\\+r) ~/\\.ssh/id_ed25519$|^chmod (0?644|go\\+r|a\\+r) /home/lena/\\.ssh/id_ed25519$|^chmod (0?644|go\\+r|a\\+r) \\.ssh/id_ed25519$' },
+]} />
+
+<Merke>Erstkontakt: Fingerabdruck prüfen, yes speichert in ~/.ssh/known_hosts. Server-Schlüssel: /etc/ssh/ssh_host_*_key. ssh-keygen -t ed25519, Passphrase setzen, ssh-copy-id rechner, landet in ~/.ssh/authorized_keys. Privater Schlüssel 600, sonst ignoriert.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: Schlüssel" fragen={[
+  { frage: 'Welche Datei gibst du an andere weiter?', richtig: '~/.ssh/id_ed25519.pub', falsch: ['~/.ssh/id_ed25519', '~/.ssh/known_hosts'], erklaerung: 'Der private Schlüssel bleibt immer bei dir.' },
+  { frage: 'Wozu dient die Datei ~/.ssh/authorized_keys auf dem Server?', richtig: 'Sie listet die öffentlichen Schlüssel, mit denen man sich als dieser Benutzer anmelden darf.', falsch: ['Sie enthält die Host-Schlüssel bekannter Server.', 'Sie enthält die Passwörter für SSH.'], erklaerung: 'Bekannte Server stehen in known_hosts.' },
+]} />
+
+## Der Agent
+
+<Karte nr={3} titel="ssh-agent und ssh-add">
+Mit Passphrase musst du sie bei jeder Verbindung eingeben. Der **ssh-agent** hält entsperrte Schlüssel im Speicher. Er gibt ihnen eine Adresse über die Variablen `SSH_AUTH_SOCK` und `SSH_AGENT_PID`. Darum startet man ihn mit **`eval $(ssh-agent)`**: ssh-agent gibt Shell-Befehle aus, die diese Variablen setzen, und eval führt sie in der aktuellen Shell aus. Danach lädt **`ssh-add`** deine Schlüssel und fragt einmal nach der Passphrase. `ssh-add -l` zeigt geladene Schlüssel, `ssh-add -D` entfernt alle. Grafische Desktops starten meist schon einen Agenten beim Anmelden.
+
+Auch GnuPG hat einen Agenten, `gpg-agent`. Er kann zusätzlich SSH-Schlüssel verwalten.
+</Karte>
+
+<Terminal id="agent" titel="Terminal: Einmal entsperren" welt={{ sicherheit: { sshVorbereitet: true } }} einleitung="Hier liegt dein Schlüssel aus der letzten Station schon bereit und ist auf labor2 eingetragen." aufgaben={[
+  { text: 'Versuch, deinen Schlüssel mit ssh-add zu laden. Es gibt noch keinen Agenten.', befehl: '^ssh-add$', auchFehler: true },
+  { text: 'Starte den Agenten so, dass die Shell ihn findet.', befehl: '^eval "?\\$\\(ssh-agent( -s)?\\)"?$|^eval `ssh-agent( -s)?`$' },
+  { text: 'Lade deinen Schlüssel in den Agenten. Die Passphrase ist <code>Messwert-42</code>.', zustand: 'agent:1' },
+  { text: 'Lass dir die geladenen Schlüssel zeigen.', befehl: '^ssh-add -l$' },
+  { text: 'Führ auf labor2 <code>uptime</code> aus. Jetzt fragt niemand mehr.', befehl: '^ssh (lena@)?labor2 uptime$' },
+]} />
+
+<Quiz id="k2" titel="Kurzcheck: Agent" fragen={[
+  { frage: 'ssh-add meldet „Could not open a connection to your authentication agent“. Was fehlt?', richtig: 'Ein laufender Agent, dessen SSH_AUTH_SOCK in der Shell gesetzt ist', falsch: ['Die Datei ~/.ssh/authorized_keys', 'Root-Rechte'], erklaerung: 'eval $(ssh-agent) behebt das.' },
+]} />
+
+## Wenn der Host-Schlüssel sich ändert
+
+<Terminal id="hostkey" titel="Terminal: labor2 wurde neu aufgesetzt" welt={{ sicherheit: { hostkeyNeu: true } }} aufgaben={[
+  { text: 'labor2 wurde am Wochenende neu installiert. Verbinde dich und führ <code>hostname</code> aus.', befehl: '^ssh (lena@)?labor2 hostname$', auchFehler: true },
+  { text: 'Der Admin von labor2 bestätigt dir am Telefon den neuen Fingerabdruck. Entferne den alten Eintrag aus known_hosts.', zustand: 'knownhost:labor2=fehlt' },
+  { text: 'Verbinde dich neu und speichere den neuen Schlüssel. Passwort: <code>Labor2026</code>', zustand: 'knownhost:labor2=neu' },
+]} />
+
+<Hinweis titel="Nie einfach weiterklicken">
+„REMOTE HOST IDENTIFICATION HAS CHANGED“ heißt: Der Server, der antwortet, hat einen anderen Schlüssel als beim letzten Mal. Das ist harmlos, wenn er neu installiert wurde, und gefährlich, wenn sich jemand dazwischen geschaltet hat (Man-in-the-Middle). Löschen darfst du den alten Eintrag erst, wenn du den neuen Fingerabdruck auf einem anderen Weg bestätigt hast.
+</Hinweis>
+
+## Tunnel
+
+<Karte nr={4} titel="Port-Weiterleitung und X11">
+SSH kann andere Verbindungen durch die verschlüsselte Leitung tragen:
+
+- **Lokaler Tunnel** `ssh -L 8080:localhost:80 labor2`: Was auf deinem Rechner an Port 8080 ankommt, geht durch SSH zu labor2 und dort an `localhost:80`. So erreichst du einen Dienst, der auf labor2 nur lokal lauscht oder hinter einer Firewall steht. Das Ziel wird **aus Sicht von labor2** angegeben.
+- **Entfernter Tunnel** `ssh -R 9000:localhost:22 labor2`: umgekehrt. Port 9000 auf labor2 führt zu Port 22 bei dir.
+- `-N` heißt: keinen Befehl ausführen, nur tunneln. `-f` schickt ssh nach der Anmeldung in den Hintergrund.
+- **X11-Weiterleitung** `ssh -X labor2 xclock`: Das Programm läuft auf labor2, sein Fenster erscheint bei dir. SSH setzt dort `DISPLAY` auf `localhost:10.0`. `-Y` ist die „vertrauenswürdige“ Variante mit weniger Einschränkungen. Der Server muss `X11Forwarding yes` erlauben.
+</Karte>
+
+<Terminal id="tunnel" titel="Terminal: Die Weboberfläche von labor2" aufgaben={[
+  { text: 'Der Messdienst auf labor2 hat eine Weboberfläche auf Port 80, die nur lokal lauscht. Prüf, ob du sie direkt erreichst.', befehl: '^nc -\\w*z\\w* labor2 80$', auchFehler: true },
+  { text: 'Bau einen Tunnel im Hintergrund: Lokaler Port 8080 soll zu Port 80 auf labor2 führen. Passwort: <code>Labor2026</code>', zustand: 'tunnel:8080' },
+  { text: 'Prüf, ob auf deinem Rechner jetzt Port 8080 antwortet.', befehl: '^nc -\\w*z\\w* (localhost|127\\.0\\.0\\.1) 8080$' },
+  { text: 'Starte <code>xclock</code> auf labor2 so, dass das Fenster bei dir erscheint.', befehl: '^ssh -[XY] (lena@)?labor2 xclock$' },
+]} />
+
+## Den Server härten
+
+<Karte nr={5} titel="sshd_config">
+Der SSH-Server liest **/etc/ssh/sshd_config** und, auf Debian 12, vorher alle Dateien `/etc/ssh/sshd_config.d/*.conf`. Für jede Option gilt der **erste** Wert, den sshd findet. Eigene Einstellungen gehören darum in eine Datei unter `sshd_config.d/`. Die wichtigsten Härtungen:
+
+```
+PermitRootLogin no            # root nie direkt, Debian-Vorgabe ist prohibit-password
+PasswordAuthentication no     # nur noch Schlüssel
+PubkeyAuthentication yes
+X11Forwarding no              # wenn niemand X11 braucht
+AllowUsers lena max           # nur diese Konten
+```
+
+Vor dem Neustart prüft **`sshd -t`** die Syntax. `sshd -T` zeigt die wirksamen Werte. Erst dann `systemctl restart ssh` (der Dienst heißt auf Debian ssh, auf RHEL sshd). Ein Tippfehler lässt den Dienst nicht mehr starten. Bestehende Sitzungen bleiben dabei offen, darum testet man eine neue Anmeldung, **bevor** man die alte schließt.
+</Karte>
+
+<Terminal id="server" titel="Terminal: werkstatt härten" aufgaben={[
+  { text: 'Lass dir die wirksamen Werte von sshd zeigen.', befehl: '^sshd -T$|^sshd -T \\| (head|grep).*$', frage: 'Welchen Wert hat permitrootlogin im Moment?', antwort: ['without-password', 'prohibit-password'] },
+  { text: 'Leg <code>/etc/ssh/sshd_config.d/haerten.conf</code> an: root darf sich nicht anmelden, Passwörter sind abgeschaltet.', zustand: 'datei:/etc/ssh/sshd_config.d/haerten.conf~^PermitRootLogin\\s+no$ && datei:/etc/ssh/sshd_config.d/haerten.conf~^PasswordAuthentication\\s+no$' },
+  { text: 'Prüf die Konfiguration.', befehl: '^sshd -t$' },
+  { text: 'Starte den Dienst neu, sodass die Einstellungen wirken.', zustand: 'sshd:permitrootlogin=no && sshd:passwordauthentication=no' },
+]} />
+
+<Labor id="labor" titel="Aufgabe im Labor: Schlüssel in der VM"
+  aufgabe="Erzeuge in deiner VM ein Schlüsselpaar, trag es für dich selbst in authorized_keys ein und melde dich mit dem Schlüssel an localhost an. Füge die Ausgabe ein. Wenn kein SSH-Server läuft: sudo apt install openssh-server."
+  befehl={"ssh-keygen -t ed25519 -N '' -f ~/.ssh/labor_key -q\ncat ~/.ssh/labor_key.pub >> ~/.ssh/authorized_keys\nchmod 600 ~/.ssh/authorized_keys\nssh -i ~/.ssh/labor_key -o StrictHostKeyChecking=accept-new localhost 'echo angemeldet als $(whoami)'\nssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub"}
+  muster={["angemeldet als \\S+", "^256 SHA256:\\S+ .*\\(ED25519\\)"]}
+  erfolg="accept-new speichert neue Host-Schlüssel ohne Rückfrage, lehnt geänderte aber weiter ab. Lösch den Laborschlüssel danach wieder aus authorized_keys." />
+
+<Hinweis titel="Prüfungstipp">
+Lern die Dateien auswendig: id_rsa, id_ecdsa, id_ed25519, id_dsa und ihre .pub, authorized_keys, known_hosts, ssh_known_hosts, /etc/ssh/ssh_host_*. Dazu ssh-keygen, ssh-copy-id, ssh-agent mit eval, ssh-add, die Optionen -L, -R, -X und PermitRootLogin.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Warum startet man den Agenten mit eval $(ssh-agent) und nicht einfach mit ssh-agent?', richtig: 'ssh-agent gibt nur Befehle aus, die SSH_AUTH_SOCK setzen. eval führt sie in der aktuellen Shell aus.', falsch: ['ssh-agent läuft sonst nur zehn Sekunden.', 'eval verschlüsselt die Passphrase.'], erklaerung: 'Ohne die Variable findet ssh-add den Agenten nicht.' },
+  { frage: 'Was bewirkt ssh -L 5432:db.intern:5432 sprung?', richtig: 'Port 5432 auf dem eigenen Rechner führt über sprung zu db.intern Port 5432.', falsch: ['Port 5432 auf sprung führt zum eigenen Rechner.', 'Es öffnet eine Datenbank-Shell auf sprung.'], erklaerung: 'Das Ziel löst sprung auf, nicht der eigene Rechner.' },
+  { frage: 'Nach einer Änderung an sshd_config startet ssh nicht mehr. Was hätte das verhindert?', richtig: 'sshd -t vor dem Neustart', falsch: ['ssh-keygen -A', 'systemctl reload statt restart'], erklaerung: 'Auch reload liest die fehlerhafte Datei.' },
+]} />

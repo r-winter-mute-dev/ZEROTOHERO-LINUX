@@ -1,0 +1,162 @@
+---
+id: l1-10-1
+checks:
+  - id: k1
+  - id: suid
+  - id: k2
+  - id: konten
+  - id: ports
+  - id: k3
+  - id: labor
+    hardware: true
+  - id: k4
+spick:
+  - t: "SUID/SGID suchen"
+    v: "find / -perm -4000 -type f · find / -perm -2000 · find / -perm /6000 · 2>/dev/null"
+  - t: "Bit entfernen"
+    v: "chmod u-s datei · chmod g-s datei · ls -l zeigt rws bzw. rws in der Gruppe"
+  - t: "Passwörter"
+    v: "passwd -l/-u (sperren/entsperren) · passwd -S (Status) · passwd -e (Ablauf erzwingen) · chage -l · chage -M 90 -W 7 · chage -E 2026-12-31 · usermod -L/-U/-e"
+  - t: "Offene Ports"
+    v: "ss -tulpn · netstat -tulpn · lsof -i · lsof -i :22 · fuser -v 22/tcp · nmap localhost · nmap -sU (root)"
+  - t: "Wer benutzt was?"
+    v: "lsof /pfad · lsof -u max · fuser -vm /mnt/usb · fuser -k (beenden)"
+karten:
+  - f: "Mit welchem Befehl findest du alle Dateien mit gesetztem SUID-Bit?"
+    a: ["find / -perm -4000", "find / -perm -u+s", "find / -perm -4000 -type f"]
+  - f: "Mit welchem Befehl findest du Dateien mit SUID oder SGID?"
+    a: ["find / -perm /6000", "find / -perm /6000 -type f"]
+  - f: "Mit welchem Befehl sperrst du das Passwort von max?"
+    a: ["passwd -l max", "usermod -L max"]
+  - f: "Mit welchem Befehl zeigst du die Ablaufdaten des Passworts von max?"
+    a: ["chage -l max"]
+  - f: "Mit welchem Befehl zwingst du max, beim nächsten Anmelden ein neues Passwort zu setzen?"
+    a: ["passwd -e max", "chage -d 0 max"]
+  - f: "Mit welchem Befehl zeigst du alle Programme, die Netzwerkverbindungen offen haben?"
+    a: ["lsof -i"]
+  - f: "Mit welchem Befehl prüfst du von außen, welche Ports ein Rechner anbietet?"
+    a: ["nmap", "nmap rechner"]
+  - f: "Mit welchem Befehl siehst du, welcher Prozess /mnt/usb belegt?"
+    a: ["fuser -vm /mnt/usb", "lsof /mnt/usb", "fuser -v /mnt/usb", "lsof +D /mnt/usb"]
+  - f: "Welche Option von fuser beendet die gefundenen Prozesse?"
+    a: ["-k"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+
+werkstatt soll bald aus dem Internet erreichbar sein. Davor kommt eine Sicherheitsprüfung: Welche Programme laufen mit fremden Rechten, welche Konten sind offen, welche Ports lauschen? **Deine Mission: Prüfe werkstatt wie ein Auditor. Finde SUID-Dateien, prüfe Konten und Passwörter, und finde jeden offenen Port mit dem Programm dahinter.** Lernziel 110.1.
+
+## SUID und SGID
+
+<Karte nr={1} titel="Programme mit fremden Rechten">
+Normalerweise läuft ein Programm mit den Rechten dessen, der es startet. Das **SUID-Bit** (set user ID, Oktal 4000) ändert das: Das Programm läuft mit den Rechten seines **Besitzers**. `passwd` braucht das, weil es als normaler Benutzer `/etc/shadow` ändern muss, und die Datei gehört root. In `ls -l` steht dann ein `s` statt `x` beim Besitzer: `-rwsr-xr-x root root /usr/bin/passwd`. Das **SGID-Bit** (2000) macht dasselbe mit der Gruppe.
+
+Für Angreifer sind solche Dateien Gold wert. Eine Kopie von `bash` mit SUID-Bit, die root gehört, öffnet jedem eine Root-Shell. Darum sucht man regelmäßig danach:
+
+```
+find / -perm -4000 -type f 2>/dev/null     # SUID gesetzt
+find / -perm -2000 -type f 2>/dev/null     # SGID gesetzt
+find / -perm /6000 -type f 2>/dev/null     # SUID oder SGID
+```
+
+`-perm -4000` heißt: mindestens dieses Bit ist gesetzt. `-perm /6000` heißt: irgendeines dieser Bits. `2>/dev/null` wirft die Meldungen über nicht lesbare Verzeichnisse weg. Vergleiche das Ergebnis mit einer früheren Liste. Was neu ist und nicht aus einem Paket stammt (`dpkg -S datei`), muss erklärt werden. Entfernt wird das Bit mit `chmod u-s datei` bzw. `chmod g-s datei`.
+
+Bei eingehängten Datenträgern wie USB-Sticks verhindert die Mount-Option **`nosuid`**, dass SUID-Bits darauf überhaupt wirken.
+</Karte>
+
+<Merke>SUID 4000: läuft mit den Rechten des Besitzers, s beim Besitzer. SGID 2000: mit den Rechten der Gruppe. find / -perm -4000 sucht SUID, -perm /6000 SUID oder SGID. chmod u-s entfernt es. nosuid beim Einhängen.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: SUID" fragen={[
+  { frage: 'Was findet find / -perm /6000?', richtig: 'Dateien, bei denen SUID oder SGID gesetzt ist', falsch: ['Nur Dateien, bei denen beide Bits gesetzt sind', 'Dateien mit den Rechten 6000'], erklaerung: '-perm -6000 hieße: beide Bits.' },
+  { frage: 'Warum hat /usr/bin/passwd das SUID-Bit?', richtig: 'Normale Benutzer müssen damit /etc/shadow ändern, und die Datei darf nur root schreiben.', falsch: ['Damit nur root es starten kann.', 'Damit es schneller startet.'], erklaerung: 'passwd prüft selbst, dass jeder nur sein eigenes Passwort ändert.' },
+]} />
+
+<Terminal id="suid" titel="Terminal: Gefährliche Bits" welt={{ sicherheit: { altlasten: true } }} aufgaben={[
+  { text: 'Such als root nach allen Dateien mit SUID-Bit. Wirf Fehlermeldungen weg.', befehl: '^find / -perm (-4000|-u\\+s|/4000) (-type f )?(2> ?/dev/null)?$|^find / -type f -perm (-4000|-u\\+s|/4000)( 2> ?/dev/null)?$', frage: 'Welche Datei liegt in einem Heimatverzeichnis? (vollständiger Pfad)', antwort: ['/home/max/.cache/bash'] },
+  { text: 'Lass dir diese Datei mit ls -l zeigen.', befehl: '^ls -l /home/max/\\.cache/bash$', frage: 'Wem gehört die Datei?', antwort: ['root'] },
+  { text: 'Entferne das SUID-Bit von <code>/home/max/.cache/bash</code> und von <code>/usr/local/bin/messd-helper</code>. Diesen Helfer hat niemand mehr in Gebrauch.', zustand: 'modus:/home/max/.cache/bash=755 && modus:/usr/local/bin/messd-helper=755' },
+  { text: 'Such zur Kontrolle nach SUID- oder SGID-Dateien unter <code>/home</code> und <code>/usr/local</code>.', befehl: '^find /home /usr/local -perm /6000( -type f)?( 2> ?/dev/null)?$' },
+]} />
+
+## Konten und Passwörter
+
+<Karte nr={2} titel="Konten prüfen, sperren und befristen">
+Aus Mission 7.2 kennst du `chage`. Für die Sicherheitsprüfung brauchst du diese Befehle:
+
+| Befehl | Wirkung |
+|---|---|
+| `passwd -S max` | Status: `P` Passwort gesetzt, `L` gesperrt, `NP` kein Passwort |
+| `passwd -l max` / `passwd -u max` | Passwort sperren (ein `!` vor dem Hash in /etc/shadow) / entsperren |
+| `passwd -e max` | Passwort sofort ablaufen lassen: Beim nächsten Anmelden muss max ein neues setzen |
+| `chage -l max` | Ablaufdaten anzeigen |
+| `chage -M 90 -W 7 max` | höchstens 90 Tage gültig, 7 Tage vorher warnen |
+| `chage -E 2026-12-31 max` | ganzes **Konto** läuft an diesem Tag ab |
+| `usermod -L max` / `usermod -U max` | wie passwd -l / -u |
+| `usermod -e 2026-12-31 max` | wie chage -E |
+
+**Vorsicht:** Ein gesperrtes Passwort verhindert nur die Anmeldung mit Passwort. Hat max einen SSH-Schlüssel hinterlegt, kommt er weiter herein. Wer ein Konto ganz schließen will, lässt es mit `chage -E 0` ablaufen oder setzt die Shell auf `/usr/sbin/nologin`.
+</Karte>
+
+<Terminal id="konten" titel="Terminal: Max ist im Urlaub" aufgaben={[
+  { text: 'Lass dir den Passwortstatus von max zeigen.', befehl: '^passwd -S max$' },
+  { text: 'Sperr das Passwort von max für die Zeit seines Urlaubs.', zustand: 'shadow:max~^max:!' },
+  { text: 'Lass das ganze Konto von max am 2026-12-31 ablaufen.', zustand: 'shadow:max~^max:[^:]*:(\\d*:){5}20818:' },
+  { text: 'Zeig die Ablaufdaten von max.', befehl: '^chage -l max$', frage: 'Was steht bei „Benutzerzugang läuft ab“?', antwort: ['Dez 31, 2026', 'Dez 31 2026', '31.12.2026', '2026-12-31'] },
+]} />
+
+## Offene Ports und offene Dateien
+
+<Karte nr={3} titel="Wer lauscht, wer benutzt was?">
+Jeder lauschende Port ist eine Tür. Von **innen** siehst du sie mit dem Programm dahinter:
+
+- `ss -tulpn` (oder das ältere `netstat -tulpn`): alle lauschenden TCP- und UDP-Ports mit Prozess. Den Prozess sieht nur root.
+- `lsof -i` listet alle Netzwerkverbindungen und lauschenden Sockets mit Programm, Benutzer und PID. `lsof -i :22` nur Port 22, `lsof -i tcp` nur TCP.
+- `fuser -v 22/tcp` zeigt, welcher Prozess Port 22 belegt.
+
+Von **außen** zeigt **nmap**, was ein Angreifer sieht: `nmap localhost`, `nmap 192.168.1.23`, `nmap -p 1-65535 rechner`, `sudo nmap -sU rechner` für UDP. nmap ist meist nicht vorinstalliert (`apt install nmap`). Scanne nur Rechner, für die du zuständig bist. Fremde Netze ohne Erlaubnis zu scannen ist in vielen Ländern strafbar, mindestens aber ein Vertragsbruch beim Provider. Was `ss` von innen zeigt, aber `nmap` von außen nicht sieht, lauscht nur auf `127.0.0.1` oder wird von einer Firewall verdeckt.
+
+**lsof** heißt „list open files“, und für Linux ist fast alles eine Datei. `lsof /mnt/usb` zeigt, wer auf dem Stick arbeitet, `lsof -u max` alle offenen Dateien von max, `lsof -p 3170` die eines Prozesses. **fuser** beantwortet dieselbe Frage kürzer: `fuser -vm /mnt/usb` listet alle Prozesse, die etwas auf diesem Dateisystem geöffnet haben. Die Spalte ZUGR. zeigt `c` für das aktuelle Verzeichnis und `f` für eine offene Datei. `fuser -k` beendet diese Prozesse, zum Beispiel wenn `umount` mit „target is busy“ abbricht.
+</Karte>
+
+<Merke>Innen: ss -tulpn, netstat -tulpn, lsof -i, fuser -v PORT/tcp. Außen: nmap rechner, nmap -sU als root. Nur eigene Rechner scannen. lsof /pfad und fuser -vm /pfad: wer belegt was, fuser -k beendet.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: Ports" fragen={[
+  { frage: 'ss -tlpn zeigt cupsd auf 127.0.0.1:631, nmap 192.168.1.23 zeigt Port 631 aber nicht. Warum?', richtig: 'cupsd lauscht nur auf der Loopback-Adresse und ist von außen nicht erreichbar.', falsch: ['nmap ist kaputt.', 'cupsd ist abgestürzt.'], erklaerung: 'Genau so soll es für einen lokalen Druckdienst sein.' },
+]} />
+
+<Terminal id="ports" titel="Terminal: Alle Türen finden" welt={{ sicherheit: { altlasten: true } }} aufgaben={[
+  { text: 'Lass dir als root alle lauschenden TCP- und UDP-Ports mit Prozess zeigen.', befehl: '^ss -(tulpn|tulnp|lntup|ltunp|tlunp|ntulp)$|^netstat -(tulpn|tulnp|lntup|ltunp|tlunp|ntulp)$', frage: 'Welches Programm lauscht auf Port 23?', antwort: ['xinetd'] },
+  { text: 'Lass dir mit lsof anzeigen, welche Programme Port 111 benutzen.', befehl: '^lsof -i ?:111$|^lsof -i (tcp|udp):111$', frage: 'Welches Programm ist es?', antwort: ['rpcbind'] },
+  { text: 'Installier nmap.', befehl: '^apt(-get)? (-y )?install (-y )?nmap$' },
+  { text: 'Scanne werkstatt von außen, also über die Adresse 192.168.1.23.', befehl: '^nmap 192\\.168\\.1\\.23$', frage: 'Welche drei TCP-Ports sind offen? (mit Komma)', antwort: ['22, 23, 111', '22,23,111', '22 23 111'] },
+  { text: 'Der USB-Stick unter <code>/mnt/usb</code> lässt sich nicht aushängen. Finde mit fuser heraus, wer ihn benutzt.', befehl: '^fuser -(vm|mv|v -m|m -v|v) /mnt/usb$', frage: 'Welcher Benutzer arbeitet darauf?', antwort: ['max'] },
+  { text: 'Max ist nicht erreichbar. Beende den Prozess mit fuser.', zustand: 'prozess-offen:/mnt/usb=weg' },
+]} />
+
+<Hinweis titel="Die Altlasten bleiben vorerst">
+Telnet auf Port 23 und rpcbind auf Port 111 braucht hier niemand. Abschalten lernst du in Mission 10.3. Bis dahin hast du die Liste.
+</Hinweis>
+
+<Quiz id="k3" titel="Kurzcheck: Werkzeuge" fragen={[
+  { frage: 'umount /mnt/usb meldet „target is busy“. Welcher Befehl zeigt, welcher Prozess schuld ist?', richtig: 'fuser -vm /mnt/usb', falsch: ['ss -tulpn', 'nmap /mnt/usb'], erklaerung: 'lsof /mnt/usb geht auch.' },
+]} />
+
+<Labor id="labor" titel="Aufgabe im Labor: Audit deiner VM"
+  aufgabe="Prüf deine VM: SUID-Dateien, lauschende Ports und den Status deines Kontos. Füge die Ausgabe ein."
+  befehl={"sudo find / -xdev -perm -4000 -type f 2>/dev/null | head\nsudo ss -tulpn | head -6\nsudo passwd -S $USER"}
+  muster={["/usr/bin/passwd", "Netid\\s+State", "^\\S+ P "]}
+  erfolg="-xdev bleibt im Wurzeldateisystem und spart Zeit. Heb dir die SUID-Liste auf: Beim nächsten Audit vergleichst du mit diff." />
+
+<Hinweis titel="Prüfungstipp">
+Gefragt werden die find-Optionen für SUID und SGID (`-perm -4000`, `-2000`, `/6000`), die Optionen von passwd und chage, und welcher Befehl welche Frage beantwortet: ss, netstat, lsof, fuser, nmap.
+</Hinweis>
+
+<Quiz id="k4" titel="Abschluss" fragen={[
+  { frage: 'Welcher Befehl listet alle Netzwerkverbindungen mit dem zugehörigen Programm?', richtig: 'lsof -i', falsch: ['lsof -n', 'fuser -i'], erklaerung: '-i steht für Internet-Dateien, also Sockets.' },
+  { frage: 'Was bewirkt chage -E 0 max?', richtig: 'Das Konto von max ist sofort abgelaufen, keine Anmeldung mehr möglich.', falsch: ['Das Passwort von max ist leer.', 'max muss sein Passwort sofort ändern.'], erklaerung: 'Sofort ändern erzwingt passwd -e oder chage -d 0.' },
+  { frage: 'Welche nmap-Option prüft UDP-Ports und braucht Root-Rechte?', richtig: '-sU', falsch: ['-sn', '-p'], erklaerung: '-sn prüft nur, welche Rechner antworten.' },
+]} />

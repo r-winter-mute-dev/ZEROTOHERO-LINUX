@@ -1,0 +1,189 @@
+---
+id: l1-10-5
+checks:
+  - id: k1
+  - id: schluessel
+  - id: austausch
+  - id: k2
+  - id: verschluesseln
+  - id: signieren
+  - id: widerruf
+  - id: zuordnung
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "Schlüssel"
+    v: "gpg --gen-key · gpg --full-generate-key · gpg -k (öffentliche) · gpg -K (geheime) · gpg --fingerprint NAME · ~/.gnupg/"
+  - t: "Austausch"
+    v: "gpg --export -a NAME > datei.asc · gpg --import datei.asc · Fingerabdruck auf anderem Weg prüfen · gpg --sign-key NAME"
+  - t: "Verschlüsseln"
+    v: "gpg -e -r EMPFÄNGER datei → datei.gpg · -a → .asc · gpg -d datei.gpg · gpg -c datei (nur Passwort) · -o ausgabe"
+  - t: "Signieren"
+    v: "gpg -s (signiert, binär) · gpg --clearsign (lesbar) · gpg -b datei (abgetrennt → .sig) · gpg --verify datei.sig datei"
+  - t: "Widerruf"
+    v: "gpg --gen-revoke NAME -o widerruf.asc · automatisch in ~/.gnupg/openpgp-revocs.d/ · gpg --import widerruf.asc"
+  - t: "Agent"
+    v: "gpg-agent merkt sich Passphrasen · gpgconf --kill gpg-agent vergisst sie"
+karten:
+  - f: "Mit welchem Befehl erzeugst du ein GnuPG-Schlüsselpaar?"
+    a: ["gpg --gen-key", "gpg --full-generate-key", "gpg --generate-key", "gpg --full-gen-key"]
+  - f: "Mit welchem Befehl listest du die öffentlichen Schlüssel?"
+    a: ["gpg --list-keys", "gpg -k"]
+  - f: "Mit welchem Befehl listest du deine geheimen Schlüssel?"
+    a: ["gpg --list-secret-keys", "gpg -K"]
+  - f: "In welchem Verzeichnis liegt der Schlüsselbund von GnuPG?"
+    a: ["~/.gnupg", "~/.gnupg/"]
+  - f: "Mit welchem Befehl verschlüsselst du bericht.txt für max?"
+    a: ["gpg -e -r max bericht.txt", "gpg --encrypt --recipient max bericht.txt", "gpg -r max -e bericht.txt"]
+  - f: "Welcher Schlüssel wird zum Verschlüsseln für Max benutzt?"
+    a: ["der öffentliche schlüssel von max", "öffentlicher schlüssel von max", "max öffentlicher schlüssel"]
+  - f: "Welcher Schlüssel wird zum Signieren benutzt?"
+    a: ["der eigene geheime schlüssel", "eigener privater schlüssel", "der eigene private schlüssel", "eigener geheimer schlüssel"]
+  - f: "Mit welchem Befehl erzeugst du eine abgetrennte Signatur?"
+    a: ["gpg --detach-sign", "gpg -b", "gpg --detach-sign datei", "gpg -b datei"]
+  - f: "Mit welchem Befehl prüfst du eine Signatur?"
+    a: ["gpg --verify"]
+  - f: "Mit welcher Option erzeugt gpg lesbaren ASCII-Text statt binärer Daten?"
+    a: ["-a", "--armor"]
+  - f: "Wofür braucht man ein Widerrufszertifikat?"
+    a: ["um einen schlüssel für ungültig zu erklären", "schlüssel widerrufen", "wenn der geheime schlüssel verloren oder gestohlen ist"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Zuordnung from '../components/Zuordnung.astro';
+
+Max schickt Messwerte und Kalibrierdaten per Mail. Woher weißt du, dass sie wirklich von ihm sind und unterwegs niemand eine Zahl geändert hat? Und wie schickst du ihm Zugangsdaten, die nur er lesen kann? **Deine Mission: Erzeuge einen GnuPG-Schlüssel, tausche Schlüssel mit Max aus, verschlüssele, signiere, prüfe Signaturen und bereite den Widerruf vor.** Lernziel 110.3.
+
+## Zwei Schlüssel, zwei Richtungen
+
+<Karte nr={1} titel="Öffentlich und geheim">
+**GnuPG** (`gpg`) arbeitet mit Schlüsselpaaren wie SSH, nach dem Standard OpenPGP. Wer verschlüsselt und wer signiert, benutzt verschiedene Hälften:
+
+| Ziel | Absender benutzt | Empfänger benutzt |
+|---|---|---|
+| **Verschlüsseln:** Nur Max soll es lesen | den **öffentlichen** Schlüssel von Max | seinen **geheimen** Schlüssel |
+| **Signieren:** Jeder soll prüfen können, dass es von dir ist | deinen **geheimen** Schlüssel | deinen **öffentlichen** Schlüssel |
+
+Der Schlüsselbund liegt in **~/.gnupg/**: `pubring.kbx` (öffentliche Schlüssel), `private-keys-v1.d/` (geheime), `trustdb.gpg` (wem du vertraust). Die Passphrase schützt den geheimen Schlüssel. Ein Programm namens **gpg-agent** fragt sie über ein kleines Fenster ab (pinentry) und merkt sie sich eine Weile.
+
+`gpg --gen-key` fragt nach Name und E-Mail und erzeugt Schlüssel mit Standardwerten. `gpg --full-generate-key` fragt zusätzlich nach Algorithmus, Länge und Ablaufdatum. `gpg -k` listet öffentliche, `gpg -K` geheime Schlüssel.
+</Karte>
+
+<Merke>Verschlüsseln mit dem öffentlichen Schlüssel des Empfängers, entschlüsseln mit seinem geheimen. Signieren mit dem eigenen geheimen, prüfen mit dem eigenen öffentlichen. ~/.gnupg/, gpg -k, gpg -K, gpg --gen-key.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: Welcher Schlüssel?" fragen={[
+  { frage: 'Lena will Max eine Datei schicken, die nur Max lesen kann. Welchen Schlüssel braucht sie?', richtig: 'Den öffentlichen Schlüssel von Max', falsch: ['Ihren eigenen geheimen Schlüssel', 'Den geheimen Schlüssel von Max'], erklaerung: 'Den geheimen Schlüssel von Max hat nur Max.' },
+  { frage: 'Womit prüft Max eine Signatur von Lena?', richtig: 'Mit Lenas öffentlichem Schlüssel', falsch: ['Mit seinem eigenen geheimen Schlüssel', 'Mit Lenas geheimem Schlüssel'], erklaerung: 'Signiert hat Lena mit ihrem geheimen Schlüssel.' },
+]} />
+
+<Terminal id="schluessel" titel="Terminal: Lenas Schlüssel" welt={{ sicherheit: { gpgMax: true } }} aufgaben={[
+  { text: 'Lass dir die öffentlichen Schlüssel zeigen. Beim ersten Aufruf legt gpg den Schlüsselbund an.', befehl: '^gpg (-k|--list-keys)$' },
+  { text: 'Erzeuge einen Schlüssel für <code>Lena Berger</code> mit der Adresse <code>lena@lab.example.org</code>. Bestätige mit F und wähle die Passphrase <code>Messwert-42</code>.', zustand: 'gpgkey:lena@lab.example.org=geheim' },
+  { text: 'Lass dir deine geheimen Schlüssel zeigen.', befehl: '^gpg (-K|--list-secret-keys)$' },
+  { text: 'Lass dir zeigen, was in <code>~/.gnupg</code> liegt.', befehl: '^ls (-la? )?~/\\.gnupg/?$|^ls (-la? )?/home/lena/\\.gnupg/?$|^ls (-la? )?\\.gnupg/?$', frage: 'In welchem Unterverzeichnis hat gpg schon ein Widerrufszertifikat abgelegt?', antwort: ['openpgp-revocs.d'] },
+]} />
+
+## Schlüssel austauschen
+
+<Karte nr={2} titel="Export, Import und Vertrauen">
+Deinen öffentlichen Schlüssel gibst du als Textdatei weiter: `gpg --export -a lena > lena.asc` (`-a` bzw. `--armor` macht lesbaren ASCII-Text statt Binärdaten). Den von Max nimmst du mit `gpg --import max.asc` auf. Oft liegen Schlüssel auch auf Schlüsselservern (`gpg --recv-keys`, `--send-keys`).
+
+Aber: Jeder kann einen Schlüssel mit dem Namen „Max Weber“ erzeugen. Darum vergleichst du den **Fingerabdruck** (`gpg --fingerprint max`) auf einem anderen Weg, am Telefon oder persönlich. Danach beglaubigst du ihn mit `gpg --sign-key max`. Bis dahin warnt gpg bei jeder Benutzung: „Dieser Schlüssel trägt keine vertrauenswürdige Signatur!“
+</Karte>
+
+<Terminal id="austausch" titel="Terminal: Schlüssel von Max" welt={{ sicherheit: { gpgMax: true } }} aufgaben={[
+  { text: 'Erzeuge zuerst wieder deinen eigenen Schlüssel: Name <code>Lena Berger</code>, Adresse <code>lena@lab.example.org</code>, Passphrase <code>Messwert-42</code>. Schneller geht es mit <code>gpg --quick-gen-key "Lena Berger &lt;lena@lab.example.org&gt;"</code>.', zustand: 'gpgkey:lena@lab.example.org=geheim' },
+  { text: 'Importier den öffentlichen Schlüssel von Max aus <code>max.asc</code>.', zustand: 'gpgkey:max@lab.example.org' },
+  { text: 'Lass dir den Fingerabdruck von Max zeigen.', befehl: '^gpg --fingerprint max$|^gpg --fingerprint max@lab\\.example\\.org$', frage: 'Wie lauten die letzten vier Zeichen?', antwort: ['1B8D', '1b8d'] },
+  { text: 'Max bestätigt dir am Telefon den Fingerabdruck. Beglaubige seinen Schlüssel.', zustand: 'gpgkey:max@lab.example.org=vertraut' },
+  { text: 'Exportier deinen öffentlichen Schlüssel als Text nach <code>lena.asc</code>, damit Max ihn bekommt.', zustand: 'datei:/home/lena/lena.asc~^-----BEGIN PGP PUBLIC KEY BLOCK-----' },
+]} />
+
+<Quiz id="k2" titel="Kurzcheck: Vertrauen" fragen={[
+  { frage: 'Warum vergleicht man den Fingerabdruck eines importierten Schlüssels auf einem anderen Weg?', richtig: 'Jeder kann einen Schlüssel mit fremdem Namen erzeugen. Nur der Fingerabdruck zeigt, dass es der echte ist.', falsch: ['Weil gpg sonst nicht verschlüsseln kann.', 'Weil der Fingerabdruck das Passwort ist.'], erklaerung: 'Ein anderer Weg heißt: nicht über dieselbe Mail, mit der der Schlüssel kam.' },
+]} />
+
+## Verschlüsseln und signieren
+
+<Karte nr={3} titel="Die wichtigsten Befehle">
+| Befehl | Ergebnis |
+|---|---|
+| `gpg -e -r max bericht.txt` | `bericht.txt.gpg`, nur Max kann es öffnen |
+| `gpg -e -a -r max -r lena bericht.txt` | `bericht.txt.asc` als Text, für Max und für dich selbst |
+| `gpg -d bericht.txt.gpg` | entschlüsselt auf die Standardausgabe, `-o datei` schreibt in eine Datei |
+| `gpg -c bericht.txt` | symmetrisch: nur mit einem Passwort, ohne Schlüssel |
+| `gpg -s bericht.txt` | `bericht.txt.gpg`, signiert und gepackt |
+| `gpg --clearsign bericht.txt` | `bericht.txt.asc`, lesbarer Text mit Signatur darunter |
+| `gpg -b bericht.txt` | `bericht.txt.sig`, eine **abgetrennte** Signatur, das Original bleibt unverändert |
+| `gpg --verify bericht.txt.sig bericht.txt` | prüft die Signatur |
+| `gpg -s -e -r max bericht.txt` | signiert und verschlüsselt in einem Schritt |
+
+„Korrekte Signatur“ heißt: Die Datei ist unverändert und mit diesem geheimen Schlüssel signiert. „FALSCHE Signatur“ heißt: Seit dem Signieren hat sich mindestens ein Byte geändert.
+
+Achtung: Wer nur für Max verschlüsselt, kann die Datei danach selbst nicht mehr lesen. Darum gibt man sich oft mit `-r lena` selbst als zweiten Empfänger an.
+</Karte>
+
+<Terminal id="verschluesseln" titel="Terminal: Zugangsdaten für Max" welt={{ sicherheit: { gpgMax: true }, dateien: { '/home/lena/zugang.txt': 'messd-Weboberfläche: admin / Kalibrier-77\n' } }} aufgaben={[
+  { text: 'Erzeuge deinen Schlüssel (Lena Berger, lena@lab.example.org, Passphrase <code>Messwert-42</code>) und importier <code>max.asc</code>.', zustand: 'gpgkey:lena@lab.example.org=geheim && gpgkey:max@lab.example.org' },
+  { text: 'Verschlüssele <code>zugang.txt</code> für Max. gpg fragt nach, weil du seinen Schlüssel nicht beglaubigt hast. Antworte mit j.', zustand: 'gpgdatei:zugang.txt.gpg=enc:max' },
+  { text: 'Versuch, <code>zugang.txt.gpg</code> selbst zu entschlüsseln.', befehl: '^gpg (-d|--decrypt) zugang\\.txt\\.gpg$', auchFehler: true },
+  { text: 'Verschlüssele <code>zugang.txt</code> als Text (ASCII) für dich selbst.', zustand: 'gpgdatei:zugang.txt.asc=enc:lena' },
+  { text: 'Lass gpg-agent die Passphrase vergessen und entschlüssele <code>zugang.txt.asc</code>.', befehl: '^gpg (-d|--decrypt) zugang\\.txt\\.asc$' },
+]} />
+
+<Terminal id="signieren" titel="Terminal: Echte Messwerte?" welt={{ sicherheit: { gpgMax: true } }} aufgaben={[
+  { text: 'Importier den Schlüssel von Max.', zustand: 'gpgkey:max@lab.example.org' },
+  { text: 'Prüf die Signatur von <code>messwerte.csv</code>.', befehl: '^gpg --verify messwerte\\.csv\\.sig( messwerte\\.csv)?$', frage: 'Ist die Signatur korrekt? (ja/nein)', antwort: ['ja'] },
+  { text: 'Prüf die Signatur von <code>kalibrierung.csv</code>.', befehl: '^gpg --verify kalibrierung\\.csv\\.sig( kalibrierung\\.csv)?$', auchFehler: true, frage: 'Was meldet gpg? (ein Wort, in Großbuchstaben)', antwort: ['FALSCHE'] },
+  { text: 'Erzeuge deinen eigenen Schlüssel (Lena Berger, lena@lab.example.org, <code>Messwert-42</code>) und signiere <code>messwerte.csv</code> lesbar mit --clearsign.', zustand: 'gpgdatei:messwerte.csv.asc=clear:lena' },
+  { text: 'Prüf deine Signatur.', befehl: '^gpg --verify messwerte\\.csv\\.asc$' },
+]} />
+
+<Hinweis titel="Die falsche Kalibrierung">
+Die Kalibrierdatei sagt -0.4, signiert hat Max aber eine Datei mit einem anderen Inhalt. Jemand hat sie nach dem Signieren geändert, oder Max hat sie nach dem Signieren noch bearbeitet. Benutze sie nicht, bevor Max eine neue Signatur schickt.
+</Hinweis>
+
+## Widerruf
+
+<Karte nr={4} titel="Wenn der Schlüssel verloren geht">
+Wird dein geheimer Schlüssel gestohlen oder vergisst du die Passphrase, musst du allen sagen: Diesem Schlüssel nicht mehr trauen. Dafür gibt es ein **Widerrufszertifikat**. GnuPG legt beim Erzeugen automatisch eins in `~/.gnupg/openpgp-revocs.d/FINGERABDRUCK.rev` ab. Vor den Bindestrichen steht dort ein Doppelpunkt, damit es niemand versehentlich importiert. Ein eigenes erzeugst du mit `gpg --gen-revoke lena -o widerruf.asc`. Bewahr es getrennt vom Rechner auf, ausgedruckt oder auf einem USB-Stick.
+
+Importierst du es mit `gpg --import widerruf.asc`, ist der Schlüssel widerrufen. Danach schickst du ihn an alle, die ihn haben, oder an den Schlüsselserver. Verschlüsseln für einen widerrufenen Schlüssel lehnt gpg ab. Signaturen von früher bleiben prüfbar, gpg warnt aber.
+</Karte>
+
+<Terminal id="widerruf" titel="Terminal: Der Laptop ist weg" welt={{ sicherheit: { gpgMax: true } }} aufgaben={[
+  { text: 'Erzeuge deinen Schlüssel (Lena Berger, lena@lab.example.org, <code>Messwert-42</code>).', zustand: 'gpgkey:lena@lab.example.org=geheim' },
+  { text: 'Erzeuge ein Widerrufszertifikat in <code>widerruf.asc</code>. Grund: 1 (kompromittiert).', zustand: 'datei:/home/lena/widerruf.asc~^-----BEGIN PGP PUBLIC KEY BLOCK-----' },
+  { text: 'Dein Laptop mit dem Schlüssel wurde gestohlen. Widerruf den Schlüssel.', zustand: 'gpgkey:lena@lab.example.org=widerrufen' },
+  { text: 'Lass dir deinen Schlüssel zeigen.', befehl: '^gpg (-k|--list-keys)( lena.*)?$' },
+]} />
+
+<Zuordnung id="zuordnung" titel="Zuordnung: Welche Option?" aufgabe="Ordne jeder Aufgabe die gpg-Option zu." paare={[
+  { links: 'für einen Empfänger verschlüsseln', rechts: '-e -r' },
+  { links: 'entschlüsseln', rechts: '-d' },
+  { links: 'nur mit Passwort verschlüsseln', rechts: '-c' },
+  { links: 'abgetrennte Signatur erzeugen', rechts: '-b' },
+  { links: 'lesbaren Text statt Binärdaten', rechts: '-a' },
+  { links: 'geheime Schlüssel auflisten', rechts: '-K' },
+]} />
+
+<Labor id="labor" titel="Aufgabe im Labor: GnuPG in der VM"
+  aufgabe="Erzeuge in deiner VM einen Testschlüssel, signiere eine Datei und prüf die Signatur. Füge die Ausgabe ein. Die Passphrase fragt pinentry ab."
+  befehl={"gpg --quick-gen-key 'Test <test@example.org>' default default 1d\necho Hallo > probe.txt\ngpg -b probe.txt\ngpg --verify probe.txt.sig probe.txt\necho geaendert >> probe.txt\ngpg --verify probe.txt.sig probe.txt"}
+  muster={["(Good signature|Korrekte Signatur)", "(BAD signature|FALSCHE Signatur)"]}
+  erfolg="Ein geändertes Byte reicht, und die Signatur stimmt nicht mehr. Der Testschlüssel läuft nach einem Tag ab." />
+
+<Hinweis titel="Prüfungstipp">
+Gefragt wird vor allem, welcher Schlüssel wofür benutzt wird, und die Optionen --gen-key, --list-keys, --export, --import, -e, -r, -d, -s, --clearsign, --detach-sign, --verify und --gen-revoke. Dazu das Verzeichnis ~/.gnupg und dass gpg-agent die Passphrasen verwaltet.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Welche Datei erzeugt gpg -b bericht.pdf?', richtig: 'bericht.pdf.sig, eine abgetrennte Signatur', falsch: ['bericht.pdf.gpg, verschlüsselt', 'bericht.pdf.asc, verschlüsselt als Text'], erklaerung: 'Mit -a hieße sie bericht.pdf.asc.' },
+  { frage: 'gpg --verify meldet „FALSCHE Signatur von Max“. Was heißt das?', richtig: 'Die Datei wurde nach dem Signieren verändert.', falsch: ['Der Schlüssel von Max ist abgelaufen.', 'Der Schlüssel von Max fehlt.'], erklaerung: 'Fehlt der Schlüssel, meldet gpg „Kein öffentlicher Schlüssel“.' },
+  { frage: 'Wozu dient ein Widerrufszertifikat?', richtig: 'Um einen Schlüssel öffentlich für ungültig zu erklären, etwa wenn er gestohlen wurde', falsch: ['Um eine falsche Signatur zu löschen', 'Um eine vergessene Passphrase zurückzusetzen'], erklaerung: 'Eine vergessene Passphrase lässt sich nicht zurücksetzen.' },
+]} />

@@ -1,0 +1,169 @@
+---
+id: l1-10-3
+checks:
+  - id: k1
+  - id: dienste
+  - id: k2
+  - id: xinetd
+  - id: wrapper
+  - id: zuordnung
+  - id: nologin
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "Schattenpasswörter"
+    v: "/etc/passwd lesbar für alle, Passwort-Feld x · /etc/shadow nur root (640 root:shadow), enthält Hash und Fristen"
+  - t: "Dienste abschalten"
+    v: "systemctl stop · disable · disable --now · mask (gar nicht mehr startbar) · list-units --type=service · list-sockets · is-enabled"
+  - t: "Socket-Aktivierung"
+    v: "name.socket lauscht und startet name.service bei Bedarf · beide abschalten: systemctl disable --now name.socket name.service"
+  - t: "xinetd"
+    v: "/etc/xinetd.conf · /etc/xinetd.d/dienst · disable = yes · systemctl restart xinetd"
+  - t: "TCP-Wrapper"
+    v: "erst /etc/hosts.allow, dann /etc/hosts.deny, sonst erlaubt · daemon: client · ALL: ALL in hosts.deny · tcpdmatch daemon client"
+  - t: "Anmeldesperre"
+    v: "/etc/nologin existiert: nur root darf sich anmelden, Inhalt wird angezeigt · rm /etc/nologin hebt auf"
+  - t: "SysV (alt)"
+    v: "/etc/inittab (Runlevel, getty) · /etc/init.d/dienst start|stop · service dienst status"
+karten:
+  - f: "In welcher Datei stehen die Passwort-Hashes?"
+    a: ["/etc/shadow"]
+  - f: "Was steht in /etc/passwd im Passwortfeld, wenn Schattenpasswörter genutzt werden?"
+    a: ["x"]
+  - f: "Mit welchem Befehl stoppst du einen Dienst und verhinderst den Start beim Booten in einem Schritt?"
+    a: ["systemctl disable --now", "systemctl disable --now dienst"]
+  - f: "Was macht systemctl mask?"
+    a: ["verhindert jeden start der unit", "unit kann gar nicht mehr gestartet werden", "verlinkt die unit auf /dev/null"]
+  - f: "Mit welchem Befehl zeigst du alle Sockets von systemd?"
+    a: ["systemctl list-sockets", "systemctl list-units --type=socket"]
+  - f: "In welchem Verzeichnis liegen die Dienstdateien von xinetd?"
+    a: ["/etc/xinetd.d", "/etc/xinetd.d/"]
+  - f: "Welche Datei der TCP-Wrapper wird zuerst gelesen?"
+    a: ["/etc/hosts.allow"]
+  - f: "Was bewirkt die Datei /etc/nologin?"
+    a: ["nur root darf sich anmelden", "normale benutzer können sich nicht anmelden"]
+  - f: "Mit welchem Befehl testest du TCP-Wrapper-Regeln?"
+    a: ["tcpdmatch"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Zuordnung from '../components/Zuordnung.astro';
+
+Das Audit aus 10.1 hat Altlasten gefunden: Telnet über xinetd, ein TFTP-Server und rpcbind, das niemand braucht. **Deine Mission: Schalte jeden Dienst ab, der nicht gebraucht wird, und schränke ein, wer die übrigen erreichen darf.** Lernziel 110.2.
+
+## Passwörter im Schatten
+
+<Karte nr={1} titel="/etc/passwd und /etc/shadow">
+Früher stand der Passwort-Hash direkt in `/etc/passwd`. Die Datei muss aber für alle lesbar sein, weil Programme wie `ls` darin die Namen zu den UIDs nachschlagen. Damit konnte jeder die Hashes kopieren und in Ruhe durchprobieren. Darum gibt es **Schattenpasswörter**: In `/etc/passwd` steht im zweiten Feld nur noch ein `x`, der Hash steht in **/etc/shadow**. Diese Datei darf nur root lesen (Debian: `640 root:shadow`). Sie enthält außerdem die Fristen aus `chage`. Für Gruppen gibt es dasselbe mit `/etc/group` und `/etc/gshadow`.
+
+Ein `!` oder `*` am Anfang des Hash-Feldes heißt: Anmeldung mit Passwort gesperrt. `pwconv` überträgt alte Passwörter aus /etc/passwd nach /etc/shadow, `pwunconv` macht es rückgängig, was man nicht tun sollte.
+</Karte>
+
+<Quiz id="k1" titel="Kurzcheck: Schattenpasswörter" fragen={[
+  { frage: 'Warum stehen die Passwort-Hashes nicht in /etc/passwd?', richtig: '/etc/passwd muss für alle lesbar sein. /etc/shadow liest nur root, so kann niemand die Hashes kopieren.', falsch: ['/etc/passwd ist zu klein für Hashes.', 'Der Kernel liest nur /etc/shadow.'], erklaerung: 'Mit einer Kopie der Hashes könnte man Passwörter offline durchprobieren.' },
+]} />
+
+## Dienste abschalten
+
+<Karte nr={2} titel="systemctl, Sockets und die alte Welt">
+Jeder laufende Netzwerkdienst ist Angriffsfläche. Was niemand braucht, wird nicht nur angehalten, sondern auch beim Start nicht mehr geladen:
+
+| Befehl | Wirkung |
+|---|---|
+| `systemctl list-units --type=service` | laufende Dienste |
+| `systemctl stop dienst` | jetzt anhalten, nach dem Neustart läuft er wieder |
+| `systemctl disable dienst` | beim Booten nicht mehr starten, läuft aber weiter |
+| `systemctl disable --now dienst` | beides |
+| `systemctl mask dienst` | Verweis auf /dev/null: Auch kein anderer Dienst kann ihn mehr starten |
+| `systemctl is-enabled dienst` | enabled, disabled oder masked |
+
+**Socket-Aktivierung:** Manche Dienste starten nicht selbst, sondern eine `.socket`-Unit lauscht für sie und weckt den Dienst beim ersten Zugriff. Hältst du nur `rpcbind.service` an, warnt systemctl, dass `rpcbind.socket` ihn jederzeit wieder starten kann. `systemctl list-sockets` zeigt alle diese Sockets. Abschalten musst du dann beide: `systemctl disable --now rpcbind.socket rpcbind.service`.
+
+Vor systemd gab es **SysV-Init**: `/etc/inittab` legte Runlevel und Terminals fest, Startskripte lagen in `/etc/init.d/` und wurden mit `/etc/init.d/ssh stop` oder `service ssh stop` gesteuert. Debian hat die Skripte für einige Dienste noch, `service` ruft heute systemctl auf.
+
+Kleine, seltene Dienste wie telnet oder tftp ließ man früher von einem **Superserver** starten: **inetd** oder **xinetd** lauscht auf ihren Ports und startet das Programm erst bei einer Verbindung. Die Hauptdatei ist `/etc/xinetd.conf`, jeder Dienst hat eine Datei in **/etc/xinetd.d/**. Abgeschaltet wird mit `disable = yes` und einem Neustart von xinetd. Telnet überträgt alles im Klartext, auch Passwörter, und hat auf heutigen Rechnern nichts mehr verloren.
+</Karte>
+
+<Merke>stop: jetzt. disable: beim Booten nicht. disable --now: beides. mask: gar nicht mehr startbar. Socket-Aktivierung: .socket und .service abschalten. xinetd: /etc/xinetd.d/dienst mit disable = yes, dann xinetd neu starten. Alt: /etc/inittab, /etc/init.d/.</Merke>
+
+<Terminal id="dienste" titel="Terminal: Sockets und Dienste" welt={{ sicherheit: { altlasten: true } }} aufgaben={[
+  { text: 'Lass dir alle Sockets von systemd zeigen.', befehl: '^systemctl list-sockets$|^systemctl list-units --type=socket$', frage: 'Welcher Socket lauscht auf Port 111?', antwort: ['rpcbind.socket'] },
+  { text: 'Halte <code>rpcbind.service</code> an. Achte auf die Warnung.', befehl: '^systemctl stop rpcbind(\\.service)?$' },
+  { text: 'Schalte rpcbind ganz ab: Socket und Dienst, sofort und dauerhaft.', zustand: 'unit:rpcbind.socket=disabled && unit:rpcbind.service=disabled && unit:rpcbind.socket=inaktiv && unit:rpcbind.service=inaktiv && port:tcp/111=zu' },
+  { text: 'Prüf mit is-enabled, ob rpcbind.socket beim Booten noch startet.', befehl: '^systemctl is-enabled rpcbind\\.socket$', auchFehler: true },
+]} />
+
+<Quiz id="k2" titel="Kurzcheck: Abschalten" fragen={[
+  { frage: 'Du hast cups.service mit systemctl stop angehalten. Eine Minute später läuft er wieder. Warum?', richtig: 'cups.socket hat ihn bei einem Druckauftrag wieder gestartet.', falsch: ['stop wirkt erst nach dem Neustart.', 'cups startet sich jede Minute selbst.'], erklaerung: 'Bei Socket-Aktivierung muss auch der Socket weg.' },
+  { frage: 'Was unterscheidet mask von disable?', richtig: 'Eine maskierte Unit kann gar nicht mehr gestartet werden, auch nicht von Hand oder durch andere Units.', falsch: ['mask wirkt nur bis zum Neustart.', 'Es gibt keinen Unterschied.'], erklaerung: 'unmask hebt es auf.' },
+]} />
+
+<Terminal id="xinetd" titel="Terminal: Telnet muss weg" welt={{ sicherheit: { altlasten: true } }} aufgaben={[
+  { text: 'Lass dir die Dienstdateien von xinetd zeigen.', befehl: '^ls (-l )?/etc/xinetd\\.d/?$', frage: 'Welche zwei Dienste sind dort eingetragen?', antwort: ['telnet, tftp', 'telnet tftp', 'telnet und tftp', 'tftp, telnet'] },
+  { text: 'Lass dir <code>/etc/xinetd.d/telnet</code> zeigen.', befehl: '^cat /etc/xinetd\\.d/telnet$', frage: 'Welches Programm startet xinetd für telnet? (Pfad)', antwort: ['/usr/sbin/in.telnetd'] },
+  { text: 'Schalte telnet in seiner Dienstdatei ab und starte xinetd neu. tftp brauchst du noch für die Messgeräte.', zustand: 'datei:/etc/xinetd.d/telnet~^\\s*disable\\s*=\\s*yes && port:tcp/23=zu && port:udp/69=offen', tipp: "sudo sed -i 's/disable.*= no/disable = yes/' /etc/xinetd.d/telnet, dann sudo systemctl restart xinetd" },
+  { text: 'Prüf mit ss, dass Port 23 nicht mehr lauscht.', befehl: '^ss -(tuln|tln|lnt|ltn|tulpn|tlnp)$' },
+]} />
+
+## TCP-Wrapper
+
+<Karte nr={3} titel="hosts.allow und hosts.deny">
+Programme, die mit der Bibliothek **libwrap** gebaut sind oder über xinetd bzw. `tcpd` gestartet werden, fragen vor jeder Verbindung zwei Dateien:
+
+1. **/etc/hosts.allow**: Passt eine Zeile, wird die Verbindung **erlaubt**. Fertig.
+2. **/etc/hosts.deny**: Passt eine Zeile, wird sie **abgelehnt**.
+3. Passt nichts, ist sie **erlaubt**.
+
+Eine Zeile hat die Form `daemon: client`. Der Daemon ist der Programmname (`in.tftpd`, `sshd`, `ALL`), der Client eine Adresse, ein Netz oder ein Name: `192.168.1.` (alles, was so beginnt), `192.168.1.0/255.255.255.0`, `.example.org`, `LOCAL`, `ALL`. `EXCEPT` nimmt etwas aus. Die übliche sichere Grundeinstellung ist `ALL: ALL` in hosts.deny und einzelne Freigaben in hosts.allow. Änderungen wirken sofort, ohne Neustart. `tcpdmatch daemon client` zeigt, was passieren würde.
+
+Ehrlich gesagt sind TCP-Wrapper heute fast Geschichte. OpenSSH unterstützt sie seit Version 6.7 nicht mehr, Fedora und RHEL haben libwrap entfernt. Für die Prüfung musst du die Logik trotzdem kennen. Im Alltag nimmt man eine Firewall (nftables) und die Zugriffsregeln der Dienste selbst.
+</Karte>
+
+<Terminal id="wrapper" titel="Terminal: tftp nur fürs Labor" welt={{ sicherheit: { altlasten: true } }} aufgaben={[
+  { text: 'Verbiete mit den TCP-Wrappern grundsätzlich allen alles.', zustand: 'datei:/etc/hosts.deny~^ALL\\s*:\\s*ALL\\s*$' },
+  { text: 'Erlaube <code>in.tftpd</code> für das Labornetz 192.168.1.0/24.', zustand: 'wrapper:in.tftpd@192.168.1.40=erlaubt && wrapper:in.tftpd@10.20.0.5=verboten' },
+  { text: 'Prüf mit tcpdmatch, ob der Drucker <code>192.168.1.40</code> tftp benutzen darf.', befehl: '^tcpdmatch in\\.tftpd 192\\.168\\.1\\.40$', frage: 'Was meldet tcpdmatch bei access?', antwort: ['granted'] },
+  { text: 'Und der Logserver <code>10.20.0.5</code>?', befehl: '^tcpdmatch in\\.tftpd 10\\.20\\.0\\.5$', frage: 'Was meldet tcpdmatch jetzt?', antwort: ['denied'] },
+]} />
+
+<Zuordnung id="zuordnung" titel="Zuordnung: Was steuert was?" aufgabe="Ordne jeder Datei ihre Aufgabe zu." paare={[
+  { links: '/etc/hosts.allow', rechts: 'Verbindungen erlauben, wird zuerst gelesen' },
+  { links: '/etc/hosts.deny', rechts: 'Verbindungen verbieten, wird danach gelesen' },
+  { links: '/etc/xinetd.d/', rechts: 'eine Datei pro Dienst des Superservers' },
+  { links: '/etc/inittab', rechts: 'Runlevel und Terminals unter SysV-Init' },
+  { links: '/etc/nologin', rechts: 'sperrt alle Anmeldungen außer root' },
+  { links: '/etc/shadow', rechts: 'Passwort-Hashes und Fristen' },
+]} />
+
+## Wartung ankündigen
+
+<Karte nr={4} titel="/etc/nologin">
+Für Wartungsarbeiten sollen sich keine Benutzer anmelden. Dafür gibt es **/etc/nologin**: Existiert die Datei, lehnen `login` und `sshd` (über das PAM-Modul `pam_nologin`) jede Anmeldung ab, außer der von root, und zeigen den Inhalt der Datei an. Wer schon angemeldet ist, bleibt es. Nach der Wartung löschst du die Datei wieder. systemd legt sie beim Herunterfahren selbst an (`/run/nologin`), damit sich niemand mehr anmeldet. Nicht verwechseln mit der Shell **/usr/sbin/nologin**, die ein einzelnes Konto sperrt.
+</Karte>
+
+<Terminal id="nologin" titel="Terminal: Wartungsfenster" aufgaben={[
+  { text: 'Leg <code>/etc/nologin</code> mit dem Text „Wartung bis 12 Uhr“ an.', zustand: 'datei:/etc/nologin~Wartung bis 12 Uhr' },
+  { text: 'Probier aus, ob du dich per SSH an werkstatt selbst (localhost) anmelden kannst. Beantworte die Frage nach dem Schlüssel mit yes und gib irgendein Passwort ein.', befehl: '^ssh (lena@)?localhost$' },
+  { text: 'Die Wartung ist fertig. Heb die Sperre auf.', befehl: '^rm (-f )?/etc/nologin$', zustand: 'nicht:datei:/etc/nologin~.' },
+]} />
+
+<Labor id="labor" titel="Aufgabe im Labor: Dienste deiner VM"
+  aufgabe="Lass dir in deiner VM die laufenden Dienste, die Sockets und die Rechte von /etc/shadow zeigen. Füge die Ausgabe ein. Schalte nur ab, was du sicher nicht brauchst."
+  befehl={"systemctl list-units --type=service --state=running | head -8\nsystemctl list-sockets | head -6\nls -l /etc/shadow"}
+  muster={["UNIT\\s+LOAD\\s+ACTIVE", "LISTEN\\s+UNIT", "^-rw-r----- 1 root shadow"]}
+  erfolg="Auf einer frischen Debian-VM laufen meist nur cron, dbus, ssh, systemd-journald und Freunde. Jeder weitere Dienst sollte einen Grund haben." />
+
+<Hinweis titel="Prüfungstipp">
+Gefragt werden die Reihenfolge der TCP-Wrapper (allow vor deny, sonst erlaubt), der Aufbau von /etc/xinetd.d/, was /etc/nologin bewirkt und warum es /etc/shadow gibt. Dazu systemctl stop, disable, mask und die Rolle von .socket-Units.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'hosts.allow enthält sshd: 192.168.1., hosts.deny enthält ALL: ALL. Was passiert bei einer Verbindung von 10.0.0.7 zu einem Dienst mit libwrap?', richtig: 'Sie wird abgelehnt: hosts.allow passt nicht, hosts.deny passt.', falsch: ['Sie wird erlaubt, weil hosts.allow zuerst kommt.', 'Sie wird erlaubt, weil nichts passt.'], erklaerung: 'Erlaubt wäre sie nur aus 192.168.1.' },
+  { frage: 'Wie schaltest du einen Dienst in /etc/xinetd.d/ ab?', richtig: 'disable = yes eintragen und xinetd neu starten', falsch: ['Die Datei nach /etc/xinetd.d/off verschieben', 'systemctl mask für den Dienstnamen'], erklaerung: 'Löschen ginge auch, aber dann fehlt die Vorlage.' },
+  { frage: 'Was passiert, solange /etc/nologin existiert?', richtig: 'Nur root kann sich neu anmelden. Andere sehen den Inhalt der Datei und werden abgewiesen.', falsch: ['Niemand kann sich anmelden, auch root nicht.', 'Angemeldete Benutzer werden sofort getrennt.'], erklaerung: 'Bestehende Sitzungen bleiben.' },
+]} />

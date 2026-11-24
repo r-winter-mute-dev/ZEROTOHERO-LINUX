@@ -9,6 +9,10 @@ const ok = (out = ''): Ergebnis => ({ out, code: 0 });
 const fehler = (err: string, code = 1): Ergebnis => ({ out: '', err, code });
 
 export interface NetzKern { datum: (w: Welt, ms: number, fmt?: string) => string }
+export interface Sock { p: string; s: string; l: string; f: string; prog: string; pid: number }
+/** Weitere Sockets (Dienste aus Topic 110, SSH-Tunnel), von anderen Modulen gemeldet. */
+let extraSockets: (w: Welt) => Sock[] = () => [];
+export function netzExtraSockets(f: (w: Welt) => Sock[]) { extraSockets = f; }
 let K: NetzKern;
 export function netzKern(k: NetzKern) { K = k; }
 
@@ -140,6 +144,23 @@ function weg(w: Welt, ip: string): Weg {
   return { art: 'ok', hops: [r.via, ...(ip.startsWith('10.') ? [] : ['100.64.0.1', '198.51.100.1']), ip] };
 }
 const nameVon = (ip: string) => HOSTS.find((h) => h.ip === ip)?.name ?? ip;
+
+/** Lauscht auf dem eigenen Rechner etwas an diesem TCP-Port, für diese Adresse? */
+export function lokalOffen(w: Welt, ip: string, port: number): boolean {
+  const extra = extraSockets(w); const sshWeg = extra.some((x) => x.s === 'WEG');
+  const alle = [...(sshWeg ? [] : [{ p: 'tcp', s: 'LISTEN', l: '0.0.0.0:22' }]), { p: 'tcp', s: 'LISTEN', l: '127.0.0.1:25' }, { p: 'tcp', s: 'LISTEN', l: '127.0.0.1:631' }, ...extra];
+  return alle.some((x) => x.p === 'tcp' && x.s === 'LISTEN' && Number(x.l.split(':').pop()) === port && (x.l.startsWith('0.0.0.0') || x.l.startsWith('[::]') || x.l.startsWith('*') || (ip.startsWith('127.') && x.l.startsWith('127.')) || x.l.startsWith(ip + ':')));
+}
+/** Für nmap und ssh: Wohin führt ein Name, ist das Ziel erreichbar, welche Ports sind offen? */
+export function fernZiel(w: Welt, name: string): { ip: string | null; name: string; fehler?: string; erreichbar: boolean; lokal: boolean; ports: number[] } {
+  const r = aufloesen(w, name);
+  if (!r.ip) return { ip: null, name, fehler: r.fehler, erreichbar: false, lokal: false, ports: [] };
+  const lokal = r.ip.startsWith('127.') || eigeneIps(ns(w)).includes(r.ip);
+  const wg = weg(w, r.ip);
+  const h = HOSTS.find((x) => x.ip === r.ip);
+  return { ip: r.ip, name: lokal ? (r.ip.startsWith('127.') ? 'localhost' : w.host) : h?.name ?? name, erreichbar: wg.art === 'ok', lokal, ports: lokal ? [] : h?.ports ?? [] };
+}
+export function netzHosts(w: Welt, cidr: string): string[] { return [...eigeneIps(ns(w)).filter((ip) => imNetz(ip, cidr)), ...HOSTS.filter((h) => imNetz(h.ip, cidr) && weg(w, h.ip).art === 'ok').map((h) => h.ip)]; }
 
 // ---------- Namensauflösung ----------
 
@@ -306,12 +327,12 @@ export function netzBefehle(alt: Record<string, B>): Record<string, B> {
     const r = b.ip(w, ['route', cmd === 'add' ? 'add' : 'del', ziel, ...(gw ? ['via', gw] : [])], '', true);
     return r.code ? fehler(cmd === 'add' ? 'SIOCADDRT: Das Netzwerk ist nicht erreichbar' : 'SIOCDELRT: Kein passender Prozess gefunden') : r;
   };
-  const sockets = (w: Welt, root: boolean, alle: boolean) => [
+  const sockets = (w: Welt, root: boolean, alle: boolean) => [...[
     ['udp', 'UNCONN', '127.0.0.1:323', '0.0.0.0:*', 'chronyd', 690], ['udp', 'UNCONN', '0.0.0.0:5353', '0.0.0.0:*', 'avahi-daemon', 601],
-    ['tcp', 'LISTEN', '0.0.0.0:22', '0.0.0.0:*', 'sshd', 812], ['tcp', 'LISTEN', '127.0.0.1:25', '0.0.0.0:*', 'master', 1301], ['tcp', 'LISTEN', '127.0.0.1:631', '0.0.0.0:*', 'cupsd', 1712],
-    ['tcp', 'LISTEN', '[::]:22', '[::]:*', 'sshd', 812],
-    ...(alle ? [['tcp', 'ESTAB', '192.168.1.23:22', '192.168.1.17:51122', 'sshd', 1620], ['tcp', 'ESTAB', '192.168.1.23:43110', '203.0.113.80:443', 'firefox-esr', 2533]] : []),
-  ].map(([p, s, l, f, prog, pid]) => ({ p: p as string, s: s as string, l: l as string, f: f as string, prog: root ? `users:(("${prog}",pid=${pid},fd=3))` : '', np: root ? `${pid}/${prog}` : '-' }));
+    ['tcp', 'LISTEN', '0.0.0.0:22', '0.0.0.0:*', 'sshd', 901], ['tcp', 'LISTEN', '127.0.0.1:25', '0.0.0.0:*', 'master', 1301], ['tcp', 'LISTEN', '127.0.0.1:631', '0.0.0.0:*', 'cupsd', 1712],
+    ['tcp', 'LISTEN', '[::]:22', '[::]:*', 'sshd', 901],
+    ...(alle ? [['tcp', 'ESTAB', '192.168.1.23:22', '192.168.1.17:51122', 'sshd', 3048], ['tcp', 'ESTAB', '192.168.1.23:43110', '203.0.113.80:443', 'firefox-esr', 1450]] : []),
+  ].map(([p, s, l, f, prog, pid]) => ({ p, s, l, f, prog, pid } as Sock)), ...extraSockets(w)].filter((x, _k, alle) => x.s !== 'WEG' && !alle.some((y) => y.s === 'WEG' && y.p === x.p && x.l.split(':').pop() === y.l.split(':').pop() && x.prog === 'sshd')).map(({ p, s, l, f, prog, pid }) => ({ p: p as string, s: s as string, l: l as string, f: f as string, prog: root ? `users:(("${prog}",pid=${pid},fd=3))` : '', np: root ? `${pid}/${prog}` : '-' }));
   b.ss = (w, a, _i, root) => {
     const f = a.join(''); const tcp = !/[tu]/.test(f) || f.includes('t'); const udp = !/[tu]/.test(f) || f.includes('u');
     const nurListen = f.includes('l'); const alle = f.includes('a');
@@ -387,7 +408,7 @@ export function netzBefehle(alt: Record<string, B>): Record<string, B> {
     if (wg.art === 'kein-netz') return fehler(`nc: connect to ${t} failed: Network is unreachable`);
     if (wg.art === 'nicht-da') return fehler(`nc: connect to ${t} failed: No route to host`);
     if (wg.art === 'still') return fehler(`nc: connect to ${t} failed: Connection timed out`);
-    const offen = r.ip.startsWith('127.') ? [22, 25, 631].includes(Number(port)) : HOSTS.find((h) => h.ip === r.ip)?.ports.includes(Number(port));
+    const offen = r.ip.startsWith('127.') || eigeneIps(ns(w)).includes(r.ip) ? lokalOffen(w, r.ip, Number(port)) : HOSTS.find((h) => h.ip === r.ip)?.ports.includes(Number(port));
     if (!offen) return fehler(`nc: connect to ${t} failed: Connection refused`);
     return zv ? { out: '', err: `Connection to ${ziel}${ziel === r.ip ? '' : ` (${r.ip})`} ${port} port [tcp/${dienst[port] ?? '*'}] succeeded!`, code: 0 } : ok(`(Verbunden mit ${ziel} Port ${port}. Im Simulator endet die Verbindung sofort. Mit -zv prüfst du nur, ob der Port offen ist.)`);
   };

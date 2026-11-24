@@ -27,6 +27,7 @@ export const DEB: Paket[] = [
   D('bash', '5.2.15-2+b7', 'GNU Bourne Again SHell', ['libc6'], ['/usr/bin/bash', '/etc/bash.bashrc'], ['/etc/bash.bashrc'], 7100),
   D('pciutils', '1:3.9.0-4', 'PCI utilities', ['libc6'], ['/usr/bin/lspci', '/usr/share/man/man8/lspci.8.gz'], [], 220),
   D('openssh-server', '1:9.2p1-2+deb12u3', 'secure shell (SSH) server, for secure access from remote machines', ['libc6', 'openssh-client'], ['/usr/sbin/sshd', '/etc/ssh/sshd_config'], ['/etc/ssh/sshd_config'], 1900),
+  D('nmap', '7.93+dfsg1-1', 'The Network Mapper', ['libc6'], ['/usr/bin/nmap'], [], 4500),
   D('openssh-client', '1:9.2p1-2+deb12u3', 'secure shell (SSH) client, for secure access to remote machines', ['libc6'], ['/usr/bin/ssh', '/usr/bin/ssh-keygen'], [], 4200),
   D('smartmontools', '7.3-pre1-1', 'control and monitor storage systems using S.M.A.R.T.', ['libc6'], ['/usr/sbin/smartctl', '/etc/smartd.conf'], ['/etc/smartd.conf'], 2200),
   D('tzdata', '2024a-0+deb12u1', 'time zone and daylight-saving time data', [], ['/usr/share/zoneinfo/Europe/Berlin'], [], 3200),

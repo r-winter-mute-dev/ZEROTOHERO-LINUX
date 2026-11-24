@@ -11,6 +11,7 @@ import { START_FSTAB, plattenBefehle, startPlatten, zustandPlatten, plattenKaput
 import { skriptKern, programm, funktionAufrufen, istZusammengesetzt, zerlegenProgramm, BrauchtEingabe, stand, rechnen, RechenFehler, parameter, skriptEingebaut, skriptBefehle, suBefehl, shellStarten, shellBeenden, zustandSkript } from './shell-skript';
 import { adminBefehle, adminKern, idFuer, zustandAdmin, gruppenVon } from './shell-admin';
 import { zeitBefehle, zeitDateien, zeitKern, timerSystemctl, zustandZeit, datumFormat } from './shell-zeit';
+import { sicherBefehle, sicherDateien, sicherKern, sicherStarten, sicherSystemctl, sudoErlaubt, zustandSicherheit, type SicherOptionen } from './shell-sicherheit';
 import { netzBefehle, netzDateien, netzKern, netzStarten, zustandNetz, type NetzOptionen } from './shell-netz';
 import { dienstBefehle, dienstDateien, dienstKern, dienstStarten, dienstSystemctl, zustandDienste, type DienstOptionen } from './shell-dienste';
 import { x11Befehle, x11Dateien, grafikStarten, zustandX11 } from './shell-x11';
@@ -251,6 +252,7 @@ function grundFs(): Record<string, string | null> {
   zeitDateien(fs);
   dienstDateien(fs);
   netzDateien(fs);
+  sicherDateien(fs);
   // Gruppen-Schatten, Vorgaben für useradd und login.defs (Debian 12)
   fs['/etc/gshadow'] = (fs['/etc/group'] ?? '').split('\n').filter(Boolean).map((z) => { const g = z.split(':'); return `${g[0]}:${g[0] === 'sudo' || g[0] === 'users' ? '*' : '!'}::${g[3] ?? ''}`; }).join('\n') + '\n';
   fs['/etc/default/useradd'] = '# Default values for useradd(8)\n#\n# The SHELL variable specifies the default login shell on your\n# system.\n# Similar to DSHELL in adduser. However, we use "sh" here because\n# useradd is a low level utility and should be as general\n# as possible\nSHELL=/bin/sh\n#\n# The default group for users\n# 100=users on Debian systems\n# Same as USERS_GID in adduser\n# This argument is used when the -n flag is specified.\n# The default behavior (when -n and -g are not specified) is to create a\n# primary user group with the same name as the user being added to the\n# system.\n# GROUP=100\n#\n# The default home directory. Same as DHOME for adduser\n# HOME=/home\n#\n# The number of days after a password expires until the account\n# is permanently disabled\n# INACTIVE=-1\n#\n# The default expire date\n# EXPIRE=\n#\n# The SKEL variable specifies the directory containing "skeletal" user\n# files; in other words, files such as a sample .profile that will be\n# copied to the new user\'s home directory when it is created.\n# SKEL=/etc/skel\n#\n# Defines whether the mail spool should be created while\n# creating the account\n# CREATE_MAIL_SPOOL=no\n';
@@ -272,7 +274,7 @@ function modulPfad(name: string) {
   return `${ordner[name] ?? 'kernel/drivers/misc'}/${name.replace(/_/g, name === 'usb_storage' ? '-' : '_')}.ko`;
 }
 
-export interface WeltOptionen { netz?: NetzOptionen; dienste?: DienstOptionen; grafik?: 'x11' | 'wayland'; defaultTarget?: string; target?: string; ohne?: string[]; dateien?: Record<string, string>; prozesse?: Prozess[]; root?: boolean; distro?: 'debian' | 'alma' | 'suse'; virt?: string; host?: string; aptVeraltet?: boolean; geaendert?: string[]; pathStandard?: boolean; cwd?: string; rechte?: Record<string, string>; zeiten?: Record<string, number>; aliase?: Record<string, string>; extraProzesse?: Prozess[]; neuePlatte?: boolean | 'leer' | 'partitioniert' | 'formatiert'; kaputt?: string[]; }
+export interface WeltOptionen { sicherheit?: SicherOptionen; netz?: NetzOptionen; dienste?: DienstOptionen; grafik?: 'x11' | 'wayland'; defaultTarget?: string; target?: string; ohne?: string[]; dateien?: Record<string, string>; prozesse?: Prozess[]; root?: boolean; distro?: 'debian' | 'alma' | 'suse'; virt?: string; host?: string; aptVeraltet?: boolean; geaendert?: string[]; pathStandard?: boolean; cwd?: string; rechte?: Record<string, string>; zeiten?: Record<string, number>; aliase?: Record<string, string>; extraProzesse?: Prozess[]; neuePlatte?: boolean | 'leer' | 'partitioniert' | 'formatiert'; kaputt?: string[]; }
 
 export function neueWelt(o: WeltOptionen = {}): Welt {
   const verfuegbar = Object.fromEntries(MODULE.map((x) => [x.name, x]));
@@ -308,6 +310,7 @@ export function neueWelt(o: WeltOptionen = {}): Welt {
   if (o.cwd) { w.cwd = o.cwd; w.env.PWD = o.cwd; }
   if (o.dienste) dienstStarten(w, o.dienste);
   if (o.netz) netzStarten(w, o.netz);
+  sicherStarten(w, o.sicherheit ?? {});
   if (o.grafik) { grafikStarten(w, o.grafik); if ('/var/log/Xorg.0.log' in w.fs) meta(w, '/var/log/Xorg.0.log').mode = 0o644; }
   w.historie = (w.fs['/home/lena/.bash_history'] ?? '').split('\n').filter(Boolean);
   programmeAblegen(w);
@@ -324,8 +327,8 @@ export function neueWelt(o: WeltOptionen = {}): Welt {
 }
 
 // Die wichtigsten Programme liegen als Platzhalter in /usr/bin und /usr/sbin, damit ls, file, find und which sie finden.
-const PROGRAMME = ['passwd', 'su', 'chsh', 'chfn', 'newgrp', 'gpasswd', 'chage', 'expiry', 'crontab', 'stat', 'readlink', 'mount', 'umount', 'df', 'du', 'findmnt', 'lsblk', 'ln', 'chgrp', 'locate', 'plocate', 'bash', 'cat', 'cp', 'mv', 'rm', 'ls', 'mkdir', 'rmdir', 'touch', 'ln', 'chmod', 'chown', 'head', 'tail', 'wc', 'sort', 'uniq', 'cut', 'paste', 'tr', 'od', 'split', 'nl', 'tac', 'sed', 'grep', 'find', 'xargs', 'tar', 'gzip', 'gunzip', 'zcat', 'bzip2', 'bunzip2', 'bzcat', 'xz', 'unxz', 'xzcat', 'cpio', 'dd', 'md5sum', 'sha256sum', 'sha512sum', 'file', 'ps', 'top', 'free', 'uptime', 'pgrep', 'pkill', 'killall', 'kill', 'watch', 'nice', 'renice', 'nohup', 'sleep', 'tee', 'env', 'printenv', 'uname', 'which', 'whereis', 'man', 'date', 'echo', 'printf', 'pwd', 'less', 'more', 'vim.tiny', 'nano', 'screen', 'tmux', 'basename', 'dirname', 'id', 'whoami', 'hostname', 'sudo', 'lspci', 'lsusb', 'lsblk', 'dmesg', 'journalctl', 'systemctl', 'apt', 'apt-get', 'apt-cache', 'dpkg', 'ldd', 'seq', 'expr', 'mail', 'dircolors', 'dash', 'test', '[', 'diff', 'xclock', 'xeyes', 'xterm', 'xcalc', 'gnome-calculator', 'orca', 'onboard', 'xdpyinfo', 'xwininfo', 'xhost', 'xauth', 'X', 'Xorg', 'setxkbmap', 'gsettings', 'getent', 'crontab', 'at', 'atq', 'atrm', 'batch', 'run-parts', 'systemd-run', 'locale', 'localectl', 'timedatectl', 'tzselect', 'iconv', 'chronyc', 'ntpdate', 'ntpq', 'logger', 'systemd-cat', 'mailq', 'postqueue', 'newaliases', 'postalias', 'lp', 'lpr', 'lpq', 'lprm', 'cancel', 'lpstat', 'lpoptions', 'ip', 'ss', 'netstat', 'ping', 'ping6', 'traceroute', 'traceroute6', 'tracepath', 'tracepath6', 'nc', 'netcat', 'host', 'dig', 'nslookup', 'hostnamectl', 'nmcli', 'networkctl', 'resolvectl'];
-const SBIN_PROGRAMME = ['mkfs', 'mkfs.ext2', 'mkfs.ext3', 'mkfs.ext4', 'mkfs.xfs', 'mkfs.vfat', 'mkfs.fat', 'mkfs.exfat', 'mkswap', 'swapoff', 'blkid', 'e2fsck', 'fsck', 'fsck.ext4', 'tune2fs', 'xfs_repair', 'xfs_fsr', 'xfs_db', 'parted', 'gdisk', 'fdisk', 'modprobe', 'insmod', 'rmmod', 'lsmod', 'modinfo', 'shutdown', 'reboot', 'poweroff', 'halt', 'ldconfig', 'update-grub', 'grub-install', 'swapon', 'dpkg-reconfigure', 'sshd', 'telinit', 'runlevel', 'useradd', 'usermod', 'userdel', 'groupadd', 'groupmod', 'groupdel', 'hwclock', 'rsyslogd', 'logrotate', 'sendmail', 'postsuper', 'lpadmin', 'cupsenable', 'cupsdisable', 'cupsaccept', 'cupsreject', 'lpinfo', 'ifconfig', 'route', 'ifup', 'ifdown'];
+const PROGRAMME = ['passwd', 'su', 'chsh', 'chfn', 'newgrp', 'gpasswd', 'chage', 'expiry', 'crontab', 'stat', 'readlink', 'mount', 'umount', 'df', 'du', 'findmnt', 'lsblk', 'ln', 'chgrp', 'locate', 'plocate', 'bash', 'cat', 'cp', 'mv', 'rm', 'ls', 'mkdir', 'rmdir', 'touch', 'ln', 'chmod', 'chown', 'head', 'tail', 'wc', 'sort', 'uniq', 'cut', 'paste', 'tr', 'od', 'split', 'nl', 'tac', 'sed', 'grep', 'find', 'xargs', 'tar', 'gzip', 'gunzip', 'zcat', 'bzip2', 'bunzip2', 'bzcat', 'xz', 'unxz', 'xzcat', 'cpio', 'dd', 'md5sum', 'sha256sum', 'sha512sum', 'file', 'ps', 'top', 'free', 'uptime', 'pgrep', 'pkill', 'killall', 'kill', 'watch', 'nice', 'renice', 'nohup', 'sleep', 'tee', 'env', 'printenv', 'uname', 'which', 'whereis', 'man', 'date', 'echo', 'printf', 'pwd', 'less', 'more', 'vim.tiny', 'nano', 'screen', 'tmux', 'basename', 'dirname', 'id', 'whoami', 'hostname', 'sudo', 'lspci', 'lsusb', 'lsblk', 'dmesg', 'journalctl', 'systemctl', 'apt', 'apt-get', 'apt-cache', 'dpkg', 'ldd', 'seq', 'expr', 'mail', 'dircolors', 'dash', 'test', '[', 'diff', 'xclock', 'xeyes', 'xterm', 'xcalc', 'gnome-calculator', 'orca', 'onboard', 'xdpyinfo', 'xwininfo', 'xhost', 'xauth', 'X', 'Xorg', 'setxkbmap', 'gsettings', 'getent', 'crontab', 'at', 'atq', 'atrm', 'batch', 'run-parts', 'systemd-run', 'locale', 'localectl', 'timedatectl', 'tzselect', 'iconv', 'chronyc', 'ntpdate', 'ntpq', 'logger', 'systemd-cat', 'mailq', 'postqueue', 'newaliases', 'postalias', 'lp', 'lpr', 'lpq', 'lprm', 'cancel', 'lpstat', 'lpoptions', 'ip', 'ss', 'netstat', 'ping', 'ping6', 'traceroute', 'traceroute6', 'tracepath', 'tracepath6', 'nc', 'netcat', 'host', 'dig', 'nslookup', 'hostnamectl', 'nmcli', 'networkctl', 'resolvectl', 'w', 'last', 'lastb', 'lastlog', 'lsof', 'fuser', 'ssh', 'scp', 'ssh-add', 'ssh-agent', 'ssh-copy-id', 'gpg', 'gpgconf', 'gpg-agent', 'gpg-connect-agent', 'telnet'];
+const SBIN_PROGRAMME = ['mkfs', 'mkfs.ext2', 'mkfs.ext3', 'mkfs.ext4', 'mkfs.xfs', 'mkfs.vfat', 'mkfs.fat', 'mkfs.exfat', 'mkswap', 'swapoff', 'blkid', 'e2fsck', 'fsck', 'fsck.ext4', 'tune2fs', 'xfs_repair', 'xfs_fsr', 'xfs_db', 'parted', 'gdisk', 'fdisk', 'modprobe', 'insmod', 'rmmod', 'lsmod', 'modinfo', 'shutdown', 'reboot', 'poweroff', 'halt', 'ldconfig', 'update-grub', 'grub-install', 'swapon', 'dpkg-reconfigure', 'sshd', 'telinit', 'runlevel', 'useradd', 'usermod', 'userdel', 'groupadd', 'groupmod', 'groupdel', 'hwclock', 'rsyslogd', 'logrotate', 'sendmail', 'postsuper', 'lpadmin', 'cupsenable', 'cupsdisable', 'cupsaccept', 'cupsreject', 'lpinfo', 'ifconfig', 'route', 'ifup', 'ifdown', 'visudo', 'tcpdmatch', 'service'];
 function programmeAblegen(w: Welt) {
   if (w.distro !== 'debian') return;
   for (const d of ['/usr', '/usr/bin', '/usr/sbin']) if (!(d in w.fs)) w.fs[d] = null;
@@ -1359,7 +1362,15 @@ function einfachAusfuehren(w: Welt, c: Einfach, stdin: string, rootStart: boolea
   else {
     if (args[0] === 'sudo') {
       args = args.slice(1);
+      // sudo -l [-U benutzer]: Rechte aus /etc/sudoers anzeigen
+      if (args.includes('-l') && args.every((x, k) => x.startsWith('-') || args[k - 1] === '-U')) { const l = befehle.__sudo_l(w, args, '', true); return l.code ? frueh(l.err ?? '') : { out: l.out, err: '', code: 0, tty: l.out }; }
       while (args[0]?.startsWith('-') && args[0] !== '-i' && args[0] !== '-s') args.shift();
+      // sudo liest /etc/sudoers bei jedem Aufruf. Eine kaputte Datei sperrt alle aus.
+      if (!rootStart && args.length) {
+        const prog = args[0] === '-i' || args[0] === '-s' ? '/bin/bash' : args[0].startsWith('/') ? args[0] : ['/usr/bin/', '/usr/sbin/', '/usr/local/bin/', '/usr/local/sbin/'].map((d) => d + args[0]).find((p) => p in w.fs) ?? '/usr/bin/' + args[0];
+        const f = sudoErlaubt(w, w.user, args.join(' '), prog);
+        if (f) return frueh(f);
+      }
       if (args[0] === '-i' || args[0] === '-s' || (args[0] === 'su' && args.length <= 2 && (!args[1] || ['-', '-l', '--login', 'root'].includes(args[1])))) {
         const login = args[0] === '-i' || args[1] === '-' || args[1] === '-l' || args[1] === '--login';
         const st = shellStarten(w, { login, root: true });
@@ -1754,6 +1765,22 @@ Object.assign(befehle, dienstBefehle({ ...befehle }));
 // Netzwerk aus Topic 109
 netzKern({ datum: (w, ms, fmt) => datumFormat(w, ms, fmt) });
 Object.assign(befehle, netzBefehle({ ...befehle }));
+// Sicherheit aus Topic 110
+sicherKern({
+  dialog: (w, prompt, weiter) => { w.dialog = { prompt, eingabe: (z) => { w.dialog = null; return weiter(z); } }; },
+  zeile: (w, z, stdin, root) => zeileAusfuehren(w, z, stdin, root, false, true, true),
+  vi: (w, p, nach) => { (w as Welt & { viNach?: unknown }).viNach = { pfad: p, nach }; return viStart(w, [p], true); },
+  rechte: (w, p, mode, owner, group) => { const m = meta(w, p); m.mode = mode; m.owner = owner; m.group = group; },
+  modus: (w, p) => meta(w, p).mode,
+  pfad,
+});
+Object.assign(befehle, sicherBefehle({ ...befehle }));
+{
+  const vorher = befehle.systemctl;
+  befehle.systemctl = (w, a, i, r) => sicherSystemctl(w, a, r || w.root) ?? vorher(w, a, i, r);
+  // ulimit und eval sind eingebaute Befehle der Shell
+  EINGEBAUT.ulimit = befehle.ulimit; EINGEBAUT.eval = befehle.eval; delete befehle.ulimit; delete befehle.eval;
+}
 // /proc/modules wird aus dem Zustand der Module erzeugt
 befehle.cat = (w, a, i, r) => a.some((x) => pfad(w, x) === '/proc/modules') ? procCat(w, a, i, r) : textCat(w, a, i, r);
 // vi öffnet im Terminal den Editor. Die Komponente erkennt die Markierung und übernimmt die Tastatur.
@@ -1867,6 +1894,7 @@ export function zustandStimmt(w: Welt, z: string): boolean {
     const zz = zustandZeit(w, s); if (zz !== undefined) return zz;
     const zd = zustandDienste(w, s); if (zd !== undefined) return zd;
     const zn = zustandNetz(w, s); if (zn !== undefined) return zn;
+    const zs2 = zustandSicherheit(w, s); if (zs2 !== undefined) return zs2;
     if (s === 'neustart') return w.verlauf.some((v) => v.zeile === '#neustart');
     // ---- ab Topic 103 ----
     // vi:ohne = beendet, ohne zu speichern (mit oder ohne Änderungen)

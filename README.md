@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/spielbar-LPIC--1_Topic_101-a6e3a1?labelColor=2a2a2a" alt="Spielbar: LPIC-1 Topic 101">
+  <img src="https://img.shields.io/badge/spielbar-LPIC--1_komplett-a6e3a1?labelColor=2a2a2a" alt="Spielbar: LPIC-1 komplett">
   <img src="https://img.shields.io/badge/kostenlos-ohne_Anmeldung-cba6f7?labelColor=2a2a2a" alt="Kostenlos, ohne Anmeldung">
   <img src="https://img.shields.io/badge/Inhalte-CC_BY--SA_4.0-a0a0a0?labelColor=2a2a2a" alt="Inhalte: CC BY-SA 4.0">
   <img src="https://img.shields.io/badge/Code-MIT-a0a0a0?labelColor=2a2a2a" alt="Code: MIT">
@@ -25,7 +25,7 @@
 
 | Kampagne | Zertifikat | Prüfungen | Lernziele | Stand |
 | :---: | --- | --- | :---: | :---: |
-| 1 | LPIC-1 Linux Administrator | 101-500, 102-500 | v5.0 | Prüfung 101 komplett spielbar (Akt 0 bis 4), Prüfung 102 ab Akt 5 im Aufbau |
+| 1 | LPIC-1 Linux Administrator | 101-500, 102-500 | v5.0 | komplett spielbar: Akt 0 bis 10, Generalproben 101 und 102 |
 | 2 | LPIC-2 Linux Engineer | 201-450, 202-450 | v4.5 | Lehrplan steht |
 | 3 | LPIC-3 Security | 303-300 | v3.0 | Lehrplan steht |
 
@@ -48,7 +48,7 @@ Jede Prüfung hat 60 Fragen in 90 Minuten. Bestanden ist ab 500 auf einer Skala 
 | 7 | 107 | Konten und Kontodateien, Gruppen und Passwortregeln, cron, at und systemd-Timer, Locales, iconv und Zeitzonen, Bosskampf, Probeprüfung 106 und 107 | ✅ |
 | 8 | 108 | Systemuhr und Hardware-Uhr, NTP mit chrony und ntpd, rsyslog, Journal und logrotate, Mail-Aliase und ~/.forward, Drucken mit CUPS, Bosskampf, Probeprüfung | ✅ |
 | 9 | 109 | IPv4, CIDR und Subnetting, Ports, TCP/UDP/ICMP und IPv6, dauerhafte Konfiguration mit NetworkManager und ifupdown, ip und net-tools, Fehlersuche mit ping, traceroute, tracepath, nc und ss, DNS mit host, dig und getent, Bosskampf, Probeprüfung | ✅ |
-| 10 | 110 | Sicherheit, Generalprobe 102 | 📝 |
+| 10 | 110 | SUID-Audit, Konten, offene Ports mit ss, lsof, fuser und nmap, Anmeldespuren, ulimit und limits.conf, sudo und visudo, Dienste und Sockets abschalten, xinetd, TCP-Wrapper, /etc/nologin, OpenSSH mit Schlüsseln, Agent, known_hosts und Tunneln, GnuPG, Bosskampf, Generalprobe 102 | ✅ |
 
 ✅ spielbar · 📝 Lehrplan steht, Missionen folgen
 
@@ -98,7 +98,7 @@ Am meisten hilft gerade:
 - [x] Topic 107 (Akt 7)
 - [x] Topic 108 (Akt 8)
 - [x] Topic 109 (Akt 9)
-- [ ] **Missionen für Prüfung 102** (Topic 110 und Generalprobe).
+- [x] Topic 110 (Akt 10) und Generalprobe 102
 - [ ] **Labor-Aufgaben testen** auf anderen Distributionen und mit anderen Virtualisierern.
 
 ## Entstehung

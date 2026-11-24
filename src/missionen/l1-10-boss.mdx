@@ -1,0 +1,36 @@
+---
+id: l1-10-boss
+checks:
+  - id: abnahme
+spick:
+  - t: "Audit"
+    v: "find / -perm /6000 -type f 2>/dev/null · ss -tulpn · lsof -i · nmap 192.168.1.23"
+  - t: "Abschalten"
+    v: "systemctl disable --now name.socket name.service · /etc/xinetd.d/dienst: disable = yes · systemctl restart xinetd"
+  - t: "Zugriff"
+    v: "/etc/hosts.deny ALL: ALL · /etc/hosts.allow daemon: 192.168.1. · visudo -f /etc/sudoers.d/datei"
+  - t: "SSH"
+    v: "ssh-keygen -t ed25519 · ssh-copy-id · /etc/ssh/sshd_config.d/*.conf · sshd -t · systemctl restart ssh"
+  - t: "GnuPG"
+    v: "gpg --quick-gen-key · gpg --import · gpg -e -r · gpg -b · gpg --verify"
+---
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+
+Morgen schaltet die Firma die Firewall für werkstatt frei. Vorher kommt die Abnahme durch die IT-Sicherheit. Auf der Liste stehen alle Altlasten aus dem Audit, dazu sichere Anmeldungen und ein signierter Prüfbericht. **Dein Bosskampf: Bring werkstatt durch die Abnahme.** Alles aus Topic 110.
+
+<Hinweis titel="Vorgehen">
+Die Aufgaben nennen nur das Ziel. Arbeite mit sudo, nicht in einer Root-Shell, und prüf die sudoers-Regel, bevor du die Sitzung verlässt. Ein Tippfehler dort sperrt dich aus.
+</Hinweis>
+
+<Terminal id="abnahme" titel="Bosskampf: Die Abnahme" welt={{ sicherheit: { altlasten: true, gpgMax: true } }} aufgaben={[
+  { text: 'Unter <code>/home</code> und <code>/usr/local</code> gibt es keine Datei mehr mit SUID- oder SGID-Bit.', zustand: 'modus:/home/max/.cache/bash=755 && modus:/usr/local/bin/messd-helper=755' },
+  { text: 'Kein Telnet mehr: Port 23 ist zu, und xinetd bietet telnet auch nach einem Neustart nicht mehr an.', zustand: 'datei:/etc/xinetd.d/telnet~^\\s*disable\\s*=\\s*yes && port:tcp/23=zu' },
+  { text: 'rpcbind ist ganz weg: Socket und Dienst sind aus und starten auch beim Booten nicht.', zustand: 'unit:rpcbind.socket=disabled && unit:rpcbind.service=disabled && port:tcp/111=zu && port:udp/111=zu' },
+  { text: 'tftp erreichen nur noch Rechner aus 192.168.1.0/24. Alles andere verbieten die TCP-Wrapper grundsätzlich.', zustand: 'datei:/etc/hosts.deny~^ALL\\s*:\\s*ALL\\s*$ && wrapper:in.tftpd@192.168.1.40=erlaubt && wrapper:in.tftpd@10.20.0.5=verboten' },
+  { text: 'max darf per sudo genau einen Befehl: <code>/usr/bin/systemctl restart messd</code>, ohne Passwort, über eine Datei in <code>/etc/sudoers.d/</code>. sudo funktioniert danach weiter für alle.', zustand: 'sudoers:gueltig && sudo:max=/usr/bin/systemctl restart messd && keinsudo:max=/usr/bin/bash && sudo:lena=/usr/bin/ls' },
+  { text: 'Am SSH-Server von werkstatt darf sich root nicht anmelden, und die Einstellung wirkt.', zustand: 'sshd:permitrootlogin=no' },
+  { text: 'Du meldest dich bei labor2 mit einem Ed25519-Schlüssel an, der eine Passphrase hat.', zustand: 'sshkeypass:~/.ssh/id_ed25519 && fern:/home/lena/.ssh/authorized_keys~^ssh-ed25519 ' },
+  { text: 'Die Signatur von Max auf <code>messwerte.csv</code> ist geprüft. Schreib das Ergebnis in <code>pruefbericht.txt</code>: eine Zeile mit „messwerte.csv: korrekt“.', zustand: 'datei:/home/lena/pruefbericht.txt~messwerte\\.csv: korrekt' },
+  { text: 'Der Prüfbericht ist mit deinem eigenen GnuPG-Schlüssel (lena@lab.example.org) abgetrennt signiert und für Max verschlüsselt.', zustand: 'gpgdatei:pruefbericht.txt.sig=sig:lena && gpgdatei:pruefbericht.txt.gpg=enc:max' },
+]} />

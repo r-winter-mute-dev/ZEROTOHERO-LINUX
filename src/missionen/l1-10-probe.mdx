@@ -1,0 +1,23 @@
+---
+id: l1-10-probe
+abzeichen: "Bereit für Prüfung 102"
+checks:
+  - id: probe
+---
+import Probe from '../components/Probe.astro';
+import Karte from '../components/Karte.astro';
+import Hinweis from '../components/Hinweis.astro';
+
+Das ist die Generalprobe für die zweite Prüfung. Sie hat das Format der echten Prüfung 102-500: **60 Fragen in 90 Minuten**, gemischt aus Topic 105 bis 110 und gewichtet wie die offiziellen Lernziele. **Deine Mission: Bestehe die Generalprobe mit mindestens 80 %.** Wer beide Prüfungen 101 und 102 besteht, ist LPIC-1.
+
+<Karte nr={1} titel="Wie aussagekräftig ist das?">
+Die echte Prüfung bewertet auf einer Skala von 200 bis 800, bestanden ist ab 500. Wie das LPI Fragen in Punkte umrechnet, ist nicht öffentlich. 80 % hier ist ein selbst gesetzter, eher strenger Richtwert, keine Vorhersage deines Ergebnisses.
+
+Die Fragen sind selbst geschrieben. Echte Prüfungsfragen sind vertraulich. Wer hier sicher besteht, kennt den Stoff, und darauf kommt es an.
+</Karte>
+
+<Hinweis titel="So nutzt du die Generalprobe">
+Unter echten Bedingungen: ohne Spickzettel, ohne Pause, Zeit im Blick. Die Auswertung zeigt danach deine schwachen Lernziele. Geh in diese Missionen zurück, wiederhole die Spickzettel und mach die Generalprobe frühestens am nächsten Tag noch einmal. Sie zieht dann andere Fragen. Falsch beantwortete Fragen landen automatisch in deiner Wiederholung.
+</Hinweis>
+
+<Probe id="probe" titel="Generalprobe Prüfung 102" ziele={['105.1', '105.2', '106.1', '106.2', '106.3', '107.1', '107.2', '107.3', '108.1', '108.2', '108.3', '108.4', '109.1', '109.2', '109.3', '109.4', '110.1', '110.2', '110.3']} anzahl={60} />

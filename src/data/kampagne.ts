@@ -193,9 +193,19 @@ const LPIC1: Akt[] = [
       m('l1-9-probe', 'Probe 9', 'Probeprüfung Topic 109', 'Topic 109 gemischt mit Topic 108, mit Zeitlimit.', 'Topic 109 und Wiederholung von 108', 'Prüfungssimulation', { probe: true, ziele: ['109.1', '109.2', '109.3', '109.4', '108.1', '108.2', '108.3', '108.4'], bereit: true }),
     ],
   },
-  geplanterAkt('l1', 10, 'Sicherheit', '110', 'Rechner absichern und Daten mit SSH und GnuPG schützen.', 'lpic1', [
-    m('l1-10-probe', 'Probe 102', 'Generalprobe Prüfung 102', '60 Fragen, 90 Minuten, gewichtet wie die echte Prüfung 102-500.', 'Topics 105 bis 110', 'Prüfungssimulation', { probe: true }),
-  ]),
+  {
+    nr: 10, titel: 'Sicherheit', teil: 'l1-10', teilName: 'Topic 110',
+    ziel: 'Einen Rechner prüfen und absichern, Rechte gezielt mit sudo vergeben, Dienste abschalten und Daten mit SSH und GnuPG schützen. 10 von 60 Fragen in Prüfung 102. Am Ende steht die Generalprobe für Prüfung 102.',
+    missionen: [
+      m('l1-10-1', '10.1', 'Das Sicherheitsaudit', 'SUID-Dateien finden, Konten prüfen und jeden offenen Port mit Programm finden.', 'find -perm, SUID, SGID, passwd -l/-S/-e, chage, usermod -L, ss, netstat, lsof, fuser, nmap', 'Terminal-Simulator und Quiz', { ziele: ['110.1'], bereit: true }),
+      m('l1-10-2', '10.2', 'Anmeldungen, Grenzen und sudo', 'Anmeldespuren lesen, Grenzen für Benutzer setzen und Rechte mit sudo vergeben.', 'who, w, last, lastb, ulimit, /etc/security/limits.conf, su, sudo, /etc/sudoers, visudo, sudo -l', 'Terminal-Simulator, Lückentext, Quiz', { ziele: ['110.1'], bereit: true }),
+      m('l1-10-3', '10.3', 'Den Rechner absichern', 'Unnötige Dienste abschalten und einschränken, wer die übrigen erreicht.', '/etc/shadow, systemctl disable/mask, Sockets, xinetd, /etc/inittab, /etc/init.d, TCP-Wrapper, hosts.allow, hosts.deny, /etc/nologin', 'Terminal-Simulator, Zuordnung, Quiz', { ziele: ['110.2'], bereit: true }),
+      m('l1-10-4', '10.4', 'OpenSSH', 'Mit Schlüsseln anmelden, Host-Schlüssel prüfen, Tunnel bauen und den Server härten.', 'ssh, ssh-keygen, ssh-copy-id, ssh-agent, ssh-add, authorized_keys, known_hosts, ssh_host_*, -L, -R, -X, sshd_config, PermitRootLogin', 'Terminal-Simulator und Quiz', { ziele: ['110.3'], bereit: true }),
+      m('l1-10-5', '10.5', 'GnuPG', 'Schlüssel austauschen, verschlüsseln, signieren, Signaturen prüfen und widerrufen.', 'gpg --gen-key, -k, -K, --export, --import, --fingerprint, -e -r, -d, -c, --clearsign, -b, --verify, --gen-revoke, gpg-agent, ~/.gnupg', 'Terminal-Simulator, Zuordnung, Quiz', { ziele: ['110.3'], bereit: true }),
+      m('l1-10-boss', 'Boss 10', 'Die Abnahme', 'werkstatt durch die Sicherheitsabnahme bringen, bevor es ins Internet geht.', 'Alles aus Topic 110', 'Terminal-Simulator', { boss: true, ziele: ['110.1', '110.2', '110.3'], bereit: true }),
+      m('l1-10-probe', 'Probe 102', 'Generalprobe Prüfung 102', '60 Fragen, 90 Minuten, gewichtet wie die echte Prüfung 102-500.', 'Topics 105 bis 110', 'Prüfungssimulation', { probe: true, ziele: ['105.1', '105.2', '106.1', '106.2', '106.3', '107.1', '107.2', '107.3', '108.1', '108.2', '108.3', '108.4', '109.1', '109.2', '109.3', '109.4', '110.1', '110.2', '110.3'], bereit: true }),
+    ],
+  },
 ];
 
 // ---------------- Kampagne 2: LPIC-2 ----------------
