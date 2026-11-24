@@ -1,0 +1,139 @@
+---
+id: l1-9-1
+checks:
+  - id: k1
+  - id: luecke
+  - id: k2
+  - id: zuordnung
+  - id: adressen
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "IPv4"
+    v: "32 Bit, vier Oktette: 192.168.1.23"
+  - t: "CIDR"
+    v: "/24 = 255.255.255.0 · /16 = 255.255.0.0 · /8 = 255.0.0.0 · /26 = 255.255.255.192"
+  - t: "Rechnen"
+    v: "/n: 2^(32−n) Adressen, davon 2^(32−n) − 2 für Rechner (ohne Netz- und Broadcastadresse)"
+  - t: "Privat (RFC 1918)"
+    v: "10.0.0.0/8 · 172.16.0.0/12 · 192.168.0.0/16"
+  - t: "Besondere"
+    v: "127.0.0.0/8 Loopback · 169.254.0.0/16 Link-local · 100.64.0.0/10 Carrier-NAT"
+karten:
+  - f: "Welche Netzmaske gehört zu /24?"
+    a: ["255.255.255.0"]
+  - f: "Welche Netzmaske gehört zu /16?"
+    a: ["255.255.0.0"]
+  - f: "Welche Netzmaske gehört zu /26?"
+    a: ["255.255.255.192"]
+  - f: "Wie viele Rechner passen in ein /24-Netz?"
+    a: ["254"]
+  - f: "Wie viele Rechner passen in ein /28-Netz?"
+    a: ["14"]
+  - f: "Welche drei Bereiche sind privat nach RFC 1918?"
+    a: ["10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16", "10/8 172.16/12 192.168/16"]
+  - f: "Was ist die Broadcastadresse von 192.168.1.0/24?"
+    a: ["192.168.1.255"]
+  - f: "Welcher Bereich ist für die Loopback-Schnittstelle reserviert?"
+    a: ["127.0.0.0/8"]
+  - f: "Woran erkennst du eine Adresse aus 169.254.0.0/16?"
+    a: ["der rechner hat keine adresse per dhcp bekommen", "link-local", "apipa"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Lueckentext from '../components/Lueckentext.astro';
+import Zuordnung from '../components/Zuordnung.astro';
+
+Die Werkstatt soll ein eigenes Netz für die Messgeräte bekommen, getrennt vom Büro. Bevor du etwas einstellst, musst du rechnen können. **Deine Mission: Lies IPv4-Adressen und Netzmasken, rechne Netze aus und erkenne private und öffentliche Adressen.** Lernziel 109.1.
+
+## Adressen und Masken
+
+<Karte nr={1} titel="IPv4, Netzmaske und CIDR">
+Eine **IPv4-Adresse** hat 32 Bit, geschrieben als vier Zahlen von 0 bis 255 („dotted quad“): `192.168.1.23`. Die **Netzmaske** teilt sie in zwei Teile. Die vorderen Bits bilden das Netz, die hinteren den Rechner darin. Alle Rechner mit demselben Netzteil erreichen sich direkt, alles andere geht über einen Router (das Gateway).
+
+Statt der Maske schreibt man heute meist die **CIDR-Schreibweise**: die Zahl der Netzbits hinter einem Schrägstrich.
+
+| CIDR | Maske | Adressen | Rechner |
+|---|---|---|---|
+| /8 | 255.0.0.0 | 16 777 216 | 16 777 214 |
+| /16 | 255.255.0.0 | 65 536 | 65 534 |
+| /24 | 255.255.255.0 | 256 | 254 |
+| /25 | 255.255.255.128 | 128 | 126 |
+| /26 | 255.255.255.192 | 64 | 62 |
+| /28 | 255.255.255.240 | 16 | 14 |
+| /30 | 255.255.255.252 | 4 | 2 |
+
+Die erste Adresse eines Netzes ist die **Netzadresse**, die letzte die **Broadcastadresse**. Beide bekommt kein Rechner, darum „minus 2“. Beispiel: `192.168.1.23/24` liegt im Netz `192.168.1.0/24`, Broadcast `192.168.1.255`, Rechner von .1 bis .254.
+
+**Subnetting** teilt ein Netz in kleinere. Aus `192.168.1.0/24` werden mit `/26` vier Netze zu je 64 Adressen: `.0`, `.64`, `.128` und `.192`. In welchem liegt `192.168.1.100`? Im Netz `.64/26`, denn 100 liegt zwischen 64 und 127.
+</Karte>
+
+<Merke>/n heißt n Netzbits. 2^(32−n) Adressen, minus Netz- und Broadcastadresse. /24 = 255.255.255.0 = 254 Rechner, /26 = .192 = 62, /28 = .240 = 14. Gleiches Netz direkt, sonst über das Gateway.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: Masken" fragen={[
+  { frage: 'Liegen 192.168.1.20/28 und 192.168.1.40/28 im selben Netz?', richtig: 'Nein, /28 teilt in Blöcke zu 16: .16 bis .31 und .32 bis .47.', falsch: ['Ja, beide beginnen mit 192.168.1.', 'Ja, /28 umfasst 28 Adressen.'], erklaerung: 'Für den Verkehr zwischen beiden ist ein Router nötig.' },
+  { frage: 'Welche Maske hat ein Netz mit 62 Rechneradressen?', richtig: '255.255.255.192 (/26)', falsch: ['255.255.255.224 (/27)', '255.255.255.0 (/24)'], erklaerung: '/26 hat 64 Adressen, minus Netz und Broadcast.' },
+]} />
+
+<Lueckentext id="luecke" titel="Rechenpuzzle: Das Messnetz" aufgabe="Das Messnetz bekommt 10.20.30.0/26. Ergänze die Werte."
+  code={`Netzmaske:            ___
+Netzadresse:          10.20.30.0
+erste Rechneradresse: 10.20.30.___
+letzte Rechneradresse:10.20.30.___
+Broadcastadresse:     10.20.30.___
+Anzahl Rechner:       ___`}
+  luecken={[{ loesungen: ['255.255.255.192'] }, { loesungen: ['1'] }, { loesungen: ['62'] }, { loesungen: ['63'] }, { loesungen: ['62'] }]} />
+
+## Privat und öffentlich
+
+<Karte nr={2} titel="Private Adressen und besondere Bereiche">
+Öffentliche Adressen sind im ganzen Internet eindeutig und werden zugeteilt. Für interne Netze sind drei Bereiche reserviert, die im Internet nie geroutet werden (**RFC 1918**):
+
+- `10.0.0.0/8`
+- `172.16.0.0/12` (also 172.16.0.0 bis 172.31.255.255)
+- `192.168.0.0/16`
+
+Ein Router mit **NAT** übersetzt sie beim Weg ins Internet in seine öffentliche Adresse. Weitere Bereiche, die du erkennen solltest: `127.0.0.0/8` ist die **Loopback**-Schnittstelle, also der eigene Rechner. `169.254.0.0/16` vergibt sich ein Rechner selbst, wenn kein DHCP-Server antwortet, und das ist ein Warnzeichen. `100.64.0.0/10` nutzen Provider für Carrier-Grade-NAT. In Dokumentation und Beispielen stehen `192.0.2.0/24`, `198.51.100.0/24` und `203.0.113.0/24`, auch in diesem Kurs.
+</Karte>
+
+<Merke>Privat: 10/8, 172.16/12, 192.168/16. 127/8 Loopback, 169.254/16 Link-local (kein DHCP), 100.64/10 Provider-NAT. NAT übersetzt private in öffentliche Adressen.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: Bereiche" fragen={[
+  { frage: 'Welche Adresse ist privat?', richtig: '172.20.4.1', falsch: ['172.32.4.1', '192.169.4.1'], erklaerung: '172.16.0.0/12 reicht bis 172.31.255.255.' },
+  { frage: 'Ein Laptop hat die Adresse 169.254.12.7. Was ist passiert?', richtig: 'Er hat keine Antwort von einem DHCP-Server bekommen.', falsch: ['Er hat eine öffentliche Adresse.', 'Er ist mit dem Loopback verbunden.'], erklaerung: 'Mit dieser Adresse erreicht er nur Rechner im selben Kabel.' },
+]} />
+
+<Zuordnung id="zuordnung" titel="Zuordnung: Welche Art Adresse?" aufgabe="Ordne jeder Adresse ihre Art zu." paare={[
+  { links: '10.20.0.5', rechts: 'privat (RFC 1918)' },
+  { links: '127.0.0.1', rechts: 'Loopback' },
+  { links: '169.254.33.2', rechts: 'Link-local, kein DHCP' },
+  { links: '203.0.113.80', rechts: 'für Dokumentation reserviert' },
+  { links: '100.64.0.1', rechts: 'Carrier-Grade-NAT des Providers' },
+]} />
+
+<Terminal id="adressen" titel="Terminal: Welche Adressen hat werkstatt?" aufgaben={[
+  { text: 'Lass dir die Adressen aller Schnittstellen in Kurzform zeigen.', befehl: '^ip -br(ief)? a(ddr(ess)?)?( show)?$', frage: 'Welche IPv4-Adresse mit Präfix hat enp0s31f6?', antwort: ['192.168.1.23/24'] },
+  { text: 'Lass dir die Routen zeigen.', befehl: '^ip r(oute)?( show)?$', frage: 'In welchem Netz liegt werkstatt? (CIDR)', antwort: ['192.168.1.0/24'] },
+  { text: 'Zeig alle eigenen Adressen mit hostname.', befehl: '^hostname -I$', frage: 'Welche Adresse ist eine IPv6-Adresse aus dem Dokumentationsbereich 2001:db8::/32?', antwort: ['2001:db8:1::23'] },
+]} />
+
+<Labor id="labor" titel="Aufgabe im Labor: Das Netz deiner VM"
+  aufgabe="Lass dir in deiner Debian-VM Adresse und Route zeigen und rechne selbst nach. Füge die Ausgabe ein."
+  befehl={"ip -4 -br addr\nip route | head -2"}
+  muster={["^\\S+\\s+UP\\s+\\d+\\.\\d+\\.\\d+\\.\\d+/\\d+", "^default via \\d+\\.\\d+\\.\\d+\\.\\d+"]}
+  erfolg="VirtualBox gibt VMs mit NAT oft 10.0.2.15/24, Gateway 10.0.2.2. Beides sind private Adressen." />
+
+<Hinweis titel="Prüfungstipp">
+Übe die Masken /8 bis /30 im Kopf, bis du sie ohne Tabelle kannst. Die Prüfung fragt nach Netzmasken, nach der Zahl der Rechner, ob zwei Adressen im selben Netz liegen und welche Adressen privat sind.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Welche Broadcastadresse hat 192.168.5.130/25?', richtig: '192.168.5.255', falsch: ['192.168.5.127', '192.168.5.254'], erklaerung: '/25 teilt in .0 bis .127 und .128 bis .255.' },
+  { frage: 'Wie viele Adressen hat ein /22-Netz?', richtig: '1024', falsch: ['512', '2048'], erklaerung: '2 hoch (32 minus 22) = 2 hoch 10.' },
+  { frage: 'Welche Schreibweise entspricht 255.255.240.0?', richtig: '/20', falsch: ['/24', '/16'], erklaerung: '240 sind vier gesetzte Bits: 8 + 8 + 4 = 20.' },
+]} />

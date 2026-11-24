@@ -179,7 +179,20 @@ const LPIC1: Akt[] = [
       m('l1-8-probe', 'Probe 8', 'Probeprüfung Topic 108', 'Topic 108 gemischt mit Topic 107, mit Zeitlimit.', 'Topic 108 und Wiederholung von 107', 'Prüfungssimulation', { probe: true, ziele: ['108.1', '108.2', '108.3', '108.4', '107.1', '107.2', '107.3'], bereit: true }),
     ],
   },
-  geplanterAkt('l1', 9, 'Netzwerk', '109', 'IP-Grundlagen, dauerhafte Konfiguration, Fehlersuche und DNS auf dem Client.', 'lpic1'),
+  {
+    nr: 9, titel: 'Netzwerk', teil: 'l1-9', teilName: 'Topic 109',
+    ziel: 'Adressen und Netze rechnen, Ports und Protokolle kennen, das Netz dauerhaft und von Hand einstellen, Fehler systematisch finden und DNS auf dem Client abfragen. 14 von 60 Fragen in Prüfung 102.',
+    missionen: [
+      m('l1-9-1', '9.1', 'Adressen und Netze', 'IPv4-Adressen, Netzmasken und CIDR lesen, Netze ausrechnen und private Bereiche erkennen.', 'IPv4, Netzmaske, CIDR, Netz- und Broadcastadresse, Subnetting, RFC 1918, 127/8, 169.254/16, NAT', 'Terminal-Simulator, Lückentext, Zuordnung, Quiz', { ziele: ['109.1'], bereit: true }),
+      m('l1-9-2', '9.2', 'Protokolle, Ports und IPv6', 'TCP, UDP und ICMP unterscheiden, die wichtigen Ports kennen und IPv6 lesen.', 'TCP, UDP, ICMP, /etc/services, Ports 20 bis 995, IPv6-Schreibweise, ::1, fe80::/10, SLAAC', 'Terminal-Simulator, Zuordnung, Quiz', { ziele: ['109.1'], bereit: true }),
+      m('l1-9-3', '9.3', 'Dauerhafte Netzwerkkonfiguration', 'Rechnername, Namensdateien und Verbindungen so einstellen, dass sie den Neustart überstehen.', '/etc/hostname, hostnamectl, /etc/hosts, /etc/resolv.conf, /etc/nsswitch.conf, nmcli, WLAN, /etc/network/interfaces, ifup, ifdown, systemd-networkd', 'Terminal-Simulator und Quiz', { ziele: ['109.2'], bereit: true }),
+      m('l1-9-4', '9.4', 'Adressen und Routen von Hand', 'Mit iproute2 Adressen, Schnittstellen und Routen setzen und die alten net-tools lesen.', 'ip addr, ip link, ip route, ip neigh, Standardroute, ip route get, ifconfig, route, netstat, arp', 'Terminal-Simulator und Quiz', { ziele: ['109.3'], bereit: true }),
+      m('l1-9-5', '9.5', 'Fehlersuche im Netz', 'Netzwerkfehler von der Schnittstelle bis zum Dienst systematisch finden.', 'ping, ping6, traceroute, traceroute6, tracepath, tracepath6, nc, ss, netstat, Fehlermeldungen', 'Terminal-Simulator, Reihenfolge, Quiz', { ziele: ['109.3'], bereit: true }),
+      m('l1-9-6', '9.6', 'DNS auf dem Client', 'DNS gezielt abfragen und verstehen, in welcher Reihenfolge Linux Namen auflöst.', 'host, dig, getent, A, AAAA, MX, NS, CNAME, PTR, /etc/nsswitch.conf, /etc/hosts, /etc/resolv.conf, systemd-resolved, resolvectl', 'Terminal-Simulator und Quiz', { ziele: ['109.4'], bereit: true }),
+      m('l1-9-boss', 'Boss 9', 'Der Praktikant war da', 'Ein verkonfiguriertes Netz finden, dauerhaft reparieren und den Logserver erreichbar machen.', 'Alles aus Topic 109', 'Terminal-Simulator', { boss: true, ziele: ['109.1', '109.2', '109.3', '109.4'], bereit: true }),
+      m('l1-9-probe', 'Probe 9', 'Probeprüfung Topic 109', 'Topic 109 gemischt mit Topic 108, mit Zeitlimit.', 'Topic 109 und Wiederholung von 108', 'Prüfungssimulation', { probe: true, ziele: ['109.1', '109.2', '109.3', '109.4', '108.1', '108.2', '108.3', '108.4'], bereit: true }),
+    ],
+  },
   geplanterAkt('l1', 10, 'Sicherheit', '110', 'Rechner absichern und Daten mit SSH und GnuPG schützen.', 'lpic1', [
     m('l1-10-probe', 'Probe 102', 'Generalprobe Prüfung 102', '60 Fragen, 90 Minuten, gewichtet wie die echte Prüfung 102-500.', 'Topics 105 bis 110', 'Prüfungssimulation', { probe: true }),
   ]),

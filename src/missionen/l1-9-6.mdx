@@ -1,0 +1,132 @@
+---
+id: l1-9-6
+checks:
+  - id: k1
+  - id: abfragen
+  - id: k2
+  - id: reihenfolge
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "Wie Programme suchen"
+    v: "getent hosts NAME · Reihenfolge aus /etc/nsswitch.conf (hosts: files dns)"
+  - t: "Nur DNS"
+    v: "host NAME · host -t MX DOMAIN · host IP (rückwärts) · dig NAME · dig NAME MX · dig @SERVER NAME · dig +short · dig -x IP"
+  - t: "Records"
+    v: "A IPv4 · AAAA IPv6 · MX Mailserver · NS Nameserver · CNAME Alias · PTR rückwärts · SOA Zone"
+  - t: "Dateien"
+    v: "/etc/hosts · /etc/resolv.conf (nameserver, search) · /etc/nsswitch.conf"
+  - t: "systemd-resolved"
+    v: "resolvectl status · resolvectl query NAME · Stub auf 127.0.0.53"
+karten:
+  - f: "Welcher Befehl löst einen Namen so auf wie jedes normale Programm, also mit /etc/hosts?"
+    a: ["getent hosts", "getent"]
+  - f: "Welche Programme fragen nur DNS und übergehen /etc/hosts?"
+    a: ["host und dig", "dig und host", "host, dig"]
+  - f: "Wie fragst du mit dig einen bestimmten DNS-Server?"
+    a: ["dig @server name", "@server"]
+  - f: "Welcher Record-Typ nennt den Mailserver einer Domäne?"
+    a: ["mx"]
+  - f: "Welcher Record-Typ enthält eine IPv6-Adresse?"
+    a: ["aaaa"]
+  - f: "Mit welcher dig-Option kommt nur die Antwort?"
+    a: ["+short"]
+  - f: "Mit welchem Befehl schlägst du eine IP rückwärts nach?"
+    a: ["dig -x", "host ip"]
+  - f: "Welche Zeile in /etc/nsswitch.conf legt die Reihenfolge für Rechnernamen fest?"
+    a: ["hosts:", "hosts"]
+  - f: "Auf welcher Adresse lauscht der Stub-Resolver von systemd-resolved?"
+    a: ["127.0.0.53"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+
+Seit gestern zeigt der Browser auf werkstatt eine alte Testseite statt www.example.org. Auf Lenas Rechner geht es. **Deine Mission: Frag DNS gezielt ab, verstehe, in welcher Reihenfolge Linux Namen auflöst, und finde den Fehler.** Lernziel 109.4.
+
+## Fragen an DNS
+
+<Karte nr={1} titel="host und dig">
+**DNS** ordnet Namen Daten zu, in **Records** verschiedener Typen:
+
+| Typ | Inhalt | Beispiel |
+|---|---|---|
+| A | IPv4-Adresse | www.example.org → 203.0.113.80 |
+| AAAA | IPv6-Adresse | www.example.org → 2001:db8:80::80 |
+| MX | Mailserver mit Priorität | example.org → 10 mail.example.org |
+| NS | zuständiger Nameserver | example.org → ns1.example.org |
+| CNAME | Alias auf einen anderen Namen | web.example.org → www.example.org |
+| PTR | Rückwärts: Adresse → Name | 80.113.0.203.in-addr.arpa → www.example.org |
+
+Zwei Werkzeuge fragen DNS direkt:
+
+- **host** antwortet knapp. `host www.example.org` zeigt A, AAAA und MX. `host -t MX example.org` fragt nur einen Typ. `host 203.0.113.80` fragt rückwärts. Mit einem zweiten Argument fragst du einen bestimmten Server: `host www.example.org 203.0.113.53`.
+- **dig** zeigt die ganze Antwort: Status (`NOERROR`, `NXDOMAIN` für „gibt es nicht“), Fragen- und Antwortteil mit TTL, und unten den Server, der geantwortet hat. `dig example.org MX` fragt einen Typ, `dig @203.0.113.53 www.example.org` einen bestimmten Server, `dig +short …` gibt nur die Werte aus, `dig -x 203.0.113.80` fragt rückwärts.
+
+**Wichtig:** host und dig fragen **nur DNS**. /etc/hosts kennen sie nicht. Welche Server sie fragen, steht in **/etc/resolv.conf**.
+</Karte>
+
+<Merke>host kurz, dig ausführlich. dig NAME TYP, dig @SERVER NAME, dig +short, dig -x IP, host -t TYP NAME. A, AAAA, MX, NS, CNAME, PTR. Beide fragen nur DNS, nicht /etc/hosts. NXDOMAIN: Name existiert nicht.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: Records" fragen={[
+  { frage: 'Welchen Record fragst du ab, um den Mailserver von example.org zu finden?', richtig: 'MX', falsch: ['PTR', 'CNAME'], erklaerung: 'PTR gehört zur Rückwärtsauflösung, CNAME ist ein Alias.' },
+  { frage: 'dig meldet status: NXDOMAIN. Was heißt das?', richtig: 'Den Namen gibt es im DNS nicht.', falsch: ['Der DNS-Server ist nicht erreichbar.', 'Der Name hat nur eine IPv6-Adresse.'], erklaerung: 'Wäre kein Server erreichbar, käme „no servers could be reached“.' },
+]} />
+
+<Terminal id="abfragen" titel="Terminal: DNS ausfragen" aufgaben={[
+  { text: 'Frag mit host nach <code>www.example.org</code>.', befehl: '^host www\\.example\\.org$', frage: 'Welche IPv6-Adresse hat der Webserver?', antwort: ['2001:db8:80::80'] },
+  { text: 'Frag mit host nach dem Mailserver von <code>example.org</code>.', befehl: '^host -t (MX|mx) example\\.org$' },
+  { text: 'Frag mit dig nach <code>web.example.org</code>.', befehl: '^dig web\\.example\\.org( A)?$', frage: 'Welcher Record-Typ steht in der ersten Antwortzeile?', antwort: ['CNAME'] },
+  { text: 'Frag den Nameserver <code>203.0.113.53</code> direkt nach <code>www.example.org</code>, nur mit dem Ergebnis.', befehl: '^dig (@203\\.0\\.113\\.53 \\+short|\\+short @203\\.0\\.113\\.53) www\\.example\\.org$|^dig @203\\.0\\.113\\.53 www\\.example\\.org \\+short$|^dig \\+short www\\.example\\.org @203\\.0\\.113\\.53$' },
+  { text: 'Schlag <code>203.0.113.25</code> rückwärts nach.', befehl: '^dig -x 203\\.0\\.113\\.25( \\+short)?$|^host 203\\.0\\.113\\.25$', frage: 'Welcher Name gehört zu dieser Adresse?', antwort: ['mail.example.org', 'mail.example.org.'] },
+  { text: 'Frag nach dem kurzen Namen <code>labor2</code> mit host. Die Suchdomäne aus <code>/etc/resolv.conf</code> wird angehängt.', befehl: '^host labor2$', frage: 'Welche Adresse hat labor2?', antwort: ['192.168.1.24'] },
+]} />
+
+## Die Reihenfolge
+
+<Karte nr={2} titel="nsswitch.conf, /etc/hosts und systemd-resolved">
+Normale Programme wie ping, ssh oder der Browser fragen nicht selbst DNS. Sie rufen die C-Bibliothek, und die schaut in **/etc/nsswitch.conf** nach, wo sie suchen soll:
+
+```
+hosts:          files mdns4_minimal [NOTFOUND=return] dns myhostname
+```
+
+`files` heißt /etc/hosts, `dns` die Server aus /etc/resolv.conf, `mdns4_minimal` Namen auf `.local` im eigenen Netz, `myhostname` der eigene Rechnername. Der **erste Treffer gewinnt**. Ein veralteter Eintrag in /etc/hosts schlägt also jede DNS-Antwort, und host und dig merken davon nichts. Darum testest du die Auflösung „wie ein Programm“ mit **`getent hosts NAME`**. Liefern getent und dig verschiedene Adressen, steht etwas in /etc/hosts.
+
+Viele Systeme nutzen **systemd-resolved**. Dann steht in /etc/resolv.conf nur `nameserver 127.0.0.53`, ein lokaler Zwischenspeicher (Stub), und die echten Server zeigt `resolvectl status`. `resolvectl query NAME` fragt über ihn, `resolvectl flush-caches` leert den Zwischenspeicher. In nsswitch.conf steht dann oft `resolve` statt `dns`.
+</Karte>
+
+<Merke>Programme fragen über nsswitch.conf, hosts: files dns heißt erst /etc/hosts, dann DNS, erster Treffer gewinnt. getent hosts testet wie ein Programm, host und dig nur DNS. systemd-resolved: 127.0.0.53, resolvectl status, resolvectl query.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: Reihenfolge" fragen={[
+  { frage: 'dig zeigt für einen Namen 203.0.113.80, ping aber 192.168.1.99. Was ist die wahrscheinlichste Ursache?', richtig: 'Ein Eintrag in /etc/hosts, der vor DNS gefragt wird.', falsch: ['Der DNS-Server liefert zufällige Antworten.', 'ping nutzt immer IPv6.'], erklaerung: 'getent hosts zeigt dir, was Programme wirklich bekommen.' },
+]} />
+
+<Terminal id="reihenfolge" titel="Terminal: Die alte Testseite" welt={{ netz: { hostsFalsch: true } }} aufgaben={[
+  { text: 'Ping <code>www.example.org</code> mit einem Paket.', befehl: '^ping -c ?1 www\\.example\\.org$', auchFehler: true, frage: 'An welche Adresse geht der ping?', antwort: ['192.168.1.99'] },
+  { text: 'Frag DNS direkt mit dig, nur das Ergebnis.', befehl: '^dig (\\+short )?www\\.example\\.org( \\+short)?$', frage: 'Welche Adresse liefert DNS?', antwort: ['203.0.113.80'] },
+  { text: 'Schau nach, in welcher Reihenfolge Rechnernamen gesucht werden.', befehl: '^grep (-w )?[\'"]?\\^?hosts:?[\'"]? /etc/nsswitch\\.conf$|^cat /etc/nsswitch\\.conf$', frage: 'Welche Quelle wird zuerst gefragt?', antwort: ['files', '/etc/hosts'] },
+  { text: 'Lösch den alten Testeintrag aus <code>/etc/hosts</code>, sodass Programme wieder die echte Adresse bekommen.', zustand: 'aufloesung:www.example.org=203.0.113.80 && nicht:datei:/etc/hosts~192\\.168\\.1\\.99', tipp: 'Zum Beispiel mit sudo sed -i \'/192.168.1.99/d\' /etc/hosts' },
+  { text: 'Prüf mit getent, was Programme jetzt bekommen.', befehl: '^getent (a)?hosts www\\.example\\.org$' },
+  { text: 'Schau nach, ob systemd-resolved läuft.', befehl: '^resolvectl( status)?$', auchFehler: true },
+]} />
+
+<Labor id="labor" titel="Aufgabe im Labor: Namen in der VM"
+  aufgabe="Frag in deiner VM einen Namen auf allen Wegen ab. host und dig kommen aus dem Paket bind9-dnsutils (sudo apt install bind9-dnsutils). Füge die Ausgabe ein."
+  befehl={"grep ^hosts: /etc/nsswitch.conf\ncat /etc/resolv.conf | grep -v ^#\ngetent hosts debian.org\ndig +short debian.org MX\nhost -t AAAA debian.org"}
+  muster={["^hosts:\\s+files", "^nameserver ", "has IPv6 address"]}
+  erfolg="Steht bei nameserver 127.0.0.53, läuft systemd-resolved. Dann zeigt resolvectl status die echten Server." />
+
+<Hinweis titel="Prüfungstipp">
+Die Prüfung fragt nach der Rolle der drei Dateien, nach den Optionen von dig (`@server`, Typ, `+short`, `-x`) und nach dem Unterschied zwischen getent und host oder dig. Merk dir: getent folgt nsswitch.conf, host und dig nicht.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Welcher Befehl fragt den Server 9.9.9.9 nach dem AAAA-Record von debian.org?', richtig: 'dig @9.9.9.9 debian.org AAAA', falsch: ['dig debian.org -s 9.9.9.9 AAAA', 'getent hosts @9.9.9.9 debian.org'], erklaerung: 'host -t AAAA debian.org 9.9.9.9 ginge auch.' },
+  { frage: 'Was bewirkt hosts: dns files in /etc/nsswitch.conf?', richtig: 'Erst wird DNS gefragt, /etc/hosts nur, wenn DNS nichts liefert.', falsch: ['/etc/hosts wird gar nicht mehr gelesen.', 'DNS und /etc/hosts werden gleichzeitig gefragt.'], erklaerung: 'Die Reihenfolge der Wörter ist die Reihenfolge der Suche.' },
+  { frage: 'In /etc/resolv.conf steht nameserver 127.0.0.53. Wo siehst du die echten DNS-Server?', richtig: 'Mit resolvectl status', falsch: ['In /etc/hosts', 'Mit dig +short'], erklaerung: '127.0.0.53 ist der Stub von systemd-resolved.' },
+]} />

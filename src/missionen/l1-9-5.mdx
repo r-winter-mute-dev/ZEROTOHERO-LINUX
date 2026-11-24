@@ -1,0 +1,136 @@
+---
+id: l1-9-5
+checks:
+  - id: schichten
+  - id: k1
+  - id: k2
+  - id: dienste
+  - id: fall
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "Von unten nach oben"
+    v: "1 Link (ip link) · 2 Adresse (ip a) · 3 Gateway (ping GW) · 4 Route (ip r, ping IP) · 5 Name (getent hosts, host) · 6 Dienst (nc -zv, ss)"
+  - t: "ping"
+    v: "ping -c 4 ZIEL · ping6 / ping -6 · „Network is unreachable“ = keine Route · „Destination Host Unreachable“ = niemand antwortet im lokalen Netz"
+  - t: "Weg"
+    v: "traceroute ZIEL · tracepath ZIEL (ohne root, zeigt MTU) · traceroute6 · tracepath6 · * * * = keine Antwort"
+  - t: "Ports"
+    v: "nc -zv HOST PORT · ss -tulpn (lauschend) · ss -tn (Verbindungen) · netstat -tulpn (alt)"
+  - t: "Meldungen"
+    v: "Connection refused = Rechner da, Port zu · timed out = gefiltert oder Weg kaputt · No route to host = Ziel antwortet nicht"
+karten:
+  - f: "Was bedeutet „connect: Network is unreachable“ bei ping?"
+    a: ["es gibt keine passende route", "keine route", "keine standardroute"]
+  - f: "Was bedeutet „Connection refused“ bei nc?"
+    a: ["der rechner ist erreichbar, aber auf dem port lauscht nichts", "port geschlossen", "port zu"]
+  - f: "Welcher Befehl zeigt die Router auf dem Weg zum Ziel und braucht kein root?"
+    a: ["tracepath", "traceroute"]
+  - f: "Mit welchem Befehl prüfst du, ob Port 443 auf einem Rechner offen ist?"
+    a: ["nc -zv host 443", "nc -zv", "netcat -zv"]
+  - f: "Mit welchem Befehl zeigst du alle lauschenden TCP- und UDP-Ports mit Programm?"
+    a: ["ss -tulpn", "ss -tulnp", "netstat -tulpn"]
+  - f: "Was zeigt * * * in traceroute?"
+    a: ["dieser router antwortet nicht", "keine antwort"]
+  - f: "Mit welchem Befehl pingst du ein IPv6-Ziel?"
+    a: ["ping6", "ping -6"]
+  - f: "Welche Option begrenzt ping auf vier Pakete?"
+    a: ["-c 4", "-c4"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Reihenfolge from '../components/Reihenfolge.astro';
+
+„Das Internet geht nicht“, sagt Lena. Das kann ein Dutzend Ursachen haben. **Deine Mission: Such Netzwerkfehler mit System, von der Schnittstelle bis zum Dienst, und lies, was ping, traceroute, tracepath, nc und ss dir sagen.** Lernziel 109.3.
+
+## Von unten nach oben
+
+<Karte nr={1} titel="Fehlersuche in sechs Stufen">
+Jede Stufe setzt die vorige voraus. Wer unten anfängt, findet den Fehler schnell und sucht nie an der falschen Stelle.
+
+1. **Link:** Ist die Schnittstelle an und hat sie Verbindung? `ip link`: Steht `UP` und `LOWER_UP` da, oder `NO-CARRIER`?
+2. **Adresse:** Hat sie eine passende Adresse und Maske? `ip a`. Eine Adresse aus `169.254.0.0/16` heißt: Kein DHCP-Server hat geantwortet.
+3. **Gateway:** Antwortet der eigene Router? `ping -c 4 192.168.1.1`.
+4. **Route:** Gibt es eine Standardroute, und kommt man ins Netz dahinter? `ip r`, dann `ping -c 4 203.0.113.80`, eine IP ohne Namen.
+5. **Name:** Wird der Name aufgelöst? `getent hosts www.example.org`, `host www.example.org`. Klappt Stufe 4, aber nicht Stufe 5, ist es DNS.
+6. **Dienst:** Lauscht der Dienst? Beim Gegenüber mit `nc -zv www.example.org 443`, auf dem eigenen Rechner mit `ss -tulpn`.
+
+**ping** schickt ICMP-Echo-Anfragen. Ohne `-c` läuft es endlos, bis Strg+C. Was die Meldungen bedeuten:
+
+| Meldung | Bedeutung |
+|---|---|
+| `connect: Network is unreachable` | Der Kernel hat keine passende Route, das Paket verlässt den Rechner nicht. |
+| `Destination Host Unreachable` (von der eigenen Adresse) | Im lokalen Netz antwortet niemand auf ARP unter dieser Adresse. |
+| nur `100% packet loss` | Pakete gehen raus, aber keine Antwort. Unterwegs gefiltert oder Weg kaputt. |
+| `Temporary failure in name resolution` | Kein DNS-Server erreichbar. |
+| `Name or service not known` | Der Name existiert nirgends. |
+
+Für IPv6 gibt es `ping6` oder `ping -6`.
+</Karte>
+
+<Merke>Link, Adresse, Gateway, Route, Name, Dienst, in dieser Reihenfolge. ping IP geht, ping Name nicht: DNS. Network is unreachable: keine Route. Host Unreachable: niemand im lokalen Netz. ping -c 4 begrenzt.</Merke>
+
+<Reihenfolge id="schichten" titel="Reihenfolge: Systematisch suchen" aufgabe="Bring die Prüfschritte in die sinnvolle Reihenfolge." schritte={['ip link: Schnittstelle an und verbunden?', 'ip addr: passende Adresse?', 'ping zum eigenen Gateway', 'ip route und ping an eine Adresse im Internet', 'getent hosts oder host: Name auflösbar?', 'nc -zv: Port des Dienstes offen?']} />
+
+<Quiz id="k1" titel="Kurzcheck: ping lesen" fragen={[
+  { frage: 'ping 203.0.113.80 klappt, ping www.example.org meldet „Temporary failure in name resolution“. Wo liegt der Fehler?', richtig: 'Bei der Namensauflösung, der DNS-Server ist nicht erreichbar.', falsch: ['Die Standardroute fehlt.', 'Der Webserver ist aus.'], erklaerung: 'Das Netz geht, nur der Name nicht.' },
+  { frage: 'ping meldet sofort „connect: Network is unreachable“. Was fehlt?', richtig: 'Eine Route zum Ziel, meist die Standardroute.', falsch: ['Der DNS-Server.', 'Ein offener Port beim Ziel.'], erklaerung: 'Ohne Route schickt der Kernel gar nichts los.' },
+]} />
+
+## Den Weg verfolgen
+
+<Karte nr={2} titel="traceroute und tracepath">
+Jedes IP-Paket hat einen Zähler **TTL** (time to live), den jeder Router um eins verringert. Bei null wirft er das Paket weg und schickt eine ICMP-Meldung „Time exceeded“ zurück. **traceroute** nutzt das: Es schickt Pakete mit TTL 1, 2, 3 und so weiter, und jeder Router auf dem Weg verrät sich mit seiner Meldung. So siehst du, **wo** die Verbindung abreißt.
+
+- `* * *` heißt: Von diesem Hop kam keine Antwort. Einzelne Sterne mitten im Weg sind oft harmlos, weil manche Router keine Meldungen schicken. Hören die Antworten ab einem Punkt ganz auf, liegt dort das Problem.
+- `!H` heißt: Host nicht erreichbar.
+- **tracepath** macht dasselbe, braucht nie Root-Rechte und zeigt zusätzlich die **MTU** (pmtu), also die größte Paketgröße auf dem Weg.
+- Für IPv6: `traceroute6`, `tracepath6` oder jeweils `-6`.
+
+Ob ein Dienst antwortet, prüft **netcat** (`nc`): `nc -zv HOST PORT` versucht nur den Verbindungsaufbau (`-z`) und meldet das Ergebnis (`-v`). `Connection refused` heißt: Rechner erreichbar, aber auf dem Port lauscht nichts. `timed out` heißt: Eine Firewall verwirft die Pakete, oder der Weg ist kaputt. Mit `nc -l -p 5000` lauscht nc selbst auf einem Port, gut zum Testen von Firewalls.
+
+Welche Ports auf dem **eigenen** Rechner offen sind, zeigt **ss** (Nachfolger von `netstat`): `ss -tulpn` heißt TCP, UDP, nur lauschend (listening), mit Prozess, Zahlen statt Namen. `ss -tn` zeigt bestehende TCP-Verbindungen. Den Prozess sieht nur root.
+</Karte>
+
+<Merke>traceroute und tracepath zeigen den Weg, * * * heißt keine Antwort, tracepath ohne root und mit MTU. nc -zv HOST PORT: refused = Port zu, timed out = gefiltert. ss -tulpn: eigene lauschende Ports.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: Weg und Ports" fragen={[
+  { frage: 'nc -zv laser.lan 22 meldet „Connection refused“. Was weißt du jetzt?', richtig: 'Der Drucker ist erreichbar, aber auf Port 22 lauscht kein Dienst.', falsch: ['Der Drucker ist ausgeschaltet.', 'Die Route zum Drucker fehlt.'], erklaerung: 'Für „refused“ muss jemand antworten.' },
+]} />
+
+<Terminal id="dienste" titel="Terminal: Dienste prüfen" aufgaben={[
+  { text: 'Verfolg den Weg zu <code>www.example.org</code> mit tracepath.', befehl: '^tracepath (-n )?www\\.example\\.org$', frage: 'Wie viele Hops sind es bis zum Ziel?', antwort: ['4'] },
+  { text: 'Verfolg den Weg zu <code>logserver.example.org</code> mit traceroute.', befehl: '^traceroute (-n )?logserver\\.example\\.org$', frage: 'Nach welchem Router kommen keine Antworten mehr? (IP)', antwort: ['192.168.1.1'] },
+  { text: 'Prüf, ob der Drucker <code>laser.lan</code> auf Port 631 (IPP) antwortet.', befehl: '^nc -\\w*z\\w* (laser\\.lan|192\\.168\\.1\\.40) 631$', auchFehler: true },
+  { text: 'Lass dir als root alle lauschenden TCP- und UDP-Ports mit Prozess und in Zahlen zeigen.', befehl: '^ss -(tulpn|tulnp|tlunp|ltunp|lntup|ntulp|atulpn)$', frage: 'Welcher Prozess lauscht auf Port 25?', antwort: ['master'] },
+  { text: 'Lass dir die bestehenden TCP-Verbindungen zeigen.', befehl: '^ss -(tn|nt|t)$', frage: 'Von welcher Adresse aus ist jemand per SSH auf werkstatt angemeldet?', antwort: ['192.168.1.17'] },
+  { text: 'Ping <code>www.example.org</code> über IPv6, vier Pakete.', befehl: '^(ping6|ping -6) -c ?4 www\\.example\\.org$|^ping -c ?4 -6 www\\.example\\.org$' },
+]} />
+
+<Terminal id="fall" titel="Terminal: Lenas Rechner" welt={{ netz: { kabelAus: true } }} aufgaben={[
+  { text: 'Lena meldet: „Nichts geht.“ Ping <code>www.example.org</code> mit vier Paketen.', befehl: '^ping -c ?4 www\\.example\\.org$', auchFehler: true },
+  { text: 'Fang unten an: Lass dir die Schnittstellen zeigen.', befehl: '^ip (-br )?l(i(nk)?)?( show)?$|^ip (-br )?a(ddr(ess)?)?( show)?$', frage: 'In welchem Zustand ist enp0s31f6?', antwort: ['DOWN', 'down'] },
+  { text: 'Bring die Verbindung wieder hoch, am besten über das NetworkManager-Profil, damit Adresse, Route und DNS zurückkommen.', zustand: 'nm:aktiv=Kabelgebundene Verbindung 1 && route:default=192.168.1.1' },
+  { text: 'Prüf das Ergebnis mit einem ping an <code>www.example.org</code>.', befehl: '^ping -c ?\\d+ www\\.example\\.org$', zustand: 'erreichbar:www.example.org' },
+]} />
+
+<Labor id="labor" titel="Aufgabe im Labor: Der Weg aus deiner VM"
+  aufgabe="Verfolg in deiner VM den Weg zu einem Rechner im Internet und lass dir die lauschenden Ports zeigen. Füge die Ausgabe ein. Kommen bei tracepath nur Sterne oder „no reply“, filtert das NAT von VirtualBox die Meldungen. Das ist dann kein Fehler."
+  befehl={"ping -c 2 9.9.9.9\ntracepath -n 9.9.9.9 | head -4\nsudo ss -tulpn | head -5"}
+  muster={["2 (packets transmitted|Pakete übertragen)", "pmtu \\d+", "Netid\\s+State"]}
+  erfolg="Ein ping an eine IP ohne Namen testet das Netz unabhängig von DNS." />
+
+<Hinweis titel="Prüfungstipp">
+Lern die Fehlermeldungen von ping und nc mit ihrer Bedeutung, die Optionen von ss (`-t -u -l -p -n`) und den Unterschied zwischen traceroute und tracepath. Die Prüfung beschreibt oft ein Symptom und fragt nach dem nächsten Befehl.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Welcher Befehl zeigt alle lauschenden TCP-Ports mit dem Prozess dahinter?', richtig: 'ss -tlpn', falsch: ['ss -tn', 'ip -s link'], erklaerung: 'l heißt listening, p process.' },
+  { frage: 'traceroute zeigt drei Hops mit Antworten, danach nur noch * * *. Was folgt daraus?', richtig: 'Ab dem dritten Router kommen keine Antworten mehr. Dort oder dahinter liegt das Problem.', falsch: ['Das Ziel ist erreicht.', 'Der eigene Rechner hat keine Standardroute.'], erklaerung: 'Ohne Route gäbe es gar keine Hops.' },
+  { frage: 'Welches Werkzeug zeigt die MTU auf dem Weg und braucht nie Root-Rechte?', richtig: 'tracepath', falsch: ['traceroute', 'ping6'], erklaerung: 'Die Zeile heißt pmtu.' },
+]} />

@@ -1,0 +1,21 @@
+---
+id: l1-9-probe
+abzeichen: "Topic 109 bestanden"
+checks:
+  - id: probe
+---
+import Probe from '../components/Probe.astro';
+import Karte from '../components/Karte.astro';
+import Hinweis from '../components/Hinweis.astro';
+
+Topic 109 bringt in Prüfung 102 ungefähr **14 von 60 Fragen**, so viele wie kein anderes Topic. **Deine Mission: Bestehe die Probe mit mindestens 80 %.**
+
+<Karte nr={1} titel="Was diese Probe mischt">
+Neben Topic 109 kommen Fragen aus Topic 108. Beides hängt zusammen: NTP braucht Port 123 und eine funktionierende Route, rsyslog schickt Meldungen über Port 514 an einen Logserver, und Mail geht über Port 25 hinaus. Wer die Netzwerkgrundlagen kann, findet auch Fehler in diesen Diensten schneller.
+</Karte>
+
+<Hinweis titel="Zum Tempo">
+30 Fragen in 45 Minuten. Rechenfragen zu Netzmasken gehen schneller, wenn du die Tabelle von /24 bis /30 im Kopf hast. Falsch beantwortete Fragen landen morgen in deiner Wiederholung.
+</Hinweis>
+
+<Probe id="probe" titel="Probeprüfung: Topic 109 mit Wiederholung" ziele={['109.1', '109.2', '109.3', '109.4', '108.1', '108.2', '108.3', '108.4']} anzahl={30} />

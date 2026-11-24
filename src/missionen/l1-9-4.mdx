@@ -1,0 +1,160 @@
+---
+id: l1-9-4
+checks:
+  - id: k1
+  - id: adresse
+  - id: k2
+  - id: routen
+  - id: alt
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "Anzeigen"
+    v: "ip addr · ip -br a · ip link · ip route · ip route get ZIEL · ip neigh · ip -6 …"
+  - t: "Adressen"
+    v: "ip addr add 10.20.30.10/26 dev X · ip addr del … dev X · ip addr flush dev X"
+  - t: "Schnittstelle"
+    v: "ip link set X up · ip link set X down"
+  - t: "Routen"
+    v: "ip route add default via GW · ip route add NETZ/P via GW · ip route del …"
+  - t: "net-tools (alt)"
+    v: "ifconfig · ifconfig X A netmask M up · route -n · route add default gw GW · netstat -rn · arp"
+  - t: "Vorsicht"
+    v: "ip-Befehle wirken sofort und gelten nur bis zum Neustart"
+karten:
+  - f: "Mit welchem Befehl gibst du enp0s31f6 zusätzlich die Adresse 10.20.30.10/26?"
+    a: ["ip addr add 10.20.30.10/26 dev enp0s31f6", "ip a add 10.20.30.10/26 dev enp0s31f6"]
+  - f: "Mit welchem Befehl schaltest du eine Schnittstelle ein?"
+    a: ["ip link set dev X up", "ip link set X up"]
+  - f: "Mit welchem Befehl setzt du die Standardroute über 192.168.1.1?"
+    a: ["ip route add default via 192.168.1.1", "ip r add default via 192.168.1.1"]
+  - f: "Mit welchem Befehl fragst du, über welche Route ein Ziel erreicht wird?"
+    a: ["ip route get", "ip r get"]
+  - f: "Welcher alte Befehl entspricht ip route?"
+    a: ["route", "route -n", "netstat -r", "netstat -rn"]
+  - f: "Welcher alte Befehl entspricht ip addr?"
+    a: ["ifconfig"]
+  - f: "Welcher Befehl zeigt die ARP- bzw. Nachbartabelle mit iproute2?"
+    a: ["ip neigh", "ip neighbour", "ip n"]
+  - f: "Wie lange gilt eine mit ip addr add gesetzte Adresse?"
+    a: ["bis zum neustart", "bis zum nächsten neustart", "nicht dauerhaft"]
+  - f: "Was bedeutet das Flag UG in route -n?"
+    a: ["route ist aktiv und führt über ein gateway", "up gateway", "aktiv über gateway"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+
+Der Logserver der Firma steht in einem anderen Netz, `10.20.0.0/16`. Erreichbar ist er nur über das Labor-Gateway `192.168.1.254`, und das weiß werkstatt noch nicht. **Deine Mission: Stelle Adressen, Schnittstellen und Routen mit iproute2 von Hand ein und lies auch die alten net-tools.** Lernziel 109.3.
+
+## Adressen und Schnittstellen mit ip
+
+<Karte nr={1} titel="iproute2: ein Befehl für alles">
+Das Paket **iproute2** bringt den Befehl `ip`. Er hat Objekte: `link` (die Schnittstelle selbst), `addr` (Adressen), `route` (Routen), `neigh` (Nachbarn, also die ARP-Tabelle). Jedes Objekt und jeder Unterbefehl darf abgekürzt werden: `ip a` = `ip addr show`, `ip r` = `ip route show`.
+
+| Befehl | Wirkung |
+|---|---|
+| `ip addr` / `ip a` | alle Schnittstellen mit Adressen |
+| `ip -br a` | kurz, eine Zeile pro Schnittstelle |
+| `ip -4 a` / `ip -6 a` | nur IPv4 oder IPv6 |
+| `ip link` | Schnittstellen mit MAC-Adresse und Zustand |
+| `sudo ip addr add 10.20.30.10/26 dev enp0s31f6` | Adresse hinzufügen (eine Schnittstelle kann viele haben) |
+| `sudo ip addr del 10.20.30.10/26 dev enp0s31f6` | Adresse entfernen |
+| `sudo ip addr flush dev enp0s31f6` | alle Adressen entfernen |
+| `sudo ip link set enp0s31f6 down` / `up` | Schnittstelle aus- oder einschalten |
+
+In der Ausgabe von `ip link` heißt `state UP` mit `LOWER_UP`: Die Schnittstelle ist an und hat Verbindung. `NO-CARRIER` heißt: an, aber kein Kabel oder kein Funknetz. Fehlt `UP`, ist sie aus.
+
+**Wichtig:** Alles, was du mit `ip` einstellst, wirkt sofort, ist aber nach einem Neustart weg. Für Dauerhaftes nimmst du NetworkManager oder die Dateien aus Mission 9.3. Und noch etwas: Läuft NetworkManager, kann er beim nächsten Verbindungsaufbau deine Handarbeit überschreiben.
+</Karte>
+
+<Merke>ip a, ip -br a, ip link, ip r, ip neigh zum Anschauen. ip addr add/del ADR/P dev X, ip link set X up/down zum Ändern. Wirkt sofort, ist nach dem Neustart weg.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: ip" fragen={[
+  { frage: 'ip link zeigt für eine Schnittstelle NO-CARRIER. Was heißt das?', richtig: 'Sie ist eingeschaltet, hat aber keine Verbindung, zum Beispiel kein Kabel.', falsch: ['Sie ist ausgeschaltet.', 'Sie hat keine IP-Adresse.'], erklaerung: 'Ausgeschaltet heißt: UP fehlt in den Flags.' },
+]} />
+
+<Terminal id="adresse" titel="Terminal: Zweite Adresse für das Messnetz" aufgaben={[
+  { text: 'Lass dir die Schnittstellen mit ip link zeigen.', befehl: '^ip l(i(nk)?)?( show)?$', frage: 'Welche MAC-Adresse hat enp0s31f6?', antwort: ['3c:7c:3f:1a:2b:4d'] },
+  { text: 'Gib enp0s31f6 zusätzlich die Adresse <code>10.20.30.10/26</code> für das Messnetz.', zustand: 'addr:enp0s31f6=10.20.30.10/26' },
+  { text: 'Lass dir nur die IPv4-Adressen von enp0s31f6 zeigen.', befehl: '^ip -4 a(ddr(ess)?)? (show )?(dev )?enp0s31f6$' },
+  { text: 'Lass dir die Routen zeigen.', befehl: '^ip r(oute)?( show)?$', frage: 'Welche Route hat der Kernel für die neue Adresse von selbst angelegt?', antwort: ['10.20.30.0/26', '10.20.30.0/26 dev enp0s31f6'] },
+  { text: 'Entferne die Adresse wieder. Das Messnetz kommt erst nächste Woche.', zustand: 'keinaddr:enp0s31f6=10.20.30.10/26' },
+]} />
+
+## Routen
+
+<Karte nr={2} titel="Routing: Welcher Weg für welches Ziel?">
+Für jedes Paket sucht der Kernel in der **Routingtabelle** den passendsten Eintrag, also den mit dem längsten Präfix. Ein Netz, an dem eine Schnittstelle direkt hängt, steht von selbst drin (`proto kernel scope link`). Für alles andere braucht es eine Route über einen Router. Die **Standardroute** `default` (gleich `0.0.0.0/0`) passt auf jedes Ziel und wird genommen, wenn nichts Genaueres passt.
+
+```
+default via 192.168.1.1 dev enp0s31f6 proto dhcp metric 100
+192.168.1.0/24 dev enp0s31f6 proto kernel scope link src 192.168.1.23
+```
+
+| Befehl | Wirkung |
+|---|---|
+| `sudo ip route add 10.20.0.0/16 via 192.168.1.254` | Netz über einen bestimmten Router |
+| `sudo ip route add default via 192.168.1.1` | Standardroute setzen |
+| `sudo ip route del default` | Standardroute löschen |
+| `sudo ip route replace default via 192.168.1.1` | ersetzen statt Fehler „File exists“ |
+| `ip route get 10.20.0.5` | Welche Route nimmt dieses Ziel? |
+
+Der Router hinter `via` muss direkt erreichbar sein, also in einem Netz liegen, an dem werkstatt hängt. Sonst meldet ip „Nexthop has invalid gateway“. Gibt es mehrere Standardrouten, gewinnt die mit der kleineren **Metrik**.
+</Karte>
+
+<Merke>Längstes passendes Präfix gewinnt, default passt immer. ip route add NETZ via GW, ip route add default via GW, ip route del, ip route get ZIEL. Das Gateway muss im eigenen Netz liegen.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: Routen" fragen={[
+  { frage: 'Die Tabelle enthält default via 192.168.1.1 und 10.20.0.0/16 via 192.168.1.254. Welchen Weg nimmt ein Paket an 10.20.3.7?', richtig: 'Über 192.168.1.254, weil /16 genauer passt als default.', falsch: ['Über 192.168.1.1, weil default immer zuerst kommt.', 'Über beide abwechselnd.'], erklaerung: 'Das längste passende Präfix gewinnt.' },
+]} />
+
+<Terminal id="routen" titel="Terminal: Der Weg zum Logserver" aufgaben={[
+  { text: 'Prüf, welche Route der Kernel für <code>10.20.0.5</code> nehmen würde.', befehl: '^ip r(oute)? get 10\\.20\\.0\\.5$', frage: 'Über welchen Router geht es im Moment?', antwort: ['192.168.1.1'] },
+  { text: 'Ein ping an den Logserver geht ins Leere. Probier es mit vier Paketen.', befehl: '^ping -c ?4 (10\\.20\\.0\\.5|logserver\\.example\\.org)$', auchFehler: true },
+  { text: 'Leg eine Route für <code>10.20.0.0/16</code> über das Labor-Gateway <code>192.168.1.254</code> an.', zustand: 'route:10.20.0.0/16=192.168.1.254' },
+  { text: 'Jetzt muss der Logserver antworten. Schick ihm vier Pakete.', befehl: '^ping -c ?4 (10\\.20\\.0\\.5|logserver\\.example\\.org)$', zustand: 'erreichbar:10.20.0.5' },
+]} />
+
+<Karte nr={3} titel="Die alten net-tools">
+Vor iproute2 gab es das Paket **net-tools**. Es gilt als veraltet und fehlt auf neuen Systemen oft, aber in alten Anleitungen und Skripten begegnet es dir ständig. Die Prüfung erwartet, dass du die Befehle lesen kannst.
+
+| net-tools | iproute2 |
+|---|---|
+| `ifconfig` | `ip addr` |
+| `ifconfig enp0s31f6 192.168.1.60 netmask 255.255.255.0 up` | `ip addr add 192.168.1.60/24 dev enp0s31f6` und `ip link set enp0s31f6 up` |
+| `route -n` / `netstat -rn` | `ip route` |
+| `route add default gw 192.168.1.1` | `ip route add default via 192.168.1.1` |
+| `route add -net 10.20.0.0 netmask 255.255.0.0 gw 192.168.1.254` | `ip route add 10.20.0.0/16 via 192.168.1.254` |
+| `arp -n` | `ip neigh` |
+| `netstat -tulpn` | `ss -tulpn` |
+| `netstat -i` | `ip -s link` |
+
+In `route -n` stehen die Flags `U` (Route ist aktiv) und `G` (über ein Gateway). Die Option `-n` zeigt Zahlen statt Namen, das geht schneller und hängt nicht, wenn DNS kaputt ist.
+</Karte>
+
+<Terminal id="alt" titel="Terminal: Dieselbe Tabelle, alt gelesen" aufgaben={[
+  { text: 'Lass dir die Routingtabelle mit route zeigen, mit Zahlen statt Namen.', befehl: '^route -n$', frage: 'Welche Genmask hat die Route zum Netz 192.168.1.0?', antwort: ['255.255.255.0'] },
+  { text: 'Dasselbe mit netstat.', befehl: '^netstat -(rn|nr)$' },
+  { text: 'Lass dir die Schnittstelle enp0s31f6 mit ifconfig zeigen.', befehl: '^ifconfig enp0s31f6$', frage: 'Wie lautet die Broadcastadresse?', antwort: ['192.168.1.255'] },
+]} />
+
+<Labor id="labor" titel="Aufgabe im Labor: Eine Adresse auf Zeit"
+  aufgabe="Gib in deiner VM der Netzwerkschnittstelle eine zweite Adresse, prüf sie und nimm sie wieder weg. Den Namen der Schnittstelle zeigt ip -br link. Füge die Ausgabe ein."
+  befehl={"IF=$(ip -br link | awk '$1!=\"lo\"{print $1; exit}')\nsudo ip addr add 10.99.0.1/24 dev $IF\nip -4 -br addr show dev $IF\nip route get 10.99.0.7\nsudo ip addr del 10.99.0.1/24 dev $IF"}
+  muster={["10\\.99\\.0\\.1/24", "^10\\.99\\.0\\.7 dev \\S+ src 10\\.99\\.0\\.1"]}
+  erfolg="ip route get zeigt: Das Ziel liegt direkt im neuen Netz, und als Absender nimmt der Kernel die neue Adresse." />
+
+<Hinweis titel="Prüfungstipp">
+Die Prüfung fragt nach den Befehlen für Adresse hinzufügen, Schnittstelle einschalten und Standardroute setzen, mit ip und mit den alten Befehlen. Merk dir, dass ip-Änderungen den Neustart nicht überstehen.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Welcher Befehl setzt die Standardroute mit net-tools?', richtig: 'route add default gw 192.168.1.1', falsch: ['route add default via 192.168.1.1', 'ifconfig default gw 192.168.1.1'], erklaerung: 'Bei route heißt es gw, bei ip via.' },
+  { frage: 'Welcher Befehl schaltet enp0s31f6 aus?', richtig: 'ip link set enp0s31f6 down', falsch: ['ip addr del enp0s31f6', 'ip route del dev enp0s31f6'], erklaerung: 'Schnittstellen sind das Objekt link.' },
+  { frage: 'ip route add 10.20.0.0/16 via 172.16.0.1 meldet „Nexthop has invalid gateway“. Was ist los?', richtig: 'Der Router 172.16.0.1 liegt in keinem Netz, an dem der Rechner direkt hängt.', falsch: ['Das Netz 10.20.0.0/16 gibt es nicht.', 'Man braucht root-Rechte.'], erklaerung: 'Ohne Rechte käme „Operation not permitted“.' },
+]} />

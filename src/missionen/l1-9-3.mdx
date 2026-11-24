@@ -1,0 +1,140 @@
+---
+id: l1-9-3
+checks:
+  - id: k1
+  - id: name
+  - id: k2
+  - id: nm
+  - id: ifupdown
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "Rechnername"
+    v: "/etc/hostname · hostnamectl set-hostname name · hostname (nur bis zum Neustart)"
+  - t: "Namen"
+    v: "/etc/hosts: IP Name Aliase · /etc/nsswitch.conf hosts: files dns · /etc/resolv.conf nameserver, search"
+  - t: "NetworkManager"
+    v: "nmcli general · nmcli device · nmcli con show · nmcli con mod NAME ipv4.method manual ipv4.addresses A/P ipv4.gateway G ipv4.dns D · nmcli con up NAME"
+  - t: "WLAN"
+    v: "nmcli radio wifi on · nmcli dev wifi list · nmcli dev wifi connect SSID password PW"
+  - t: "Debian klassisch"
+    v: "/etc/network/interfaces: auto, iface X inet static|dhcp, address, gateway · ifup X · ifdown X"
+  - t: "Andere"
+    v: "systemd-networkd: /etc/systemd/network/*.network · networkctl"
+karten:
+  - f: "In welcher Datei steht der Rechnername dauerhaft?"
+    a: ["/etc/hostname"]
+  - f: "Mit welchem Befehl setzt du den Rechnername dauerhaft unter systemd?"
+    a: ["hostnamectl set-hostname", "hostnamectl hostname"]
+  - f: "Welche Datei ordnet Namen festen Adressen zu, ohne DNS?"
+    a: ["/etc/hosts"]
+  - f: "Welche Datei bestimmt die Reihenfolge der Namensauflösung?"
+    a: ["/etc/nsswitch.conf"]
+  - f: "Welche Zeile in /etc/resolv.conf nennt den DNS-Server?"
+    a: ["nameserver"]
+  - f: "Mit welchem Befehl aktivierst du ein NetworkManager-Profil?"
+    a: ["nmcli con up", "nmcli connection up"]
+  - f: "Mit welchem Befehl zeigst du die Geräte und ihren Zustand bei NetworkManager?"
+    a: ["nmcli device", "nmcli dev", "nmcli d"]
+  - f: "Mit welchem Befehl verbindest du dich mit einem WLAN?"
+    a: ["nmcli device wifi connect", "nmcli dev wifi connect"]
+  - f: "Welche Datei lesen ifup und ifdown unter Debian?"
+    a: ["/etc/network/interfaces"]
+  - f: "Wo liegen die Konfigurationsdateien von systemd-networkd?"
+    a: ["/etc/systemd/network"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+
+werkstatt bekommt eine feste Adresse, damit die Messgeräte sie immer unter derselben Nummer finden. Außerdem soll der Laptop im Labor ins WLAN. **Deine Mission: Richte Rechnername, Namensdateien und Netzwerkverbindungen so ein, dass sie einen Neustart überstehen.** Lernziel 109.2.
+
+## Name und Namensdateien
+
+<Karte nr={1} titel="Vier Dateien, die jeder Rechner hat">
+- **/etc/hostname** enthält nur den Namen des Rechners, eine Zeile. Er wird beim Start gelesen. `hostname neuername` ändert den Namen sofort, aber nur bis zum Neustart. **`hostnamectl set-hostname neuername`** ändert beides, den laufenden Namen und die Datei. Ohne Argument zeigt `hostnamectl` Name, Betriebssystem und Kernel.
+- **/etc/hosts** ordnet Adressen Namen zu, eine Zeile pro Adresse: zuerst die IP, dann der Name, dann Aliase. `127.0.0.1 localhost` steht immer drin. Debian trägt den eigenen Namen auf `127.0.1.1` ein.
+- **/etc/resolv.conf** nennt die DNS-Server (`nameserver 192.168.1.1`, höchstens drei) und Suchdomänen (`search lab.example.org`). Bei einem kurzen Namen wie `labor2` hängt der Resolver die Suchdomäne an. Auf den meisten Systemen schreibt NetworkManager oder systemd-resolved diese Datei. Von Hand geänderte Zeilen verschwinden dann beim nächsten Verbindungsaufbau.
+- **/etc/nsswitch.conf** legt fest, in welcher Reihenfolge Namen gesucht werden. Die Zeile `hosts: files dns` heißt: zuerst /etc/hosts, dann DNS. Mehr dazu in Mission 9.6.
+</Karte>
+
+<Merke>/etc/hostname: der Name. hostnamectl set-hostname: dauerhaft, hostname: nur jetzt. /etc/hosts: IP Name Aliase. /etc/resolv.conf: nameserver und search, oft automatisch erzeugt. /etc/nsswitch.conf: Reihenfolge.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: Namensdateien" fragen={[
+  { frage: 'Du hast mit hostname labor1 den Namen geändert. Was passiert beim nächsten Neustart?', richtig: 'Der Rechner heißt wieder so, wie es in /etc/hostname steht.', falsch: ['Er heißt labor1.', 'Er hat keinen Namen.'], erklaerung: 'hostnamectl set-hostname schreibt auch die Datei.' },
+  { frage: 'Was bewirkt die Zeile search lab.example.org in /etc/resolv.conf?', richtig: 'Kurze Namen wie labor2 werden als labor2.lab.example.org gesucht.', falsch: ['Nur Namen aus dieser Domäne werden aufgelöst.', 'Der Server lab.example.org beantwortet DNS-Anfragen.'], erklaerung: 'Den Server nennt die Zeile nameserver.' },
+]} />
+
+<Terminal id="name" titel="Terminal: Name und Einträge" aufgaben={[
+  { text: 'Lass dir die Angaben von hostnamectl zeigen.', befehl: '^hostnamectl( status)?$', frage: 'Welches Betriebssystem läuft?', antwort: ['Debian GNU/Linux 12 (bookworm)', 'debian 12', 'Debian 12', 'debian', 'Debian'] },
+  { text: 'Nenn den Rechner dauerhaft <code>werkstatt1</code>.', zustand: 'hostname=werkstatt1 && datei:/etc/hostname~^werkstatt1$' },
+  { text: 'Trag in <code>/etc/hosts</code> den Messrechner <code>192.168.1.60</code> mit dem Namen <code>mess1</code> ein. Hänge die Zeile an.', zustand: 'datei:/etc/hosts~^192\\.168\\.1\\.60\\s+mess1' },
+  { text: 'Prüf mit getent, ob der Name jetzt aufgelöst wird.', befehl: '^getent hosts mess1$' },
+  { text: 'Lass dir <code>/etc/resolv.conf</code> zeigen.', befehl: '^cat /etc/resolv\\.conf$', frage: 'Welches Programm hat die Datei erzeugt?', antwort: ['NetworkManager', 'networkmanager'] },
+]} />
+
+## NetworkManager
+
+<Karte nr={2} titel="NetworkManager und nmcli">
+Auf Desktops und den meisten Servern verwaltet **NetworkManager** das Netz. Er hält **Verbindungsprofile** (connections): Ein Profil sagt, welches **Gerät** (device) es nutzt und wie es eingestellt wird. Ein Gerät hat zu jeder Zeit höchstens ein aktives Profil. Das Werkzeug für die Kommandozeile heißt **nmcli**, jedes Wort darf abgekürzt werden (`nmcli con` = `nmcli connection`, `nmcli d` = `nmcli device`).
+
+| Befehl | Wirkung |
+|---|---|
+| `nmcli general` | Gesamtzustand: verbunden, Internet erreichbar? |
+| `nmcli device` | Geräte, ihr Zustand und ihr aktives Profil |
+| `nmcli connection show` | alle Profile |
+| `nmcli con show NAME` | alle Einstellungen eines Profils |
+| `nmcli con mod NAME ipv4.method manual ipv4.addresses 192.168.1.50/24 ipv4.gateway 192.168.1.1 ipv4.dns 192.168.1.1` | Profil auf feste Adresse umstellen |
+| `nmcli con mod NAME ipv4.method auto` | zurück auf DHCP |
+| `nmcli con up NAME` / `down NAME` | Profil aktivieren oder trennen |
+| `nmcli con add type ethernet ifname enp0s31f6 con-name Messnetz …` | neues Profil anlegen |
+| `nmcli radio wifi on` | WLAN einschalten |
+| `nmcli dev wifi list` | Funknetze in Reichweite |
+| `nmcli dev wifi connect SSID password GEHEIM` | mit einem WLAN verbinden, legt das Profil gleich an |
+
+**Wichtig:** `nmcli con mod` ändert nur das gespeicherte Profil. Wirksam wird es erst mit `nmcli con up`. Profile liegen als Dateien in `/etc/NetworkManager/system-connections/`.
+
+Auf Servern ohne NetworkManager gibt es zwei andere Wege. Debian nutzt klassisch **ifupdown** mit der Datei `/etc/network/interfaces`, die `ifup` und `ifdown` lesen. **systemd-networkd** liest `.network`-Dateien aus `/etc/systemd/network/`, das Werkzeug dazu heißt `networkctl`. Für die Prüfung reicht es, beide zu kennen.
+</Karte>
+
+<Merke>Profile statt Geräte: nmcli con mod ändert, nmcli con up wendet an. nmcli device zeigt Geräte, nmcli con show die Profile. WLAN: nmcli dev wifi list, dann connect SSID password PW. Ohne NetworkManager: /etc/network/interfaces mit ifup und ifdown, oder systemd-networkd mit /etc/systemd/network.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: nmcli" fragen={[
+  { frage: 'Du hast mit nmcli con mod eine feste Adresse eingetragen, aber ip addr zeigt noch die alte. Warum?', richtig: 'Das geänderte Profil wird erst mit nmcli con up NAME angewendet.', falsch: ['nmcli braucht einen Neustart des Rechners.', 'ip addr zeigt NetworkManager-Adressen nicht an.'], erklaerung: 'Nach dem Neustart gilt es auch, aber das musst du nicht abwarten.' },
+]} />
+
+<Terminal id="nm" titel="Terminal: Feste Adresse und WLAN" aufgaben={[
+  { text: 'Lass dir die Geräte von NetworkManager zeigen.', befehl: '^nmcli d(e(v(ice)?)?)?( status)?$', frage: 'Wie heißt das aktive Profil von enp0s31f6?', antwort: ['Kabelgebundene Verbindung 1'] },
+  { text: 'Stell das Profil „Kabelgebundene Verbindung 1“ auf die feste Adresse <code>192.168.1.50/24</code> um, Gateway und DNS-Server sind <code>192.168.1.1</code>.', zustand: 'nm:Kabelgebundene Verbindung 1~method=^manual$ && nm:Kabelgebundene Verbindung 1~addresses=^192\\.168\\.1\\.50/24$ && nm:Kabelgebundene Verbindung 1~gateway=^192\\.168\\.1\\.1$ && nm:Kabelgebundene Verbindung 1~dns=192\\.168\\.1\\.1' },
+  { text: 'Wende das Profil an, sodass werkstatt die neue Adresse wirklich hat.', zustand: 'addr:enp0s31f6=192.168.1.50/24 && route:default=192.168.1.1' },
+  { text: 'Lass dir die Funknetze in Reichweite zeigen.', befehl: '^nmcli d(e(v(ice)?)?)? wifi( list)?$', frage: 'Welches Netz hat das stärkste Signal?', antwort: ['Labor-WLAN'] },
+  { text: 'Verbinde dich mit „Labor-WLAN“. Das Passwort ist <code>Werkstatt2026</code>.', zustand: 'nm:aktiv=Labor-WLAN' },
+  { text: 'Lass dir die Adressen in Kurzform zeigen.', befehl: '^ip -br(ief)? a(ddr(ess)?)?( show)?$', frage: 'Welche Adresse hat wlp2s0 per DHCP bekommen?', antwort: ['192.168.2.31/24', '192.168.2.31'] },
+]} />
+
+<Terminal id="ifupdown" titel="Terminal: Klassisch mit ifupdown" aufgaben={[
+  { text: 'Lass dir <code>/etc/network/interfaces</code> zeigen.', befehl: '^cat /etc/network/interfaces$', frage: 'Welche Schnittstelle ist darin schon eingetragen?', antwort: ['lo'] },
+  { text: 'Trenn enp0s31f6 von NetworkManager.', befehl: '^nmcli d(e(v(ice)?)?)? disconnect enp0s31f6$' },
+  { text: 'Hänge einen Abschnitt für enp0s31f6 an: <code>iface enp0s31f6 inet static</code> mit <code>address 192.168.1.60/24</code> und <code>gateway 192.168.1.1</code> auf eingerückten Zeilen.', zustand: 'datei:/etc/network/interfaces~^iface enp0s31f6 inet static$ && datei:/etc/network/interfaces~^\\s+address 192\\.168\\.1\\.60(/24)?$ && datei:/etc/network/interfaces~^\\s+gateway 192\\.168\\.1\\.1$', tipp: 'Mit sudo vi /etc/network/interfaces, oder mit sudo tee -a /etc/network/interfaces und einem Heredoc.' },
+  { text: 'Bring die Schnittstelle mit ifup hoch.', zustand: 'ifup:enp0s31f6 && addr:enp0s31f6=192.168.1.60/24 && route:default=192.168.1.1' },
+]} />
+
+<Labor id="labor" titel="Aufgabe im Labor: NetworkManager in der VM"
+  aufgabe="Lass dir in deiner VM die Geräte und Profile zeigen und den Rechnernamen. Füge die Ausgabe ein. Wenn auf deiner Debian-VM kein NetworkManager läuft, installiere ihn mit sudo apt install network-manager."
+  befehl={"nmcli device\nnmcli connection show\nhostnamectl | head -3"}
+  muster={["^DEVICE\\s+TYPE\\s+STATE", "^NAME\\s+UUID\\s+TYPE", "Static hostname:"]}
+  erfolg="Debian lässt Schnittstellen aus /etc/network/interfaces von NetworkManager in Ruhe. Sie stehen dann als „nicht verwaltet“ da." />
+
+<Hinweis titel="Prüfungstipp">
+Lern die Rollen der vier Dateien auswendig und die nmcli-Befehle für Gerät, Profil, Ändern, Aktivieren und WLAN. Verwechselt wird gern hostname und hostnamectl, und dass nmcli con mod allein nichts ändert.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Welche Zeile in /etc/hosts ist richtig aufgebaut?', richtig: '192.168.1.24  labor2.lab.example.org  labor2', falsch: ['labor2  192.168.1.24', 'nameserver 192.168.1.24'], erklaerung: 'Zuerst die Adresse, dann der volle Name, dann Aliase.' },
+  { frage: 'Mit welchem Befehl verbindest du dich mit dem WLAN „Labor“?', richtig: 'nmcli device wifi connect Labor password GEHEIM', falsch: ['nmcli radio wifi Labor', 'nmcli con up wifi Labor'], erklaerung: 'nmcli radio wifi on schaltet nur das WLAN-Gerät ein.' },
+  { frage: 'Welche Dateien lesen ifup und ifdown auf Debian?', richtig: '/etc/network/interfaces', falsch: ['/etc/NetworkManager/NetworkManager.conf', '/etc/systemd/network/*.network'], erklaerung: 'Die anderen gehören zu NetworkManager und systemd-networkd.' },
+]} />

@@ -1,0 +1,32 @@
+---
+id: l1-9-boss
+checks:
+  - id: umzug
+spick:
+  - t: "Unten anfangen"
+    v: "ip -br a · ip r · ping -c 4 GATEWAY · ping -c 4 IP · getent hosts NAME · nc -zv HOST PORT"
+  - t: "Dauerhaft"
+    v: "nmcli con mod NAME ipv4.method manual ipv4.addresses A/P ipv4.gateway G ipv4.dns D · nmcli con up NAME"
+  - t: "Route"
+    v: "ip route add NETZ/P via GW · ip route get ZIEL"
+  - t: "Namen"
+    v: "hostnamectl set-hostname · /etc/hosts: IP Name Alias · dig, host, getent"
+---
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+
+Ein Praktikant hat am Freitag „nur kurz“ das Netz von werkstatt umgestellt. Seitdem erreicht der Rechner nichts mehr: kein Internet, keine Namen, keinen Logserver. **Dein Bosskampf: Finde die Fehler, mach die Einstellungen dauerhaft richtig und bring werkstatt an den Logserver.** Alles aus Topic 109.
+
+<Hinweis titel="Vorgehen">
+Die Aufgaben nennen nur das Ziel, nicht den Fehler. Such von unten nach oben: Schnittstelle, Adresse und Maske, Gateway, Route, Name, Dienst. Es ist mehr als ein Fehler.
+</Hinweis>
+
+<Terminal id="umzug" titel="Bosskampf: Der Praktikant war da" welt={{ netz: { maskeFalsch: true, dnsFalsch: true, keinDefault: true } }} aufgaben={[
+  { text: 'Lass dir Adressen und Routen zeigen und find heraus, warum nicht einmal der Router <code>192.168.1.1</code> antwortet.', befehl: '^ip (-br )?a(ddr(ess)?)?( show)?$', frage: 'Welches Präfix hat enp0s31f6 im Moment?', antwort: ['/28', '28', '192.168.1.23/28'] },
+  { text: 'Das Profil „Kabelgebundene Verbindung 1“ hat dauerhaft die feste Adresse <code>192.168.1.23/24</code>, das Gateway <code>192.168.1.1</code> und den DNS-Server <code>192.168.1.1</code>, und es ist aktiv.', zustand: 'nm:Kabelgebundene Verbindung 1~method=^manual$ && nm:Kabelgebundene Verbindung 1~addresses=^192\\.168\\.1\\.23/24$ && nm:aktiv=Kabelgebundene Verbindung 1 && addr:enp0s31f6=192.168.1.23/24 && route:default=192.168.1.1 && datei:/etc/resolv.conf~^nameserver 192\\.168\\.1\\.1$' },
+  { text: '<code>www.example.org</code> ist per Name erreichbar.', zustand: 'erreichbar:www.example.org' },
+  { text: 'Der Logserver im Netz <code>10.20.0.0/16</code> ist über das Labor-Gateway <code>192.168.1.254</code> erreichbar.', zustand: 'route:10.20.0.0/16=192.168.1.254 && erreichbar:logserver.example.org' },
+  { text: 'Prüf, ob der Logserver auf TCP-Port 514 Verbindungen annimmt.', befehl: '^nc -\\w*z\\w* (logserver\\.example\\.org|10\\.20\\.0\\.5|log) 514$' },
+  { text: 'Der Logserver ist auch unter dem kurzen Namen <code>log</code> erreichbar, über einen Eintrag in <code>/etc/hosts</code>.', zustand: 'aufloesung:log=10.20.0.5 && datei:/etc/hosts~^10\\.20\\.0\\.5\\s.*\\blog\\b' },
+  { text: 'Frag DNS nach dem Mailserver von <code>example.org</code>, nur mit dem Ergebnis.', befehl: '^dig (\\+short )?example\\.org (MX|mx)( \\+short)?$|^dig (\\+short )?(MX|mx) example\\.org( \\+short)?$', frage: 'Wie heißt der Mailserver?', antwort: ['mail.example.org', 'mail.example.org.', '10 mail.example.org.'] },
+]} />

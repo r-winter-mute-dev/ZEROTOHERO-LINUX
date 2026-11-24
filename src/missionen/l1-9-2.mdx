@@ -1,0 +1,133 @@
+---
+id: l1-9-2
+checks:
+  - id: k1
+  - id: zuordnung
+  - id: ports
+  - id: k2
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "TCP"
+    v: "verbindungsorientiert, zuverlässig, Reihenfolge, Handshake SYN – SYN/ACK – ACK"
+  - t: "UDP"
+    v: "verbindungslos, schnell, keine Garantie (DNS, NTP, Syslog, SNMP)"
+  - t: "ICMP"
+    v: "Steuer- und Fehlermeldungen, ping und traceroute, keine Ports"
+  - t: "Ports"
+    v: "20/21 FTP · 22 SSH · 23 Telnet · 25 SMTP · 53 DNS · 80 HTTP · 110 POP3 · 123 NTP · 139 NetBIOS · 143 IMAP · 161/162 SNMP · 389 LDAP · 443 HTTPS · 465 SMTPS · 514 Syslog · 636 LDAPS · 993 IMAPS · 995 POP3S"
+  - t: "IPv6"
+    v: "128 Bit, hexadezimal, :: kürzt Nullen · ::1 Loopback · fe80::/10 link-local · 2000::/3 global · kein Broadcast, kein NAT nötig"
+karten:
+  - f: "Welcher Port gehört zu SSH?"
+    a: ["22"]
+  - f: "Welcher Port gehört zu DNS?"
+    a: ["53"]
+  - f: "Welcher Port gehört zu IMAPS?"
+    a: ["993"]
+  - f: "Welcher Port gehört zu POP3?"
+    a: ["110"]
+  - f: "Welcher Port gehört zu LDAPS?"
+    a: ["636"]
+  - f: "Welche Ports nutzt SNMP?"
+    a: ["161 und 162", "161, 162"]
+  - f: "Welches Protokoll nutzt ping?"
+    a: ["icmp"]
+  - f: "In welcher Datei stehen die Namen der Ports?"
+    a: ["/etc/services"]
+  - f: "Wie lang ist eine IPv6-Adresse?"
+    a: ["128 bit"]
+  - f: "Wie lautet die IPv6-Loopback-Adresse?"
+    a: ["::1"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Zuordnung from '../components/Zuordnung.astro';
+
+Die Firewall des neuen Messnetzes soll nur das durchlassen, was gebraucht wird. Dafür musst du wissen, welcher Dienst welches Protokoll und welchen Port nutzt. **Deine Mission: Unterscheide TCP, UDP und ICMP, lerne die wichtigsten Ports und die Grundzüge von IPv6.** Lernziel 109.1.
+
+## TCP, UDP, ICMP
+
+<Karte nr={1} titel="Drei Protokolle über IP">
+- **TCP** baut zuerst eine Verbindung auf (Drei-Wege-Handshake: SYN, SYN/ACK, ACK). Es nummeriert die Daten, bestätigt jedes Stück und schickt Verlorenes neu. Was ankommt, ist vollständig und in der richtigen Reihenfolge. Das kostet Zeit. Typisch: SSH, HTTP, Mail.
+- **UDP** schickt einzelne Pakete ohne Verbindung und ohne Bestätigung. Es ist schnell, aber Pakete können fehlen. Typisch: DNS-Anfragen, NTP, Syslog, SNMP, Video.
+- **ICMP** trägt Steuer- und Fehlermeldungen von IP selbst, etwa „Ziel nicht erreichbar“ oder „Zeit abgelaufen“. Es hat **keine Ports**. ping schickt ICMP-Echo-Anfragen, traceroute wertet ICMP-Meldungen aus.
+
+TCP und UDP unterscheiden Dienste auf einem Rechner über **Ports** (0 bis 65535). Ports unter 1024 dürfen nur Programme mit Root-Rechten öffnen. Die Zuordnung von Namen zu Nummern steht in **/etc/services**:
+
+| Port | Dienst | | Port | Dienst |
+|---|---|---|---|---|
+| 20, 21 | FTP (Daten, Steuerung) | | 139 | NetBIOS (Windows-Freigaben) |
+| 22 | SSH | | 143 | IMAP |
+| 23 | Telnet (unverschlüsselt) | | 161, 162 | SNMP, SNMP-Traps |
+| 25 | SMTP | | 389 | LDAP |
+| 53 | DNS | | 443 | HTTPS |
+| 80 | HTTP | | 465 | SMTP über TLS |
+| 110 | POP3 | | 514 | Syslog |
+| 123 | NTP | | 636 | LDAP über TLS |
+| | | | 993, 995 | IMAP und POP3 über TLS |
+</Karte>
+
+<Merke>TCP: Verbindung, zuverlässig. UDP: ohne Verbindung, schnell. ICMP: Meldungen, ping, keine Ports. Ports in /etc/services. 22 SSH, 25 SMTP, 53 DNS, 80/443 HTTP(S), 110/995 POP3, 143/993 IMAP, 123 NTP, 389/636 LDAP, 514 Syslog, 161/162 SNMP.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: Protokolle" fragen={[
+  { frage: 'Welches Protokoll nutzen DNS-Anfragen normalerweise?', richtig: 'UDP, Port 53', falsch: ['TCP, Port 25', 'ICMP'], erklaerung: 'Große Antworten und Zonentransfers laufen über TCP 53.' },
+  { frage: 'Warum kann man ping keinen Port mitgeben?', richtig: 'ping nutzt ICMP, und ICMP kennt keine Ports.', falsch: ['ping nutzt immer Port 7.', 'Ports gibt es nur bei IPv6.'], erklaerung: 'Ob ein Port offen ist, prüfst du mit nc -zv.' },
+]} />
+
+<Zuordnung id="zuordnung" titel="Zuordnung: Ports" aufgabe="Ordne jedem Dienst seinen Port zu." paare={[
+  { links: 'SSH', rechts: '22' }, { links: 'SMTP', rechts: '25' }, { links: 'DNS', rechts: '53' }, { links: 'NTP', rechts: '123' },
+  { links: 'IMAP', rechts: '143' }, { links: 'LDAP', rechts: '389' }, { links: 'HTTPS', rechts: '443' }, { links: 'IMAPS', rechts: '993' },
+]} />
+
+<Terminal id="ports" titel="Terminal: Ports in echt" aufgaben={[
+  { text: 'Such in <code>/etc/services</code> die Zeile für syslog.', befehl: '^grep .*syslog.* /etc/services$|^grep -w syslog /etc/services$', frage: 'Welches Protokoll ist für syslog eingetragen?', antwort: ['udp'] },
+  { text: 'Such die Zeilen für die Ports 465 und 636.', befehl: '^grep -E? .*(465|636).* /etc/services$' },
+  { text: 'Prüf mit netcat, ob <code>mail.example.org</code> auf Port 25 Verbindungen annimmt.', befehl: '^nc -\\w*z\\w* mail\\.example\\.org 25$' },
+  { text: 'Prüf dasselbe für Port 143.', befehl: '^nc -\\w*z\\w* mail\\.example\\.org 143$', auchFehler: true, frage: 'Was meldet nc?', antwort: ['Connection refused', 'connection refused'] },
+  { text: 'Lass dir zeigen, auf welchen TCP- und UDP-Ports werkstatt selbst lauscht, mit Nummern statt Namen.', befehl: '^ss -\\w*(tu|ut)\\w*$', frage: 'Auf welcher Adresse lauscht cupsd (Port 631)?', antwort: ['127.0.0.1'] },
+]} />
+
+## IPv6
+
+<Karte nr={2} titel="Was IPv6 anders macht">
+IPv4 hat etwa 4,3 Milliarden Adressen, und die sind vergeben. **IPv6** hat 128 Bit, geschrieben als acht Gruppen hexadezimaler Zahlen: `2001:0db8:0001:0000:0000:0000:0000:0023`. Führende Nullen einer Gruppe dürfen fehlen, und **einmal** pro Adresse ersetzt `::` eine Folge von Nullgruppen: `2001:db8:1::23`.
+
+| IPv4 | IPv6 |
+|---|---|
+| 32 Bit, dezimal | 128 Bit, hexadezimal |
+| Broadcast | kein Broadcast, dafür Multicast (`ff02::1` alle Knoten) |
+| NAT gegen Adressmangel | genug Adressen, NAT unnötig |
+| ARP | Neighbor Discovery über ICMPv6 |
+| DHCP | zusätzlich SLAAC: Der Rechner bildet seine Adresse aus dem Präfix des Routers selbst |
+| 127.0.0.1 | `::1` |
+
+Jede IPv6-Schnittstelle hat immer eine **link-lokale** Adresse aus `fe80::/10`, die nur im eigenen Netzabschnitt gilt. Global erreichbare Adressen kommen aus `2000::/3`. Ein Netz ist fast immer ein `/64`. Werkzeuge haben IPv6-Fassungen: `ping6` oder `ping -6`, `traceroute6`, `tracepath6`, `ip -6`.
+</Karte>
+
+<Merke>IPv6: 128 Bit, hex, :: einmal pro Adresse. ::1 Loopback, fe80::/10 link-lokal, 2000::/3 global, Netze /64. Kein Broadcast, kein NAT, SLAAC und Neighbor Discovery.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: IPv6" fragen={[
+  { frage: 'Welche Schreibweise ist ungültig?', richtig: '2001:db8::1::5', falsch: ['2001:db8::1', 'fe80::3e7c:3fff:fe1a:2b4d'], erklaerung: ':: darf nur einmal vorkommen, sonst wüsste man nicht, wie viele Nullen wo fehlen.' },
+]} />
+
+<Labor id="labor" titel="Aufgabe im Labor: Ports und IPv6 in der VM"
+  aufgabe="Lass dir in deiner VM die lauschenden Ports und die IPv6-Adressen zeigen. Füge die Ausgabe ein."
+  befehl={"sudo ss -tulpn | head -5\nip -6 -br addr\ngrep -w -E '^(ssh|domain|https)' /etc/services"}
+  muster={[":22\\s", "fe80::", "^ssh\\s+22/tcp"]}
+  erfolg="sshd lauscht auf Port 22, und jede Schnittstelle hat eine fe80-Adresse." />
+
+<Hinweis titel="Prüfungstipp">
+Die Liste der Ports aus dem Lernziel kommt sicher dran: 20, 21, 22, 23, 25, 53, 80, 110, 123, 139, 143, 161, 162, 389, 443, 465, 514, 636, 993, 995. Lern sie als Paare mit dem Dienst. Dazu die Unterschiede von TCP, UDP und ICMP und die IPv6-Kurzschreibweise.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Welche Ports gehören zu unverschlüsseltem und verschlüsseltem POP3?', richtig: '110 und 995', falsch: ['143 und 993', '25 und 465'], erklaerung: '143 und 993 sind IMAP, 25 und 465 SMTP.' },
+  { frage: 'Welcher Bereich enthält link-lokale IPv6-Adressen?', richtig: 'fe80::/10', falsch: ['2000::/3', 'ff00::/8'], erklaerung: 'ff00::/8 ist Multicast.' },
+  { frage: 'Was unterscheidet UDP von TCP?', richtig: 'UDP baut keine Verbindung auf und bestätigt nichts.', falsch: ['UDP ist verschlüsselt.', 'UDP nutzt keine Ports.'], erklaerung: 'Darum ist UDP schneller, aber unzuverlässig.' },
+]} />
