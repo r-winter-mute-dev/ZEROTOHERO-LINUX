@@ -44,7 +44,8 @@ Jede Prüfung hat 60 Fragen in 90 Minuten. Bestanden ist ab 500 auf einer Skala 
 | 3 | 103 | Shell und Variablen, Verlauf und man, Textfilter, Dateien und Platzhalter, find und Archive, Umleitungen und Pipes, Prozesse, Jobs, Prioritäten, reguläre Ausdrücke, vi im Simulator, Bosskampf, Probeprüfung | ✅ |
 | 4 | 104 | Partitionieren mit fdisk, Dateisysteme, mount und fstab, systemd-Mount-Units, fsck und tune2fs, Rechte und umask, SUID/SGID/Sticky, harte und symbolische Links, FHS und locate, Bosskampf, **Generalprobe 101** | ✅ |
 | 5 | 105 | Variablen und Umgebung, Startdateien und /etc/skel, Aliase und Funktionen, das erste Skript, test und if/case, Schleifen und read, Bosskampf, Probeprüfung mit Interleaving | ✅ |
-| 6–10 | 106–110 | X11, Benutzer und Jobs, Systemdienste, Netzwerk, Sicherheit, Generalprobe 102 | 📝 |
+| 6 | 106 | X11 und Wayland, xorg.conf.d und Logs, xhost, xauth und ssh -X, Desktops und Display-Manager, VNC, RDP, Spice, XDMCP, Barrierefreiheit mit gsettings, Bosskampf | ✅ |
+| 7–10 | 107–110 | Benutzer und Jobs, Systemdienste, Netzwerk, Sicherheit, Generalprobe 102 | 📝 |
 
 ✅ spielbar · 📝 Lehrplan steht, Missionen folgen
 
@@ -90,7 +91,8 @@ Am meisten hilft gerade:
 - [ ] **Feedback von Einsteigern.** Wo bist du hängen geblieben?
 - [ ] **Prüfungserfahrung.** Wer die Prüfung abgelegt hat: Welche Themen kamen stärker dran als gedacht? (Bitte keine Prüfungsfragen weitergeben, das verbieten die Regeln des LPI.)
 - [x] Topic 105 (Akt 5)
-- [ ] **Missionen für Prüfung 102** (Topic 106 bis 110).
+- [x] Topic 106 (Akt 6)
+- [ ] **Missionen für Prüfung 102** (Topic 107 bis 110).
 - [ ] **Labor-Aufgaben testen** auf anderen Distributionen und mit anderen Virtualisierern.
 
 ## Entstehung

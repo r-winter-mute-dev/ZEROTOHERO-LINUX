@@ -9,6 +9,7 @@ import { SEITEN, EINGEBAUT_OHNE_SEITE, whatis, apropos } from './shell-man';
 import { locateDbAnlegen, rechteBefehle, linksAbgleichen, nurLesbar, zustandRechte, inode, linkZahl } from './shell-rechte';
 import { START_FSTAB, plattenBefehle, startPlatten, zustandPlatten, plattenKaputt, type PlattenStand } from './shell-platten';
 import { skriptKern, programm, funktionAufrufen, istZusammengesetzt, zerlegenProgramm, BrauchtEingabe, stand, rechnen, RechenFehler, parameter, skriptEingebaut, skriptBefehle, suBefehl, shellStarten, shellBeenden, zustandSkript } from './shell-skript';
+import { x11Befehle, x11Dateien, grafikStarten, zustandX11 } from './shell-x11';
 import { START_UHR, beruehren, darf, darfImOrdner, meta, neuMeta, type Meta } from './shell-dateien';
 
 export interface Modul { name: string; groesse: number; abh: string[]; beschreibung: string; parameter?: Record<string, string>; datei?: string; }
@@ -242,6 +243,7 @@ function grundFs(): Record<string, string | null> {
     '/usr/lib/systemd/system/runlevel3.target': '-> multi-user.target', '/usr/lib/systemd/system/runlevel5.target': '-> graphical.target',
     '/etc/systemd/system/default.target': '-> /usr/lib/systemd/system/graphical.target',
   };
+  x11Dateien(fs);
   // Vorlagen für neue Benutzer und die Startdateien von root
   for (const n of ['.bashrc', '.profile']) { fs['/etc/skel/' + n] = fs['/home/lena/' + n]; fs['/root/' + n] = fs['/home/lena/' + n]; }
   for (const p of PCI) {
@@ -259,7 +261,7 @@ function modulPfad(name: string) {
   return `${ordner[name] ?? 'kernel/drivers/misc'}/${name.replace(/_/g, name === 'usb_storage' ? '-' : '_')}.ko`;
 }
 
-export interface WeltOptionen { defaultTarget?: string; target?: string; ohne?: string[]; dateien?: Record<string, string>; prozesse?: Prozess[]; root?: boolean; distro?: 'debian' | 'alma' | 'suse'; virt?: string; host?: string; aptVeraltet?: boolean; geaendert?: string[]; pathStandard?: boolean; cwd?: string; rechte?: Record<string, string>; zeiten?: Record<string, number>; aliase?: Record<string, string>; extraProzesse?: Prozess[]; neuePlatte?: boolean | 'leer' | 'partitioniert' | 'formatiert'; kaputt?: string[]; }
+export interface WeltOptionen { grafik?: 'x11' | 'wayland'; defaultTarget?: string; target?: string; ohne?: string[]; dateien?: Record<string, string>; prozesse?: Prozess[]; root?: boolean; distro?: 'debian' | 'alma' | 'suse'; virt?: string; host?: string; aptVeraltet?: boolean; geaendert?: string[]; pathStandard?: boolean; cwd?: string; rechte?: Record<string, string>; zeiten?: Record<string, number>; aliase?: Record<string, string>; extraProzesse?: Prozess[]; neuePlatte?: boolean | 'leer' | 'partitioniert' | 'formatiert'; kaputt?: string[]; }
 
 export function neueWelt(o: WeltOptionen = {}): Welt {
   const verfuegbar = Object.fromEntries(MODULE.map((x) => [x.name, x]));
@@ -293,6 +295,7 @@ export function neueWelt(o: WeltOptionen = {}): Welt {
   for (const [p, r] of Object.entries(o.rechte ?? {})) { const [mode, owner, group] = r.split(' '); const m = meta(w, p); m.mode = parseInt(mode, 8); if (owner) m.owner = owner; if (group) m.group = group; }
   for (const [p, t] of Object.entries(o.zeiten ?? {})) meta(w, p).mtime = START_UHR - t * 86400000;
   if (o.cwd) { w.cwd = o.cwd; w.env.PWD = o.cwd; }
+  if (o.grafik) { grafikStarten(w, o.grafik); if ('/var/log/Xorg.0.log' in w.fs) meta(w, '/var/log/Xorg.0.log').mode = 0o644; }
   w.historie = (w.fs['/home/lena/.bash_history'] ?? '').split('\n').filter(Boolean);
   programmeAblegen(w);
   // Verzeichnisse nach dem Filesystem Hierarchy Standard, die noch fehlen
@@ -308,7 +311,7 @@ export function neueWelt(o: WeltOptionen = {}): Welt {
 }
 
 // Die wichtigsten Programme liegen als Platzhalter in /usr/bin und /usr/sbin, damit ls, file, find und which sie finden.
-const PROGRAMME = ['passwd', 'su', 'chsh', 'chfn', 'newgrp', 'gpasswd', 'chage', 'expiry', 'crontab', 'stat', 'readlink', 'mount', 'umount', 'df', 'du', 'findmnt', 'lsblk', 'ln', 'chgrp', 'locate', 'plocate', 'bash', 'cat', 'cp', 'mv', 'rm', 'ls', 'mkdir', 'rmdir', 'touch', 'ln', 'chmod', 'chown', 'head', 'tail', 'wc', 'sort', 'uniq', 'cut', 'paste', 'tr', 'od', 'split', 'nl', 'tac', 'sed', 'grep', 'find', 'xargs', 'tar', 'gzip', 'gunzip', 'zcat', 'bzip2', 'bunzip2', 'bzcat', 'xz', 'unxz', 'xzcat', 'cpio', 'dd', 'md5sum', 'sha256sum', 'sha512sum', 'file', 'ps', 'top', 'free', 'uptime', 'pgrep', 'pkill', 'killall', 'kill', 'watch', 'nice', 'renice', 'nohup', 'sleep', 'tee', 'env', 'printenv', 'uname', 'which', 'whereis', 'man', 'date', 'echo', 'printf', 'pwd', 'less', 'more', 'vim.tiny', 'nano', 'screen', 'tmux', 'basename', 'dirname', 'id', 'whoami', 'hostname', 'sudo', 'lspci', 'lsusb', 'lsblk', 'dmesg', 'journalctl', 'systemctl', 'apt', 'apt-get', 'apt-cache', 'dpkg', 'ldd', 'seq', 'expr', 'mail', 'dircolors', 'dash', 'test', '[', 'diff'];
+const PROGRAMME = ['passwd', 'su', 'chsh', 'chfn', 'newgrp', 'gpasswd', 'chage', 'expiry', 'crontab', 'stat', 'readlink', 'mount', 'umount', 'df', 'du', 'findmnt', 'lsblk', 'ln', 'chgrp', 'locate', 'plocate', 'bash', 'cat', 'cp', 'mv', 'rm', 'ls', 'mkdir', 'rmdir', 'touch', 'ln', 'chmod', 'chown', 'head', 'tail', 'wc', 'sort', 'uniq', 'cut', 'paste', 'tr', 'od', 'split', 'nl', 'tac', 'sed', 'grep', 'find', 'xargs', 'tar', 'gzip', 'gunzip', 'zcat', 'bzip2', 'bunzip2', 'bzcat', 'xz', 'unxz', 'xzcat', 'cpio', 'dd', 'md5sum', 'sha256sum', 'sha512sum', 'file', 'ps', 'top', 'free', 'uptime', 'pgrep', 'pkill', 'killall', 'kill', 'watch', 'nice', 'renice', 'nohup', 'sleep', 'tee', 'env', 'printenv', 'uname', 'which', 'whereis', 'man', 'date', 'echo', 'printf', 'pwd', 'less', 'more', 'vim.tiny', 'nano', 'screen', 'tmux', 'basename', 'dirname', 'id', 'whoami', 'hostname', 'sudo', 'lspci', 'lsusb', 'lsblk', 'dmesg', 'journalctl', 'systemctl', 'apt', 'apt-get', 'apt-cache', 'dpkg', 'ldd', 'seq', 'expr', 'mail', 'dircolors', 'dash', 'test', '[', 'diff', 'xclock', 'xeyes', 'xterm', 'xcalc', 'gnome-calculator', 'orca', 'onboard', 'xdpyinfo', 'xwininfo', 'xhost', 'xauth', 'X', 'Xorg', 'setxkbmap', 'gsettings'];
 const SBIN_PROGRAMME = ['mkfs', 'mkfs.ext2', 'mkfs.ext3', 'mkfs.ext4', 'mkfs.xfs', 'mkfs.vfat', 'mkfs.fat', 'mkfs.exfat', 'mkswap', 'swapoff', 'blkid', 'e2fsck', 'fsck', 'fsck.ext4', 'tune2fs', 'xfs_repair', 'xfs_fsr', 'xfs_db', 'parted', 'gdisk', 'fdisk', 'modprobe', 'insmod', 'rmmod', 'lsmod', 'modinfo', 'shutdown', 'reboot', 'poweroff', 'halt', 'ldconfig', 'update-grub', 'grub-install', 'swapon', 'dpkg-reconfigure', 'sshd', 'telinit', 'runlevel'];
 function programmeAblegen(w: Welt) {
   if (w.distro !== 'debian') return;
@@ -1672,6 +1675,7 @@ export function neuStarten(w: Welt) {
 
 Object.assign(befehle, paketBefehle({ ok, fehler, optionen, pfad, schreiben }));
 Object.assign(befehle, skriptBefehle());
+Object.assign(befehle, x11Befehle());
 befehle.su = (w, a, _i, root) => {
   const r = suBefehl(w, a, root);
   if (r.dialog) { const d = r.dialog; w.dialog = { prompt: 'Passwort: ', eingabe: (z) => { w.dialog = null; return d(z); } }; return ok(''); }
@@ -1800,6 +1804,7 @@ export function zustandStimmt(w: Welt, z: string): boolean {
     const pl = zustandPlatten(w, s); if (pl !== undefined) return pl;
     const re = zustandRechte(w, s, pfad); if (re !== undefined) return re;
     const sz = zustandSkript(w, s); if (sz !== undefined) return sz;
+    const zx = zustandX11(w, s); if (zx !== undefined) return zx;
     if (s === 'neustart') return w.verlauf.some((v) => v.zeile === '#neustart');
     // ---- ab Topic 103 ----
     // vi:ohne = beendet, ohne zu speichern (mit oder ohne Änderungen)

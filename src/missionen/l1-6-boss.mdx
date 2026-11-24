@@ -1,0 +1,33 @@
+---
+id: l1-6-boss
+checks:
+  - id: arbeitsplatz
+spick:
+  - t: "Logs"
+    v: "grep -E '\\((EE|WW)\\)' /var/log/Xorg.0.log · ~/.xsession-errors"
+  - t: "Tastatur"
+    v: "/etc/X11/xorg.conf.d/00-keyboard.conf · Option \"XkbVariant\" \"nodeadkeys\""
+  - t: "Zugriff"
+    v: "xhost · xhost - · Autostart: ~/.xprofile"
+  - t: "Hilfen"
+    v: "gsettings set org.gnome.desktop.a11y.keyboard KEY true"
+---
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+
+Montag, 7:30 Uhr. Jonas fängt um acht an. Auf seinem Arbeitsplatz `werkstatt` tippt die Tastatur keine Akzente, beim Anmelden blitzt kurz eine Meldung von xhost auf, und keine einzige Hilfe ist eingeschaltet. **Dein Bosskampf: Bring den Arbeitsplatz in Ordnung, bevor Jonas kommt, und halte die Einstellungen in einem Skript fest, damit sie sich jederzeit wiederherstellen lassen.** Alles aus Topic 106, dazu Skripte aus Topic 105.
+
+<Hinweis titel="So gehst du vor">
+Fang mit den Logs an. Die Zeilen mit `(EE)` und `(WW)` im Log des X-Servers zeigen dir, was Xorg beim Start nicht verstanden hat. Was beim Anmelden automatisch läuft, steht in `~/.xprofile`.
+</Hinweis>
+
+<Terminal id="arbeitsplatz" titel="Bosskampf: Jonas’ Arbeitsplatz" welt={{ grafik: 'x11', dateien: { '/etc/X11/xorg.conf.d/00-keyboard.conf': 'Section "InputClass"\n        Identifier "system-keyboard"\n        MatchIsKeyboard "on"\n        Option "XkbLayout" "de"\n        Option "XkbVariant" "nodeadkys"\nEndSection\n', '/home/lena/.xprofile': '# wird beim Anmelden gelesen\nxhost +\nxset r rate 500 30\n' } }} aufgaben={[
+  { text: 'Die Ursache für die fehlenden Akzente ist im Log des X-Servers gefunden.', befehl: '^(sudo )?grep .*(EE|WW).* /var/log/Xorg\\.0\\.log$' },
+  { text: 'In <code>00-keyboard.conf</code> steht die richtige Variante <code>nodeadkeys</code>.', zustand: 'datei:/etc/X11/xorg.conf.d/00-keyboard.conf~"XkbVariant" "nodeadkeys"' },
+  { text: '<code>~/.xprofile</code> öffnet die Anzeige nicht mehr für alle, die Zeile für die Tastenwiederholung bleibt stehen.', zustand: 'nicht:datei:/home/lena/.xprofile~^xhost \\+$ && datei:/home/lena/.xprofile~^xset r rate' },
+  { text: 'In der laufenden Sitzung ist die Zugriffskontrolle eingeschaltet.', befehl: '^xhost -$', zustand: 'xhost:zu' },
+  { text: 'Jonas kann Tastenkombinationen nacheinander drücken, und doppelte Anschläge werden ignoriert.', zustand: 'gsetting:org.gnome.desktop.a11y.keyboard stickykeys-enable=true && gsetting:org.gnome.desktop.a11y.keyboard bouncekeys-enable=true' },
+  { text: 'Den Mauszeiger kann er auch mit dem Ziffernblock bewegen, und alle Schriften sind um den Faktor 1.25 größer.', zustand: 'gsetting:org.gnome.desktop.a11y.keyboard mousekeys-enable=true && gsetting:org.gnome.desktop.interface text-scaling-factor=1.25' },
+  { text: 'Das ausführbare Skript <code>~/bin/jonas-hilfen</code> schaltet alle vier Hilfen mit gsettings ein.', zustand: 'modus:/home/lena/bin/jonas-hilfen=755 && datei:/home/lena/bin/jonas-hilfen~^#!/bin/(ba)?sh$ && datei:/home/lena/bin/jonas-hilfen~stickykeys-enable true && datei:/home/lena/bin/jonas-hilfen~bouncekeys-enable true && datei:/home/lena/bin/jonas-hilfen~mousekeys-enable true && datei:/home/lena/bin/jonas-hilfen~text-scaling-factor 1\\.25' },
+  { text: 'Probe: Nach <code>gsettings reset</code> für Sticky Keys stellt das Skript die Einstellung wieder her.', befehl: '^gsettings reset org\\.gnome\\.desktop\\.a11y\\.keyboard stickykeys-enable$', zustand: 'gsetting:org.gnome.desktop.a11y.keyboard stickykeys-enable=true' },
+]} />

@@ -1,0 +1,112 @@
+---
+id: l1-6-2
+checks:
+  - id: k1
+  - id: zugriff
+  - id: reihe
+  - id: k2
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "Wer darf zeichnen?"
+    v: "xhost (zeigen) · xhost +rechner · xhost -rechner · xhost - (alle anderen aussperren)"
+  - t: "Nie"
+    v: "xhost +   (jeder Rechner darf mitlesen und tippen)"
+  - t: "Schlüssel"
+    v: "xauth list · ~/.Xauthority · MIT-MAGIC-COOKIE-1"
+  - t: "Der sichere Weg"
+    v: "ssh -X rechner programm · Server: X11Forwarding yes in /etc/ssh/sshd_config"
+  - t: "Wayland"
+    v: "kennt kein Netzwerk-Display, Fernzugriff über RDP oder VNC (Mission 6.3)"
+karten:
+  - f: "Welcher Befehl erlaubt dem Rechner labor2, Fenster auf deiner Anzeige zu öffnen?"
+    a: ["xhost +labor2"]
+  - f: "Warum ist „xhost +“ gefährlich?"
+    a: ["jeder rechner darf dann fenster öffnen, tastatur mitlesen und eingaben schicken", "jeder darf auf die anzeige zugreifen"]
+  - f: "Welcher Befehl zeigt die Schlüssel für deine X-Anzeigen?"
+    a: ["xauth list"]
+  - f: "In welcher Datei liegen die X-Schlüssel eines Benutzers?"
+    a: ["~/.Xauthority", ".Xauthority"]
+  - f: "Mit welcher ssh-Option leitest du X-Programme sicher durch die Verbindung?"
+    a: ["-X", "ssh -X"]
+  - f: "Welche Zeile in sshd_config erlaubt X-Weiterleitung?"
+    a: ["X11Forwarding yes"]
+  - f: "Auf welche Anzeige zeigt DISPLAY nach ssh -X meist?"
+    a: ["localhost:10.0", "localhost:10"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Reihenfolge from '../components/Reihenfolge.astro';
+
+Das Messprogramm läuft auf dem Rechner `labor2` im Nebenraum, du willst sein Fenster aber an deinem Platz sehen. Ein Forenbeitrag rät zu `xhost +`. **Deine Mission: Lass fremde Fenster auf deine Anzeige, ohne die Tür für alle zu öffnen.** Lernziel 106.1.
+
+## Wer darf auf meine Anzeige?
+
+<Karte nr={1} titel="xhost, xauth und DISPLAY">
+X11 wurde für Netze gebaut: Ein Client auf `labor2` kann auf deiner Anzeige zeichnen, wenn er dort `DISPLAY=werkstatt:0` setzt und dein X-Server ihn hereinlässt. Hereingelassen wird auf zwei Arten:
+
+- **Nach Rechner, mit xhost.** `xhost` zeigt die Liste, `xhost +labor2` lässt jeden Benutzer von labor2 herein, `xhost -labor2` nimmt das zurück. **`xhost +` ohne Namen schaltet die Kontrolle ganz ab.** Dann darf jeder Rechner im Netz Fenster öffnen, Tastendrücke mitlesen und Eingaben in deine Fenster schicken. `xhost -` schaltet die Kontrolle wieder ein.
+- **Nach Schlüssel, mit xauth.** Beim Anmelden erzeugt der Display-Manager einen geheimen Schlüssel, ein `MIT-MAGIC-COOKIE-1`, und legt ihn in `~/.Xauthority` ab (oder in der Datei aus `$XAUTHORITY`). Nur wer den Schlüssel kennt, darf zeichnen. `xauth list` zeigt ihn, `xauth extract` und `xauth merge` übertragen ihn auf einen anderen Rechner.
+
+Beides schickt die Zeichenbefehle und deine Tastendrücke aber **unverschlüsselt** durchs Netz. Moderne Systeme lassen den X-Server darum gar nicht erst auf TCP lauschen (die Option `-nolisten tcp` ist Standard).
+
+Der sichere Weg ist **SSH**: `ssh -X lena@labor2 messprog` startet das Programm auf labor2. Der SSH-Server setzt dort `DISPLAY=localhost:10.0` und leitet alles verschlüsselt zu deinem X-Server. Den Schlüssel richtet ssh selbst ein. Auf labor2 muss dafür in `/etc/ssh/sshd_config` die Zeile `X11Forwarding yes` stehen. `ssh -Y` vertraut dem Gegenüber noch mehr und umgeht einige Schutzmechanismen von X. Das ist bequemer, aber nur für eigene Rechner gedacht.
+
+**Wayland** hat kein Netzwerkprotokoll für Fenster. Dort holst du einen entfernten Desktop mit RDP oder VNC (Mission 6.3). Einzelne X-Programme laufen über ssh -X und XWayland trotzdem.
+</Karte>
+
+<Merke>xhost +rechner erlaubt einen Rechner, xhost + erlaubt alle (nie!). xauth list zeigt das MIT-MAGIC-COOKIE in ~/.Xauthority. Sicher: ssh -X mit X11Forwarding yes, DISPLAY wird localhost:10.0.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: Zugriff" fragen={[
+  { frage: 'Was bewirkt „xhost -labor2“?', richtig: 'labor2 darf keine Fenster mehr auf deiner Anzeige öffnen.', falsch: ['Alle Rechner außer labor2 werden ausgesperrt.', 'Die Zugriffskontrolle wird abgeschaltet.'], erklaerung: 'Mit - und einem Namen streichst du einen Rechner von der Liste.' },
+  { frage: 'Warum ist ssh -X sicherer als xhost +labor2?', richtig: 'Die Verbindung ist verschlüsselt, und nur diese eine Sitzung bekommt Zugang.', falsch: ['ssh -X schaltet die Tastatur ab.', 'xhost funktioniert nur unter Wayland.'], erklaerung: 'Bei xhost darf jeder Benutzer von labor2 zeichnen, und alles läuft im Klartext.' },
+]} />
+
+<Terminal id="zugriff" titel="Terminal: Die Tür zu deiner Anzeige" welt={{ grafik: 'x11', dateien: { '/etc/ssh/sshd_config': 'Include /etc/ssh/sshd_config.d/*.conf\n\n#Port 22\nKbdInteractiveAuthentication no\nUsePAM yes\n#X11Forwarding no\nX11Forwarding yes\nPrintMotd no\nAcceptEnv LANG LC_*\nSubsystem\tsftp\t/usr/lib/openssh/sftp-server\n' } }} aufgaben={[
+  { text: 'Lass dir zeigen, wer auf deine Anzeige darf.', befehl: '^xhost$', frage: 'Ist die Zugriffskontrolle eingeschaltet? (ja/nein)', antwort: ['ja'] },
+  { text: 'Erlaube dem Rechner <code>labor2</code> den Zugriff.', zustand: 'xhost:+labor2' },
+  { text: 'Schalte die Kontrolle probehalber ganz ab, so wie es der Forenbeitrag rät.', zustand: 'xhost:offen' },
+  { text: 'Schalte sie sofort wieder ein und nimm auch labor2 wieder von der Liste.', zustand: 'xhost:zu && nicht:xhost:+labor2' },
+  { text: 'Lass dir den Schlüssel deiner Anzeige zeigen.', befehl: '^xauth list$', frage: 'Welche Art von Schlüssel ist das?', antwort: ['MIT-MAGIC-COOKIE-1'] },
+  { text: 'Prüf, in welcher Datei der Schlüssel liegt.', befehl: '^echo "?\\$\\{?XAUTHORITY', frage: 'Welche Datei?', antwort: ['/home/lena/.Xauthority', '~/.Xauthority'] },
+  { text: 'Prüf in der Konfiguration des SSH-Servers, ob X-Weiterleitung erlaubt ist.', befehl: '^grep .*X11Forwarding.* /etc/ssh/sshd_config$', frage: 'Welcher Wert gilt? (die Zeile ohne #)', antwort: ['yes', 'X11Forwarding yes'] },
+]} />
+
+<Reihenfolge id="reihe" titel="Reihenfolge: Ein Fenster per ssh -X" aufgabe="lena tippt auf werkstatt „ssh -X lena@labor2 messprog“. Bring die Schritte in die richtige Reihenfolge." schritte={['ssh baut eine verschlüsselte Verbindung zu labor2 auf und meldet lena an', 'sshd auf labor2 prüft X11Forwarding yes und setzt DISPLAY=localhost:10.0', 'messprog startet auf labor2 und verbindet sich mit localhost:10.0', 'sshd schickt die Zeichenbefehle durch den Tunnel zurück', 'Der X-Server auf werkstatt zeichnet das Fenster auf lenas Bildschirm']} />
+
+## Wann welcher Weg?
+
+<Karte nr={2} titel="Ein Fenster oder der ganze Desktop">
+Für **ein einzelnes Programm** von einem anderen Linux-Rechner ist `ssh -X` der richtige Weg. Willst du dagegen **einen ganzen Desktop** sehen, auch von Windows oder macOS aus, oder läuft drüben Wayland, brauchst du ein Protokoll für entfernte Desktops: VNC, RDP oder Spice. Die lernst du in der nächsten Mission kennen.
+
+Zwei Fehler kommen in der Praxis ständig vor:
+
+- `ssh` ohne `-X`: DISPLAY ist leer, und das Programm meldet `Can't open display`.
+- `X11Forwarding no` auf dem Server: ssh meldet `X11 forwarding request failed on channel 0`, und DISPLAY bleibt ebenfalls leer.
+</Karte>
+
+<Merke>Ein Programm: ssh -X. Ganzer Desktop, andere Systeme oder Wayland: VNC, RDP, Spice. Leeres DISPLAY nach ssh heißt: -X vergessen oder X11Forwarding no.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: Fehler" fragen={[
+  { frage: 'Nach „ssh lena@labor2“ meldet xclock „Can\'t open display“. Was fehlt?', richtig: 'Die Option -X beim ssh-Aufruf', falsch: ['xhost + auf labor2', 'Ein Neustart von Xorg'], erklaerung: 'Ohne -X fordert ssh keine X-Weiterleitung an, also setzt sshd kein DISPLAY.' },
+]} />
+
+<Labor id="labor" titel="Aufgabe im Labor: X durch SSH"
+  aufgabe="Melde dich vom grafischen Terminal deiner Debian-VM per SSH bei derselben VM an, einmal ohne und einmal mit -X, und vergleiche DISPLAY. Füge die Ausgabe ein."
+  befehl={"ssh localhost 'echo \"ohne: [$DISPLAY]\"'\nssh -X localhost 'echo \"mit: [$DISPLAY]\"; xauth list | head -1'\ngrep -i '^X11Forwarding' /etc/ssh/sshd_config"}
+  muster={["^ohne: \\[\\]$", "^mit: \\[localhost:1\\d\\.0\\]$", "^X11Forwarding yes$"]}
+  erfolg="Mit -X setzt sshd die Anzeige auf localhost:10.0 oder höher und legt einen eigenen Schlüssel an." />
+
+<Hinweis titel="Prüfungstipp">
+Die Prüfung fragt nach xhost +name, -name und dem gefährlichen xhost +, nach xauth und ~/.Xauthority und nach dem Zusammenhang von DISPLAY und ssh -X. Denk daran: Der X-Server steht dort, wo der Bildschirm ist.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Welcher Befehl erlaubt allen Rechnern im Netz, Fenster auf deiner Anzeige zu öffnen?', richtig: 'xhost +', falsch: ['xhost -', 'xauth list'], erklaerung: 'Genau darum solltest du ihn nie benutzen.' },
+  { frage: 'Welche Datei muss auf dem entfernten Rechner X11Forwarding yes enthalten?', richtig: '/etc/ssh/sshd_config', falsch: ['~/.ssh/config', '/etc/X11/xorg.conf'], erklaerung: '~/.ssh/config ist die Einstellung des Clients. Dort kann ForwardX11 yes das -X ersetzen.' },
+]} />

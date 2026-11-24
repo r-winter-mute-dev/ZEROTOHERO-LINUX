@@ -1,0 +1,152 @@
+---
+id: l1-6-1
+checks:
+  - id: k1
+  - id: aufbau
+  - id: zuordnung
+  - id: k2
+  - id: konfig
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "Rollen"
+    v: "X-Server zeichnet und liest Tastatur/Maus · Clients sind die Programme · Fenstermanager · Display-Manager (Anmeldung)"
+  - t: "Welche Sitzung?"
+    v: "echo $XDG_SESSION_TYPE   (x11 oder wayland)"
+  - t: "Anzeige"
+    v: "DISPLAY=:0  heißt Rechner (leer = lokal), Anzeige 0, Bildschirm 0"
+  - t: "Infos"
+    v: "xdpyinfo · xwininfo -root · X -version"
+  - t: "Konfiguration"
+    v: "/etc/X11/xorg.conf (selten) · /etc/X11/xorg.conf.d/*.conf · Vorlage: X -configure"
+  - t: "Fehler suchen"
+    v: "/var/log/Xorg.0.log ((EE), (WW)) · ~/.xsession-errors"
+karten:
+  - f: "Welches Programm zeichnet unter X11 auf den Bildschirm und liest Tastatur und Maus?"
+    a: ["der x-server", "x-server", "xorg", "x"]
+  - f: "Welche Variable sagt einem X-Programm, wo es sein Fenster öffnen soll?"
+    a: ["DISPLAY", "$DISPLAY"]
+  - f: "Was bedeutet DISPLAY=:0?"
+    a: ["lokaler rechner, anzeige 0", "anzeige 0 auf diesem rechner"]
+  - f: "Wie heißt die Hauptkonfigurationsdatei des X-Servers?"
+    a: ["/etc/X11/xorg.conf"]
+  - f: "In welchem Verzeichnis liegen heute die Konfigurationsschnipsel für Xorg?"
+    a: ["/etc/X11/xorg.conf.d", "/etc/X11/xorg.conf.d/"]
+  - f: "Welcher Befehl zeigt Auflösung und Farbtiefe der Anzeige?"
+    a: ["xdpyinfo"]
+  - f: "Welche Datei sammelt die Fehlermeldungen einer grafischen X-Sitzung im Home?"
+    a: ["~/.xsession-errors", ".xsession-errors"]
+  - f: "Wie heißt das Protokoll, das X11 auf vielen Systemen ablöst?"
+    a: ["wayland"]
+  - f: "Welcher Befehl erzeugt eine Vorlage für xorg.conf?"
+    a: ["X -configure", "Xorg -configure"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Zuordnung from '../components/Zuordnung.astro';
+
+Auf der Werkstatt-Maschine tippt ein Kollege seit dem letzten Update Sonderzeichen falsch, und ein altes Messprogramm startet nicht mehr. **Deine Mission: Verstehe, wie die grafische Oberfläche unter Linux aufgebaut ist, und finde in ihrer Konfiguration und ihren Logs die Ursache.** Lernziel 106.1.
+
+## Wer macht was?
+
+<Karte nr={1} titel="Server, Clients und Wayland">
+Das X Window System (X11, kurz X) dreht die gewohnten Begriffe um:
+
+- Der **X-Server** läuft auf dem Rechner, vor dem du sitzt. Er zeichnet auf den Bildschirm und liest Tastatur und Maus. Unter Linux ist das **Xorg**.
+- Die **Clients** sind die Programme mit Fenstern, etwa ein Terminal oder ein Browser. Sie schicken dem Server Zeichenbefehle über das X-Protokoll, lokal über einen Socket, auf Wunsch auch über das Netz (Mission 6.2).
+- Der **Fenstermanager** ist selbst nur ein Client. Er zeichnet Rahmen und Titelleisten und entscheidet, welches Fenster vorne liegt.
+- Der **Display-Manager** zeigt den Anmeldebildschirm und startet danach deine Sitzung: GDM bei GNOME, SDDM bei KDE, LightDM etwa bei Xfce (Mission 6.3).
+
+Wohin ein Client zeichnet, verrät ihm die Variable **DISPLAY**. Sie hat die Form `rechner:anzeige.bildschirm`. `:0` heißt: dieser Rechner, Anzeige 0. Fehlt DISPLAY, meldet ein X-Programm `Can't open display`.
+
+**Wayland** ist der Nachfolger von X11. Dort sind Server, Fenstermanager und Compositor ein einziges Programm, bei GNOME heißt es Mutter. Clients sehen nur ihre eigenen Fenster, sie können andere weder mitlesen noch fernsteuern. Debian 12 startet GNOME standardmäßig mit Wayland. Alte X-Programme laufen dort weiter, und zwar über **XWayland**, einen kleinen X-Server innerhalb der Wayland-Sitzung. Welche Sitzung läuft, zeigt `echo $XDG_SESSION_TYPE`.
+
+Informationen über die Anzeige liefern `xdpyinfo` (Auflösung, Farbtiefe, Erweiterungen) und `xwininfo` (ein einzelnes Fenster, mit `-root` das Hauptfenster). `X -version` nennt die Version des Servers.
+</Karte>
+
+<Merke>X-Server = dein Bildschirm, Tastatur, Maus. Clients = Programme. DISPLAY=:0 = hier, Anzeige 0. Wayland vereint Server und Fenstermanager, alte X-Programme laufen über XWayland. $XDG_SESSION_TYPE zeigt x11 oder wayland.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: Aufbau" fragen={[
+  { frage: 'lena startet auf ihrem Laptop ein Programm, das auf dem Server im Keller läuft, und sieht das Fenster auf ihrem Laptop. Wo läuft der X-Server?', richtig: 'Auf dem Laptop', falsch: ['Auf dem Server im Keller', 'Auf beiden'], erklaerung: 'Der X-Server sitzt dort, wo Bildschirm und Tastatur sind. Das Programm ist der Client.' },
+  { frage: 'Was bedeutet DISPLAY=labor2:1?', richtig: 'Anzeige 1 auf dem Rechner labor2', falsch: ['Bildschirm 2 auf dem Rechner labor', 'Benutzer labor2 auf Anzeige 1'], erklaerung: 'Vor dem Doppelpunkt steht der Rechner, dahinter die Anzeige.' },
+]} />
+
+<Terminal id="aufbau" titel="Terminal: Die Werkstatt-Oberfläche" welt={{ grafik: 'wayland' }} aufgaben={[
+  { text: 'Finde heraus, welche Art von Sitzung läuft.', befehl: '^echo "?\\$\\{?XDG_SESSION_TYPE', frage: 'x11 oder wayland?', antwort: ['wayland'] },
+  { text: 'Lass dir die Variable <code>DISPLAY</code> anzeigen.', befehl: '^echo "?\\$\\{?DISPLAY', frage: 'Welche Anzeige nutzen X-Programme?', antwort: [':0'] },
+  { text: 'Frag die Anzeige mit <code>xdpyinfo</code> nach ihren Abmessungen.', befehl: '^xdpyinfo', frage: 'Welche Auflösung hat der Bildschirm?', antwort: ['1920x1080'] },
+  { text: 'Starte <code>xclock</code> im Hintergrund, damit die Shell frei bleibt.', befehl: '^xclock ?&$', zustand: 'job:xclock=Running' },
+  { text: 'Starte <code>xclock</code> noch einmal, diesmal mit leerem DISPLAY nur für diesen Aufruf.', befehl: '^DISPLAY= ?xclock', auchFehler: true, frage: 'Welche Meldung kommt?', antwort: ["Error: Can't open display:", "Can't open display", "can't open display:"] },
+  { text: 'Lass dir die Version des X-Servers zeigen.', befehl: '^(X|Xorg) -version$' },
+]} />
+
+<Zuordnung id="zuordnung" titel="Zuordnung: Wer ist was?" aufgabe="Ordne jedem Programm seine Rolle zu." paare={[
+  { links: 'Xorg', rechts: 'X-Server' },
+  { links: 'Mutter (GNOME unter Wayland)', rechts: 'Wayland-Compositor' },
+  { links: 'xterm', rechts: 'X-Client' },
+  { links: 'GDM', rechts: 'Display-Manager' },
+  { links: 'XWayland', rechts: 'X-Server für alte Programme in einer Wayland-Sitzung' },
+]} />
+
+## Konfiguration und Logs
+
+<Karte nr={2} titel="xorg.conf, xorg.conf.d und die Logdateien">
+Xorg erkennt Grafikkarte, Bildschirm und Eingabegeräte heute fast immer selbst. Eine **/etc/X11/xorg.conf** gibt es darum meist gar nicht. Wer etwas ändern will, legt kleine Dateien mit der Endung `.conf` nach **/etc/X11/xorg.conf.d/**. Die Vorgaben der Pakete liegen in `/usr/share/X11/xorg.conf.d/`.
+
+Beide bestehen aus Abschnitten (`Section "Name"` bis `EndSection`):
+
+| Abschnitt | beschreibt |
+|---|---|
+| `InputDevice` / `InputClass` | ein Eingabegerät bzw. eine ganze Klasse (alle Tastaturen) |
+| `Device` | die Grafikkarte und ihren Treiber |
+| `Monitor` | den Bildschirm |
+| `Screen` | Grafikkarte plus Monitor, mit Farbtiefe und Auflösungen |
+| `ServerLayout` | verbindet Screens und Eingabegeräte |
+| `Files`, `Module` | Pfade zu Schriften und Modulen, zu ladende Module |
+
+Das Tastaturlayout steht auf Debian in `/etc/X11/xorg.conf.d/00-keyboard.conf`, in einem Abschnitt `InputClass` mit `Option "XkbLayout" "de"`. Die Datei schreibt `localectl set-x11-keymap` (Mission 7.4). Für die laufende Sitzung genügt `setxkbmap de`.
+
+Eine vollständige Vorlage erzeugt `X -configure`, als root und ohne laufenden X-Server. Das Ergebnis heißt `xorg.conf.new` und liegt im Home von root.
+
+Wenn etwas nicht geht, helfen zwei Logs:
+
+- **/var/log/Xorg.0.log**: das Protokoll des X-Servers für Anzeige 0. Zeilen mit `(EE)` sind Fehler, `(WW)` Warnungen. In einer reinen Wayland-Sitzung gibt es die Datei nicht, dort steht alles im Journal.
+- **~/.xsession-errors**: die Ausgaben der Programme deiner X-Sitzung.
+</Karte>
+
+<Merke>xorg.conf ist optional, Schnipsel gehören nach /etc/X11/xorg.conf.d/. Abschnitte: InputDevice/InputClass, Device, Monitor, Screen, ServerLayout. Fehler: /var/log/Xorg.0.log mit (EE) und (WW), ~/.xsession-errors.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: Konfiguration" fragen={[
+  { frage: 'Welcher Abschnitt verbindet Grafikkarte und Monitor und legt die Farbtiefe fest?', richtig: 'Screen', falsch: ['Device', 'ServerLayout'], erklaerung: 'Device beschreibt nur die Karte. ServerLayout verbindet Screens mit Eingabegeräten.' },
+  { frage: 'Woran erkennst du in /var/log/Xorg.0.log einen Fehler?', richtig: 'An (EE) am Zeilenanfang', falsch: ['An (II) am Zeilenanfang', 'An (**) am Zeilenanfang'], erklaerung: '(II) ist eine Information, (**) eine Einstellung aus der Konfiguration, (WW) eine Warnung.' },
+]} />
+
+<Terminal id="konfig" titel="Terminal: Der Tippfehler" welt={{ grafik: 'x11', dateien: { '/etc/X11/xorg.conf.d/00-keyboard.conf': 'Section "InputClass"\n        Identifier "system-keyboard"\n        MatchIsKeyboard "on"\n        Option "XkbLayout" "de"\n        Option "XkbVariant" "nodeadkys"\nEndSection\n' } }} aufgaben={[
+  { text: 'Prüf, ob es eine <code>/etc/X11/xorg.conf</code> gibt, und lass dir den Inhalt von <code>/etc/X11/xorg.conf.d</code> zeigen.', befehl: '^ls (-\\w+ )?/etc/X11/xorg\\.conf\\.d/?$' },
+  { text: 'Lies die Tastaturkonfiguration.', befehl: '^cat /etc/X11/xorg\\.conf\\.d/00-keyboard\\.conf$', frage: 'Welche Variante ist eingestellt?', antwort: ['nodeadkys'] },
+  { text: 'Such im Log des X-Servers alle Fehler und Warnungen.', befehl: '^grep .*(EE|WW).* /var/log/Xorg\\.0\\.log$', frage: 'Was meldet Xorg zu dieser Variante: (WW) oder (EE)?', antwort: ['(WW)', 'WW', 'warnung'] },
+  { text: 'Schau in die Fehlerdatei deiner Sitzung.', befehl: '^(cat|less|tail|head)( -\\w+)? (~|/home/lena)/\\.xsession-errors$', frage: 'Welches Programm vermisst Zeichensätze?', antwort: ['xclock'] },
+  { text: 'Lass als root eine Vorlage für xorg.conf erzeugen.', befehl: '^sudo (X|Xorg) -configure$', zustand: 'da:/root/xorg.conf.new' },
+  { text: 'Such in der Vorlage, welchen Treiber Xorg für die Grafikkarte vorschlägt.', befehl: '^sudo grep .*Driver.* /root/xorg\\.conf\\.new$', frage: 'Welcher Treiber steht im Abschnitt Device?', antwort: ['modesetting'] },
+]} />
+
+<Labor id="labor" titel="Aufgabe im Labor: Deine Oberfläche"
+  aufgabe="Öffne in deiner Debian-VM auf der grafischen Oberfläche ein Terminal (nicht per SSH) und führe die Zeilen aus. Fehlt xdpyinfo, installiere es mit sudo apt install x11-utils."
+  befehl={"echo \"$XDG_SESSION_TYPE $DISPLAY\"\nxdpyinfo | grep -E 'dimensions|depth of root'\nls /etc/X11/xorg.conf.d/"}
+  muster={["^(x11|wayland) :\\d", "dimensions:\\s+\\d+x\\d+ pixels"]}
+  erfolg="Mit Xfce läuft auf Debian 12 eine X11-Sitzung." />
+
+<Hinweis titel="Prüfungstipp">
+Merk dir die umgedrehte Rolle von Server und Client, die Form von DISPLAY und die Namen der Dateien: xorg.conf, xorg.conf.d, Xorg.0.log, ~/.xsession-errors. Von Wayland reicht das Grundwissen: Nachfolger von X11, Server und Fenstermanager in einem, XWayland für alte Programme.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Ein Programm meldet „Error: Can\'t open display:“. Was fehlt sehr wahrscheinlich?', richtig: 'Die Variable DISPLAY', falsch: ['Die Datei xorg.conf', 'Der Fenstermanager'], erklaerung: 'Ohne DISPLAY weiß der Client nicht, mit welchem X-Server er sprechen soll. Typisch für eine Shell per SSH ohne -X.' },
+  { frage: 'Wo legst du auf einem aktuellen System eine eigene Einstellung für Xorg ab?', richtig: 'In einer Datei unter /etc/X11/xorg.conf.d/', falsch: ['In /usr/share/X11/xorg.conf.d/', 'In ~/.xsession-errors'], erklaerung: '/usr/share gehört den Paketen und wird bei Updates überschrieben.' },
+  { frage: 'Welche Aussage über Wayland stimmt?', richtig: 'Alte X-Programme laufen über XWayland weiter.', falsch: ['Wayland liest /etc/X11/xorg.conf.', 'Unter Wayland kann jedes Programm die Fenster anderer mitlesen.'], erklaerung: 'Gerade die Abschottung der Fenster voneinander ist ein Ziel von Wayland.' },
+]} />

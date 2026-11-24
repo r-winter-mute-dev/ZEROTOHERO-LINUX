@@ -1,0 +1,134 @@
+---
+id: l1-6-4
+checks:
+  - id: k1
+  - id: tastatur
+  - id: zuordnung
+  - id: k2
+  - id: sehen
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "Tastatur (AccessX)"
+    v: "Sticky (nacheinander) · Slow (lange halten) · Bounce (Doppelanschläge ignorieren) · Toggle (Ton bei Feststelltasten) · Repeat (Wiederholung)"
+  - t: "Maus"
+    v: "Mouse Keys: Zeiger mit dem Ziffernblock"
+  - t: "Sehen"
+    v: "hoher Kontrast · große Schrift · Bildschirmlupe · Screenreader (Orca) · Braillezeile (BRLTTY)"
+  - t: "Weitere Hilfen"
+    v: "Bildschirmtastatur (Onboard, GNOME) · Gesten · Spracherkennung"
+  - t: "GNOME von der Shell"
+    v: "gsettings set org.gnome.desktop.a11y.keyboard stickykeys-enable true"
+karten:
+  - f: "Welche Hilfe erlaubt es, Strg und C nacheinander statt gleichzeitig zu drücken?"
+    a: ["sticky keys", "einrastfunktion", "klebrige tasten"]
+  - f: "Welche Hilfe wertet eine Taste erst, wenn sie eine Weile gehalten wurde?"
+    a: ["slow keys", "tastenverzögerung"]
+  - f: "Welche Hilfe ignoriert schnell wiederholte Anschläge derselben Taste?"
+    a: ["bounce keys", "anschlagverzögerung"]
+  - f: "Welche Hilfe gibt einen Ton, wenn die Feststelltaste umschaltet?"
+    a: ["toggle keys", "umschalttasten"]
+  - f: "Welche Hilfe steuert den Mauszeiger mit dem Ziffernblock?"
+    a: ["mouse keys", "maustasten"]
+  - f: "Wie heißt der Screenreader von GNOME?"
+    a: ["orca"]
+  - f: "Welches Programm steuert unter Linux Braillezeilen an?"
+    a: ["brltty"]
+  - f: "Mit welchem Werkzeug änderst du GNOME-Einstellungen in der Shell?"
+    a: ["gsettings"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Zuordnung from '../components/Zuordnung.astro';
+
+Ab Montag arbeitet Jonas in der Werkstatt mit. Er kann nach einer Verletzung nur mit einer Hand tippen, sein Tremor löst Tasten oft doppelt aus, und am Nachmittag ermüden seine Augen. **Deine Mission: Richte den Arbeitsplatz so ein, dass Jonas ihn ohne Hilfe benutzen kann.** Lernziel 106.3.
+
+## Die Tastatur
+
+<Karte nr={1} titel="Sticky, Slow, Bounce, Toggle, Repeat und Mouse Keys">
+Die Tastaturhilfen stammen aus der X-Erweiterung **AccessX** und finden sich heute in jedem Desktop unter „Barrierefreiheit“ oder „Zugänglichkeit“:
+
+| Hilfe | wirkt so | hilft bei |
+|---|---|---|
+| **Sticky Keys** (Einrasten) | Umschalt, Strg und Alt rasten ein: erst Strg, dann C | Tippen mit einer Hand oder einem Stift |
+| **Slow Keys** (Tastenverzögerung) | eine Taste zählt erst, wenn sie eine Weile gedrückt bleibt | versehentliche Berührungen |
+| **Bounce Keys** (Anschlagverzögerung) | ein zweiter Anschlag derselben Taste kurz danach wird ignoriert | Zittern, doppelte Anschläge |
+| **Toggle Keys** | ein Ton beim Umschalten von Feststell- und Num-Taste | wer die Lampen nicht sieht |
+| **Repeat Keys** | Verzögerung und Tempo der Wiederholung beim Festhalten | wer Tasten zu lange hält |
+| **Mouse Keys** | der Ziffernblock bewegt den Mauszeiger | wer keine Maus führen kann |
+
+Manche Hilfen lassen sich mit **Gesten** an der Tastatur ein- und ausschalten: fünfmal Umschalt für Sticky Keys, acht Sekunden Umschalt halten für Slow Keys. GNOME speichert alles in **gsettings**, im Schema `org.gnome.desktop.a11y.keyboard`. Damit kannst du einen Arbeitsplatz auch per SSH oder Skript einrichten, für den Benutzer, der in der grafischen Sitzung angemeldet ist.
+</Karte>
+
+<Merke>Sticky = nacheinander statt gleichzeitig. Slow = lange halten. Bounce = Doppelanschläge weg. Toggle = Ton bei Feststelltasten. Mouse Keys = Ziffernblock als Maus. GNOME: gsettings, Schema org.gnome.desktop.a11y.keyboard.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: Tastatur" fragen={[
+  { frage: 'Jonas drückt Tasten oft zweimal, weil seine Hand zittert. Welche Hilfe passt?', richtig: 'Bounce Keys', falsch: ['Sticky Keys', 'Toggle Keys'], erklaerung: 'Bounce Keys ignorieren einen zweiten Anschlag kurz nach dem ersten.' },
+  { frage: 'Welche Hilfe lässt Strg+Alt+Entf mit einem Finger zu?', richtig: 'Sticky Keys', falsch: ['Slow Keys', 'Mouse Keys'], erklaerung: 'Die Umschalttasten rasten ein, bis die nächste Taste kommt.' },
+]} />
+
+<Terminal id="tastatur" titel="Terminal: Jonas’ Tastatur" welt={{ grafik: 'wayland' }} aufgaben={[
+  { text: 'Lass dir alle Einstellungen im Schema <code>org.gnome.desktop.a11y.keyboard</code> anzeigen.', befehl: '^gsettings list-recursively org\\.gnome\\.desktop\\.a11y\\.keyboard$', frage: 'Wie viele Millisekunden beträgt bouncekeys-delay?', antwort: ['300'] },
+  { text: 'Schalte Sticky Keys ein.', zustand: 'gsetting:org.gnome.desktop.a11y.keyboard stickykeys-enable=true' },
+  { text: 'Schalte Bounce Keys ein und setze ihre Verzögerung auf 500 Millisekunden.', zustand: 'gsetting:org.gnome.desktop.a11y.keyboard bouncekeys-enable=true && gsetting:org.gnome.desktop.a11y.keyboard bouncekeys-delay=500' },
+  { text: 'Verlängere die Verzögerung, bevor eine gehaltene Taste sich wiederholt, auf 900 Millisekunden.', zustand: 'gsetting:org.gnome.desktop.peripherals.keyboard delay=uint32 900' },
+  { text: 'Prüf deine Einstellung für Sticky Keys mit <code>gsettings get</code>.', befehl: '^gsettings get org\\.gnome\\.desktop\\.a11y\\.keyboard stickykeys-enable$' },
+]} />
+
+<Zuordnung id="zuordnung" titel="Zuordnung: Wer braucht was?" aufgabe="Ordne jeder Person die passende Hilfe zu." paare={[
+  { links: 'Tippt mit einem Mundstab und kann nicht zwei Tasten gleichzeitig drücken', rechts: 'Sticky Keys' },
+  { links: 'Berührt beim Tippen oft versehentlich Nachbartasten', rechts: 'Slow Keys' },
+  { links: 'Kann keine Maus halten, aber gut tippen', rechts: 'Mouse Keys' },
+  { links: 'Ist blind und liest mit den Fingern', rechts: 'Braillezeile' },
+  { links: 'Ist blind und hört lieber zu', rechts: 'Screenreader' },
+  { links: 'Sieht Kontraste und kleine Schrift schlecht', rechts: 'Hoher Kontrast und große Schrift' },
+]} />
+
+## Sehen und Hören
+
+<Karte nr={2} titel="Kontrast, Lupe, Screenreader und Braille">
+Für Menschen, die schlecht oder gar nicht sehen:
+
+- **Hoher Kontrast** und **große Schrift** sind Themen und Einstellungen des Desktops. In GNOME schaltet `org.gnome.desktop.a11y.interface high-contrast` den Kontrast um, `org.gnome.desktop.interface text-scaling-factor` vergrößert alle Schriften, etwa um den Faktor 1,25. Auch der Mauszeiger kann größer werden (`cursor-size`).
+- Eine **Bildschirmlupe** vergrößert den Bereich um den Zeiger.
+- Ein **Screenreader** liest Fenster, Menüs und Text vor. Unter GNOME ist das **Orca**, es nutzt die Sprachausgabe von speech-dispatcher. Programme liefern ihm ihre Inhalte über die Schnittstelle AT-SPI.
+- Eine **Braillezeile** zeigt Text in Blindenschrift mit beweglichen Stiften. Unter Linux steuert sie **BRLTTY** an, auf der Textkonsole und zusammen mit Orca auch auf dem Desktop.
+
+Weitere Hilfen sind eine **Bildschirmtastatur** (GNOME bringt eine mit, unter Xfce gibt es Onboard), **Gesten** auf Touchpads und Bildschirmen und **Spracherkennung**. Für taube oder schwerhörige Menschen ersetzen visuelle Signale den Warnton, etwa ein kurz blinkender Bildschirm.
+</Karte>
+
+<Merke>Kontrast und große Schrift: Themen und text-scaling-factor. Lupe vergrößert. Orca liest vor, über AT-SPI. BRLTTY steuert Braillezeilen. Dazu Bildschirmtastatur, Gesten, Spracherkennung, visuelle Signale.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: Sehen" fragen={[
+  { frage: 'Welches Programm liest unter GNOME den Bildschirminhalt vor?', richtig: 'Orca', falsch: ['BRLTTY', 'Onboard'], erklaerung: 'BRLTTY steuert Braillezeilen, Onboard ist eine Bildschirmtastatur.' },
+  { frage: 'Welche Einstellung vergrößert in GNOME alle Schriften?', richtig: 'text-scaling-factor', falsch: ['cursor-size', 'mag-factor'], erklaerung: 'cursor-size vergrößert den Zeiger, mag-factor ist der Faktor der Lupe.' },
+]} />
+
+<Terminal id="sehen" titel="Terminal: Für müde Augen" welt={{ grafik: 'wayland' }} aufgaben={[
+  { text: 'Schalte den hohen Kontrast ein.', zustand: 'gsetting:org.gnome.desktop.a11y.interface high-contrast=true' },
+  { text: 'Vergrößere alle Schriften um den Faktor 1.25.', zustand: 'gsetting:org.gnome.desktop.interface text-scaling-factor=1.25' },
+  { text: 'Lass dir die Hilfsprogramme im Schema <code>org.gnome.desktop.a11y.applications</code> anzeigen.', befehl: '^gsettings list-(recursively|keys) org\\.gnome\\.desktop\\.a11y\\.applications$', frage: 'Wie heißt der Schlüssel für den Screenreader?', antwort: ['screen-reader-enabled'] },
+  { text: 'Schalte die Bildschirmlupe ein.', zustand: 'gsetting:org.gnome.desktop.a11y.applications screen-magnifier-enabled=true' },
+  { text: 'Jonas mag den hohen Kontrast doch nicht. Setze ihn auf die Voreinstellung zurück.', befehl: '^gsettings reset org\\.gnome\\.desktop\\.a11y\\.interface high-contrast$', zustand: 'gsetting:org.gnome.desktop.a11y.interface high-contrast=false' },
+]} />
+
+<Labor id="labor" titel="Aufgabe im Labor: Die Hilfen in deinem Desktop"
+  aufgabe="Öffne in deiner Debian-VM die Einstellungen von Xfce unter Barrierefreiheit und probier Sticky Keys und Bounce Keys aus. Prüf danach im Terminal der Oberfläche, welcher Desktop läuft und wie die Tastenwiederholung eingestellt ist. Füge die Ausgabe ein."
+  befehl={"echo $XDG_CURRENT_DESKTOP\nxset q | grep -A1 -i 'auto repeat'"}
+  muster={["^XFCE$", "auto repeat delay:\\s+\\d+"]}
+  erfolg="Xfce speichert diese Hilfen in xfconf, GNOME in gsettings. Die Hilfen selbst kommen in beiden Fällen von der X-Erweiterung AccessX." />
+
+<Hinweis titel="Prüfungstipp">
+Topic 106.3 hat das Gewicht 1. Gefragt wird fast immer die Zuordnung: Welche Hilfe passt zu welchem Problem? Lern die Paare Sticky = nacheinander, Slow = lange halten, Bounce = doppelt ignorieren, Toggle = Ton, Mouse Keys = Ziffernblock. Dazu kommen Orca, BRLTTY, Lupe und Bildschirmtastatur.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Welche Hilfe gibt einen Ton, wenn jemand versehentlich die Feststelltaste drückt?', richtig: 'Toggle Keys', falsch: ['Bounce Keys', 'Sticky Keys'], erklaerung: 'Toggle Keys melden das Umschalten von Feststell-, Num- und Rollen-Taste.' },
+  { frage: 'Wofür ist eine Braillezeile da?', richtig: 'Sie zeigt Bildschirmtext in Blindenschrift.', falsch: ['Sie vergrößert den Bildschirm.', 'Sie ersetzt die Maus.'], erklaerung: 'Unter Linux steuert BRLTTY die Zeile an.' },
+  { frage: 'Welche Tastaturgeste schaltet in vielen Desktops Sticky Keys ein?', richtig: 'Fünfmal hintereinander Umschalt drücken', falsch: ['Strg+Alt+S', 'Die Feststelltaste acht Sekunden halten'], erklaerung: 'Acht Sekunden Umschalt halten schaltet dagegen Slow Keys ein.' },
+]} />

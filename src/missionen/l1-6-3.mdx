@@ -1,0 +1,119 @@
+---
+id: l1-6-3
+checks:
+  - id: k1
+  - id: desktop
+  - id: zuordnung
+  - id: k2
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "Desktops"
+    v: "GNOME (GTK, Mutter) · KDE Plasma (Qt, KWin) · Xfce (GTK, schlank) · auch MATE, Cinnamon, LXQt"
+  - t: "Display-Manager"
+    v: "GDM · SDDM · LightDM · Debian: /etc/X11/default-display-manager"
+  - t: "Sitzungen"
+    v: "/usr/share/xsessions/ · /usr/share/wayland-sessions/"
+  - t: "Fernzugriff"
+    v: "VNC (RFB, Port 5900+n) · RDP (Port 3389) · Spice (VMs) · XDMCP (UDP 177, unverschlüsselt)"
+karten:
+  - f: "Auf welcher Bibliothek baut KDE Plasma auf?"
+    a: ["qt"]
+  - f: "Auf welcher Bibliothek bauen GNOME und Xfce auf?"
+    a: ["gtk", "gtk+"]
+  - f: "Wie heißt der Display-Manager von GNOME?"
+    a: ["gdm", "gdm3"]
+  - f: "Welches Protokoll fragt einen entfernten Display-Manager nach einem Anmeldebildschirm?"
+    a: ["xdmcp"]
+  - f: "Auf welchem Port lauscht VNC für Anzeige 1?"
+    a: ["5901"]
+  - f: "Welches Protokoll für entfernte Desktops stammt von Microsoft?"
+    a: ["rdp", "remote desktop protocol"]
+  - f: "Welches Protokoll ist für die Anzeige virtueller Maschinen unter KVM/QEMU gedacht?"
+    a: ["spice"]
+  - f: "In welcher Datei steht auf Debian der Standard-Display-Manager?"
+    a: ["/etc/X11/default-display-manager"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Zuordnung from '../components/Zuordnung.astro';
+
+Die Werkstatt bekommt zwei neue Arbeitsplätze, und ein Kollege möchte von zu Hause auf seinen Desktop zugreifen. **Deine Mission: Lerne die großen Desktops kennen, finde heraus, wer die Anmeldung übernimmt, und wähle das passende Protokoll für den Fernzugriff.** Lernziel 106.2.
+
+## Desktops und Display-Manager
+
+<Karte nr={1} titel="GNOME, KDE, Xfce und die Anmeldung">
+Eine **Desktop-Umgebung** bündelt Fenstermanager, Leisten, Dateimanager, Einstellungen und Programme, die zusammenpassen:
+
+| Desktop | Bibliothek | Fenstermanager | Display-Manager | Typisch für |
+|---|---|---|---|---|
+| **GNOME** | GTK | Mutter | GDM | Debian, Fedora, Ubuntu, RHEL |
+| **KDE Plasma** | Qt | KWin | SDDM | openSUSE, Kubuntu, KDE neon |
+| **Xfce** | GTK | xfwm4 | meist LightDM | ältere oder schwache Rechner |
+
+Dazu kommen kleinere Desktops wie MATE, Cinnamon und LXQt. Programme laufen auf jedem Desktop, sie sehen nur fremd aus und bringen ihre Bibliotheken mit.
+
+Der **Display-Manager** startet als Dienst mit dem `graphical.target` (Mission 1.6), zeigt die Anmeldung und startet danach die gewählte Sitzung. Welche Sitzungen es gibt, steht in den `.desktop`-Dateien unter `/usr/share/xsessions/` (X11) und `/usr/share/wayland-sessions/` (Wayland). Debian merkt sich den Standard-Display-Manager in `/etc/X11/default-display-manager` und startet ihn über `display-manager.service`.
+</Karte>
+
+<Merke>GNOME: GTK, Mutter, GDM. KDE: Qt, KWin, SDDM. Xfce: GTK, schlank, meist LightDM. Sitzungen in /usr/share/xsessions und /usr/share/wayland-sessions. Der Display-Manager läuft als display-manager.service.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: Desktops" fragen={[
+  { frage: 'Welcher Desktop baut auf Qt auf?', richtig: 'KDE Plasma', falsch: ['GNOME', 'Xfce'], erklaerung: 'GNOME und Xfce nutzen GTK.' },
+  { frage: 'Was macht ein Display-Manager?', richtig: 'Er zeigt die grafische Anmeldung und startet danach die Sitzung.', falsch: ['Er stellt die Auflösung des Monitors ein.', 'Er ist der X-Server.'], erklaerung: 'GDM, SDDM und LightDM sind Display-Manager.' },
+]} />
+
+<Terminal id="desktop" titel="Terminal: Wer meldet an?" welt={{ grafik: 'wayland' }} aufgaben={[
+  { text: 'Finde heraus, welcher Display-Manager auf werkstatt der Standard ist.', befehl: '^cat /etc/X11/default-display-manager$', frage: 'Welches Programm?', antwort: ['/usr/sbin/gdm3', 'gdm3', 'gdm'] },
+  { text: 'Lass dir die verfügbaren Sitzungen für X11 und Wayland zeigen.', befehl: '^ls /usr/share/(xsessions|wayland-sessions)/? /usr/share/(xsessions|wayland-sessions)/?$', frage: 'Wie heißt die Sitzungsdatei für GNOME unter X11?', antwort: ['gnome-xorg.desktop', 'gnome-xorg'] },
+  { text: 'Prüf, welchen Desktop die laufende Sitzung meldet.', befehl: '^echo "?\\$\\{?XDG_CURRENT_DESKTOP', frage: 'Welcher Desktop?', antwort: ['GNOME'] },
+  { text: 'Such in der GDM-Konfiguration die Zeile, mit der man Wayland abschaltet.', befehl: '^grep .*Wayland.* /etc/gdm3/daemon\\.conf$', frage: 'Wie lautet die Einstellung? (ohne #)', antwort: ['WaylandEnable=false'] },
+]} />
+
+## Fernzugriff auf einen Desktop
+
+<Karte nr={2} titel="XDMCP, VNC, RDP und Spice">
+Für einen ganzen Desktop über das Netz gibt es vier Protokolle, die du kennen musst:
+
+- **XDMCP** (X Display Manager Control Protocol, UDP-Port 177): Ein X-Server fragt einen entfernten Display-Manager nach einem Anmeldebildschirm. Danach läuft die ganze Sitzung als X-Clients über das Netz. Das ist unverschlüsselt und darum heute meist abgeschaltet, in GDM etwa im Abschnitt `[xdmcp]` von `daemon.conf`.
+- **VNC** (Virtual Network Computing, Protokoll RFB): überträgt Bildschirminhalte als Bilder und schickt Tastatur und Maus zurück. Es ist unabhängig vom Betriebssystem. Anzeige n lauscht auf TCP-Port **5900 + n**. Ohne zusätzliche Verschlüsselung läuft VNC am besten durch einen SSH-Tunnel.
+- **RDP** (Remote Desktop Protocol, TCP-Port 3389): von Microsoft, verschlüsselt, mit Ton, Druckern und Zwischenablage. Unter Linux bietet xrdp einen RDP-Server an, und GNOME bringt ab Version 42 eigene Fernsteuerung über RDP mit. Clients sind etwa Remmina oder FreeRDP.
+- **Spice** (Simple Protocol for Independent Computing Environments): für virtuelle Maschinen unter KVM/QEMU gedacht, mit Ton, USB-Weiterleitung und angepasster Auflösung. Du nutzt es etwa mit virt-manager oder virt-viewer.
+
+Für ein einzelnes Programm bleibt `ssh -X` der einfachste Weg (Mission 6.2).
+</Karte>
+
+<Merke>XDMCP: UDP 177, ganze X-Sitzung, unverschlüsselt. VNC: Bilder über RFB, Port 5900+n, Tunnel nutzen. RDP: Microsoft, 3389, verschlüsselt. Spice: Anzeige virtueller Maschinen.</Merke>
+
+<Zuordnung id="zuordnung" titel="Zuordnung: Welches Protokoll passt?" aufgabe="Ordne jeder Situation das passende Protokoll zu." paare={[
+  { links: 'Ein Windows-Laptop soll auf den GNOME-Desktop von werkstatt zugreifen, verschlüsselt und mit Ton.', rechts: 'RDP' },
+  { links: 'Ein altes X-Terminal holt sich vom Server einen Anmeldebildschirm.', rechts: 'XDMCP' },
+  { links: 'Du schaust dir die Oberfläche einer KVM-VM in virt-manager an.', rechts: 'Spice' },
+  { links: 'Ein Bildschirm soll plattformunabhängig auf Port 5901 freigegeben werden.', rechts: 'VNC' },
+  { links: 'Du brauchst nur ein einziges Programm von labor2 auf deinem Bildschirm.', rechts: 'ssh -X' },
+]} />
+
+<Quiz id="k2" titel="Kurzcheck: Fernzugriff" fragen={[
+  { frage: 'Welcher Port gehört zu VNC-Anzeige 2?', richtig: '5902', falsch: ['5900', '3389'], erklaerung: 'VNC lauscht auf 5900 plus der Nummer der Anzeige.' },
+  { frage: 'Warum ist XDMCP heute meist abgeschaltet?', richtig: 'Es überträgt die ganze Sitzung unverschlüsselt.', falsch: ['Es funktioniert nur mit KDE.', 'Es braucht eine Windows-Lizenz.'], erklaerung: 'Wer mitliest, sieht auch das Passwort bei der Anmeldung.' },
+]} />
+
+<Labor id="labor" titel="Aufgabe im Labor: Dein Display-Manager"
+  aufgabe="Finde in deiner Debian-VM heraus, welcher Display-Manager läuft und welche Sitzungen er anbietet. Füge die Ausgabe ein."
+  befehl={"cat /etc/X11/default-display-manager\nsystemctl is-active display-manager\nls /usr/share/xsessions/"}
+  muster={["^/usr/sbin/\\w+", "^active$", "\\.desktop"]}
+  erfolg="Mit Xfce ist es meist LightDM und die Sitzung xfce.desktop." />
+
+<Hinweis titel="Prüfungstipp">
+Topic 106.2 hat nur das Gewicht 1. Die Prüfung erwartet, dass du die Namen zuordnen kannst: welcher Desktop zu welcher Bibliothek gehört und welches Protokoll wofür gedacht ist. Details der Einrichtung werden nicht verlangt.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Welche Kombination stimmt?', richtig: 'KDE Plasma, Qt, SDDM', falsch: ['GNOME, Qt, LightDM', 'Xfce, Qt, GDM'], erklaerung: 'GNOME gehört zu GTK und GDM. Xfce nutzt GTK.' },
+  { frage: 'Welches Protokoll ist für virtuelle Maschinen gedacht?', richtig: 'Spice', falsch: ['XDMCP', 'RDP'], erklaerung: 'Spice bringt Funktionen wie USB-Weiterleitung und passt die Auflösung des Gasts an.' },
+]} />

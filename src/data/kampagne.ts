@@ -141,7 +141,17 @@ const LPIC1: Akt[] = [
       m('l1-5-probe', 'Probe 5', 'Probeprüfung Topic 105', 'Topic 105 gemischt mit der Befehlszeile aus Topic 103, mit Zeitlimit.', 'Topic 105 und Wiederholung von 103.1, 103.4, 103.7', 'Prüfungssimulation', { probe: true, ziele: ['105.1', '105.2', '103.1', '103.4', '103.7'], bereit: true }),
     ],
   },
-  geplanterAkt('l1', 6, 'Benutzeroberflächen', '106', 'X11, Desktops und Barrierefreiheit.', 'lpic1'),
+  {
+    nr: 6, titel: 'Benutzeroberflächen', teil: 'l1-6', teilName: 'Topic 106',
+    ziel: 'Verstehen, wie X11 und Wayland Fenster auf den Bildschirm bringen, Fenster sicher über das Netz holen, Desktops und Fernzugriffe einordnen und einen Arbeitsplatz barrierefrei einrichten. 4 von 60 Fragen in Prüfung 102.',
+    missionen: [
+      m('l1-6-1', '6.1', 'X11 und Wayland', 'Den Aufbau der grafischen Oberfläche verstehen und ihre Konfiguration und Logs lesen.', 'X-Server, Clients, Fenster- und Display-Manager, DISPLAY, Wayland, XWayland, xorg.conf, xorg.conf.d, Xorg.0.log, ~/.xsession-errors, xdpyinfo, xwininfo, X -configure', 'Terminal-Simulator, Zuordnung, Quiz', { ziele: ['106.1'], bereit: true }),
+      m('l1-6-2', '6.2', 'X über das Netz', 'Fremde Fenster auf die eigene Anzeige lassen, ohne die Tür für alle zu öffnen.', 'xhost, xauth, ~/.Xauthority, MIT-MAGIC-COOKIE, ssh -X, X11Forwarding', 'Terminal-Simulator, Reihenfolge, Quiz', { ziele: ['106.1'], bereit: true }),
+      m('l1-6-3', '6.3', 'Desktops und Fernzugriff', 'Die großen Desktops und die Protokolle für entfernte Desktops kennen.', 'GNOME, KDE Plasma, Xfce, GDM, SDDM, LightDM, XDMCP, VNC, RDP, Spice', 'Terminal-Simulator, Zuordnung, Quiz', { ziele: ['106.2'], bereit: true }),
+      m('l1-6-4', '6.4', 'Barrierefreiheit', 'Einen Arbeitsplatz für Menschen mit Einschränkungen einrichten.', 'Sticky, Slow, Bounce, Toggle, Repeat und Mouse Keys, hoher Kontrast, große Schrift, Lupe, Orca, BRLTTY, Bildschirmtastatur, gsettings', 'Terminal-Simulator, Zuordnung, Quiz', { ziele: ['106.3'], bereit: true }),
+      m('l1-6-boss', 'Boss 6', 'Der Arbeitsplatz für Jonas', 'Tastatur, Zugriffsschutz und Hilfen eines Arbeitsplatzes reparieren und in einem Skript festhalten.', 'Alles aus Topic 106, dazu Skripte aus Topic 105', 'Terminal-Simulator', { boss: true, ziele: ['106.1', '106.2', '106.3'], bereit: true }),
+    ],
+  },
   geplanterAkt('l1', 7, 'Administration', '107', 'Benutzer und Gruppen, geplante Aufgaben, Sprache und Zeitzone.', 'lpic1'),
   geplanterAkt('l1', 8, 'Systemdienste', '108', 'Zeit, Protokollierung, Mail und Drucken.', 'lpic1'),
   geplanterAkt('l1', 9, 'Netzwerk', '109', 'IP-Grundlagen, dauerhafte Konfiguration, Fehlersuche und DNS auf dem Client.', 'lpic1'),
