@@ -4,6 +4,7 @@ checks:
   - id: k1
   - id: schleifen
   - id: k2
+  - id: luecke
   - id: eingaben
   - id: reihe
   - id: labor
@@ -44,6 +45,7 @@ karten:
   - f: "Was unterscheidet until von while?"
     a: ["until läuft, solange die bedingung falsch ist", "until wiederholt bis die bedingung wahr ist"]
 ---
+import Lueckentext from '../components/Lueckentext.astro';
 import Karte from '../components/Karte.astro';
 import Merke from '../components/Merke.astro';
 import Quiz from '../components/Quiz.astro';
@@ -128,6 +130,19 @@ Eine Falle: Leitest du die Daten mit einer Pipe hinein (`cut … | while read �
   { frage: 'Du tippst bei „read a b“ die Zeile „eins zwei drei“. Was steht in b?', richtig: 'zwei drei', falsch: ['zwei', 'drei'], erklaerung: 'Die letzte Variable bekommt den Rest der Zeile.' },
   { frage: '„n=0; cut -d: -f1 /etc/passwd | while read u; do n=$((n+1)); done; echo $n“ gibt 0 aus. Warum?', richtig: 'Die Schleife hinter der Pipe läuft in einer Subshell.', falsch: ['read liest aus einer Pipe nichts.', '$((n+1)) rechnet in der Schleife nicht.'], erklaerung: 'Die Subshell zählt richtig, aber ihr n verschwindet mit ihr.' },
 ]} />
+
+<Lueckentext id="luecke" titel="Lückentext: Schleifen" aufgabe="Ergänze die beiden Schleifen."
+  code={`for datei ___ *.csv; ___
+    wc -l "$datei"
+___
+
+while ___ zeile; do echo "$zeile"; done < liste.txt`}
+  luecken={[
+    { loesungen: ['in'] },
+    { loesungen: ['do'] },
+    { loesungen: ['done'] },
+    { loesungen: ['read'] },
+  ]} />
 
 <Terminal id="eingaben" titel="Terminal: Zeilen und Antworten" welt={{ dateien: { '/home/lena/bin/anmeldung': '#!/bin/bash\nread -p "Name der Messreihe: " reihe\nread -p "Anzahl der Proben: " proben\necho "Lege $reihe mit $proben Proben an."\nfor i in $(seq 1 "$proben"); do echo "  Probe $i"; done\n' }, rechte: { '/home/lena/bin/anmeldung': '755' } }} aufgaben={[
   { text: 'Gib mit <code>while IFS=: read</code> und <code>done &lt; /etc/passwd</code> die Namen aller Konten mit einer UID ab 1000 aus.', befehl: '^while IFS=: read ', zustand: 'ausgabe~^lena$', frage: 'Wie viele Namen erscheinen?', antwort: ['3', 'drei'] },

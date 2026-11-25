@@ -5,6 +5,7 @@ checks:
   - id: aufbau
   - id: zuordnung
   - id: k2
+  - id: luecke
   - id: konfig
   - id: labor
     hardware: true
@@ -42,6 +43,7 @@ karten:
   - f: "Welcher Befehl erzeugt eine Vorlage für xorg.conf?"
     a: ["X -configure", "Xorg -configure"]
 ---
+import Lueckentext from '../components/Lueckentext.astro';
 import Karte from '../components/Karte.astro';
 import Merke from '../components/Merke.astro';
 import Quiz from '../components/Quiz.astro';
@@ -125,6 +127,20 @@ Wenn etwas nicht geht, helfen zwei Logs:
   { frage: 'Welcher Abschnitt verbindet Grafikkarte und Monitor und legt die Farbtiefe fest?', richtig: 'Screen', falsch: ['Device', 'ServerLayout'], erklaerung: 'Device beschreibt nur die Karte. ServerLayout verbindet Screens mit Eingabegeräten.' },
   { frage: 'Woran erkennst du in /var/log/Xorg.0.log einen Fehler?', richtig: 'An (EE) am Zeilenanfang', falsch: ['An (II) am Zeilenanfang', 'An (**) am Zeilenanfang'], erklaerung: '(II) ist eine Information, (**) eine Einstellung aus der Konfiguration, (WW) eine Warnung.' },
 ]} />
+
+<Lueckentext id="luecke" titel="Lückentext: xorg.conf und DISPLAY" aufgabe="Ergänze den Abschnitt für die Grafikkarte, den Ordner für eigene Dateien und den Wert von DISPLAY für den ersten X-Server auf diesem Rechner."
+  code={`Section "___"
+    Identifier "Grafikkarte"
+    Driver     "modesetting"
+EndSection
+
+# Eigene Ergänzungen besser als Datei unter /etc/X11/___/
+$ export DISPLAY=___`}
+  luecken={[
+    { loesungen: ['Device'] },
+    { loesungen: ['xorg.conf.d'] },
+    { loesungen: [':0', ':0.0'] },
+  ]} />
 
 <Terminal id="konfig" titel="Terminal: Der Tippfehler" welt={{ grafik: 'x11', dateien: { '/etc/X11/xorg.conf.d/00-keyboard.conf': 'Section "InputClass"\n        Identifier "system-keyboard"\n        MatchIsKeyboard "on"\n        Option "XkbLayout" "de"\n        Option "XkbVariant" "nodeadkys"\nEndSection\n' } }} aufgaben={[
   { text: 'Prüf, ob es eine <code>/etc/X11/xorg.conf</code> gibt, und lass dir den Inhalt von <code>/etc/X11/xorg.conf.d</code> zeigen.', befehl: '^ls (-\\w+ )?/etc/X11/xorg\\.conf\\.d/?$' },

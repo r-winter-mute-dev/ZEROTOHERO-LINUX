@@ -4,6 +4,7 @@ checks:
   - id: k1
   - id: besitz
   - id: k2
+  - id: luecke
   - id: team
   - id: labor
     hardware: true
@@ -45,6 +46,7 @@ karten:
   - f: "Wie findest du alle SUID-Dateien im System?"
     a: ["find / -perm -4000", "find / -perm -u=s", "find / -perm /4000"]
 ---
+import Lueckentext from '../components/Lueckentext.astro';
 import Karte from '../components/Karte.astro';
 import Merke from '../components/Merke.astro';
 import Quiz from '../components/Quiz.astro';
@@ -107,6 +109,17 @@ SUID-Programme sind ein beliebtes Angriffsziel. `find / -perm -4000 2>/dev/null`
   { frage: 'Welche Rechte zeigt ls -l für ein Verzeichnis mit 1777?', richtig: 'drwxrwxrwt', falsch: ['drwsrwxrwx', 'drwxrwsrwx'], erklaerung: 'Das Sticky Bit erscheint als t an der letzten Stelle.' },
   { frage: 'Warum hat /usr/bin/passwd das SUID-Bit?', richtig: 'Damit normale Benutzer ihr Passwort in die nur für root schreibbare /etc/shadow eintragen können', falsch: ['Damit nur root es starten kann', 'Damit es schneller startet'], erklaerung: 'Das Programm läuft mit den Rechten seines Besitzers root.' },
 ]} />
+
+<Lueckentext id="luecke" titel="Lückentext: Besondere Bits als Zahl" aufgabe="Ergänze die Zahlen für chmod, so dass genau die gezeigten Rechte entstehen."
+  code={`$ chmod ___ /usr/local/bin/messd      # -rwsr-xr-x  (SUID)
+$ chmod ___ /srv/team                 # drwxrws---  (SGID)
+# drwxrwxrwt  (Sticky-Bit)
+$ chmod ___ /srv/tausch`}
+  luecken={[
+    { loesungen: ['4755'] },
+    { loesungen: ['2770'] },
+    { loesungen: ['1777'] },
+  ]} />
 
 <Terminal id="team" titel="Terminal: Das Team-Verzeichnis" aufgaben={[
   { text: 'Lege als root das Verzeichnis <code>/srv/team</code> an.', zustand: 'ordner:/srv/team' },

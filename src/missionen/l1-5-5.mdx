@@ -5,6 +5,7 @@ checks:
   - id: tests
   - id: zuordnung
   - id: k2
+  - id: luecke
   - id: verzweigen
   - id: labor
     hardware: true
@@ -44,6 +45,7 @@ karten:
   - f: "Warum gehören Variablen in Tests in Anführungszeichen?"
     a: ["damit leere werte und leerzeichen den test nicht zerstören", "sonst fehlt bei leeren variablen ein argument"]
 ---
+import Lueckentext from '../components/Lueckentext.astro';
 import Karte from '../components/Karte.astro';
 import Merke from '../components/Merke.astro';
 import Quiz from '../components/Quiz.astro';
@@ -137,6 +139,19 @@ Jeder Zweig endet mit `;;`, `|` trennt mehrere Muster, `*` fängt alles Übrige.
   { frage: 'Was gibt „case dienst.log in *.txt) echo A;; *.log) echo B;; *) echo C;; esac“ aus?', richtig: 'B', falsch: ['A', 'B und C'], erklaerung: 'Nur der erste passende Zweig läuft.' },
   { frage: 'Welche Zeile ist ein gültiges if?', richtig: 'if grep -q root /etc/passwd; then echo ja; fi', falsch: ['if [ grep -q root /etc/passwd ] then echo ja fi', 'if (grep root) { echo ja }'], erklaerung: 'Jeder Befehl kann als Bedingung dienen, eckige Klammern braucht nur test.' },
 ]} />
+
+<Lueckentext id="luecke" titel="Lückentext: if in einem Skript" aufgabe="Ergänze das Skript, das prüft, ob es die Datei /etc/messd.conf gibt."
+  code={`#!/bin/bash
+if [ -___ /etc/messd.conf ]; then
+    echo "gefunden"
+___
+    echo "fehlt"
+___`}
+  luecken={[
+    { loesungen: ['f', 'e'] },
+    { loesungen: ['else'] },
+    { loesungen: ['fi'] },
+  ]} />
 
 <Terminal id="verzweigen" titel="Terminal: Das Skript entscheidet" welt={{ dateien: { '/home/lena/bin/dienst': '#!/bin/bash\n# dienst start|stop|status\ncase "$1" in\n  start|stop) echo "messd: $1 ausgeführt" ;;\n  status) echo "messd läuft" ;;\n  *) echo "Aufruf: $0 start|stop|status" >&2; exit 1 ;;\nesac\n' }, rechte: { '/home/lena/bin/dienst': '755' } }} aufgaben={[
   { text: 'Schreib eine if-Abfrage über eine oder mehrere Zeilen: Ist <code>/etc/passwd</code> für dich schreibbar, gib „schreibbar“ aus, sonst „nur lesen“.', befehl: '^if \\[ -w /etc/passwd \\]', zustand: 'ausgabe~^nur lesen$' },

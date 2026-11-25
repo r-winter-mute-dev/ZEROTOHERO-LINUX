@@ -4,6 +4,7 @@ checks:
   - id: k1
   - id: anschauen
   - id: k2
+  - id: luecke
   - id: reparieren
   - id: k3
 spick:
@@ -35,6 +36,7 @@ karten:
   - f: "Woran erkennst du eine gemeinsame Bibliothek am Dateinamen?"
     a: [".so", "an der Endung .so", "Endung .so"]
 ---
+import Lueckentext from '../components/Lueckentext.astro';
 import Karte from '../components/Karte.astro';
 import Merke from '../components/Merke.astro';
 import Quiz from '../components/Quiz.astro';
@@ -99,6 +101,20 @@ So gilt sie nur für diesen einen Aufruf. Mit `export LD_LIBRARY_PATH=/opt/messs
   { frage: 'Du hast /opt/messsoft/lib in /etc/ld.so.conf.d/messsoft.conf eingetragen, aber das Programm findet die Bibliothek immer noch nicht. Was fehlt?', richtig: 'sudo ldconfig', falsch: ['Ein Neustart', 'export LD_LIBRARY_PATH'], erklaerung: 'Der Linker liest nur den Cache. ldconfig baut ihn aus den Einträgen neu.' },
   { frage: 'Was ist der Nachteil von LD_LIBRARY_PATH gegenüber ldconfig?', richtig: 'Die Variable gilt nur in der aktuellen Shell und muss überall gesetzt werden, wo das Programm läuft.', falsch: ['Sie funktioniert nur für root.', 'Sie verändert den Cache dauerhaft.'], erklaerung: 'Für Tests praktisch, für den Dauerbetrieb unpraktisch.' },
 ]} />
+
+<Lueckentext id="luecke" titel="Lückentext: Bibliotheken finden" aufgabe="Ergänze die Konfiguration und die Befehle, mit denen eine neue Bibliothek gefunden wird."
+  code={`# /etc/ld.so.conf
+___ /etc/ld.so.conf.d/*.conf
+
+$ echo /opt/messsoft/lib | sudo tee /etc/ld.so.conf.d/messsoft.conf
+$ sudo ___                                  # Cache neu bauen
+# nur für diesen einen Aufruf
+$ ___=/opt/messsoft/lib ./messprog`}
+  luecken={[
+    { loesungen: ['include'] },
+    { loesungen: ['ldconfig'] },
+    { loesungen: ['LD_LIBRARY_PATH'] },
+  ]} />
 
 <Terminal id="reparieren" titel="Terminal: Das Messprogramm reparieren" aufgaben={[
   { text: 'Starte das Programm einmalig mit <code>LD_LIBRARY_PATH</code>, ohne etwas dauerhaft zu ändern.', befehl: '^LD_LIBRARY_PATH=/opt/messsoft/lib/? /opt/messsoft/bin/messprog$' },

@@ -4,6 +4,7 @@ checks:
   - id: k1
   - id: suchen
   - id: k2
+  - id: luecke
   - id: installieren
   - id: befehle
   - id: k3
@@ -44,6 +45,7 @@ karten:
   - f: "Wo legt apt heruntergeladene .deb-Dateien ab?"
     a: ["/var/cache/apt/archives", "/var/cache/apt/archives/"]
 ---
+import Lueckentext from '../components/Lueckentext.astro';
 import Karte from '../components/Karte.astro';
 import Merke from '../components/Merke.astro';
 import Quiz from '../components/Quiz.astro';
@@ -124,6 +126,20 @@ Kommen zusätzliche Pakete dazu, fragt apt-get „Do you want to continue? [Y/n]
 <Quiz id="k2" titel="Kurzcheck: apt-get" fragen={[
   { frage: 'Ein Update braucht ein neues Paket als Abhängigkeit. apt-get upgrade hält das Update deshalb zurück. Welcher Befehl spielt es ein?', richtig: 'apt-get dist-upgrade', falsch: ['apt-get update', 'apt-get autoremove'], erklaerung: 'Nur dist-upgrade (bei apt: full-upgrade) darf dafür Pakete neu installieren.' },
 ]} />
+
+<Lueckentext id="luecke" titel="Lückentext: sources.list" aufgabe="Ergänze die Zeilen in /etc/apt/sources.list und den Befehl, der danach die Paketlisten lädt."
+  code={`# Art Adresse Suite Bereiche
+___ http://deb.debian.org/debian bookworm ___ non-free-firmware
+deb http://security.debian.org/debian-security bookworm-___ main
+
+$ sudo apt-get ___      # Paketlisten neu laden
+$ sudo apt-get upgrade`}
+  luecken={[
+    { loesungen: ['deb'] },
+    { loesungen: ['main'] },
+    { loesungen: ['security'] },
+    { loesungen: ['update'] },
+  ]} />
 
 <Terminal id="installieren" titel="Terminal: htop installieren" aufgaben={[
   { text: 'Hol die aktuellen Paketlisten.', befehl: '^apt(-get)? update$' },

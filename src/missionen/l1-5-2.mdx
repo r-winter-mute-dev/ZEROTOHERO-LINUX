@@ -5,6 +5,7 @@ checks:
   - id: reihenfolge
   - id: start
   - id: k2
+  - id: luecke
   - id: skel
   - id: labor
     hardware: true
@@ -40,6 +41,7 @@ karten:
   - f: "In welchem Verzeichnis legen Pakete eigene Ergänzungen für /etc/profile ab?"
     a: ["/etc/profile.d", "/etc/profile.d/"]
 ---
+import Lueckentext from '../components/Lueckentext.astro';
 import Karte from '../components/Karte.astro';
 import Merke from '../components/Merke.astro';
 import Quiz from '../components/Quiz.astro';
@@ -110,6 +112,19 @@ Für Einstellungen, die alle Benutzer sofort betreffen:
   { frage: 'Du fügst ein Alias in /etc/skel/.bashrc ein. Wer bekommt es?', richtig: 'Nur Benutzer, die danach angelegt werden', falsch: ['Alle Benutzer beim nächsten Login', 'Nur root'], erklaerung: '/etc/skel wird nur beim Anlegen kopiert.' },
   { frage: 'Ein Paket soll für alle Login-Shells eine Variable setzen. Wohin gehört seine Datei?', richtig: '/etc/profile.d/paket.sh', falsch: ['/etc/skel/.profile', '~/.bash_profile'], erklaerung: '/etc/profile liest alle .sh-Dateien in /etc/profile.d.' },
 ]} />
+
+<Lueckentext id="luecke" titel="Lückentext: Startdateien" aufgabe="Ergänze, welche Dateien die Bash liest."
+  code={`Login-Shell: zuerst /etc/___,
+  dann die erste vorhandene von
+  ~/.bash_profile, ~/.bash_login und ~/.___
+Interaktiv, ohne Login: ~/.___
+Beim Abmelden einer Login-Shell: ~/.___`}
+  luecken={[
+    { loesungen: ['profile'] },
+    { loesungen: ['profile'] },
+    { loesungen: ['bashrc'] },
+    { loesungen: ['bash_logout'] },
+  ]} />
 
 <Terminal id="skel" titel="Terminal: Die Vorlage für Neue" aufgaben={[
   { text: 'Lass dir alle Dateien in <code>/etc/skel</code> anzeigen, auch die versteckten.', befehl: '^ls -\\w*a\\w* /etc/skel/?$', frage: 'Wie viele Dateien liegen dort (ohne . und ..)?', antwort: ['3', 'drei'] },

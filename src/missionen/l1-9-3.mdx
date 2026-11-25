@@ -4,6 +4,7 @@ checks:
   - id: k1
   - id: name
   - id: k2
+  - id: luecke
   - id: nm
   - id: ifupdown
   - id: labor
@@ -44,6 +45,7 @@ karten:
   - f: "Wo liegen die Konfigurationsdateien von systemd-networkd?"
     a: ["/etc/systemd/network"]
 ---
+import Lueckentext from '../components/Lueckentext.astro';
 import Karte from '../components/Karte.astro';
 import Merke from '../components/Merke.astro';
 import Quiz from '../components/Quiz.astro';
@@ -106,6 +108,22 @@ Auf Servern ohne NetworkManager gibt es zwei andere Wege. Debian nutzt klassisch
 <Quiz id="k2" titel="Kurzcheck: nmcli" fragen={[
   { frage: 'Du hast mit nmcli con mod eine feste Adresse eingetragen, aber ip addr zeigt noch die alte. Warum?', richtig: 'Das geänderte Profil wird erst mit nmcli con up NAME angewendet.', falsch: ['nmcli braucht einen Neustart des Rechners.', 'ip addr zeigt NetworkManager-Adressen nicht an.'], erklaerung: 'Nach dem Neustart gilt es auch, aber das musst du nicht abwarten.' },
 ]} />
+
+<Lueckentext id="luecke" titel="Lückentext: Namen auflösen" aufgabe="Ergänze die drei Dateien."
+  code={`# /etc/hosts
+192.168.1.60   ___                 # der Rechner mess1
+
+# /etc/resolv.conf
+___ 192.168.1.1
+search example.org
+
+# /etc/nsswitch.conf: zuerst /etc/hosts, dann DNS
+hosts:   ___ dns`}
+  luecken={[
+    { loesungen: ['mess1'] },
+    { loesungen: ['nameserver'] },
+    { loesungen: ['files'] },
+  ]} />
 
 <Terminal id="nm" titel="Terminal: Feste Adresse und WLAN" aufgaben={[
   { text: 'Lass dir die Geräte von NetworkManager zeigen.', befehl: '^nmcli d(e(v(ice)?)?)?( status)?$', frage: 'Wie heißt das aktive Profil von enp0s31f6?', antwort: ['Kabelgebundene Verbindung 1'] },

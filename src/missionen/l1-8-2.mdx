@@ -5,6 +5,7 @@ checks:
   - id: ntp
   - id: zuordnung
   - id: k2
+  - id: luecke
   - id: labor
     hardware: true
   - id: k3
@@ -39,6 +40,7 @@ karten:
   - f: "Wie heißt das große, offene Netz öffentlicher Zeitserver?"
     a: ["pool.ntp.org", "ntp pool"]
 ---
+import Lueckentext from '../components/Lueckentext.astro';
 import Karte from '../components/Karte.astro';
 import Merke from '../components/Merke.astro';
 import Quiz from '../components/Quiz.astro';
@@ -95,6 +97,17 @@ Red Hat setzt chrony ein, Debian 12 ohne weitere Pakete systemd-timesyncd. Die P
 <Quiz id="k2" titel="Kurzcheck: Werkzeuge" fragen={[
   { frage: 'Welcher Befehl zeigt bei ntpd die Liste der Zeitquellen?', richtig: 'ntpq -p', falsch: ['ntpdate -l', 'chronyc peers'], erklaerung: 'chronyc sources ist die Entsprechung bei chrony.' },
 ]} />
+
+<Lueckentext id="luecke" titel="Lückentext: chrony" aufgabe="Ergänze die Zeile in /etc/chrony/chrony.conf und die beiden chronyc-Befehle."
+  code={`___ 2.debian.pool.ntp.org iburst
+
+$ chronyc ___        # Liste der Zeitquellen
+$ chronyc ___        # Abweichung und Zustand der eigenen Uhr`}
+  luecken={[
+    { loesungen: ['pool'] },
+    { loesungen: ['sources'] },
+    { loesungen: ['tracking'] },
+  ]} />
 
 <Labor id="labor" titel="Aufgabe im Labor: Zeitdienst in der VM"
   aufgabe="Prüf in deiner Debian-VM, welcher Zeitdienst läuft. Installiere chrony und lass dir die Quellen zeigen. Füge die Ausgabe ein."

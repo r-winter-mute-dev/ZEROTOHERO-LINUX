@@ -4,6 +4,7 @@ checks:
   - id: k1
   - id: einmal
   - id: k2
+  - id: luecke
   - id: timer
   - id: zuordnung
   - id: labor
@@ -44,6 +45,7 @@ karten:
   - f: "Mit welcher Tastenkombination beendest du die Eingabe bei at?"
     a: ["strg+d", "ctrl+d"]
 ---
+import Lueckentext from '../components/Lueckentext.astro';
 import Karte from '../components/Karte.astro';
 import Merke from '../components/Merke.astro';
 import Quiz from '../components/Quiz.astro';
@@ -125,6 +127,23 @@ Für einen einmaligen Auftrag ohne Unit-Dateien gibt es **systemd-run**: `system
   { frage: 'Welche Unit aktivierst du mit systemctl enable --now, damit die Sicherung nachts läuft?', richtig: 'sicherung.timer', falsch: ['sicherung.service', 'timers.target'], erklaerung: 'Der Timer startet den Service zur richtigen Zeit.' },
   { frage: 'Was leistet Persistent=true?', richtig: 'Ein verpasster Lauf wird nachgeholt, sobald der Rechner wieder läuft.', falsch: ['Der Timer überlebt einen Neustart nur damit.', 'Der Service läuft dauerhaft weiter.'], erklaerung: 'Bei cron übernimmt das anacron für cron.daily und Co.' },
 ]} />
+
+<Lueckentext id="luecke" titel="Lückentext: Eine Timer-Unit" aufgabe="Ergänze die Timer-Unit, die jede Nacht um 2:30 Uhr sicherung.service startet und verpasste Läufe nachholt."
+  code={`# /etc/systemd/system/sicherung.___
+[Unit]
+Description=Sicherung jede Nacht
+
+[Timer]
+___=*-*-* 02:30:00
+Persistent=___
+
+[Install]
+WantedBy=timers.target`}
+  luecken={[
+    { loesungen: ['timer'] },
+    { loesungen: ['OnCalendar'] },
+    { loesungen: ['true', 'yes'] },
+  ]} />
 
 <Terminal id="timer" titel="Terminal: Die Sicherung als Timer" welt={{ dateien: { '/usr/local/bin/sicherung': '#!/bin/bash\ntar czf /var/backups/messdaten-$(date +%F).tar.gz /srv/messdaten\n', '/etc/systemd/system/sicherung.service': '[Unit]\nDescription=Sicherung der Messdaten\n\n[Service]\nType=oneshot\nExecStart=/usr/local/bin/sicherung\n' }, rechte: { '/usr/local/bin/sicherung': '755' } }} aufgaben={[
   { text: 'Lass dir die vorhandenen Timer zeigen.', befehl: '^systemctl list-timers', frage: 'Welcher Timer rotiert die Logdateien?', antwort: ['logrotate.timer', 'logrotate'] },

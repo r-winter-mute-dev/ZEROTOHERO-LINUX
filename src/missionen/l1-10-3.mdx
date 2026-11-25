@@ -4,6 +4,7 @@ checks:
   - id: k1
   - id: dienste
   - id: k2
+  - id: luecke
   - id: xinetd
   - id: wrapper
   - id: zuordnung
@@ -46,6 +47,7 @@ karten:
   - f: "Mit welchem Befehl testest du TCP-Wrapper-Regeln?"
     a: ["tcpdmatch"]
 ---
+import Lueckentext from '../components/Lueckentext.astro';
 import Karte from '../components/Karte.astro';
 import Merke from '../components/Merke.astro';
 import Quiz from '../components/Quiz.astro';
@@ -102,6 +104,20 @@ Kleine, seltene Dienste wie telnet oder tftp ließ man früher von einem **Super
   { frage: 'Du hast cups.service mit systemctl stop angehalten. Eine Minute später läuft er wieder. Warum?', richtig: 'cups.socket hat ihn bei einem Druckauftrag wieder gestartet.', falsch: ['stop wirkt erst nach dem Neustart.', 'cups startet sich jede Minute selbst.'], erklaerung: 'Bei Socket-Aktivierung muss auch der Socket weg.' },
   { frage: 'Was unterscheidet mask von disable?', richtig: 'Eine maskierte Unit kann gar nicht mehr gestartet werden, auch nicht von Hand oder durch andere Units.', falsch: ['mask wirkt nur bis zum Neustart.', 'Es gibt keinen Unterschied.'], erklaerung: 'unmask hebt es auf.' },
 ]} />
+
+<Lueckentext id="luecke" titel="Lückentext: TCP-Wrapper" aufgabe="Ergänze die Dateinamen und den Prüfbefehl."
+  code={`# /etc/hosts.___ : alles verbieten, was nicht erlaubt ist
+ALL: ALL
+
+# /etc/hosts.___  : tftp nur aus dem Labornetz
+in.tftpd: 192.168.1.
+
+$ ___ in.tftpd 192.168.1.40      # würde der Zugriff erlaubt?`}
+  luecken={[
+    { loesungen: ['deny'] },
+    { loesungen: ['allow'] },
+    { loesungen: ['tcpdmatch'] },
+  ]} />
 
 <Terminal id="xinetd" titel="Terminal: Telnet muss weg" welt={{ sicherheit: { altlasten: true } }} aufgaben={[
   { text: 'Lass dir die Dienstdateien von xinetd zeigen.', befehl: '^ls (-l )?/etc/xinetd\\.d/?$', frage: 'Welche zwei Dienste sind dort eingetragen?', antwort: ['telnet, tftp', 'telnet tftp', 'telnet und tftp', 'tftp, telnet'] },

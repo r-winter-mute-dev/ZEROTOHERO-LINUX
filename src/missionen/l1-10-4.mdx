@@ -6,6 +6,7 @@ checks:
   - id: k1
   - id: agent
   - id: k2
+  - id: luecke
   - id: hostkey
   - id: tunnel
   - id: server
@@ -51,6 +52,7 @@ karten:
   - f: "Welche Option in sshd_config verbietet die Anmeldung als root?"
     a: ["PermitRootLogin no"]
 ---
+import Lueckentext from '../components/Lueckentext.astro';
 import Karte from '../components/Karte.astro';
 import Merke from '../components/Merke.astro';
 import Quiz from '../components/Quiz.astro';
@@ -127,6 +129,20 @@ Auch GnuPG hat einen Agenten, `gpg-agent`. Er kann zusätzlich SSH-Schlüssel ve
 <Quiz id="k2" titel="Kurzcheck: Agent" fragen={[
   { frage: 'ssh-add meldet „Could not open a connection to your authentication agent“. Was fehlt?', richtig: 'Ein laufender Agent, dessen SSH_AUTH_SOCK in der Shell gesetzt ist', falsch: ['Die Datei ~/.ssh/authorized_keys', 'Root-Rechte'], erklaerung: 'eval $(ssh-agent) behebt das.' },
 ]} />
+
+<Lueckentext id="luecke" titel="Lückentext: Den SSH-Server härten" aufgabe="Ergänze die Datei und den Befehl, der die Konfiguration vor dem Neustart prüft."
+  code={`# /etc/ssh/sshd_config.d/haerten.conf
+# keine direkte Anmeldung als root
+___ no
+PasswordAuthentication ___   # nur noch mit Schlüssel
+
+$ sudo sshd ___              # Syntax prüfen
+$ sudo systemctl restart ssh`}
+  luecken={[
+    { loesungen: ['PermitRootLogin'] },
+    { loesungen: ['no'] },
+    { loesungen: ['-t'] },
+  ]} />
 
 ## Wenn der Host-Schlüssel sich ändert
 

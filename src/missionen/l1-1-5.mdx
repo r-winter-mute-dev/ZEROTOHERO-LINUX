@@ -4,6 +4,7 @@ checks:
   - id: k1
   - id: param
   - id: k2
+  - id: luecke
   - id: logs
   - id: k3
   - id: labor
@@ -45,6 +46,7 @@ karten:
   - f: "Mit welchem Kernelparameter sperrst du ein Modul für einen einzigen Start?"
     a: ["modprobe.blacklist=name", "modprobe.blacklist="]
 ---
+import Lueckentext from '../components/Lueckentext.astro';
 import Karte from '../components/Karte.astro';
 import Merke from '../components/Merke.astro';
 import Quiz from '../components/Quiz.astro';
@@ -137,6 +139,22 @@ Den vorigen Start gibt es nur, wenn das Journal **dauerhaft** gespeichert wird, 
   { frage: 'Der Server ist heute Nacht abgestürzt und neu gestartet. Wo findest du die Meldungen von kurz vor dem Absturz?', richtig: 'journalctl -b -1', falsch: ['dmesg', 'journalctl -b'], erklaerung: 'dmesg und journalctl -b zeigen nur den aktuellen Start. Der vorige ist -b -1, wenn das Journal dauerhaft gespeichert wird.' },
   { frage: 'Als normaler Benutzer meldet dmesg „Operation not permitted“. Was tust du?', richtig: 'sudo dmesg', falsch: ['dmesg -f', 'Den Rechner neu starten'], erklaerung: 'Viele Distributionen beschränken den Ringpuffer auf root (kernel.dmesg_restrict).' },
 ]} />
+
+<Lueckentext id="luecke" titel="Lückentext: Kernelparameter" aufgabe="Ergänze die Kernelzeile in GRUB und den Befehl, der die Parameter des laufenden Kernels zeigt."
+  code={`# weniger Meldungen beim Start
+linux /vmlinuz-6.1.0-27-amd64 root=UUID=… ro ___
+# Rettungsmodus, wie Runlevel 1
+linux /vmlinuz-6.1.0-27-amd64 root=UUID=… ro ___
+# eine Shell statt des normalen init
+linux /vmlinuz-6.1.0-27-amd64 root=UUID=… ro ___=/bin/bash
+# mit welchen Parametern lief der Start?
+$ cat /proc/___`}
+  luecken={[
+    { loesungen: ['quiet'] },
+    { loesungen: ['single', '1', 's', 'systemd.unit=rescue.target'] },
+    { loesungen: ['init'] },
+    { loesungen: ['cmdline'] },
+  ]} />
 
 <Terminal id="logs" titel="Terminal: Was ist beim Start passiert?" aufgaben={[
   { text: 'Lass dir anzeigen, mit welchen Kernelparametern der Rechner gestartet ist.', befehl: '^cat /proc/cmdline$', frage: 'Welcher Parameter sorgt dafür, dass beim Start wenig Text erscheint?', antwort: ['quiet'] },

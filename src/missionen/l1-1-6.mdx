@@ -4,6 +4,7 @@ checks:
   - id: k1
   - id: zuordnen
   - id: k2
+  - id: luecke
   - id: targets
   - id: k3
   - id: labor
@@ -51,6 +52,7 @@ karten:
   - f: "Wohin gehören Unit-Dateien, die der Administrator anlegt oder überschreibt?"
     a: ["/etc/systemd/system", "/etc/systemd/system/"]
 ---
+import Lueckentext from '../components/Lueckentext.astro';
 import Karte from '../components/Karte.astro';
 import Merke from '../components/Merke.astro';
 import Quiz from '../components/Quiz.astro';
@@ -146,6 +148,23 @@ Hier siehst du auch die zwei wichtigen Orte für Units: In **/usr/lib/systemd/sy
   { frage: 'Du willst, dass der Server ab sofort immer ohne grafische Oberfläche startet, aber jetzt erst einmal weiterarbeiten. Welcher Befehl?', richtig: 'sudo systemctl set-default multi-user.target', falsch: ['sudo systemctl isolate multi-user.target', 'sudo telinit 3'], erklaerung: 'isolate und telinit wechseln sofort und ändern den Standard nicht.' },
   { frage: 'Wo legst du eine eigene, angepasste Version einer Unit ab, damit ein Paket-Update sie nicht überschreibt?', richtig: '/etc/systemd/system/', falsch: ['/usr/lib/systemd/system/', '/proc/systemd/'], erklaerung: 'Units in /etc/systemd/system haben Vorrang vor denen in /usr/lib/systemd/system.' },
 ]} />
+
+<Lueckentext id="luecke" titel="Lückentext: /etc/inittab und Targets" aufgabe="Ergänze die Zeilen einer klassischen /etc/inittab und den passenden systemd-Befehl."
+  code={`# Standard-Runlevel ist 3
+id:3:___:
+# Strg+Alt+Entf startet neu
+ca:12345:___:/sbin/shutdown -r now
+# Konsole immer wieder starten
+1:2345:___:/sbin/getty 38400 tty1
+
+# dasselbe wie Runlevel 3 unter systemd
+$ sudo systemctl set-default ___.target`}
+  luecken={[
+    { loesungen: ['initdefault'] },
+    { loesungen: ['ctrlaltdel'] },
+    { loesungen: ['respawn'] },
+    { loesungen: ['multi-user'] },
+  ]} />
 
 <Terminal id="targets" titel="Terminal: Wechseln und festlegen" aufgaben={[
   { text: 'Finde heraus, mit welchem Target der Rechner standardmäßig startet.', befehl: '^systemctl get-default$', frage: 'Welches ist es?', antwort: ['graphical.target'] },

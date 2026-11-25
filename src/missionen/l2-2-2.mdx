@@ -4,6 +4,7 @@ checks:
   - id: k1
   - id: ziele
   - id: k2
+  - id: luecke
   - id: bauen
   - id: labor
     hardware: true
@@ -39,6 +40,7 @@ karten:
   - f: "Wie hängst du -lab an die Kernelversion an?"
     a: ["config_localversion=\"-lab\"", "scripts/config --set-str localversion -lab", "localversion"]
 ---
+import Lueckentext from '../components/Lueckentext.astro';
 import Karte from '../components/Karte.astro';
 import Merke from '../components/Merke.astro';
 import Quiz from '../components/Quiz.astro';
@@ -115,6 +117,20 @@ Eine Falle mit der Debian-Konfiguration: Sie verlangt in `CONFIG_SYSTEM_TRUSTED_
 <Quiz id="k2" titel="Kurzcheck: Bauen" fragen={[
   { frage: 'Du hast die Debian-Konfiguration übernommen und willst so schnell wie möglich einen Kernel, der nur auf diesem Rechner laufen muss. Was machst du vor dem Bauen?', richtig: 'make localmodconfig, damit nur die gerade geladenen Module gebaut werden', falsch: ['make mrproper, damit der Bau sauber beginnt', 'make allmodconfig, damit alles als Modul gebaut wird'], erklaerung: 'mrproper würde die .config löschen. allmodconfig baut alles, was geht, als Modul und dauert am längsten.' },
 ]} />
+
+<Lueckentext id="luecke" titel="Lückentext: .config" aufgabe="Ergänze die Werte in der .config und den Befehl, der den Namen des Kernels zeigt."
+  code={`CONFIG_E1000E=___                 # als Modul
+CONFIG_BLK_DEV_INITRD=___         # fest eingebaut
+# CONFIG_BLK_DEV_FD ___           # gar nicht
+CONFIG_LOCALVERSION="-lab"
+
+$ make ___                        # zeigt 6.18.65-lab`}
+  luecken={[
+    { loesungen: ['m'] },
+    { loesungen: ['y'] },
+    { loesungen: ['is not set', 'isnotset'] },
+    { loesungen: ['kernelrelease', '-s kernelrelease'] },
+  ]} />
 
 ## Selbst bauen
 

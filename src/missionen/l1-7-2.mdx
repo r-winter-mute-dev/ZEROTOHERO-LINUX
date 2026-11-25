@@ -4,6 +4,7 @@ checks:
   - id: k1
   - id: gruppen
   - id: k2
+  - id: luecke
   - id: alterung
   - id: labor
     hardware: true
@@ -39,6 +40,7 @@ karten:
   - f: "Welche Gruppe kann nicht gelöscht werden, solange ein Benutzer sie als primäre Gruppe hat?"
     a: ["seine primäre gruppe", "die primäre gruppe"]
 ---
+import Lueckentext from '../components/Lueckentext.astro';
 import Karte from '../components/Karte.astro';
 import Merke from '../components/Merke.astro';
 import Quiz from '../components/Quiz.astro';
@@ -111,6 +113,20 @@ Die Vorgaben für **neue** Konten stehen in `/etc/login.defs`: `PASS_MAX_DAYS 99
   { frage: 'Was bewirkt „chage -E 2027-03-31 jonas“?', richtig: 'Ab dem 31. März 2027 kann sich jonas nicht mehr anmelden.', falsch: ['Das Passwort von jonas muss bis dahin geändert werden.', 'jonas wird an dem Tag gelöscht.'], erklaerung: '-E betrifft das Konto, -M das Passwort. Gelöscht wird nichts.' },
   { frage: 'Du änderst PASS_MAX_DAYS in /etc/login.defs auf 90. Was passiert mit lena?', richtig: 'Nichts, die Vorgabe gilt nur für neue Konten.', falsch: ['Ihr Passwort läuft in 90 Tagen ab.', 'Sie muss sich neu anmelden.'], erklaerung: 'Für bestehende Konten nimmst du chage -M 90.' },
 ]} />
+
+<Lueckentext id="luecke" titel="Lückentext: /etc/group und login.defs" aufgabe="Ergänze die Felder in /etc/group und die Zeile in /etc/login.defs."
+  code={`messteam:x:1002:lena,max
+
+Gruppenname : x : ___ : ___
+
+# /etc/login.defs: Passwörter neuer Konten
+# nach spätestens 90 Tagen ändern
+___   90`}
+  luecken={[
+    { loesungen: ['gid'] },
+    { loesungen: ['mitglieder', 'benutzer', 'mitgliederliste'] },
+    { loesungen: ['PASS_MAX_DAYS'] },
+  ]} />
 
 <Terminal id="alterung" titel="Terminal: Ein Konto mit Ablaufdatum" aufgaben={[
   { text: 'Lege jonas mit Home und Bash an und lass dir seine Passwortalterung zeigen.', befehl: '^sudo chage -l jonas$', zustand: 'konto:jonas', frage: 'Wann läuft sein Passwort ab?', antwort: ['nie'] },

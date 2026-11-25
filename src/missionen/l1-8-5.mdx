@@ -4,6 +4,7 @@ checks:
   - id: k1
   - id: zuordnung
   - id: k2
+  - id: luecke
   - id: weiterleiten
   - id: labor
     hardware: true
@@ -39,6 +40,7 @@ karten:
   - f: "Auf welchem Port nehmen MTAs Mails entgegen?"
     a: ["25", "tcp 25"]
 ---
+import Lueckentext from '../components/Lueckentext.astro';
 import Karte from '../components/Karte.astro';
 import Merke from '../components/Merke.astro';
 import Quiz from '../components/Quiz.astro';
@@ -102,6 +104,19 @@ Häufigster Einsatz: **Mail an root an einen Menschen**. Cron-Ausgaben, Warnunge
   { frage: 'Du hast „root: lena“ in /etc/aliases eingetragen, aber Mails an root kommen weiter nicht bei lena an. Was fehlt?', richtig: 'newaliases', falsch: ['systemctl restart cron', 'chmod 644 /etc/aliases'], erklaerung: 'Der MTA liest die Datenbank /etc/aliases.db, nicht die Textdatei.' },
   { frage: 'lena hat in ~/.forward „\\lena, lena@labor2.example.org“. Wo landen ihre Mails?', richtig: 'In ihrem eigenen Postfach und bei lena@labor2.example.org', falsch: ['Nur bei lena@labor2.example.org', 'Nur im eigenen Postfach'], erklaerung: 'Der Backslash verhindert, dass die Weiterleitung sich selbst wieder aufruft.' },
 ]} />
+
+<Lueckentext id="luecke" titel="Lückentext: Weiterleiten" aufgabe="Ergänze, damit Post an root bei lena landet."
+  code={`# /etc/aliases
+postmaster: root
+root: ___
+
+$ sudo ___                   # Datenbank der Aliase neu bauen
+# Nur für die eigene Post: eine Datei ~/.___ mit der Zieladresse`}
+  luecken={[
+    { loesungen: ['lena'] },
+    { loesungen: ['newaliases'] },
+    { loesungen: ['forward'] },
+  ]} />
 
 <Terminal id="weiterleiten" titel="Terminal: Wer liest die Post von root?" aufgaben={[
   { text: 'Schick eine Testmail mit dem Betreff „Test 1“ an root.', zustand: 'post:root~Test 1' },

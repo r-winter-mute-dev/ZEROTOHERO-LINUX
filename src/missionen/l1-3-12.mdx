@@ -4,6 +4,7 @@ checks:
   - id: k1
   - id: erste
   - id: k2
+  - id: luecke
   - id: bearbeiten
   - id: k3
   - id: system
@@ -59,6 +60,7 @@ karten:
   - f: "Welcher vi-Befehl macht die letzte Änderung rückgängig?"
     a: ["u"]
 ---
+import Lueckentext from '../components/Lueckentext.astro';
 import Karte from '../components/Karte.astro';
 import Merke from '../components/Merke.astro';
 import Quiz from '../components/Quiz.astro';
@@ -132,6 +134,18 @@ Das Muster ist dahinter: **Operator plus Bewegung**. `d` löscht, `y` kopiert, `
   { frage: 'Wie verschiebst du eine Zeile um eine Position nach unten?', richtig: 'dd, dann p', falsch: ['yy, dann P', 'x, dann p'], erklaerung: 'dd schneidet die Zeile aus, p setzt sie unter der neuen aktuellen Zeile wieder ein.' },
   { frage: 'Was macht „3dd“?', richtig: 'Es löscht drei Zeilen ab der aktuellen.', falsch: ['Es löscht Zeile 3.', 'Es löscht drei Zeichen.'], erklaerung: 'Zeile 3 wäre 3G, dann dd.' },
 ]} />
+
+<Lueckentext id="luecke" titel="Lückentext: vi" aufgabe="Ergänze die Eingaben in vi."
+  code={`Esc, dann ___      speichern und beenden
+Esc, dann ___      beenden, ohne zu speichern
+___                die aktuelle Zeile löschen
+___                vorwärts nach „fehler“ suchen`}
+  luecken={[
+    { loesungen: [':wq', ':x', 'ZZ'] },
+    { loesungen: [':q!'] },
+    { loesungen: ['dd'] },
+    { loesungen: ['/fehler'] },
+  ]} />
 
 <Terminal id="bearbeiten" titel="Terminal: Aufräumen in vi" welt={{ dateien: { '/home/lena/notiz.txt': 'Einkauf Werkstatt\nLötzinn\nSchrumpfschlauch\nALT: Toner prüfen\nSicherungen 5x20\n' } }} aufgaben={[
   { text: 'Öffne <code>notiz.txt</code>, such mit <code>/ALT</code> die veraltete Zeile und lösch sie mit <code>dd</code>.', zustand: 'nicht:datei:/home/lena/notiz.txt~ALT' },

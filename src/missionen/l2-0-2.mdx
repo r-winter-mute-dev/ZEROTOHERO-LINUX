@@ -4,6 +4,7 @@ checks:
   - id: k1
   - id: zuordnung
   - id: k2
+  - id: luecke
   - id: router
     hardware: true
   - id: server
@@ -39,6 +40,7 @@ karten:
   - f: "Wofür bekommt srv1 drei zusätzliche Platten?"
     a: ["für raid und lvm", "raid und lvm"]
 ---
+import Lueckentext from '../components/Lueckentext.astro';
 import Karte from '../components/Karte.astro';
 import Merke from '../components/Merke.astro';
 import Quiz from '../components/Quiz.astro';
@@ -119,6 +121,23 @@ table ip nat {
 <Quiz id="k2" titel="Kurzcheck: Router" fragen={[
   { frage: 'srv1 erreicht gw, aber kein Paket kommt im Internet an. Weiterleiten ist eingeschaltet. Was fehlt am wahrscheinlichsten?', richtig: 'Das Masquerading, damit Antworten den Weg zurück finden', falsch: ['Eine zweite Netzwerkkarte in srv1', 'Ein DNS-Eintrag für gw'], erklaerung: 'Ohne NAT gehen Pakete mit privater Absenderadresse hinaus, und niemand kann darauf antworten.' },
 ]} />
+
+<Lueckentext id="luecke" titel="Lückentext: gw als Router" aufgabe="Ergänze die nftables-Regel für NAT und die sysctl-Zeile."
+  code={`# /etc/nftables.conf (Auszug)
+table ip nat {
+    chain postrouting {
+        type nat hook ___ priority srcnat;
+        oifname "enp0s3" ___
+    }
+}
+
+# /etc/sysctl.d/90-router.conf
+net.ipv4.___ = 1`}
+  luecken={[
+    { loesungen: ['postrouting'] },
+    { loesungen: ['masquerade'] },
+    { loesungen: ['ip_forward'] },
+  ]} />
 
 <Labor id="router" titel="Labor: gw als Router"
   aufgabe="Installier gw mit zwei Adaptern, gib enp0s8 die Adresse 192.168.50.1/24, schalte das Weiterleiten ein und richte das Masquerading ein. Mach danach einen Snapshot „Router fertig“. Füge die Ausgabe ein."

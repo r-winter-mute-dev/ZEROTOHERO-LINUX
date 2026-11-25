@@ -4,6 +4,7 @@ checks:
   - id: k1
   - id: dnf
   - id: k2
+  - id: luecke
   - id: zypper
   - id: vergleich
   - id: k3
@@ -44,6 +45,7 @@ karten:
   - f: "Wie installierst du mit dnf die lokale Datei paket.rpm samt Abhängigkeiten aus den Quellen?"
     a: ["dnf install ./paket.rpm", "sudo dnf install ./paket.rpm", "yum install ./paket.rpm"]
 ---
+import Lueckentext from '../components/Lueckentext.astro';
 import Karte from '../components/Karte.astro';
 import Merke from '../components/Merke.astro';
 import Quiz from '../components/Quiz.astro';
@@ -135,6 +137,22 @@ Die Repositories stehen unter **/etc/zypp/repos.d/**.
 <Quiz id="k2" titel="Kurzcheck: zypper" fragen={[
   { frage: 'Welcher Befehl entspricht auf openSUSE dem Befehl „dnf provides /usr/bin/tree“?', richtig: 'zypper wp /usr/bin/tree', falsch: ['zypper if /usr/bin/tree', 'zypper se --file /usr/bin/tree'], erklaerung: 'wp steht für what-provides.' },
 ]} />
+
+<Lueckentext id="luecke" titel="Lückentext: Eine .repo-Datei" aufgabe="Ergänze die Datei für das Repository mit der Kennung messsoft und den Befehl, der die eingeschalteten Repositories zeigt."
+  code={`# /etc/yum.repos.d/messsoft.repo
+[___]
+name=Messsoftware der Werkstatt
+baseurl=https://repo.example.org/el9/
+enabled=___
+gpgcheck=1
+
+# eingeschaltete Repositories
+$ dnf ___`}
+  luecken={[
+    { loesungen: ['messsoft'] },
+    { loesungen: ['1'] },
+    { loesungen: ['repolist'] },
+  ]} />
 
 <Terminal id="zypper" titel="Terminal: openSUSE" welt={{ distro: 'suse' }} aufgaben={[
   { text: 'Lass dir die Repositories anzeigen.', befehl: '^zypper (lr|repos)' },

@@ -4,6 +4,7 @@ checks:
   - id: k1
   - id: umleiten
   - id: k2
+  - id: luecke
   - id: reihe
   - id: verketten
   - id: labor
@@ -52,6 +53,7 @@ karten:
   - f: "Wie setzt du die Ausgabe von date +%F in einen anderen Befehl ein?"
     a: ["$(date +%F)", "`date +%F`"]
 ---
+import Lueckentext from '../components/Lueckentext.astro';
 import Karte from '../components/Karte.astro';
 import Merke from '../components/Merke.astro';
 import Quiz from '../components/Quiz.astro';
@@ -121,6 +123,22 @@ tee löst auch ein klassisches Problem: `sudo echo text > /etc/motd` scheitert, 
   { frage: 'Was zählt „ls gibtsnicht | wc -l“?', richtig: '0, die Fehlermeldung geht nicht durch die Pipe.', falsch: ['1, die Fehlermeldung ist eine Zeile.', 'Nichts, wc meldet einen Fehler.'], erklaerung: 'Die Pipe verbindet nur stdout.' },
   { frage: 'Welche Zeile legt eine Datei mit dem heutigen Datum im Namen an?', richtig: 'touch bericht-$(date +%F).txt', falsch: ['touch bericht-"date +%F".txt', 'touch bericht-${date +%F}.txt'], erklaerung: '${…} ist eine Variable, $(…) eine Befehlsersetzung.' },
 ]} />
+
+<Lueckentext id="luecke" titel="Lückentext: Umleitungen" aufgabe="Ergänze die Zeichen für Umleitungen und Pipes."
+  code={`# Fehlermeldungen wegwerfen
+$ find / -name '*.log' 2>___
+# Fehler in dieselbe Datei wie die Ausgabe
+$ ./messen > alles.txt ___
+# anhängen statt überschreiben
+$ echo neu ___ liste.txt
+# anzeigen und zugleich speichern
+$ ls /etc | ___ etc.txt`}
+  luecken={[
+    { loesungen: ['/dev/null'] },
+    { loesungen: ['2>&1'] },
+    { loesungen: ['>>'] },
+    { loesungen: ['tee'] },
+  ]} />
 
 <Reihenfolge id="reihe" titel="Code-Puzzle: Die größten Verzeichnisse" aufgabe="Bau eine Zeile, die die fünf größten Einträge unter /var zeigt und Fehlermeldungen verwirft. Bring die Teile in die richtige Reihenfolge." schritte={['du -s /var/* 2>/dev/null', '| sort -n', '| tail -5']} erklaerung="du gibt die Größe jedes Eintrags aus, sort -n sortiert numerisch aufsteigend, tail -5 nimmt die letzten fünf, also die größten. 2>/dev/null gehört an den Befehl, dessen Fehler du loswerden willst." />
 

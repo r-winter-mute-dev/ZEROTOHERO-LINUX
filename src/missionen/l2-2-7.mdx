@@ -4,6 +4,7 @@ checks:
   - id: k1
   - id: reihe
   - id: k2
+  - id: luecke
   - id: regel
   - id: fehler
   - id: labor
@@ -38,6 +39,7 @@ karten:
   - f: "Welcher udev-Schlüssel legt einen zusätzlichen Namen unter /dev an?"
     a: ["symlink", "symlink+="]
 ---
+import Lueckentext from '../components/Lueckentext.astro';
 import Karte from '../components/Karte.astro';
 import Merke from '../components/Merke.astro';
 import Quiz from '../components/Quiz.astro';
@@ -113,6 +115,21 @@ Zum Prüfen: **udevadm test /sys/class/labsensor/labsensor0** spielt die Regeln 
 <Quiz id="k2" titel="Kurzcheck: Regeln" fragen={[
   { frage: 'Eine Regel enthält ATTR{serial}=="LS2-26-0042" und greift nicht. udevadm info -a zeigt serial erst beim Elterngerät 1-6. Was ist falsch?', richtig: 'Es muss ATTRS{serial} heißen, weil das Attribut beim Elterngerät steht.', falsch: ['Seriennummern darf udev nicht vergleichen.', 'Es muss ATTR{serial}="LS2-26-0042" mit einem Gleichheitszeichen heißen.'], erklaerung: 'Mit einem einfachen = wäre es eine Zuweisung, die einen sysfs-Wert schreiben würde.' },
 ]} />
+
+<Lueckentext id="luecke" titel="Lückentext: Eine udev-Regel" aufgabe="Ergänze die Regel für die Messbox und die Befehle, die sie anwenden."
+  code={`# /etc/udev/rules.d/99-messbox.___
+SUBSYSTEM___"labsensor", ___{idVendor}=="1209", \\
+  GROUP="messteam", MODE="0660", ___+="messbox"
+
+$ sudo udevadm control --reload
+$ sudo udevadm ___`}
+  luecken={[
+    { loesungen: ['rules'] },
+    { loesungen: ['=='] },
+    { loesungen: ['ATTRS'] },
+    { loesungen: ['SYMLINK'] },
+    { loesungen: ['trigger'] },
+  ]} />
 
 <Terminal id="regel" titel="Terminal: Eine Regel für die Messbox" welt={{ host: 'messpc', kern: { sensor: true, dkms: 'installiert' } }} aufgaben={[
   { text: 'Schau dir die Gerätedatei der Messbox an.', befehl: '^ls -l /dev/labsensor0$', frage: 'Welcher Gruppe gehört sie?', antwort: ['root'] },

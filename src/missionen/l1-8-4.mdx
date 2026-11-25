@@ -4,6 +4,7 @@ checks:
   - id: k1
   - id: journal
   - id: k2
+  - id: luecke
   - id: rotieren
   - id: labor
     hardware: true
@@ -41,6 +42,7 @@ karten:
   - f: "Wie testest du eine logrotate-Konfiguration, ohne etwas zu ändern?"
     a: ["logrotate -d", "logrotate -d datei"]
 ---
+import Lueckentext from '../components/Lueckentext.astro';
 import Karte from '../components/Karte.astro';
 import Merke from '../components/Merke.astro';
 import Quiz from '../components/Quiz.astro';
@@ -126,6 +128,23 @@ Aus `messd.log` wird `messd.log.1`, aus `.1` wird `.2.gz` und so weiter. `logrot
 <Quiz id="k2" titel="Kurzcheck: logrotate" fragen={[
   { frage: 'Was bewirkt „rotate 3“?', richtig: 'Drei alte Fassungen bleiben, ältere werden gelöscht.', falsch: ['Die Datei wird dreimal am Tag rotiert.', 'Die Datei wird erst nach drei Tagen rotiert.'], erklaerung: 'Wie oft rotiert wird, legen daily, weekly oder size fest.' },
 ]} />
+
+<Lueckentext id="luecke" titel="Lückentext: logrotate" aufgabe="Ergänze die Datei /etc/logrotate.d/messd und den Probelauf."
+  code={`/var/log/messd.log {
+    ___            # jede Woche
+    rotate 4
+    ___            # alte Dateien packen
+    missingok
+    create 640 root adm
+}
+
+# nur zeigen, nichts ändern
+$ sudo logrotate ___ /etc/logrotate.d/messd`}
+  luecken={[
+    { loesungen: ['weekly'] },
+    { loesungen: ['compress'] },
+    { loesungen: ['-d', '--debug'] },
+  ]} />
 
 <Terminal id="rotieren" titel="Terminal: messd.log zähmen" welt={{ dienste: { rsyslog: true }, dateien: { '/var/log/messd.log': '2026-11-23T08:00:01 werkstatt messd: Messung 1\n2026-11-23T08:00:02 werkstatt messd: Messung 2\n' } }} aufgaben={[
   { text: 'Lies <code>/etc/logrotate.conf</code>.', befehl: '^(cat|less|grep .*) /etc/logrotate\\.conf$', frage: 'Wie oft wird standardmäßig rotiert?', antwort: ['weekly', 'wöchentlich'] },

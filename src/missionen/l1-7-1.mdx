@@ -4,6 +4,7 @@ checks:
   - id: k1
   - id: dateien
   - id: k2
+  - id: luecke
   - id: anlegen
   - id: labor
     hardware: true
@@ -43,6 +44,7 @@ karten:
   - f: "Woran erkennst du in /etc/shadow ein gesperrtes Passwort?"
     a: ["an einem ! vor dem hash", "!"]
 ---
+import Lueckentext from '../components/Lueckentext.astro';
 import Karte from '../components/Karte.astro';
 import Merke from '../components/Merke.astro';
 import Quiz from '../components/Quiz.astro';
@@ -124,6 +126,16 @@ Ohne `-g` legt useradd eine **eigene Gruppe** mit dem Namen des Benutzers an. Da
   { frage: 'jonas ist in den Gruppen users und plugdev. Was gilt nach „usermod -G sudo jonas“?', richtig: 'jonas ist nur noch in sudo (und seiner primären Gruppe).', falsch: ['jonas ist in users, plugdev und sudo.', 'Der Befehl schlägt fehl.'], erklaerung: 'Ohne -a ersetzt -G die Liste der zusätzlichen Gruppen.' },
   { frage: 'Was bleibt nach „userdel jonas“ zurück?', richtig: 'Das Verzeichnis /home/jonas', falsch: ['Die Zeile in /etc/passwd', 'Nichts'], erklaerung: 'Erst userdel -r entfernt Home und Mail.' },
 ]} />
+
+<Lueckentext id="luecke" titel="Lückentext: /etc/passwd" aufgabe="Ergänze, wofür die Felder stehen."
+  code={`lena:x:1000:1000:Lena Berger:/home/lena:/bin/bash
+
+Name : ___ : UID : ___ : Kommentar : Heimatverzeichnis : ___`}
+  luecken={[
+    { loesungen: ['passwort', 'kennwort', 'x', 'platzhalter'] },
+    { loesungen: ['gid'] },
+    { loesungen: ['shell', 'loginshell', 'login-shell'] },
+  ]} />
 
 <Terminal id="anlegen" titel="Terminal: Konten für Jonas und messd" aufgaben={[
   { text: 'Lege das Konto <code>jonas</code> mit Home, der Shell <code>/bin/bash</code>, dem Kommentar „Jonas Berg“ und den zusätzlichen Gruppen <code>users</code> und <code>plugdev</code> an.', zustand: 'konto:jonas~:Jonas Berg:/home/jonas:/bin/bash$ && ordner:/home/jonas && mitglied:users=jonas && mitglied:plugdev=jonas' },

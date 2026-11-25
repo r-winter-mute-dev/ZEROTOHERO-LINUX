@@ -4,6 +4,7 @@ checks:
   - id: k1
   - id: laufzeit
   - id: k2
+  - id: luecke
   - id: tippfehler
   - id: zuordnung
   - id: labor
@@ -40,6 +41,7 @@ karten:
   - f: "Wie zeigt modprobe die gesamte wirksame Konfiguration?"
     a: ["modprobe -c"]
 ---
+import Lueckentext from '../components/Lueckentext.astro';
 import Karte from '../components/Karte.astro';
 import Merke from '../components/Merke.astro';
 import Quiz from '../components/Quiz.astro';
@@ -109,6 +111,20 @@ Hilfreich zur Fehlersuche: `modprobe -c` zeigt die gesamte wirksame Konfiguratio
 <Quiz id="k2" titel="Kurzcheck: Konfiguration" fragen={[
   { frage: 'In /etc/modprobe.d/sperre.conf steht „blacklist floppy“. Was passiert bei sudo modprobe floppy?', richtig: 'floppy wird geladen. blacklist verhindert nur das automatische Laden.', falsch: ['modprobe meldet, dass floppy gesperrt ist.', 'Der Rechner startet neu.'], erklaerung: 'Wer jedes Laden verhindern will, schreibt install floppy /bin/false.' },
 ]} />
+
+<Lueckentext id="luecke" titel="Lückentext: /etc/modprobe.d" aufgabe="Ergänze die Datei /etc/modprobe.d/messpc.conf und den Befehl, der die wirksame Konfiguration zeigt."
+  code={`___ iwlwifi power_save=1      # Parameter bei jedem Laden
+# modprobe messbox lädt labsensor
+___ messbox labsensor
+___ pcspkr                    # nicht mehr automatisch laden
+
+$ modprobe ___ | grep messbox`}
+  luecken={[
+    { loesungen: ['options'] },
+    { loesungen: ['alias'] },
+    { loesungen: ['blacklist'] },
+    { loesungen: ['-c', '--showconfig'] },
+  ]} />
 
 <Terminal id="tippfehler" titel="Terminal: Die Warnung im Protokoll" welt={{ host: 'messpc', kern: { tippfehler: true } }} aufgaben={[
   { text: 'Such in den Kernelmeldungen nach e1000e.', befehl: '^dmesg( -\\w+)? \\| grep (-\\w+ )?["\']?e1000e["\']?$|^journalctl -k( -b)? \\| grep e1000e$', frage: 'Welcher Parameter wird ignoriert?', antwort: ['InterruptThrottelRate'] },
