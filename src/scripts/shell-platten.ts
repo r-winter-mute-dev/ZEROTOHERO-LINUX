@@ -551,7 +551,7 @@ export function plattenBefehle(h: PlattenHelfer): Record<string, Befehl> {
     const err = ziele.map((z) => aushaengen(w, z, root)).filter(Boolean) as string[];
     return err.length ? fehler(err.join('\n'), 32) : ok();
   };
-  b.findmnt = (w) => ok(['TARGET              SOURCE         FSTYPE OPTIONS', ...w.platten!.mounts.map((m) => `${m.ziel.padEnd(19)} ${m.quelle.padEnd(14)} ${m.art.padEnd(6)} ${m.optionen.slice(0, 40)}`)].join('\n'));
+  b.findmnt = (w, a) => { const ziel = a.find((x, i) => !x.startsWith('-') && !/^-[otOSTN]$/.test(a[i - 1] ?? '')); const ms = w.platten!.mounts.filter((m) => !ziel || m.ziel === ziel || m.quelle === ziel); if (ziel && !ms.length) return { out: '', err: '', code: 1 }; return ok(['TARGET              SOURCE         FSTYPE OPTIONS', ...ms.map((m) => `${m.ziel.padEnd(19)} ${m.quelle.padEnd(14)} ${m.art.padEnd(6)} ${m.optionen.slice(0, 40)}`)].join('\n')); }
 
   // ----- fsck, e2fsck, tune2fs, xfs-Werkzeuge -----
   b.fsck = (w, a, i, root) => {

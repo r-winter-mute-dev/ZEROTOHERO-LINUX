@@ -1,0 +1,150 @@
+---
+id: l2-3-5
+checks:
+  - id: k1
+  - id: zuordnung
+  - id: k2
+  - id: luecke
+  - id: notfall
+  - id: live
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "Emergency nach fstab"
+    v: "journalctl -xb · systemctl --failed · fstab reparieren (nofail oder auskommentieren) · systemctl daemon-reload · systemctl default"
+  - t: "nofail / noauto"
+    v: "nofail: fehlt das Gerät, startet der Rechner trotzdem · noauto: wird beim Start gar nicht eingehängt · x-systemd.device-timeout=10s"
+  - t: "fsck"
+    v: "nur auf nicht eingehängten Dateisystemen · fsck -f /dev/X erzwingt · 6. Feld der fstab: 1 für /, 2 für andere, 0 nie"
+  - t: "Live-System"
+    v: "mount /dev/nvme0n1p2 /mnt · mount /dev/nvme0n1p1 /mnt/boot/efi · for d in dev proc sys; do mount --bind /$d /mnt/$d; done · chroot /mnt"
+  - t: "Im chroot"
+    v: "grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=debian · update-grub · update-initramfs -u · passwd · exit"
+  - t: "Red Hat"
+    v: "grub2-install (nur BIOS) · grub2-mkconfig -o /boot/grub2/grub.cfg · dracut -f · Rettungsmodus der Installations-ISO hängt nach /mnt/sysroot ein"
+karten:
+  - f: "Mit welcher fstab-Option startet der Rechner auch dann, wenn ein Gerät fehlt?"
+    a: ["nofail"]
+  - f: "Welcher Befehl listet nach einem misslungenen Start alle fehlgeschlagenen Units?"
+    a: ["systemctl --failed", "systemctl list-units --failed"]
+  - f: "Was bedeutet die 2 im sechsten Feld einer fstab-Zeile?"
+    a: ["fsck prüft dieses dateisystem nach der wurzel", "prüfreihenfolge 2 für fsck"]
+  - f: "Warum darfst du fsck nicht auf einem eingehängten Dateisystem laufen lassen?"
+    a: ["weil es dabei beschädigt werden kann", "das dateisystem kann beschädigt werden"]
+  - f: "Welche drei Verzeichnisse hängst du vor chroot mit --bind ein?"
+    a: ["/dev, /proc, /sys", "dev proc sys"]
+  - f: "Mit welchem Befehl verlässt du eine chroot-Umgebung?"
+    a: ["exit", "strg+d"]
+  - f: "Wohin installiert grub-install bei UEFI den Bootloader?"
+    a: ["in die esp", "nach /boot/efi/efi/debian", "--efi-directory"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Zuordnung from '../components/Zuordnung.astro';
+import Lueckentext from '../components/Lueckentext.astro';
+
+Zwei Rechner, zwei Arten von „startet nicht“. werkstatt fällt nach dem Einschalten in den Emergency-Modus, weil ein Kollege eine Sicherungsplatte in die fstab geschrieben und die Platte danach wieder mitgenommen hat. Auf einem zweiten Rechner hat ein Firmware-Update die ESP gelöscht, dort hilft nur noch ein Live-System vom USB-Stick. **Deine Mission: Repariere eine fstab aus dem Emergency-Modus und baue den Bootloader aus einem Live-System mit chroot neu auf.** Lernziel 202.2.
+
+## Wenn eine Platte fehlt
+
+<Karte nr={1} titel="Emergency-Modus nach einem Fehler in der fstab">
+systemd macht aus jeder Zeile der /etc/fstab eine `.mount`-Unit (den Generator kennst du aus Mission 2). Alle zusammen gehören zu `local-fs.target`. Fehlt ein Gerät, wartet systemd 90 Sekunden und gibt dann auf: `Dependency failed for local-fs.target`. Weil ohne lokale Dateisysteme nichts sinnvoll weiterläuft, landet der Rechner im **Emergency-Modus** und fragt nach dem root-Passwort.
+
+Dort gehst du so vor:
+
+1. **Ursache finden:** `journalctl -xb` zeigt die Meldungen dieses Starts, `systemctl --failed` die fehlgeschlagenen Units, hier `mnt-sicherung.mount`.
+2. **Schreiben können:** Ist `/` nur lesbar, hilft `mount -o remount,rw /`.
+3. **fstab reparieren:** Zeile auskommentieren oder die Option **nofail** ergänzen. Mit nofail versucht systemd das Einhängen, blockiert den Start aber nicht. Mit **noauto** hängt es beim Start gar nicht erst ein.
+4. **systemd Bescheid sagen:** `systemctl daemon-reload`, damit der Generator die geänderte fstab liest.
+5. **Weiter starten:** `systemctl default` oder `exit`.
+
+Das sechste Feld der fstab steuert **fsck** beim Start: `1` für die Wurzel, `2` für alle anderen, die geprüft werden sollen, `0` für nie. fsck läuft nur auf Dateisystemen, die nicht eingehängt sind. Wer `/` prüfen will, startet ein Live-System oder hängt sie im Emergency-Modus nur lesbar ein.
+</Karte>
+
+<Merke>Emergency nach fstab: journalctl -xb, systemctl --failed, remount,rw, nofail ergänzen, daemon-reload, systemctl default. fsck nie auf eingehängten Dateisystemen.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: fstab" fragen={[
+  { frage: 'Du hast im Emergency-Modus nofail ergänzt und tippst systemctl default. Der Rechner fällt wieder in den Emergency-Modus. Was fehlt?', richtig: 'systemctl daemon-reload, systemd kennt die geänderte fstab noch nicht.', falsch: ['Ein Neustart, nofail wirkt erst beim nächsten Start.', 'mount -a.'], erklaerung: 'Die .mount-Units entstehen beim Laden aus der fstab. Ohne daemon-reload bleibt die alte Unit wirksam.' },
+]} />
+
+## Rettung von außen
+
+<Karte nr={2} titel="Live-System, mount --bind und chroot">
+Startet gar nichts mehr, weil Bootloader, ESP oder initramfs fehlen, startest du ein **Live-System** vom USB-Stick (oder den Rettungsmodus der Installations-ISO). Von dort aus baust du das installierte System so zusammen, als liefe es:
+
+```
+mount /dev/nvme0n1p2 /mnt
+mount /dev/nvme0n1p1 /mnt/boot/efi
+for d in dev proc sys; do mount --bind /$d /mnt/$d; done
+chroot /mnt
+```
+
+**chroot** macht `/mnt` zum neuen `/` für die Shell, die es startet. Alle Befehle darin sind die des installierten Systems, mit dessen Konfiguration. Die Bind-Mounts sind nötig, weil grub-install Geräte unter `/dev`, Prozessangaben unter `/proc` und die EFI-Variablen unter `/sys/firmware/efi/efivars` braucht. Ohne `/sys` meldet grub-install, dass es keinen NVRAM-Eintrag anlegen kann.
+
+Im chroot reparierst du mit den Werkzeugen, die du kennst: `grub-install` und `update-grub` für den Bootloader, `update-initramfs -u` (Red Hat: `dracut -f`) für die initramfs, `passwd` für ein vergessenes Passwort. `exit` führt zurück ins Live-System. Vor dem Neustart hängst du alles wieder aus, `umount -R /mnt` erledigt das in einem Schritt.
+</Karte>
+
+<Zuordnung id="zuordnung" titel="Zuordnung: Welche Rettung passt?" aufgabe="Ordne jedem Schaden die passende Rettung zu." paare={[
+  { links: 'Eine Platte aus der fstab fehlt', rechts: 'Emergency-Modus, nofail ergänzen' },
+  { links: 'root-Passwort vergessen, GRUB läuft', rechts: 'init=/bin/bash' },
+  { links: 'grub.cfg fehlt, GRUB läuft', rechts: 'GRUB-Befehlszeile, danach update-grub' },
+  { links: 'ESP leer, kein Bootloader startet', rechts: 'Live-System, chroot, grub-install' },
+  { links: 'Dateisystem der Wurzel beschädigt', rechts: 'Live-System, fsck auf der ausgehängten Partition' },
+]} />
+
+<Quiz id="k2" titel="Kurzcheck: chroot" fragen={[
+  { frage: 'Im chroot meldet grub-install „EFI variables are not supported on this system“. Der Rechner ist mit UEFI gestartet. Was fehlt?', richtig: 'mount --bind /sys /mnt/sys vor dem chroot.', falsch: ['Die Option --removable.', 'Ein Eintrag für /boot/efi in der fstab des Live-Systems.'], erklaerung: 'Die EFI-Variablen liegen unter /sys/firmware/efi/efivars. Ohne /sys sieht das chroot sie nicht.' },
+]} />
+
+<Lueckentext id="luecke" titel="Lückentext: Aus dem Live-System" aufgabe="Ergänze die Befehle, um GRUB aus einem Live-System neu in die ESP zu installieren."
+  code={`$ sudo mount /dev/nvme0n1p2 /mnt
+$ sudo mount /dev/nvme0n1p1 /mnt/___
+$ for d in dev proc sys; do sudo mount ___ /$d /mnt/$d; done
+$ sudo ___ /mnt
+# grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=debian
+# ___
+# exit`}
+  luecken={[
+    { loesungen: ['boot/efi'] },
+    { loesungen: ['--bind', '--rbind', '-B', '-o bind'] },
+    { loesungen: ['chroot'] },
+    { loesungen: ['update-grub', 'grub-mkconfig -o /boot/grub/grub.cfg'] },
+  ]} />
+
+<Terminal id="notfall" titel="Terminal: werkstatt im Emergency-Modus" welt={{ start: { fstabKaputt: true } }} aufgaben={[
+  { text: 'Starte werkstatt (Knopf unter dem Terminal) und melde dich als root an. Das Passwort steht auf dem Zettel am Bildschirm: Messpc2026', zustand: 'startmodus=emergency' },
+  { text: 'Finde heraus, welches Dateisystem den Start blockiert.', befehl: '^(journalctl.*|systemctl --failed|systemctl list-units --failed|systemctl status.*)$', frage: 'Welcher Einhängepunkt ist es?', antwort: ['/mnt/sicherung'] },
+  { text: 'Ändere die fstab so, dass werkstatt auch ohne die Platte startet, sie aber einhängt, wenn sie da ist.', zustand: 'datei:/etc/fstab~c4a1e9d2-7b3f-4e5a-9c8d-1f2e3a4b5c6d\\s+/mnt/sicherung\\s+ext4\\s+\\S*nofail' },
+  { text: 'Lass den Start weiterlaufen.', zustand: 'neustart && startmodus=normal' },
+  { text: 'Starte zur Probe noch einmal neu.', zustand: 'neustarts>=2 && startmodus=normal' },
+]} />
+
+<Terminal id="live" titel="Terminal: Rettung vom USB-Stick" welt={{ start: { live: true, efiWeg: true } }} aufgaben={[
+  { text: 'Du bist im Live-System. Schau, welche Einträge die Firmware noch kennt.', befehl: '^(sudo )?efibootmgr( -v)?$', frage: 'Gibt es noch einen Eintrag debian? (ja/nein)', antwort: ['nein'] },
+  { text: 'Prüfe das Dateisystem der Wurzel, solange es nicht eingehängt ist.', befehl: '^(sudo )?(fsck|e2fsck|fsck\\.ext4)( -\\w+)* /dev/nvme0n1p2$' },
+  { text: 'Hänge die Wurzel nach /mnt und die ESP an die passende Stelle darunter.', zustand: 'eingehaengt:/dev/nvme0n1p2=/mnt && eingehaengt:/dev/nvme0n1p1=/mnt/boot/efi' },
+  { text: 'Mach /dev, /proc und /sys im installierten System verfügbar und wechsle mit chroot hinein.', zustand: 'bind:/mnt/dev && bind:/mnt/proc && bind:/mnt/sys && chroot:drin' },
+  { text: 'Installiere GRUB neu in die ESP und schreib die grub.cfg neu.', zustand: 'efi:datei=/EFI/debian/grubx64.efi && efi:erster=debian && datei:/boot/grub/grub.cfg~menuentry' },
+  { text: 'Verlass das chroot und starte neu, ohne den USB-Stick.', zustand: 'neustart && live:nein' },
+]} />
+
+<Labor id="labor" titel="Labor: fstab von srv1"
+  aufgabe="Schau auf srv1 nach, welche Dateisysteme beim Start geprüft werden und welche den Start blockieren können. Füge die Ausgabe ein."
+  befehl={"grep -v '^#' /etc/fstab\nsystemctl list-units --type=mount --no-pager | head\nsystemctl --failed --no-pager"}
+  muster={["\\s[012]\\s*$", "\\.mount", "loaded units listed"]}
+  erfolg="Jede Zeile ohne nofail oder noauto ist eine Abhängigkeit von local-fs.target. Fehlt ihr Gerät, endet der Start im Emergency-Modus." />
+
+<Hinweis titel="Prüfungstipp">
+202.2 nennt mount, fsck und systemctl ausdrücklich bei den Begriffen. Erwartet wird, dass du aus einem Notfallmodus oder einem Live-System heraus reparieren kannst. Die Reihenfolge mount, Bind-Mounts, chroot, Reparatur, exit, umount kommt in vielen Varianten vor.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Im Live-System willst du fsck auf /dev/nvme0n1p2 laufen lassen, hast die Partition aber schon nach /mnt eingehängt. Was tust du?', richtig: 'umount /mnt, dann fsck.', falsch: ['fsck -n, das ist auf eingehängten Dateisystemen sicher.', 'mount -o remount,ro /mnt reicht nicht, es braucht fsck -y.'], erklaerung: 'Schreibendes fsck auf einem eingehängten Dateisystem kann es beschädigen. -n ändert nichts, liefert dort aber auch keine verlässlichen Ergebnisse.' },
+  { frage: 'Welche fstab-Zeile blockiert den Start nicht, wenn der USB-Stick fehlt?', richtig: 'LABEL=STICK /media/stick vfat defaults,nofail 0 0', falsch: ['LABEL=STICK /media/stick vfat defaults 0 2', 'LABEL=STICK /media/stick vfat defaults,user 0 0'], erklaerung: 'user erlaubt nur Benutzern das Einhängen. Ohne nofail oder noauto ist die Zeile eine harte Abhängigkeit des Starts.' },
+  { frage: 'Im chroot ohne Bind-Mounts bricht update-grub mit einem Fehler von grub-probe ab. Warum?', richtig: 'grub-probe ermittelt Gerät und Dateisystem der Wurzel über /dev und /proc, die im chroot sonst leer sind.', falsch: ['update-grub schreibt seine Ausgabe nach /proc.', 'chroot hängt /boot automatisch aus.'], erklaerung: 'Ein frisches chroot sieht nur die Dateien unter /mnt. /proc, /sys und /dev gehören zum laufenden Kernel und kommen über Bind-Mounts.' },
+]} />

@@ -4,6 +4,7 @@
 // Der Rechner ist erfunden ("werkstatt"), die Ausgaben sind an echte Systeme angelehnt und gekürzt.
 
 import { paketBefehle, programmStarten, neustartPakete, startStand, zustandPakete, paketeSetzen, paketHinzu, grubSchreiben, type PaketStand } from './shell-pakete';
+import { startNachApt, initExec, startBefehle, startKern, startStarten, startVorKernel, startNachKernel, startProgramm, chrootVerlassen, zustandStart, startAktiv, type StartOptionen } from './shell-start';
 import { kernBefehle, kernBefehleRef, kernGrub, kernKern, kernNachApt, kernNeustart, kernProgramm, kernStarten, zustandKern, MODUL_ORT, type KernOptionen } from './shell-kernel';
 import { textBefehle } from './shell-text';
 import { SEITEN, EINGEBAUT_OHNE_SEITE, whatis, apropos } from './shell-man';
@@ -277,7 +278,7 @@ function modulPfad(name: string) {
   return `${ordner[name] ?? 'kernel/drivers/misc'}/${name.replace(/_/g, name === 'usb_storage' ? '-' : '_')}.ko`;
 }
 
-export interface WeltOptionen { kern?: KernOptionen; last?: LastOptionen; sicherheit?: SicherOptionen; netz?: NetzOptionen; dienste?: DienstOptionen; grafik?: 'x11' | 'wayland'; defaultTarget?: string; target?: string; ohne?: string[]; dateien?: Record<string, string>; prozesse?: Prozess[]; root?: boolean; distro?: 'debian' | 'alma' | 'suse'; virt?: string; host?: string; aptVeraltet?: boolean; geaendert?: string[]; pathStandard?: boolean; cwd?: string; rechte?: Record<string, string>; zeiten?: Record<string, number>; aliase?: Record<string, string>; extraProzesse?: Prozess[]; neuePlatte?: boolean | 'leer' | 'partitioniert' | 'formatiert'; kaputt?: string[]; }
+export interface WeltOptionen { start?: StartOptionen; kern?: KernOptionen; last?: LastOptionen; sicherheit?: SicherOptionen; netz?: NetzOptionen; dienste?: DienstOptionen; grafik?: 'x11' | 'wayland'; defaultTarget?: string; target?: string; ohne?: string[]; dateien?: Record<string, string>; prozesse?: Prozess[]; root?: boolean; distro?: 'debian' | 'alma' | 'suse'; virt?: string; host?: string; aptVeraltet?: boolean; geaendert?: string[]; pathStandard?: boolean; cwd?: string; rechte?: Record<string, string>; zeiten?: Record<string, number>; aliase?: Record<string, string>; extraProzesse?: Prozess[]; neuePlatte?: boolean | 'leer' | 'partitioniert' | 'formatiert'; kaputt?: string[]; }
 
 export function neueWelt(o: WeltOptionen = {}): Welt {
   const verfuegbar = Object.fromEntries(MODULE.map((x) => [x.name, x]));
@@ -323,6 +324,7 @@ export function neueWelt(o: WeltOptionen = {}): Welt {
   w.platten = startPlatten({ neuePlatte: o.neuePlatte }, START_UHR);
   START_FSTAB.set(w, w.fs['/etc/fstab'] ?? undefined);
   if (o.kern) kernStarten(w, o.kern);
+  if (o.start) startStarten(w, o.start);
   locateDbAnlegen(w);
   for (const d of o.kaputt ?? []) plattenKaputt(w, d);
   if (o.neuePlatte) { w.fs['/dev/sdb'] = ''; for (const p of w.platten.platten.find((x) => x.name === 'sdb')!.partitionen) w.fs['/dev/sdb' + p.nr] = ''; }
@@ -1065,7 +1067,7 @@ function wildcards(w: Welt, muster: string): string[] {
 // ---------- Befehlssuche über PATH ----------
 
 // Wo die Programme auf Debian 12 liegen (merged /usr: /bin -> usr/bin, /sbin -> usr/sbin)
-const SBIN = new Set(['mkfs', 'mkfs.ext2', 'mkfs.ext3', 'mkfs.ext4', 'mkfs.xfs', 'mkfs.vfat', 'mkfs.fat', 'mkfs.exfat', 'mkfs.btrfs', 'mke2fs', 'mkswap', 'swapoff', 'blkid', 'e2fsck', 'fsck.ext2', 'fsck.ext3', 'fsck.ext4', 'tune2fs', 'e2label', 'xfs_repair', 'xfs_fsr', 'xfs_db', 'xfs_admin', 'parted', 'gdisk', 'updatedb', 'chroot', 'fdisk', 'modprobe', 'insmod', 'rmmod', 'lsmod', 'modinfo', 'depmod', 'shutdown', 'reboot', 'poweroff', 'halt', 'telinit', 'init', 'runlevel', 'ldconfig', 'update-grub', 'grub-install', 'grub-mkconfig', 'swapon', 'swapoff', 'dpkg-reconfigure', 'sshd', 'mkfs', 'fsck', 'blkid', 'parted', 'useradd', 'usermod', 'userdel', 'groupadd', 'groupmod', 'groupdel', 'hwclock', 'rsyslogd', 'logrotate', 'sendmail', 'postsuper', 'lpadmin', 'cupsenable', 'cupsdisable', 'cupsaccept', 'cupsreject', 'lpinfo', 'ifconfig', 'route', 'ifup', 'ifdown', 'visudo', 'tcpdmatch', 'service', 'ethtool', 'sshd', 'iotop', 'iftop', 'iptraf-ng', 'sysctl', 'update-initramfs', 'mkinitramfs', 'dkms', 'installkernel']);
+const SBIN = new Set(['mkfs', 'mkfs.ext2', 'mkfs.ext3', 'mkfs.ext4', 'mkfs.xfs', 'mkfs.vfat', 'mkfs.fat', 'mkfs.exfat', 'mkfs.btrfs', 'mke2fs', 'mkswap', 'swapoff', 'blkid', 'e2fsck', 'fsck.ext2', 'fsck.ext3', 'fsck.ext4', 'tune2fs', 'e2label', 'xfs_repair', 'xfs_fsr', 'xfs_db', 'xfs_admin', 'parted', 'gdisk', 'updatedb', 'chroot', 'fdisk', 'modprobe', 'insmod', 'rmmod', 'lsmod', 'modinfo', 'depmod', 'shutdown', 'reboot', 'poweroff', 'halt', 'telinit', 'init', 'runlevel', 'ldconfig', 'update-grub', 'grub-install', 'grub-mkconfig', 'swapon', 'swapoff', 'dpkg-reconfigure', 'sshd', 'mkfs', 'fsck', 'blkid', 'parted', 'useradd', 'usermod', 'userdel', 'groupadd', 'groupmod', 'groupdel', 'hwclock', 'rsyslogd', 'logrotate', 'sendmail', 'postsuper', 'lpadmin', 'cupsenable', 'cupsdisable', 'cupsaccept', 'cupsreject', 'lpinfo', 'ifconfig', 'route', 'ifup', 'ifdown', 'visudo', 'tcpdmatch', 'service', 'ethtool', 'sshd', 'iotop', 'iftop', 'iptraf-ng', 'sysctl', 'update-initramfs', 'mkinitramfs', 'dkms', 'installkernel', 'update-rc.d', 'chkconfig']);
 const ROOT_PATH = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin';
 const AUCH_EXTERN = new Set(['echo', 'pwd', 'kill', 'true', 'false', 'printf', 'test', '[']);   // gibt es auch als Programm in /usr/bin
 const EIGENER_ORT: Record<string, string> = { 'apt-file': '/usr/bin' };
@@ -1254,6 +1256,7 @@ function pfadStarten(w: Welt, name: string, z: string, args: string[], stdin: st
   const basis = z.split('/').pop()!;
   if (c.startsWith(BIN_MARKE) && befehle[basis]) return befehle[basis](w, args, stdin, root);
   const kp = kernProgramm(w, z, args, root); if (kp) return kp;
+  const sp = startProgramm(w, z, args, root); if (sp) return sp;
   const prog = programmStarten(w, z);
   if (prog) return prog.code ? { out: '', err: prog.out, code: prog.code } : prog;
   if (c.startsWith('#!')) {
@@ -1607,6 +1610,7 @@ export function ausfuehren(w: Welt, zeile: string): Lauf {
   if (sk.fortsetzung !== undefined && !w.wartet && !w.vordergrund) { fortsetzungAlt = sk.fortsetzung; sk.fortsetzung = undefined; }
   if (w.vordergrund && !w.wartet) return { ausgabe: `(${w.vordergrund.cmd} läuft noch im Vordergrund. Drücke Strg+Z zum Anhalten oder Strg+C zum Abbrechen.)`, code: 0 };
   if (!roh.trim() && !w.wartet && fortsetzungAlt === undefined) return { ausgabe: meldungenAbholen(w), code: 0 };
+  if (w.aus === 'firmware' || w.aus === 'grub') return { ausgabe: `${w.aus === 'firmware' ? 'No bootable device found.' : 'GRUB wartet.'}\n\n(Mit "Neu starten" unter dem Terminal beginnt der Start von vorn.)`, code: 1 };
   if (w.aus === 'kernelfehler') return { ausgabe: `${(w as Welt & { kernelMeldung?: string }).kernelMeldung ?? 'Kernel panic'}\n\n(Der Start ist gescheitert. Mit "Neu starten" unter dem Terminal wählst du im GRUB-Menü den alten Kernel.)`, code: 1 };
   if (w.aus) return { ausgabe: `Das System ist ${w.aus === 'reboot' ? 'gerade beim Neustart' : 'heruntergefahren'}. Mit "Neu starten" unter dem Terminal geht es weiter.`, code: 1 };
   // Offene Rückfrage wie „Do you want to continue? [Y/n]“
@@ -1707,7 +1711,19 @@ export function neuStarten(w: Welt): string | undefined {
   w.env.SHLVL = '1';
   w.prozesse = w.prozesse.filter((p) => p.pid < 4000 && p.user !== 'max');
   benutzerBerechnen(w);
+  if (startAktiv(w)) {
+    const v = startVorKernel(w);
+    if (v?.startsWith('__WEITER__')) return v.slice(10);
+    if (w.aus || w.dialog) return v;
+    return [v, bootWeiter(w)].filter(Boolean).join('\n');
+  }
   return kernNeustart(w, START_GELADEN);
+}
+/** Teil des Starts nach dem Bootloader: Kernel, Module, dann Dienste und fstab. */
+function bootWeiter(w: Welt): string {
+  const k = kernNeustart(w, START_GELADEN);
+  if (w.aus) return k ?? '';
+  return [k, startNachKernel(w)].filter(Boolean).join('\n');
 }
 
 Object.assign(befehle, paketBefehle({ ok, fehler, optionen, pfad, schreiben }));
@@ -1808,10 +1824,20 @@ for (const n of ['apt', 'apt-get']) {
   befehle[n] = (w, a, i, r) => {
     const x = alt(w, a, i, r);
     // Mit Rückfrage [Y/n] wird erst nach der Antwort installiert
-    if (w.wartet) { const wt = w.wartet; const ak = wt.aktion; wt.aktion = () => { const y = ak(); const e = kernNachApt(w); return e ? { ...y, out: [y.out, e].filter(Boolean).join('\n') } : y; }; }
+    if (w.wartet) { const wt = w.wartet; const ak = wt.aktion; wt.aktion = () => { const y = ak(); startNachApt(w); const e = kernNachApt(w); return e ? { ...y, out: [y.out, e].filter(Boolean).join('\n') } : y; }; }
+    startNachApt(w);
     const extra = kernNachApt(w); return extra ? { ...x, out: [x.out, extra].filter(Boolean).join('\n') } : x;
   };
 }
+// Systemstart aus LPIC-2 Topic 202
+startKern({
+  pfad, dialog: (w, prompt, weiter) => { w.dialog = { prompt, eingabe: (z) => { w.dialog = null; return weiter(z); } }; },
+  vi: (w, p, nach) => { (w as Welt & { viNach?: unknown }).viNach = { pfad: p, nach }; return viStart(w, [p], true); },
+  weiterStarten: (w) => bootWeiter(w), grub: (w) => grubSchreiben(w), installieren: paketeSetzen,
+});
+Object.assign(befehle, startBefehle({ ...befehle }));
+{ const altExec = EINGEBAUT.exec; EINGEBAUT.exec = (w, a, i, r) => initExec(w, a) ?? altExec(w, a, i, r); }
+{ const altExit = EINGEBAUT.exit; EINGEBAUT.exit = (w, a, i, r) => chrootVerlassen(w) ?? altExit(w, a, i, r); }
 // /proc/modules wird aus dem Zustand der Module erzeugt
 befehle.cat = (w, a, i, r) => a.some((x) => pfad(w, x) === '/proc/modules') ? procCat(w, a, i, r) : textCat(w, a, i, r);
 // vi öffnet im Terminal den Editor. Die Komponente erkennt die Markierung und übernimmt die Tastatur.
@@ -1925,9 +1951,11 @@ export function zustandStimmt(w: Welt, z: string): boolean {
     const zz = zustandZeit(w, s); if (zz !== undefined) return zz;
     const zd = zustandDienste(w, s); if (zd !== undefined) return zd;
     const zn = zustandNetz(w, s); if (zn !== undefined) return zn;
+    const zst = zustandStart(w, s); if (zst !== undefined) return zst;
     const zs2 = zustandSicherheit(w, s); if (zs2 !== undefined) return zs2;
     const zl = zustandLast(w, s); if (zl !== undefined) return zl;
     const zk = zustandKern(w, s); if (zk !== undefined) return zk;
+    if ((m = s.match(/^neustarts>=(\d+)$/))) return w.verlauf.filter((v) => v.zeile === '#neustart').length >= Number(m[1]);
     if (s === 'neustart') return w.verlauf.some((v) => v.zeile === '#neustart');
     // ---- ab Topic 103 ----
     // vi:ohne = beendet, ohne zu speichern (mit oder ohne Änderungen)
@@ -1946,6 +1974,7 @@ export function zustandStimmt(w: Welt, z: string): boolean {
     if ((m = s.match(/^cwd=(.+)$/))) return w.cwd === m[1];
     if ((m = s.match(/^historie~(.+)$/))) { const re = new RegExp(m[1]); return w.historie.some((h) => re.test(h)); }
     if ((m = s.match(/^ausgabe~(.+)$/))) { const re = new RegExp(m[1], 'm'); return w.verlauf.some((v) => re.test(v.ausgabe)); }
+    if ((m = s.match(/^dialog~(.+)$/))) { const re = new RegExp(m[1]); return w.verlauf.some((v) => v.zeile.startsWith('#dialog ') && re.test(v.zeile.slice(8))); }
     if ((m = s.match(/^roh~(.+)$/))) { const re = new RegExp(m[1]); return w.verlauf.some((v) => v.zeile.startsWith('#roh ') && re.test(v.zeile.slice(5))); }
     if ((m = s.match(/^ohneVerlauf:(.+)$/))) return w.verlauf.some((v) => v.zeile === m![1]) && !w.historie.includes(m![1]);
     if (s === 'strg-z') return w.verlauf.some((v) => v.zeile === '#strg-z' && v.code === 148);

@@ -522,7 +522,7 @@ export function kernelImBoot(w: Welt): string[] {
 }
 function grubStartKernel(w: Welt): string {
   const cfg = w.fs['/boot/grub/grub.cfg'] ?? '';
-  const eintraege = [...cfg.matchAll(/menuentry '([^']*)'[^{]*\{\s*\n\s*linux\s+\/vmlinuz-(\S+)/g)].map((m) => ({ titel: m[1], v: m[2] }));
+  const eintraege = [...cfg.matchAll(/menuentry '([^']*)'[^{]*\{\s*\n\s*linux\s+(?:\/boot)?\/vmlinuz-(\S+)/g)].map((m) => ({ titel: m[1], v: m[2] }));
   if (!eintraege.length) return w.kernel;
   const def = (cfg.match(/set default="([^"]*)"/)?.[1] ?? '0');
   if (/^\d+$/.test(def)) return eintraege[0].v;
@@ -534,7 +534,7 @@ function grubStartKernel(w: Welt): string {
 export function kernNeustart(w: Welt, startGeladen: string[]): string | undefined {
   if (!kernAktiv(w)) return;
   const st = ks(w);
-  let v = st.fallback ?? grubStartKernel(w);
+  let v = st.fallback ?? (w as Welt & { startKernel?: string }).startKernel ?? grubStartKernel(w);
   const hinweis = st.fallback ? `Im GRUB-Menü hast du unter „Advanced options for Debian GNU/Linux“ den Kernel ${st.fallback} gewählt.` : '';
   st.fallback = null; st.fehlstart = null;
   if (!(`/boot/vmlinuz-${v}` in w.fs)) v = w.kernel;

@@ -1,0 +1,21 @@
+---
+id: l2-3-probe
+abzeichen: "Topic 202 bestanden"
+checks:
+  - id: probe
+---
+import Probe from '../components/Probe.astro';
+import Karte from '../components/Karte.astro';
+import Hinweis from '../components/Hinweis.astro';
+
+Topic 202 bringt in Prüfung 201 ungefähr **9 von 60 Fragen**, die meisten davon zu 202.2. **Deine Mission: Bestehe die Probe mit mindestens 80 %.**
+
+<Karte nr={1} titel="Was diese Probe mischt">
+Neben Topic 202 kommen Fragen aus LPIC-1, auf denen der Systemstart aufbaut: der Startvorgang (101.2), Runlevel und Targets (101.3), der Bootloader (102.2) und das Einhängen von Dateisystemen mit der fstab (104.3). Wer `systemctl isolate`, `grub-install` und die Felder der fstab aus LPIC-1 nicht mehr sicher kann, verliert hier Punkte.
+</Karte>
+
+<Hinweis titel="Zum Tempo">
+20 Fragen in 30 Minuten. Gemischt nach den Gewichten der Lernziele: etwa neun aus Topic 202, der Rest aus LPIC-1. Falsch beantwortete Fragen landen morgen in deiner Wiederholung.
+</Hinweis>
+
+<Probe id="probe" titel="Probeprüfung: Topic 202 mit Wiederholung aus LPIC-1" ziele={['202.1', '202.2', '202.3', '101.2', '101.3', '102.2', '104.3']} anzahl={20} />

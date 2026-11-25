@@ -1,0 +1,186 @@
+---
+id: l2-3-6
+checks:
+  - id: k1
+  - id: zuordnung
+  - id: k2
+  - id: luecke
+  - id: luecke2
+  - id: pxe
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "SYSLINUX-Familie"
+    v: "syslinux: FAT (USB-Stick) · extlinux: ext2/3/4, btrfs, XFS · isolinux: CD/DVD (ISO 9660) · pxelinux: Netz · Modul ldlinux.c32 immer dazu"
+  - t: "Konfiguration"
+    v: "syslinux.cfg · extlinux.conf · isolinux.cfg · pxelinux.cfg/default · DEFAULT, LABEL, KERNEL, APPEND initrd=…, TIMEOUT in 1/10 s"
+  - t: "PXE mit BIOS"
+    v: "DHCP: next-server + filename \"pxelinux.0\" · TFTP: pxelinux.0, ldlinux.c32, pxelinux.cfg/ (01-MAC, Hex-IP, default)"
+  - t: "PXE mit UEFI"
+    v: "DHCP: filename \"uefi/shim.efi\" (arch 00:07) · TFTP: uefi/shim.efi, uefi/grubx64.efi, grub.cfg · Secure Boot über shim"
+  - t: "ISO"
+    v: "isolinux.bin + isolinux.cfg (BIOS) · efiboot.img mit EFI/BOOT/BOOTX64.EFI (UEFI) · isohdpfx.bin als MBR = isohybrid, auch vom USB-Stick"
+  - t: "Weitere"
+    v: "systemd-boot: nur UEFI, /boot/efi/loader/loader.conf + entries/*.conf, bootctl · U-Boot: eingebettete Systeme, ARM, Konfig im Flash"
+karten:
+  - f: "Welcher Bootloader der SYSLINUX-Familie startet von ext4?"
+    a: ["extlinux"]
+  - f: "Welche Datei lädt ein BIOS-Client per TFTP zuerst, wenn PXELINUX benutzt wird?"
+    a: ["pxelinux.0"]
+  - f: "In welchem Verzeichnis sucht PXELINUX seine Konfiguration?"
+    a: ["pxelinux.cfg", "pxelinux.cfg/"]
+  - f: "Welche Datei sucht PXELINUX als Letztes, wenn es keine passende für MAC oder IP findet?"
+    a: ["default", "pxelinux.cfg/default"]
+  - f: "Welche zwei Dateien braucht ein UEFI-Client mit Secure Boot im TFTP-Verzeichnis?"
+    a: ["shim.efi und grubx64.efi", "uefi/shim.efi und uefi/grubx64.efi"]
+  - f: "Wozu dient isohdpfx.bin?"
+    a: ["als mbr für ein hybrides iso, das auch vom usb-stick startet", "mbr für isohybrid"]
+  - f: "Welche Datei im ISO enthält das FAT-Abbild für den Start per UEFI (Red Hat)?"
+    a: ["efiboot.img", "images/efiboot.img"]
+  - f: "Welcher Bootloader wird vor allem auf eingebetteten Systemen und ARM-Platinen eingesetzt?"
+    a: ["u-boot", "das u-boot"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Zuordnung from '../components/Zuordnung.astro';
+import Lueckentext from '../components/Lueckentext.astro';
+
+Im Labor kommen zehn neue Messrechner an, ohne Betriebssystem. Fünf sind alt und starten nur über BIOS, fünf sind neu und starten über UEFI mit Secure Boot. Statt zehnmal mit einem USB-Stick herumzulaufen, sollen alle über das Netz von srv1 starten. Außerdem braucht die Werkstatt ein eigenes Installationsabbild, das sowohl als DVD als auch vom USB-Stick startet. **Deine Mission: Lerne die Bootloader neben GRUB kennen, richte auf srv1 einen PXE-Server für BIOS und UEFI ein und bau ein hybrides ISO.** Lernziel 202.3.
+
+## Die SYSLINUX-Familie
+
+<Karte nr={1} titel="Ein Projekt, vier Bootloader">
+**SYSLINUX** ist ein Projekt mit mehreren kleinen Bootloadern, die sich dieselbe Konfigurationssprache und dieselben Module teilen:
+
+| Bootloader | startet von | installiert mit | Konfiguration |
+|---|---|---|---|
+| **syslinux** | FAT, also USB-Sticks und alte Disketten | `syslinux --install /dev/sdb1` | `syslinux.cfg` |
+| **extlinux** | ext2/3/4, btrfs, XFS | `extlinux --install /boot/extlinux` | `extlinux.conf` |
+| **isolinux** | CD und DVD (ISO 9660) | beim Bau des ISO: `isolinux.bin` | `isolinux.cfg` |
+| **pxelinux** | dem Netz, per TFTP | Datei `pxelinux.0` im TFTP-Verzeichnis | `pxelinux.cfg/` |
+
+Seit Version 5 braucht jeder von ihnen das Modul **ldlinux.c32** im selben Verzeichnis, Menüs kommen aus `menu.c32` oder `vesamenu.c32`. Eine Konfiguration sieht überall gleich aus:
+
+```
+DEFAULT install
+TIMEOUT 50
+LABEL install
+  KERNEL alma/vmlinuz
+  APPEND initrd=alma/initrd.img inst.repo=http://192.168.50.10/alma
+```
+
+`TIMEOUT` zählt in Zehntelsekunden, 50 sind also fünf Sekunden. `APPEND` enthält die Kernelparameter, die initramfs steht dort als `initrd=`.
+
+Ein **hybrides ISO** startet als DVD und, auf einen USB-Stick kopiert, auch von dort. Dafür bekommt es beim Bau `isohdpfx.bin` als MBR. Für UEFI kommt ein kleines FAT-Abbild hinein, das `EFI/BOOT/BOOTX64.EFI` enthält. Bei Red Hat heißt es **images/efiboot.img**.
+</Karte>
+
+<Merke>syslinux = FAT, extlinux = ext4, isolinux = CD, pxelinux = Netz. Alle brauchen ldlinux.c32. TIMEOUT in Zehntelsekunden. isohdpfx.bin macht ein ISO hybrid, efiboot.img macht es UEFI-fähig.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: SYSLINUX" fragen={[
+  { frage: 'Ein USB-Stick mit FAT32 soll mit einem Bootloader aus der SYSLINUX-Familie starten. Welchen nimmst du?', richtig: 'syslinux', falsch: ['extlinux', 'isolinux'], erklaerung: 'syslinux ist der für FAT. extlinux kennt FAT nicht, isolinux ist für ISO 9660.' },
+]} />
+
+## Starten über das Netz
+
+<Karte nr={2} titel="PXE für BIOS und UEFI">
+Ein Rechner mit **PXE** (Preboot Execution Environment) fragt beim Start per **DHCP** nach einer Adresse. Die Antwort enthält zwei Angaben für den Start: `next-server`, den TFTP-Server, und `filename`, die Datei, die er dort holen soll. Dann lädt er sie per **TFTP** und führt sie aus.
+
+**BIOS-Clients** bekommen `pxelinux.0`. PXELINUX sucht dann in `pxelinux.cfg/` der Reihe nach eine Datei für die UUID des Rechners, eine für seine MAC-Adresse (`01-3c-7c-3f-1a-2b-4d`), dann für seine IP-Adresse in Hex (`C0A83264`, dann immer kürzer bis `C`) und zuletzt **default**.
+
+**UEFI-Clients** können mit pxelinux.0 nichts anfangen. Sie bekommen eine EFI-Datei, bei Secure Boot den Stapel aus **shim.efi** und **grubx64.efi**: Die Firmware prüft shim (von Microsoft signiert), shim prüft GRUB (von der Distribution signiert). Beide liegen zum Beispiel in `uefi/` im TFTP-Verzeichnis, GRUB liest dann eine eigene `grub.cfg`. Bei Debian kommen die signierten Dateien aus den Paketen shim-signed (`shimx64.efi.signed`) und grub-efi-amd64-signed (`grubnetx64.efi.signed`, die Variante für das Netz).
+
+Welcher Client was braucht, verrät er im DHCP-Paket in der **Option 93** (Client System Architecture): `0` heißt BIOS, `7` heißt x86-64 UEFI. Im ISC-DHCP-Server lässt sich danach unterscheiden.
+</Karte>
+
+<Zuordnung id="zuordnung" titel="Zuordnung: Welche Datei für wen?" aufgabe="Ordne zu, wofür jede Datei gebraucht wird." paare={[
+  { links: 'pxelinux.0', rechts: 'BIOS-Client startet über das Netz' },
+  { links: 'uefi/shim.efi', rechts: 'UEFI-Client mit Secure Boot startet über das Netz' },
+  { links: 'isolinux.bin', rechts: 'BIOS startet von CD oder DVD' },
+  { links: 'efiboot.img', rechts: 'UEFI startet von CD oder DVD' },
+  { links: 'isohdpfx.bin', rechts: 'das ISO startet auch vom USB-Stick' },
+]} />
+
+<Quiz id="k2" titel="Kurzcheck: PXE" fragen={[
+  { frage: 'Ein UEFI-Client bekommt per DHCP filename "pxelinux.0" und startet nicht. Woran liegt das?', richtig: 'pxelinux.0 ist ein Programm für BIOS, UEFI braucht eine EFI-Datei wie shim.efi oder grubx64.efi.', falsch: ['UEFI kann kein TFTP.', 'Für UEFI muss die Datei pxelinux.efi heißen.'], erklaerung: 'Für UEFI gibt es syslinux.efi aus SYSLINUX oder den üblicheren Weg über shim und GRUB.' },
+]} />
+
+<Lueckentext id="luecke" titel="Lückentext: Der DHCP-Server unterscheidet" aufgabe="Ergänze /etc/dhcp/dhcpd.conf so, dass UEFI-Clients (Architektur 7) shim bekommen und alle anderen PXELINUX."
+  code={`option arch code 93 = unsigned integer 16;
+
+subnet 192.168.50.0 netmask 255.255.255.0 {
+    range 192.168.50.100 192.168.50.199;
+    ___ 192.168.50.10;
+    if option arch = 00:07 {
+      filename "uefi/___";
+    } else {
+      filename "___";
+    }
+}`}
+  luecken={[
+    { loesungen: ['next-server'] },
+    { loesungen: ['shim.efi'] },
+    { loesungen: ['pxelinux.0'] },
+  ]} />
+
+<Lueckentext id="luecke2" titel="Lückentext: pxelinux.cfg/default" aufgabe="Ergänze das Menü, das alle BIOS-Clients bekommen. Es soll nach fünf Sekunden von selbst installieren."
+  code={`___ install
+TIMEOUT ___
+LABEL install
+    ___ alma/vmlinuz
+    APPEND ___=alma/initrd.img inst.repo=http://192.168.50.10/alma`}
+  luecken={[
+    { loesungen: ['DEFAULT'] },
+    { loesungen: ['50'] },
+    { loesungen: ['KERNEL', 'LINUX'] },
+    { loesungen: ['initrd'] },
+  ]} />
+
+<Terminal id="pxe" titel="Terminal: srv1 wird PXE-Server" welt={{ start: { pxe: true } }} aufgaben={[
+  { text: 'Installiere den TFTP-Server, PXELINUX mit seinen Modulen und die signierten Dateien von shim und GRUB.', zustand: 'paket:tftpd-hpa=an && paket:pxelinux=an && paket:syslinux-common=an && paket:shim-signed=an && paket:grub-efi-amd64-signed=an' },
+  { text: 'Finde heraus, aus welchem Verzeichnis der TFTP-Server liefert.', befehl: '^(cat|less|grep .*) /etc/default/tftpd-hpa$', frage: 'Welches Verzeichnis ist es?', antwort: ['/srv/tftp', '/srv/tftp/'] },
+  { text: 'Lege für BIOS-Clients pxelinux.0 und ldlinux.c32 ins TFTP-Verzeichnis.', zustand: 'da:/srv/tftp/pxelinux.0 && da:/srv/tftp/ldlinux.c32' },
+  { text: 'Kopiere Kernel und initramfs für die Installation aus dem Abbild unter /srv/iso/images/pxeboot nach /srv/tftp/alma.', zustand: 'da:/srv/tftp/alma/vmlinuz && da:/srv/tftp/alma/initrd.img' },
+  { text: 'Schreib /srv/tftp/pxelinux.cfg/default mit einem Eintrag install, der alma/vmlinuz mit initrd=alma/initrd.img startet und Standard ist.', zustand: 'datei:/srv/tftp/pxelinux.cfg/default~^\\s*(KERNEL|LINUX|kernel|linux)\\s+/?alma/vmlinuz && datei:/srv/tftp/pxelinux.cfg/default~initrd=/?alma/initrd\\.img && datei:/srv/tftp/pxelinux.cfg/default~^(DEFAULT|default)\\s+install' },
+  { text: 'Lege für UEFI-Clients shim als uefi/shim.efi und die Netz-Variante von GRUB als uefi/grubx64.efi an.', zustand: 'da:/srv/tftp/uefi/shim.efi && da:/srv/tftp/uefi/grubx64.efi' },
+  { text: 'Trag im DHCP-Server die Datei für BIOS-Clients ein (pxelinux.0) und die für UEFI-Clients (uefi/shim.efi).', zustand: 'datei:/etc/dhcp/dhcpd.conf~filename\\s+"pxelinux\\.0" && datei:/etc/dhcp/dhcpd.conf~filename\\s+"uefi/shim\\.efi"' },
+  { text: 'Prüfe wie ein Client: Hol pxelinux.0 mit dem TFTP-Client von localhost (Paket tftp-hpa).', befehl: '^tftp (localhost|127\\.0\\.0\\.1|192\\.168\\.50\\.10|srv1) -c get /?pxelinux\\.0$' },
+  { text: 'Bau aus /srv/iso ein hybrides ISO /tmp/alma-labor.iso, das mit BIOS und UEFI von DVD und USB-Stick startet (Pakete xorriso und isolinux).', zustand: 'iso:/tmp/alma-labor.iso=hybrid' },
+]} />
+
+## Was es sonst noch gibt
+
+<Karte nr={3} titel="systemd-boot und U-Boot">
+**systemd-boot** (früher gummiboot) ist ein schlanker Bootmanager nur für UEFI. Er liegt auf der ESP und liest `loader/loader.conf` (Standardeintrag, Wartezeit) und je Eintrag eine Datei in `loader/entries/`, etwa:
+
+```
+title   Debian 12
+linux   /vmlinuz-6.1.0-27-amd64
+initrd  /initrd.img-6.1.0-27-amd64
+options root=UUID=3f1c0d6e-… ro quiet
+```
+
+Verwaltet wird er mit `bootctl install`, `bootctl status` und `bootctl list`. Kernel und initramfs müssen dafür auf der ESP liegen, weil systemd-boot nur FAT lesen kann.
+
+**U-Boot** (Das U-Boot) ist der übliche Bootloader auf eingebetteten Systemen und vielen ARM-Platinen. Er liegt meist im Flash-Speicher, kennt Befehle wie `bootz` und `tftpboot` und kann ebenfalls über das Netz starten. Seine Einstellungen stehen in Umgebungsvariablen, die man aus Linux mit `fw_printenv` liest.
+</Karte>
+
+<Labor id="labor" titel="Labor: Ein ISO untersuchen"
+  aufgabe="Lade auf srv1 ein Installationsabbild (zum Beispiel das netinst-ISO von Debian) und sieh nach, womit es startet. Füge die Ausgabe ein."
+  befehl={"sudo mount -o loop,ro debian-12-*-amd64-netinst.iso /mnt\nls /mnt /mnt/isolinux | head -20\nls /mnt/EFI/boot /mnt/boot/grub | head\nxorriso -indev debian-12-*-amd64-netinst.iso -report_el_torito plain 2>/dev/null | grep -i 'el-torito boot img'\nsudo umount /mnt"}
+  muster={["isolinux\\.bin", "[Bb][Oo][Oo][Tt][Xx]64\\.[Ee][Ff][Ii]", "[Ee]l.[Tt]orito boot img"]}
+  erfolg="Debian legt das FAT-Abbild für UEFI unter boot/grub/efi.img ab, Red Hat unter images/efiboot.img. Die beiden Boot-Abbilder für BIOS und UEFI stehen im El-Torito-Katalog." />
+
+<Hinweis titel="Prüfungstipp">
+202.3 hat nur Gewicht 2, ist aber voller Dateinamen: syslinux, extlinux, isolinux.bin, isolinux.cfg, isohdpfx.bin, efiboot.img, pxelinux.0, pxelinux.cfg/, uefi/shim.efi und uefi/grubx64.efi stehen wörtlich in den Lernzielen. systemd-boot und U-Boot musst du nur kennen. Im Entwurf 5.0 (201.4) fallen SYSLINUX und U-Boot weg, dafür kommen systemd-boot mit bootctl und loader.conf sowie iPXE hinzu.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Nur der Rechner mit der MAC-Adresse 3c:7c:3f:1a:2b:4d soll ein eigenes Menü bekommen. Wie muss die Datei in pxelinux.cfg/ heißen?', richtig: '01-3c-7c-3f-1a-2b-4d', falsch: ['3c:7c:3f:1a:2b:4d.cfg', 'default-3c7c3f1a2b4d'], erklaerung: '01 ist der ARP-Typ für Ethernet, die Bytes stehen klein geschrieben mit Bindestrichen. Findet PXELINUX keine Datei für UUID, MAC oder IP, nimmt es default.' },
+  { frage: 'Wozu braucht ein UEFI-Client mit Secure Boot shim.efi, wenn grubx64.efi auch über das Netz kommt?', richtig: 'Die Firmware vertraut nur Microsofts Schlüssel. shim ist damit signiert und prüft dann das von der Distribution signierte GRUB.', falsch: ['shim.efi lädt die Treiber für die Netzwerkkarte.', 'grubx64.efi läuft nur nach einem DHCP-Paket von shim.'], erklaerung: 'shim enthält den Schlüssel der Distribution. So muss nicht jede GRUB-Version von Microsoft signiert werden.' },
+  { frage: 'Welche Aussage über systemd-boot stimmt?', richtig: 'Es startet nur über UEFI und braucht Kernel und initramfs auf der ESP.', falsch: ['Es ersetzt GRUB auch auf BIOS-Rechnern.', 'Es liest seine Einträge aus /etc/default/grub.'], erklaerung: 'systemd-boot liest nur FAT. Die Einträge stehen in loader/entries/ auf der ESP.' },
+]} />

@@ -1,0 +1,139 @@
+---
+id: l2-3-3
+checks:
+  - id: k1
+  - id: zuordnung
+  - id: k2
+  - id: luecke
+  - id: firmware
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "BIOS + MBR"
+    v: "Sektor 0: 446 Byte Startcode · 64 Byte Partitionstabelle · 2 Byte 55 AA · GRUB-Kern dahinter (bis Sektor 2047) oder in der BIOS-Boot-Partition (GPT)"
+  - t: "UEFI + GPT"
+    v: "ESP: FAT32, Typ EF00, meist /boot/efi · Bootloader als Datei \\EFI\\NAME\\grubx64.efi · Ersatz \\EFI\\BOOT\\BOOTX64.EFI · Einträge im NVRAM"
+  - t: "efibootmgr"
+    v: "-v zeigt Pfade · -o 0000,0002 Reihenfolge · -n 0002 einmalig · -c -d /dev/nvme0n1 -p 1 -L Name -l '\\EFI\\x\\y.efi' · -b 0003 -B löschen"
+  - t: "Prüfen"
+    v: "ls /sys/firmware/efi (gibt es nur bei UEFI) · lsblk · findmnt /boot/efi · fdisk -l zeigt gpt oder dos"
+  - t: "GRUB"
+    v: "Legacy: /boot/grub/menu.lst, von Hand · GRUB 2: /etc/default/grub + /etc/grub.d/ → update-grub/grub-mkconfig → /boot/grub/grub.cfg"
+  - t: "NVMe"
+    v: "/dev/nvme0n1 = Controller 0, Namespace 1 · Partition p1 · Start in der Regel über UEFI"
+karten:
+  - f: "Wie groß ist der Bereich für Startcode im MBR?"
+    a: ["446 byte", "446"]
+  - f: "Welches Dateisystem hat die EFI-Systempartition?"
+    a: ["fat32", "vfat", "fat"]
+  - f: "Wo liegt der Ersatz-Bootloader, den UEFI ohne NVRAM-Eintrag startet?"
+    a: ["\\efi\\boot\\bootx64.efi", "/efi/boot/bootx64.efi", "efi/boot/bootx64.efi"]
+  - f: "Wie stellst du mit efibootmgr ein, dass nur der nächste Start von Eintrag 0002 erfolgt?"
+    a: ["efibootmgr -n 0002", "efibootmgr --bootnext 0002"]
+  - f: "Woran erkennst du in einem laufenden Linux, dass es über UEFI gestartet wurde?"
+    a: ["es gibt /sys/firmware/efi", "/sys/firmware/efi"]
+  - f: "Wie heißt die Konfigurationsdatei von GRUB Legacy?"
+    a: ["/boot/grub/menu.lst", "menu.lst"]
+  - f: "Welche Datei liest GRUB 2 beim Start, und wie wird sie erzeugt?"
+    a: ["/boot/grub/grub.cfg, mit grub-mkconfig oder update-grub", "grub.cfg mit update-grub"]
+  - f: "Wofür steht n1 in /dev/nvme0n1?"
+    a: ["namespace 1", "den ersten namespace"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Zuordnung from '../components/Zuordnung.astro';
+import Lueckentext from '../components/Lueckentext.astro';
+
+werkstatt hängt seit dem Wochenende jeden Morgen eine Minute lang fest, weil er zuerst versucht, über das Netz zu starten. Dann startet er doch noch Debian. **Deine Mission: Verstehe, was zwischen Einschalten und Kernel passiert, finde ESP und Bootloader auf werkstatt und bring die Startreihenfolge im NVRAM mit efibootmgr in Ordnung.** Lernziel 202.2.
+
+## Vom Einschalten zum Bootloader
+
+<Karte nr={1} titel="BIOS mit MBR, UEFI mit ESP">
+**BIOS** lädt den ersten Sektor der Startplatte, den **MBR** (512 Byte), und springt hinein. Der MBR enthält 446 Byte Startcode, 64 Byte Partitionstabelle (vier Einträge zu je 16 Byte) und am Ende die Signatur `55 AA`. 446 Byte reichen für keinen ganzen Bootloader. Deshalb legt GRUB seinen Kern (`core.img`) in die Lücke hinter dem MBR, bei einer GPT-Platte in eine kleine **BIOS-Boot-Partition**. Dieser Kern liest dann `/boot/grub`.
+
+**UEFI** kann selbst FAT-Dateisysteme lesen. Es sucht die **EFI-Systempartition (ESP)**: FAT32, GPT-Typ `EF00`, unter Linux meist nach **/boot/efi** eingehängt. Bootloader sind dort normale Programme mit der Endung `.efi`, etwa `\EFI\debian\grubx64.efi`. Welches davon startet, steht in **Einträgen im NVRAM** der Hauptplatine (Boot0000, Boot0001 …) und in der Variablen **BootOrder**. Fehlen die Einträge, nimmt UEFI den Ersatzpfad `\EFI\BOOT\BOOTX64.EFI`. Mit **Secure Boot** startet zuerst `shimx64.efi`, das von Microsoft signiert ist und dann das von Debian signierte `grubx64.efi` prüft und lädt.
+
+Die **UEFI-Shell** ist eine kleine Kommandozeile der Firmware. Dort wechselst du mit `fs0:` auf die ESP, listest mit `ls` und startest einen Bootloader, indem du seinen Pfad eingibst: `\EFI\debian\grubx64.efi`.
+
+**NVMe**-SSDs heißen unter Linux `/dev/nvme0n1`: Controller 0, Namespace 1, Partitionen mit `p`, also `nvme0n1p1`. Ein altes BIOS kennt NVMe meist nicht, der Start von NVMe läuft daher praktisch immer über UEFI.
+</Karte>
+
+<Merke>BIOS liest den MBR (446 + 64 + 2 Byte). UEFI liest Dateien von der ESP (FAT32, /boot/efi) und merkt sich im NVRAM, welche. Ohne Eintrag gilt \EFI\BOOT\BOOTX64.EFI.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: Firmware" fragen={[
+  { frage: 'Auf einem Rechner fehlt /sys/firmware/efi. Was folgt daraus?', richtig: 'Er wurde über BIOS (oder den CSM-Modus von UEFI) gestartet, efibootmgr kann hier nichts ändern.', falsch: ['Die ESP ist nicht eingehängt.', 'Secure Boot ist ausgeschaltet.'], erklaerung: 'Der Kernel legt /sys/firmware/efi nur an, wenn UEFI ihn gestartet hat. Die ESP ist dafür unerheblich.' },
+]} />
+
+## GRUB Legacy und GRUB 2
+
+<Karte nr={2} titel="Was in /boot liegt">
+| Datei | Zweck |
+|---|---|
+| `/boot/vmlinuz-VERSION` | der Kernel |
+| `/boot/initrd.img-VERSION` (Red Hat: `initramfs-VERSION.img`) | die initramfs |
+| `/boot/config-VERSION`, `/boot/System.map-VERSION` | Konfiguration und Symboltabelle des Kernels |
+| `/boot/grub/grub.cfg` | das Menü von GRUB 2 (Red Hat mit UEFI: `/boot/efi/EFI/almalinux/grub.cfg` oder `/boot/grub2/grub.cfg`) |
+| `/boot/grub/x86_64-efi/*.mod`, `i386-pc/*.mod` | Module, die GRUB bei Bedarf lädt |
+| `/boot/grub/grubenv` | gespeicherte Variablen, etwa der zuletzt gewählte Eintrag |
+| `/boot/efi/EFI/debian/` | shimx64.efi, grubx64.efi und eine kleine grub.cfg, die auf /boot/grub verweist |
+
+**GRUB Legacy** (Version 0.97) las `/boot/grub/menu.lst` (Red Hat: `grub.conf`), die man von Hand pflegte. Es zählte Platten und Partitionen ab 0: `root (hd0,0)` ist die erste Partition der ersten Platte.
+
+**GRUB 2** zählt Platten ab 0, Partitionen aber ab 1: `(hd0,gpt1)` oder `(hd0,msdos1)`. Seine `grub.cfg` schreibt man nicht von Hand. Man ändert `/etc/default/grub` und die Skripte in `/etc/grub.d/` und lässt `grub-mkconfig -o /boot/grub/grub.cfg` laufen (Debian: `update-grub`, Red Hat: `grub2-mkconfig`). Installiert wird der Bootloader mit `grub-install`: bei BIOS auf die Platte (`grub-install /dev/sda`), bei UEFI in die ESP (`grub-install --target=x86_64-efi --efi-directory=/boot/efi`), das dann auch den NVRAM-Eintrag anlegt.
+</Karte>
+
+<Zuordnung id="zuordnung" titel="Zuordnung: Wo liegt was?" aufgabe="Ordne jedem Inhalt den Ort zu." paare={[
+  { links: 'Startcode und Partitionstabelle einer BIOS-Platte', rechts: 'MBR, Sektor 0' },
+  { links: 'Einträge und Reihenfolge der UEFI-Bootloader', rechts: 'NVRAM der Hauptplatine' },
+  { links: 'grubx64.efi und shimx64.efi', rechts: '/boot/efi/EFI/debian/' },
+  { links: 'Das Menü von GRUB 2', rechts: '/boot/grub/grub.cfg' },
+  { links: 'Das Menü von GRUB Legacy', rechts: '/boot/grub/menu.lst' },
+]} />
+
+<Quiz id="k2" titel="Kurzcheck: GRUB" fragen={[
+  { frage: 'Welche Partition meint GRUB 2 mit (hd0,gpt2)?', richtig: 'Die zweite Partition der ersten Platte.', falsch: ['Die dritte Partition der ersten Platte.', 'Die zweite Partition der zweiten Platte.'], erklaerung: 'GRUB 2 zählt Platten ab 0 und Partitionen ab 1. GRUB Legacy zählte beides ab 0.' },
+]} />
+
+<Lueckentext id="luecke" titel="Lückentext: Einträge im NVRAM" aufgabe="Ergänze die Befehle: zuerst die Pfade aller Einträge zeigen, dann einen Eintrag für grubx64.efi auf der ersten Partition anlegen und ihn an den Anfang setzen."
+  code={`$ sudo efibootmgr ___
+$ sudo efibootmgr -c -d /dev/nvme0n1 -p ___ -L "debian ohne shim" \\
+        -l '\\EFI\\debian\\___'
+$ sudo efibootmgr ___ 0003,0000,0002,0001`}
+  luecken={[
+    { loesungen: ['-v', '--verbose'] },
+    { loesungen: ['1'] },
+    { loesungen: ['grubx64.efi'] },
+    { loesungen: ['-o', '--bootorder'] },
+  ]} />
+
+<Terminal id="firmware" titel="Terminal: werkstatt sucht im Netz" welt={{ start: { pxeZuerst: true } }} aufgaben={[
+  { text: 'Prüfe, ob werkstatt über UEFI gestartet ist.', befehl: '^ls( -\\w+)? /sys/firmware/efi/?$|^\\[ -d /sys/firmware/efi \\]|^test -d /sys/firmware/efi$|^efibootmgr$', frage: 'UEFI? (ja/nein)', antwort: ['ja'] },
+  { text: 'Finde die ESP.', befehl: '^(lsblk.*|findmnt.*|df.*|mount|sudo fdisk -l.*|fdisk -l.*)$', frage: 'Auf welcher Partition liegt sie?', antwort: ['/dev/nvme0n1p1', 'nvme0n1p1'] },
+  { text: 'Lass dir die Einträge im NVRAM mit Pfaden zeigen.', befehl: '^efibootmgr (-v|--verbose)$', frage: 'Welche Datei startet der Eintrag debian?', antwort: ['shimx64.efi', '\\EFI\\debian\\shimx64.efi'] },
+  { text: 'Schau dir das Verzeichnis von Debian auf der ESP an.', befehl: '^ls( -\\w+)? /boot/efi/EFI/debian/?$|^ls -R /boot/efi/?$', frage: 'Wie heißt GRUB selbst dort?', antwort: ['grubx64.efi'] },
+  { text: 'Lege einen Eintrag „debian ohne shim“ an, der direkt grubx64.efi von nvme0n1p1 startet.', zustand: 'efi:eintrag~grubx64\\.efi' },
+  { text: 'Sorge dafür, dass werkstatt wieder zuerst Debian (den Eintrag debian mit shim) startet.', zustand: 'efi:erster=debian' },
+  { text: 'Für ein Update der Firmware soll werkstatt beim nächsten Start einmalig vom USB-Stick starten, danach wieder wie gewohnt.', zustand: 'efi:next=UEFI: SanDisk Ultra Fit && efi:erster=debian' },
+  { text: 'Wirf einen Blick in /boot.', befehl: '^ls( -\\w+)? /boot/?$', frage: 'Welche Kernelversion ist die neuere?', antwort: ['6.1.0-27-amd64', '6.1.0-27'] },
+]} />
+
+<Labor id="labor" titel="Labor: Firmware von srv1"
+  aufgabe="Prüfe auf srv1, wie er startet. Füge die Ausgabe ein. Wenn /sys/firmware/efi fehlt, startet srv1 über BIOS, dann schreib das Ergebnis von fdisk mit dazu."
+  befehl={"ls /sys/firmware/efi 2>&1 | head -2\nsudo efibootmgr -v 2>&1 | head -5\nlsblk -o NAME,FSTYPE,PARTTYPENAME,MOUNTPOINTS\nsudo fdisk -l | grep -i bezeichnungstyp"}
+  muster={["NAME", "(BootOrder|EFI variables are not supported|nicht möglich|No such file)", "(gpt|dos)"]}
+  erfolg="Eine VM läuft häufig mit BIOS-Emulation (SeaBIOS) und MBR. Dann gibt es keine ESP, und GRUB steckt im MBR." />
+
+<Hinweis titel="Prüfungstipp">
+202.2 verlangt BIOS und UEFI, NVMe, GRUB Legacy und 2, die Installationsorte und efibootmgr. Gefragt wird gern nach dem Inhalt von /boot und /boot/efi und danach, warum GRUB auf einer GPT-Platte mit BIOS eine eigene kleine Partition braucht. Der Entwurf 5.0 (201.4) nennt zusätzlich GPT und efivar ausdrücklich.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Nach einem Firmware-Update startet ein Rechner nicht mehr. In der UEFI-Shell findest du \\EFI\\debian\\grubx64.efi auf fs0:. Was hilft dauerhaft?', richtig: 'grubx64.efi aus der Shell starten, Linux booten und mit efibootmgr -c oder grub-install den NVRAM-Eintrag neu anlegen.', falsch: ['GRUB neu in den MBR schreiben.', 'Die ESP mit mkfs.vfat neu formatieren.'], erklaerung: 'Das Update hat die Einträge im NVRAM gelöscht. Die Dateien auf der ESP sind noch da.' },
+  { frage: 'Warum braucht GRUB auf einer GPT-Platte mit BIOS eine BIOS-Boot-Partition?', richtig: 'Hinter dem schützenden MBR folgt bei GPT direkt die Partitionstabelle, es gibt keine freie Lücke für core.img.', falsch: ['BIOS kann GPT-Partitionen nur mit FAT lesen.', 'GPT hat keinen MBR.'], erklaerung: 'GPT legt einen schützenden MBR (Protective MBR) an. GRUB schreibt seinen Kern in die BIOS-Boot-Partition (Typ EF02).' },
+  { frage: 'Welche Aussage über efibootmgr -n 0002 stimmt?', richtig: 'Nur der nächste Start nutzt Eintrag 0002, die BootOrder bleibt unverändert.', falsch: ['Eintrag 0002 wird an den Anfang der BootOrder gesetzt.', 'Eintrag 0002 wird für den nächsten Start ausgeschaltet.'], erklaerung: 'Die Firmware löscht BootNext nach dem Start wieder.' },
+]} />

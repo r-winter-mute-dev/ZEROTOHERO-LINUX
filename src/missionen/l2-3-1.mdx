@@ -1,0 +1,155 @@
+---
+id: l2-3-1
+checks:
+  - id: k1
+  - id: zuordnung
+  - id: k2
+  - id: luecke
+  - id: altserver
+  - id: alma
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "/etc/inittab"
+    v: "Kennung:Runlevel:Aktion:Befehl · initdefault · sysinit · wait · respawn · ctrlaltdel · once · telinit q liest neu"
+  - t: "Runlevel"
+    v: "0 aus · 1/S Einzelbenutzer · 2–5 Mehrbenutzer (Debian alle gleich, Red Hat 3 Text, 5 Grafik) · 6 Neustart · runlevel · telinit N"
+  - t: "Skripte"
+    v: "/etc/init.d/NAME start|stop|restart|status · service NAME start · /etc/rcN.d/S20name, K80name → ../init.d/name"
+  - t: "Debian"
+    v: "update-rc.d NAME defaults · disable [N] · enable [N] · -f NAME remove · liest die LSB-Kopfzeilen"
+  - t: "Red Hat"
+    v: "chkconfig --list [NAME] · --add NAME · --level 35 NAME on · NAME off · Kopfzeile: # chkconfig: 2345 90 10"
+  - t: "LSB-Kopf"
+    v: "### BEGIN INIT INFO · Provides · Required-Start · Required-Stop · Default-Start · Default-Stop · ### END INIT INFO"
+karten:
+  - f: "Aus welchen vier Feldern besteht eine Zeile der /etc/inittab?"
+    a: ["kennung, runlevel, aktion, befehl", "id:runlevels:action:process"]
+  - f: "Welche Aktion in der inittab startet ein Programm neu, sobald es endet?"
+    a: ["respawn"]
+  - f: "Wie liest init eine geänderte /etc/inittab ein?"
+    a: ["telinit q", "init q"]
+  - f: "Was bedeutet der Link /etc/rc3.d/K01messd?"
+    a: ["beim wechsel in runlevel 3 wird messd gestoppt", "in runlevel 3 wird messd mit stop aufgerufen"]
+  - f: "Mit welchem Befehl legst du auf Debian die rc-Links für ein Skript an?"
+    a: ["update-rc.d name defaults", "update-rc.d"]
+  - f: "Mit welchem Befehl schaltest du auf Red Hat einen SysV-Dienst für die Runlevel 3 und 5 ein?"
+    a: ["chkconfig --level 35 name on", "chkconfig --level 35"]
+  - f: "Wofür steht LSB?"
+    a: ["linux standard base"]
+  - f: "Welche LSB-Kopfzeile nennt die Runlevel, in denen ein Dienst startet?"
+    a: ["default-start"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Zuordnung from '../components/Zuordnung.astro';
+import Lueckentext from '../components/Lueckentext.astro';
+
+In der Halle steht altserver, ein alter Debian-Rechner, der noch mit dem klassischen SysV-init startet. Auf ihm soll der Messdienst messd laufen, und auf einem AlmaLinux-Rechner liegt dasselbe Programm als altes Startskript. **Deine Mission: Verstehe, wie SysV-init einen Rechner startet, richte messd mit update-rc.d und chkconfig ein und lass init einen Wächter neu starten, wenn er abstürzt.** Lernziel 202.1.
+
+## init, inittab und Runlevel
+
+<Karte nr={1} titel="Wie SysV-init startet">
+Bei SysV-init ist **init** der erste Prozess (PID 1). Er liest **/etc/inittab**. Jede Zeile hat vier Felder: `Kennung:Runlevel:Aktion:Befehl`.
+
+| Aktion | Bedeutung |
+|---|---|
+| `initdefault` | der Standard-Runlevel, etwa `id:2:initdefault:` |
+| `sysinit` | einmal beim Start vor allem anderen, auf Debian `/etc/init.d/rcS` |
+| `wait` | beim Wechsel in den Runlevel ausführen und warten, etwa `/etc/init.d/rc 2` |
+| `respawn` | starten und neu starten, sobald es endet, etwa die Anmeldung `getty` |
+| `ctrlaltdel` | was bei Strg+Alt+Entf passiert |
+| `once` | einmal beim Wechsel in den Runlevel, ohne zu warten |
+
+Die **Runlevel**: 0 heißt aus, 1 (oder S) Einzelbenutzer, 6 Neustart. Bei 2 bis 5 unterscheiden sich die Distributionen: Debian behandelt 2 bis 5 gleich und startet in 2, Red Hat nutzte 3 für den Textbetrieb und 5 mit grafischer Anmeldung. `runlevel` zeigt den vorigen und den aktuellen Runlevel, `telinit 3` (oder `init 3`) wechselt. Nach einer Änderung an der inittab liest **telinit q** sie neu ein.
+</Karte>
+
+<Merke>inittab: Kennung:Runlevel:Aktion:Befehl. initdefault = Standard, respawn = immer wieder starten. runlevel zeigt, telinit N wechselt, telinit q liest die inittab neu.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: inittab" fragen={[
+  { frage: 'Was bewirkt die Zeile „3:23:respawn:/sbin/getty 38400 tty3“?', richtig: 'In den Runleveln 2 und 3 läuft auf tty3 eine Anmeldung, die nach jedem Abmelden neu startet.', falsch: ['In Runlevel 23 startet getty auf tty3 genau einmal.', 'getty startet nach 3 Sekunden auf tty23 neu.'], erklaerung: 'Das zweite Feld nennt alle Runlevel, in denen die Zeile gilt, ohne Trennzeichen.' },
+]} />
+
+## Skripte und Verknüpfungen
+
+<Karte nr={2} titel="/etc/init.d, rcN.d und die LSB-Kopfzeilen">
+Jeder Dienst hat ein Skript in **/etc/init.d/** (Red Hat: `/etc/rc.d/init.d/`), das `start`, `stop`, `restart` und `status` versteht: `/etc/init.d/messd start` oder kürzer `service messd start`.
+
+Welche Skripte in welchem Runlevel laufen, legen Verknüpfungen in **/etc/rcN.d/** fest, zum Beispiel `/etc/rc2.d/S02messd → ../init.d/messd`. Beim Wechsel in einen Runlevel ruft `/etc/init.d/rc` erst alle **K**-Links mit `stop` auf, dann alle **S**-Links mit `start`, jeweils in der Reihenfolge der Zahl.
+
+Diese Links legt man nicht von Hand an:
+
+- **Debian:** `update-rc.d messd defaults` liest die **LSB-Kopfzeilen** im Skript und legt die Links an. `update-rc.d messd disable 3` macht aus dem S-Link in Runlevel 3 einen K-Link, `enable` dreht das um. `update-rc.d -f messd remove` löscht alle Links, ohne -f nur, wenn das Skript schon weg ist.
+- **Red Hat:** `chkconfig --add messd` liest die Zeile `# chkconfig: 2345 90 10` (Runlevel, Start- und Stoppnummer). `chkconfig --list messd` zeigt den Stand, `chkconfig --level 35 messd on` schaltet einzelne Runlevel.
+
+Die LSB-Kopfzeilen stammen aus der **Linux Standard Base**, einem Standard, der Distributionen einheitlicher machen sollte. Der Kopf beschreibt, was ein Skript bereitstellt (`Provides`), was vorher laufen muss (`Required-Start`) und in welchen Runleveln es startet und stoppt (`Default-Start`, `Default-Stop`). Daraus berechnet Debian die Reihenfolge, und systemd macht aus solchen Skripten automatisch Units (systemd-sysv-generator).
+</Karte>
+
+<Zuordnung id="zuordnung" titel="Zuordnung: Wer macht was?" aufgabe="Ordne jeder Aufgabe den passenden Befehl zu." paare={[
+  { links: 'Links aus den LSB-Kopfzeilen anlegen (Debian)', rechts: 'update-rc.d messd defaults' },
+  { links: 'SysV-Dienst für Runlevel 3 und 5 einschalten (Red Hat)', rechts: 'chkconfig --level 35 messd on' },
+  { links: 'Geänderte inittab einlesen', rechts: 'telinit q' },
+  { links: 'Dienst jetzt starten', rechts: 'service messd start' },
+  { links: 'Vorigen und aktuellen Runlevel zeigen', rechts: 'runlevel' },
+]} />
+
+<Quiz id="k2" titel="Kurzcheck: Links" fragen={[
+  { frage: 'In /etc/rc2.d stehen S01rsyslog, S02cron und S02ssh. Was passiert beim Wechsel in Runlevel 2?', richtig: 'rsyslog startet zuerst, danach cron und ssh.', falsch: ['Alle drei werden gestoppt.', 'Die Reihenfolge ist zufällig, die Zahlen sind nur Kennungen.'], erklaerung: 'S = start, K = kill (stop). Die Zahl bestimmt die Reihenfolge.' },
+]} />
+
+<Lueckentext id="luecke" titel="Lückentext: Der LSB-Kopf" aufgabe="Ergänze den Kopf eines Startskripts für messd, das nach dem Netz startet und in den Runleveln 2 bis 5 läuft."
+  code={`### BEGIN INIT INFO
+# ___:          messd
+# Required-Start:    $remote_fs $syslog $network
+# Required-Stop:     $remote_fs $syslog $network
+# ___:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Messdienst
+### END INIT INFO
+
+$ sudo update-rc.d messd ___`}
+  luecken={[
+    { loesungen: ['Provides'] },
+    { loesungen: ['Default-Start'] },
+    { loesungen: ['defaults'] },
+  ]} />
+
+<Terminal id="altserver" titel="Terminal: altserver mit SysV-init" welt={{ start: { sysv: 'debian' } }} aufgaben={[
+  { text: 'Finde heraus, in welchem Runlevel altserver läuft.', befehl: '^runlevel$|^who -r$', frage: 'Welcher Runlevel ist aktiv?', antwort: ['2'] },
+  { text: 'Lies die /etc/inittab.', befehl: '^(cat|less|grep .*) /etc/inittab$', frage: 'Welche Aktion sorgt dafür, dass getty nach dem Abmelden neu startet?', antwort: ['respawn'] },
+  { text: 'Schau dir die Links für Runlevel 2 an.', befehl: '^ls( -\\w+)? /etc/rc2\\.d/?$', frage: 'Welcher Dienst startet als erster?', antwort: ['rsyslog'] },
+  { text: 'Lass Debian die Links für messd aus dessen LSB-Kopf anlegen.', zustand: 'da:/etc/rc2.d/S02messd && da:/etc/rc0.d/K01messd' },
+  { text: 'Starte messd jetzt.', zustand: 'sysvlauf:messd=an' },
+  { text: 'In Runlevel 3 soll messd nicht laufen. Ändere nur Runlevel 3.', zustand: 'da:/etc/rc3.d/K01messd && fehlt:/etc/rc3.d/S02messd && da:/etc/rc2.d/S02messd' },
+  { text: 'Wechsle in Runlevel 3.', zustand: 'rl=3 && sysvlauf:messd=aus' },
+  { text: 'Lass init einen Wächter führen: eine Zeile mit der Kennung mw, gültig in 2345, Aktion respawn, Befehl /usr/sbin/messd --vordergrund. Lies die inittab danach neu ein.', zustand: 'datei:/etc/inittab~^mw:2345:respawn:/usr/sbin/messd --vordergrund && laeuft:messd --vordergrund' },
+]} />
+
+<Terminal id="alma" titel="Terminal: Ein altes Startskript auf AlmaLinux" welt={{ distro: 'alma', start: { sysv: 'chkconfig' } }} aufgaben={[
+  { text: 'Lies den Kopf des Skripts /etc/rc.d/init.d/messd.', befehl: '^(cat|head( -n ?\\d+)?|less) /etc/(rc\\.d/)?init\\.d/messd$', frage: 'Mit welcher Nummer startet es? (zweite Zahl der chkconfig-Zeile)', antwort: ['90'] },
+  { text: 'Nimm messd in die Verwaltung von chkconfig auf.', zustand: 'da:/etc/rc.d/rc3.d/S90messd' },
+  { text: 'Lass dir den Stand von messd zeigen.', befehl: '^chkconfig --list messd$|^chkconfig --list$', frage: 'Ist messd in Runlevel 1 eingeschaltet? (ja/nein)', antwort: ['nein'] },
+  { text: 'Schalte messd für die Runlevel 3 und 5 aus, die anderen bleiben.', zustand: 'da:/etc/rc.d/rc3.d/K10messd && da:/etc/rc.d/rc5.d/K10messd && da:/etc/rc.d/rc2.d/S90messd' },
+  { text: 'Frag systemd nach messd.', befehl: '^systemctl status messd(\\.service)?$', auchFehler: true, frage: 'Wer hat die Unit erzeugt? (Text in Klammern hinter dem Pfad)', antwort: ['generated'] },
+]} />
+
+<Labor id="labor" titel="Labor: Die Reste von SysV auf srv1"
+  aufgabe="Schau auf srv1 nach, was von SysV-init übrig ist und wie systemd die Runlevel abbildet. Füge die Ausgabe ein."
+  befehl={"runlevel\nls /etc/init.d | head\nls -l /usr/lib/systemd/system/runlevel*.target\nhead -12 /etc/init.d/cron"}
+  muster={["^N \\d", "runlevel\\d\\.target ->", "BEGIN INIT INFO"]}
+  erfolg="runlevel3.target zeigt auf multi-user.target, runlevel5.target auf graphical.target. Die Skripte in /etc/init.d tragen weiter ihre LSB-Köpfe, auch wenn systemd startet." />
+
+<Hinweis titel="Prüfungstipp">
+Gefragt werden der Aufbau der inittab, update-rc.d (Debian) und chkconfig (Red Hat), die Bedeutung von S- und K-Links und init und telinit. Im Entwurf 5.0 bleibt SysV-init nur noch als „Awareness“ in 201.2, zusammen mit OpenRC.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Du hast in /etc/inittab eine respawn-Zeile ergänzt. Was ist nötig, damit init sie ohne Neustart beachtet?', richtig: 'telinit q', falsch: ['update-rc.d -f inittab', 'chkconfig --add inittab'], erklaerung: 'q (oder Q) lässt init die inittab neu einlesen.' },
+  { frage: 'Welche Zeile in einem Red-Hat-Startskript wertet chkconfig --add aus?', richtig: '# chkconfig: 2345 90 10', falsch: ['# Default-Start: 2 3 4 5', '### BEGIN CHKCONFIG'], erklaerung: 'Runlevel, Start- und Stoppnummer. Neuere chkconfig-Versionen lesen auch LSB-Köpfe.' },
+  { frage: 'update-rc.d messd remove meldet einen Fehler, weil /etc/init.d/messd noch existiert. Was hilft?', richtig: 'update-rc.d -f messd remove', falsch: ['update-rc.d messd disable 0', 'telinit q'], erklaerung: 'Ohne -f geht remove davon aus, dass das Skript schon gelöscht ist, etwa nach dem Entfernen des Pakets.' },
+]} />

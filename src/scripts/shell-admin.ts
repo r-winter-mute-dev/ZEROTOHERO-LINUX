@@ -242,7 +242,7 @@ export function adminBefehle(): Record<string, B> {
       if ('x' in o) aendern((y) => { y[4] = o.x; }); if ('n' in o) aendern((y) => { y[3] = o.n; });
       return ok('passwd: Passwortablauf-Informationen geändert.');
     }
-    const setzen = (zeile: string) => { aendern((y) => { y[1] = hash(n + zeile); y[2] = String(K.heute(w)); }); };
+    const setzen = (zeile: string) => { aendern((y) => { y[1] = hash(n + zeile); y[2] = String(K.heute(w)); }); const ss = (w as { startstand?: { rootPw: string } }).startstand; if (n === 'root' && ss) ss.rootPw = zeile; };
     const neu = (weiter: () => void) => K.dialog(w, 'Geben Sie ein neues Passwort ein: ', (p1) => {
       K.dialog(w, 'Geben Sie das neue Passwort erneut ein: ', (p2) => {
         if (p1 !== p2) return 'Die Passwörter stimmen nicht überein.\npasswd: Bearbeitungssfehler des Legitimierungszeichens\npasswd: Passwort nicht geändert';

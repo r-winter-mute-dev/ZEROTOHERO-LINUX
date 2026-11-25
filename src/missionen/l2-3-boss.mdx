@@ -1,0 +1,32 @@
+---
+id: l2-3-boss
+checks:
+  - id: rettung
+spick:
+  - t: "grub>"
+    v: "ls · ls (hd0,gpt2)/boot · set root=(hd0,gpt2) · linux /boot/vmlinuz-… root=/dev/nvme0n1p2 ro · initrd /boot/initrd.img-… · boot"
+  - t: "Emergency"
+    v: "journalctl -xb · systemctl --failed · nofail · systemctl daemon-reload · systemctl default"
+  - t: "Units"
+    v: "systemctl status · systemctl cat · systemd-delta · systemctl revert · systemctl restart"
+  - t: "Dauerhaft"
+    v: "update-grub · systemctl is-enabled · Neustart als Probe"
+---
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+
+Montag, 7:40 Uhr. Um acht beginnt die Messreihe, und werkstatt startet nicht. Am Wochenende hat ein Kollege „nur schnell aufgeräumt“: Er hat eine Sicherungsplatte eingetragen und wieder mitgenommen, messd einen eigenen Benutzer verpasst und beim Löschen alter Kernel offenbar zu viel erwischt. Auf seinem Zettel steht nur: „Hat am Freitag noch funktioniert.“ **Dein Bosskampf: Bring werkstatt wieder zum Laufen, und zwar so, dass der nächste Start ohne dich klappt und messd läuft.** Alles aus Topic 202.
+
+<Hinweis titel="Vorgehen">
+Die Aufgaben nennen nur das Ziel. Arbeite dich von unten nach oben: erst der Bootloader, dann die Dateisysteme, dann die Dienste. Das root-Passwort steht auf dem Zettel am Bildschirm: Messpc2026. Der zweite Neustart ist der Prüfstein.
+</Hinweis>
+
+<Terminal id="rettung" titel="Bosskampf: werkstatt startet nicht" welt={{ start: { units: true, dropinKaputt: true, grub: 'cfgweg', fstabKaputt: true } }} aufgaben={[
+  { text: 'Schalte werkstatt ein (Knopf unter dem Terminal) und finde heraus, warum GRUB kein Menü zeigt.', zustand: 'dialog~^(ls|cat|configfile|normal)\\b', frage: 'Welche Datei fehlt? (vollständiger Pfad)', antwort: ['/boot/grub/grub.cfg', '(hd0,gpt2)/boot/grub/grub.cfg'] },
+  { text: 'Starte den neueren Kernel von Hand.', zustand: 'gebootet~kernel 6\\.1\\.0-27-amd64 .*root=' },
+  { text: 'werkstatt landet im Notfallmodus. Melde dich an und finde den Grund.', zustand: 'startmodus=emergency', befehl: '^(journalctl.*|systemctl --failed|systemctl list-units --failed|systemctl status.*)$', frage: 'Welcher Einhängepunkt blockiert?', antwort: ['/mnt/sicherung'] },
+  { text: 'Sorge dafür, dass werkstatt auch ohne die Sicherungsplatte startet und sie einhängt, wenn sie wieder da ist. Lass den Start dann weiterlaufen.', zustand: 'datei:/etc/fstab~c4a1e9d2-7b3f-4e5a-9c8d-1f2e3a4b5c6d\\s+/mnt/sicherung\\s+ext4\\s+\\S*nofail && neustart && startmodus=normal' },
+  { text: 'messd läuft nicht. Finde den Grund und bring den Dienst mit dem Benutzer des Pakets zum Laufen.', zustand: 'fehlt:/etc/systemd/system/messd.service.d/kollege.conf && unit:messd=aktiv' },
+  { text: 'Sorge dafür, dass GRUB beim nächsten Start wieder ein Menü hat.', zustand: 'datei:/boot/grub/grub.cfg~menuentry' },
+  { text: 'Starte zur Probe neu. Ohne dein Zutun muss werkstatt normal starten und messd laufen.', zustand: 'neustarts>=2 && startmodus=normal && unit:messd=aktiv && unit:messd=enabled' },
+]} />

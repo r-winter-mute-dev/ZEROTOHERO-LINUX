@@ -1,0 +1,149 @@
+---
+id: l2-3-4
+checks:
+  - id: k1
+  - id: zuordnung
+  - id: k2
+  - id: luecke
+  - id: vergessen
+  - id: grubshell
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "GRUB-Menü"
+    v: "e = Eintrag bearbeiten · Strg+X oder F10 = so starten · c = Befehlszeile · Esc = zurück · Änderungen gelten nur für diesen Start"
+  - t: "Kernelparameter"
+    v: "systemd.unit=rescue.target (oder single, 1) · systemd.unit=emergency.target (oder emergency) · init=/bin/bash · rw statt ro"
+  - t: "rescue / emergency"
+    v: "beide fragen nach dem root-Passwort · rescue: lokale Dateisysteme eingehängt, Grunddienste · emergency: nur / und nur lesbar"
+  - t: "init=/bin/bash"
+    v: "kein Passwort · / nur lesbar → mount -o remount,rw / · passwd · exec /sbin/init oder sync + reboot -f"
+  - t: "GRUB-Befehlszeile"
+    v: "ls · ls (hd0,gpt2)/boot · set root=(hd0,gpt2) · linux /boot/vmlinuz-… root=/dev/… ro · initrd /boot/initrd.img-… · boot"
+  - t: "Danach"
+    v: "update-grub (Debian) · grub2-mkconfig -o /boot/grub2/grub.cfg (Red Hat) · dauerhafte Parameter in GRUB_CMDLINE_LINUX"
+karten:
+  - f: "Welche Taste öffnet im GRUB-Menü den markierten Eintrag zum Bearbeiten?"
+    a: ["e"]
+  - f: "Mit welchem Kernelparameter startest du in den Rescue-Modus?"
+    a: ["systemd.unit=rescue.target", "single", "1"]
+  - f: "Was unterscheidet den Emergency-Modus vom Rescue-Modus?"
+    a: ["emergency hängt nur / und nur lesbar ein, rescue auch die anderen lokalen dateisysteme", "emergency hängt nur die wurzel lesbar ein"]
+  - f: "Welcher Kernelparameter startet eine Shell statt init, ganz ohne Passwort?"
+    a: ["init=/bin/bash", "init=/bin/sh"]
+  - f: "Was musst du nach init=/bin/bash tun, bevor du das Passwort ändern kannst?"
+    a: ["mount -o remount,rw /", "die wurzel beschreibbar neu einhängen"]
+  - f: "Welche drei GRUB-Befehle starten einen Kernel von Hand?"
+    a: ["linux, initrd, boot", "linux initrd boot"]
+  - f: "Wo trägst du Kernelparameter dauerhaft ein (Debian)?"
+    a: ["/etc/default/grub", "grub_cmdline_linux in /etc/default/grub"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Zuordnung from '../components/Zuordnung.astro';
+import Lueckentext from '../components/Lueckentext.astro';
+
+Zwei Notfälle an einem Morgen. Auf werkstatt kennt niemand mehr das root-Passwort, die Kollegin, die es gesetzt hat, ist im Urlaub. Und ein Prüfrechner bleibt nach einem missglückten Update mit `grub>` stehen. **Deine Mission: Nutze das GRUB-Menü und die GRUB-Befehlszeile, setze das root-Passwort über init=/bin/bash neu und starte einen Kernel von Hand, wenn die grub.cfg fehlt.** Lernziel 202.2.
+
+## Ins Menü eingreifen
+
+<Karte nr={1} titel="Kernelparameter für einen einzigen Start">
+Im GRUB-Menü öffnet **e** den markierten Eintrag. Du siehst die Befehle, die GRUB für diesen Eintrag ausführt, darunter die Zeile `linux /boot/vmlinuz-… root=UUID=… ro quiet`. Alles hinter dem Pfad des Kernels sind **Kernelparameter**. Du kannst sie hier ändern und mit **Strg+X** (oder F10) starten. Die Änderung gilt nur für diesen einen Start.
+
+| Parameter | Ergebnis |
+|---|---|
+| `systemd.unit=rescue.target` (kurz `single`, `1` oder `s`) | **Rescue-Modus**: lokale Dateisysteme eingehängt, wenige Grunddienste, root-Passwort nötig |
+| `systemd.unit=emergency.target` (kurz `emergency`) | **Emergency-Modus**: nur `/`, nur lesbar, kein Dienst, root-Passwort nötig |
+| `init=/bin/bash` | der Kernel startet eine Shell als Prozess 1, ganz ohne systemd und ohne Passwort |
+| `rw` statt `ro` | die Wurzel wird gleich beschreibbar eingehängt |
+
+Unter SysV-init entsprach dem Rescue-Modus der Runlevel 1 (oder S), den man auch mit `telinit 1` erreichte.
+
+Rescue und Emergency verlangen das root-Passwort. Ist es verloren oder das Konto gesperrt, hilft nur **init=/bin/bash**. Dann hängt der Kernel `/` so ein, wie es die Parameter sagen, meist nur lesbar. Also: `mount -o remount,rw /`, dann `passwd`, dann `exec /sbin/init`, damit der normale Start weiterläuft. Wer physischen Zugang zur Tastatur hat, hat damit root. Deshalb schützt man GRUB auf Rechnern in offenen Räumen mit einem Passwort (`set superusers` und `password_pbkdf2` in `/etc/grub.d/40_custom`).
+</Karte>
+
+<Merke>e bearbeitet, Strg+X startet. rescue = lokale Dateisysteme, emergency = nur / lesbar, beide mit Passwort. init=/bin/bash = ohne Passwort: remount,rw, passwd, exec /sbin/init.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: Modi" fragen={[
+  { frage: 'Eine Partition aus /etc/fstab lässt sich nicht einhängen und der Rechner landet beim Start in einem Notfallmodus. Welcher Modus hängt zur Reparatur am wenigsten ein?', richtig: 'emergency.target', falsch: ['rescue.target', 'multi-user.target'], erklaerung: 'emergency hängt nur die Wurzel nur lesbar ein. rescue versucht alle lokalen Dateisysteme aus fstab.' },
+]} />
+
+## Die GRUB-Befehlszeile
+
+<Karte nr={2} titel="Starten ohne grub.cfg">
+Findet GRUB seine `grub.cfg` nicht, bleibt es mit `grub>` stehen. Aus dem Menü kommst du mit **c** an dieselbe Befehlszeile. Sie versteht unter anderem:
+
+| Befehl | Zweck |
+|---|---|
+| `ls` | alle Platten und Partitionen, etwa `(hd0) (hd0,gpt1) (hd0,gpt2)` |
+| `ls (hd0,gpt2)/boot` | Dateien auf einer Partition |
+| `set root=(hd0,gpt2)` | Partition, auf die sich folgende Pfade beziehen |
+| `linux /boot/vmlinuz-… root=/dev/nvme0n1p2 ro` | Kernel mit Parametern laden |
+| `initrd /boot/initrd.img-…` | initramfs laden |
+| `boot` | starten |
+| `configfile (hd0,gpt2)/boot/grub/grub.cfg` | ein Menü von anderswo laden |
+| `insmod`, `search --fs-uuid`, `cat`, `echo` | Module laden, Partition per UUID suchen, Dateien lesen |
+
+Nach dem Start ist der Rechner nur einmal gerettet. Dauerhaft hilft erst eine neue `grub.cfg`: `update-grub` (Debian) oder `grub2-mkconfig -o /boot/grub2/grub.cfg` (Red Hat). Kernelparameter für jeden Start gehören nach `/etc/default/grub` in `GRUB_CMDLINE_LINUX` (immer) oder `GRUB_CMDLINE_LINUX_DEFAULT` (nicht bei den Einträgen für den Wiederherstellungsmodus).
+</Karte>
+
+<Zuordnung id="zuordnung" titel="Zuordnung: Was tippst du?" aufgabe="Ordne jeder Lage den passenden Schritt zu." paare={[
+  { links: 'root-Passwort verloren', rechts: 'init=/bin/bash an die linux-Zeile hängen' },
+  { links: 'Shell als Prozess 1, / nur lesbar', rechts: 'mount -o remount,rw /' },
+  { links: 'grub> nach dem Einschalten', rechts: 'set root, linux, initrd, boot' },
+  { links: 'Nach dem Start von Hand', rechts: 'update-grub' },
+  { links: 'Reparatur mit möglichst wenig Eingehängtem', rechts: 'systemd.unit=emergency.target' },
+]} />
+
+<Quiz id="k2" titel="Kurzcheck: GRUB-Befehlszeile" fragen={[
+  { frage: 'An der GRUB-Befehlszeile hast du linux und initrd eingegeben. Der Rechner startet nicht. Was fehlt?', richtig: 'Der Befehl boot.', falsch: ['Der Befehl exec.', 'Strg+X.'], erklaerung: 'In der Befehlszeile startet boot. Strg+X gilt nur im Bearbeitungsmodus eines Menüeintrags.' },
+]} />
+
+<Lueckentext id="luecke" titel="Lückentext: Manuell starten" aufgabe="Ergänze die Eingaben an der GRUB-Befehlszeile. Die Wurzel liegt auf der zweiten GPT-Partition der ersten Platte."
+  code={`grub> set root=(hd0,___)
+grub> ___ /boot/vmlinuz-6.1.0-27-amd64 root=/dev/nvme0n1p2 ro
+grub> ___ /boot/initrd.img-6.1.0-27-amd64
+grub> ___`}
+  luecken={[
+    { loesungen: ['gpt2'] },
+    { loesungen: ['linux'] },
+    { loesungen: ['initrd'] },
+    { loesungen: ['boot'] },
+  ]} />
+
+<Terminal id="vergessen" titel="Terminal: werkstatt ohne root-Passwort" welt={{ start: { grub: 'menue', rootVergessen: true } }} aufgaben={[
+  { text: 'Starte werkstatt neu (Knopf unter dem Terminal). Er bleibt im GRUB-Menü stehen. Öffne den ersten Eintrag zum Bearbeiten.', zustand: 'dialog~^e$' },
+  { text: 'Ersetze die linux-Zeile so, dass statt init eine Bash startet, und starte so.', zustand: 'startmodus=bash' },
+  { text: 'Setze ein neues root-Passwort.', zustand: 'rootpw:neu' },
+  { text: 'Lass den normalen Start weiterlaufen, ohne neu zu starten.', zustand: 'startmodus=normal && gebootet~init=/bin/(ba)?sh' },
+  { text: 'Prüfe das neue Passwort: Starte neu und geh diesmal über die Kernelparameter in den Rescue-Modus. Melde dich dort an.', zustand: 'startmodus=rescue' },
+  { text: 'Lass den Start in den normalen Betrieb weiterlaufen.', zustand: 'startmodus=normal && gebootet~(rescue|single|\\s[1sS](\\s|$))' },
+]} />
+
+<Terminal id="grubshell" titel="Terminal: Prüfrechner mit grub>" welt={{ start: { grub: 'cfgweg' } }} aufgaben={[
+  { text: 'Starte den Rechner (Knopf unter dem Terminal) und lass dir an der GRUB-Befehlszeile alle Platten zeigen.', zustand: 'dialog~^ls$' },
+  { text: 'Finde die Partition mit /boot.', zustand: 'dialog~^ls \\(hd0,gpt\\d\\)/(boot/?)?$', frage: 'Welche ist es? (in der Schreibweise von GRUB)', antwort: ['(hd0,gpt2)', 'hd0,gpt2'] },
+  { text: 'Starte den neueren Kernel mit seiner initramfs von Hand. Die Wurzel ist /dev/nvme0n1p2.', zustand: 'gebootet~kernel 6\\.1\\.0-27-amd64 .*root=' },
+  { text: 'Sorge dafür, dass der nächste Start wieder von allein geht.', zustand: 'datei:/boot/grub/grub.cfg~menuentry' },
+]} />
+
+<Labor id="labor" titel="Labor: GRUB auf srv1"
+  aufgabe="Schau dir auf srv1 an, mit welchen Parametern der Kernel lief und woher sie kommen. Füge die Ausgabe ein. Wenn du Zugriff auf die Konsole von srv1 hast, starte ihn einmal neu, drück im Menü e und brich mit Esc ab."
+  befehl={"cat /proc/cmdline\ngrep ^GRUB_CMDLINE /etc/default/grub\nls /etc/grub.d/\ngrep -c menuentry /boot/grub/grub.cfg"}
+  muster={["BOOT_IMAGE=", "GRUB_CMDLINE_LINUX", "10_linux", "^\\d+$"]}
+  erfolg="Die Parameter in /proc/cmdline setzen sich aus der linux-Zeile in grub.cfg zusammen, und die entsteht aus /etc/default/grub und /etc/grub.d/10_linux." />
+
+<Hinweis titel="Prüfungstipp">
+202.2 nennt die GRUB-Shell, Rescue- und Emergency-Modus und init, telinit und inittab unter SysV. Typisch sind Fragen nach dem Parameter für den Notfall, nach der Reihenfolge linux, initrd, boot und danach, warum nach init=/bin/bash zuerst remount,rw nötig ist. Im Entwurf 5.0 (201.4) bleiben Rettungs- und Notfallmodus Thema.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Nach init=/bin/bash meldet passwd einen Fehler beim Schreiben. Was ist die wahrscheinlichste Ursache?', richtig: 'Die Wurzel ist nur lesbar eingehängt.', falsch: ['Ohne systemd gibt es kein passwd.', 'Das Konto root ist gesperrt.'], erklaerung: 'Der Kernel hängt / gemäß ro aus der linux-Zeile ein. mount -o remount,rw / behebt das.' },
+  { frage: 'Warum ist es besser, nach init=/bin/bash mit exec /sbin/init weiterzumachen statt mit reboot?', richtig: 'reboot braucht ein laufendes init, das gibt es als Prozess 1 hier nicht.', falsch: ['reboot würde das neue Passwort verwerfen.', 'reboot startet automatisch wieder mit init=/bin/bash.'], erklaerung: 'Ohne systemd als PID 1 schlägt reboot fehl. Alternativ: sync und reboot -f.' },
+  { frage: 'Du willst, dass der Kernel bei jedem Start den Parameter nomodeset bekommt, auch im Wiederherstellungsmodus. Wo trägst du ihn ein?', richtig: 'In GRUB_CMDLINE_LINUX in /etc/default/grub, danach update-grub.', falsch: ['In GRUB_CMDLINE_LINUX_DEFAULT, danach grub-install.', 'Direkt in /boot/grub/grub.cfg.'], erklaerung: '_DEFAULT gilt nicht für die Einträge im Wiederherstellungsmodus. grub.cfg würde beim nächsten update-grub überschrieben.' },
+]} />

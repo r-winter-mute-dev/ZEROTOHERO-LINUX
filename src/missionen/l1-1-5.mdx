@@ -142,11 +142,11 @@ Den vorigen Start gibt es nur, wenn das Journal **dauerhaft** gespeichert wird, 
 
 <Lueckentext id="luecke" titel="Lückentext: Kernelparameter" aufgabe="Ergänze die Kernelzeile in GRUB und den Befehl, der die Parameter des laufenden Kernels zeigt."
   code={`# weniger Meldungen beim Start
-linux /vmlinuz-6.1.0-27-amd64 root=UUID=… ro ___
+linux /boot/vmlinuz-6.1.0-27-amd64 root=UUID=… ro ___
 # Rettungsmodus, wie Runlevel 1
-linux /vmlinuz-6.1.0-27-amd64 root=UUID=… ro ___
+linux /boot/vmlinuz-6.1.0-27-amd64 root=UUID=… ro ___
 # eine Shell statt des normalen init
-linux /vmlinuz-6.1.0-27-amd64 root=UUID=… ro ___=/bin/bash
+linux /boot/vmlinuz-6.1.0-27-amd64 root=UUID=… ro ___=/bin/bash
 # mit welchen Parametern lief der Start?
 $ cat /proc/___`}
   luecken={[

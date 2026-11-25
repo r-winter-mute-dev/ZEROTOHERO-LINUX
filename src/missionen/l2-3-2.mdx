@@ -1,0 +1,151 @@
+---
+id: l2-3-2
+checks:
+  - id: k1
+  - id: zuordnung
+  - id: k2
+  - id: luecke
+  - id: anpassen
+  - id: kollege
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "Verzeichnisse"
+    v: "/etc/systemd/system (Admin, gewinnt) · /run/systemd/system (zur Laufzeit, weg nach Neustart) · /usr/lib/systemd/system (Pakete)"
+  - t: "Drop-in"
+    v: "/etc/systemd/system/NAME.service.d/*.conf · ergänzt nur einzelne Zeilen · systemctl edit NAME · --full kopiert die ganze Unit · --runtime nach /run"
+  - t: "Prüfen"
+    v: "systemctl cat NAME · systemctl show -p Restart NAME · systemd-delta · systemctl list-dependencies NAME"
+  - t: "Nach Änderung"
+    v: "systemctl daemon-reload · dann restart · systemctl revert NAME entfernt alle Anpassungen"
+  - t: "Abschalten"
+    v: "disable = nicht beim Start · mask = Link auf /dev/null, auch von Hand nicht startbar · unmask"
+  - t: "Generatoren"
+    v: "/run/systemd/generator*/ · systemd-fstab-generator macht .mount aus /etc/fstab · systemd-sysv-generator macht Units aus /etc/init.d"
+karten:
+  - f: "In welchem Verzeichnis legen Pakete ihre Unit-Dateien ab?"
+    a: ["/usr/lib/systemd/system", "/lib/systemd/system"]
+  - f: "Welches Verzeichnis hat Vorrang: /etc/systemd/system oder /usr/lib/systemd/system?"
+    a: ["/etc/systemd/system"]
+  - f: "Was ist ein Drop-in?"
+    a: ["eine .conf-datei in name.service.d, die einzelne einstellungen einer unit ergänzt oder ersetzt", "eine ergänzungsdatei in name.service.d"]
+  - f: "Welcher Befehl zeigt, welche Units durch Dateien in /etc überschrieben oder erweitert werden?"
+    a: ["systemd-delta"]
+  - f: "Was musst du nach dem Ändern einer Unit-Datei ausführen, damit systemd sie neu liest?"
+    a: ["systemctl daemon-reload"]
+  - f: "Was unterscheidet mask von disable?"
+    a: ["mask verhindert auch das starten von hand", "mask legt einen link auf /dev/null an"]
+  - f: "Welcher Generator macht aus /etc/fstab Units?"
+    a: ["systemd-fstab-generator"]
+  - f: "Welcher Befehl entfernt alle Anpassungen an einer Unit aus /etc und /run?"
+    a: ["systemctl revert name", "systemctl revert"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Zuordnung from '../components/Zuordnung.astro';
+import Lueckentext from '../components/Lueckentext.astro';
+
+Auf werkstatt liefert das Paket messd seine eigene Unit-Datei mit. Du sollst sie anpassen, ohne die Datei des Herstellers zu ändern, denn das nächste Update würde deine Änderung überschreiben. Auf einem zweiten Rechner hat ein Kollege genau das versucht, und jetzt startet messd nicht mehr. **Deine Mission: Lerne, wo systemd seine Units sucht, ergänze sie mit Drop-ins, finde Abweichungen mit systemd-delta und repariere die Unit des Kollegen.** Lernziel 202.1.
+
+## Wo systemd sucht
+
+<Karte nr={1} titel="Drei Verzeichnisse, eine Rangfolge">
+systemd sucht Units in mehreren Verzeichnissen. Liegt eine Datei mit demselben Namen in mehreren, gewinnt die erste in dieser Liste:
+
+| Verzeichnis | Wer schreibt hinein | Hält wie lange |
+|---|---|---|
+| **/etc/systemd/system/** | du als Admin | dauerhaft |
+| **/run/systemd/system/** | Programme zur Laufzeit, `systemctl edit --runtime` | bis zum Neustart |
+| **/usr/lib/systemd/system/** | Pakete (Debian auch `/lib/systemd/system`) | bis zum nächsten Update |
+
+Daneben gibt es **/run/systemd/generator/** und **/run/systemd/generator.late/**. Dort legen **Generatoren** bei jedem Start und bei jedem `daemon-reload` Units an, die aus anderen Dateien berechnet werden. Der systemd-fstab-generator macht aus jeder Zeile der /etc/fstab eine `.mount`-Unit. Der **systemd-sysv-generator** macht aus jedem alten Skript in /etc/init.d eine Unit mit dem Vermerk `generated`. So laufen SysV-Skripte unter systemd weiter, und ihre LSB-Kopfzeilen werden zu Abhängigkeiten.
+
+`systemctl cat messd` zeigt die Unit samt Herkunft, `systemctl show -p Restart messd` den wirksamen Wert einer Einstellung.
+</Karte>
+
+<Merke>Pakete schreiben nach /usr/lib, du schreibst nach /etc, und /etc gewinnt. /run hält nur bis zum Neustart. Generatoren erzeugen Units aus fstab und init.d.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: Rangfolge" fragen={[
+  { frage: 'messd.service liegt sowohl in /usr/lib/systemd/system als auch in /etc/systemd/system. Welche Datei benutzt systemd?', richtig: 'Nur die aus /etc/systemd/system.', falsch: ['Beide, die Zeilen werden zusammengeführt.', 'Die neuere der beiden.'], erklaerung: 'Eine ganze Unit-Datei in /etc ersetzt die gleichnamige aus /usr/lib vollständig. Zusammengeführt werden nur Drop-ins.' },
+]} />
+
+## Anpassen ohne zu überschreiben
+
+<Karte nr={2} titel="Drop-ins, edit und revert">
+Ein **Drop-in** ist eine kleine Datei in einem Ordner mit dem Namen der Unit und der Endung `.d`, etwa `/etc/systemd/system/messd.service.d/neustart.conf`. Sie enthält nur den Abschnitt und die Zeilen, die du ändern willst:
+
+```ini
+[Service]
+Restart=always
+```
+
+Alles andere kommt weiter aus der Datei des Herstellers. Am bequemsten geht das mit `systemctl edit messd`. Der Befehl öffnet einen Editor für `override.conf` und lädt danach selbst neu. `systemctl edit --full messd` kopiert dagegen die ganze Unit nach /etc. Dann bekommst du Updates des Herstellers nicht mehr mit.
+
+Legst du Dateien von Hand an, gilt: **systemctl daemon-reload**, sonst arbeitet systemd mit dem alten Stand weiter und warnt bei `restart` mit „changed on disk“.
+
+Den Überblick verschafft **systemd-delta**: `[OVERRIDDEN]` heißt, eine ganze Datei in /etc ersetzt die aus /usr/lib, `[EXTENDED]` heißt, Drop-ins ergänzen sie, `[MASKED]` heißt maskiert. `systemctl revert messd` löscht alle deine Anpassungen und stellt den Stand des Herstellers wieder her.
+
+Zum Abschalten gibt es zwei Stufen. `disable` entfernt nur den Link in `multi-user.target.wants`, die Unit lässt sich aber weiter von Hand oder als Abhängigkeit starten. `mask` legt `/etc/systemd/system/NAME.service → /dev/null` an, dann startet sie gar nicht mehr.
+</Karte>
+
+<Zuordnung id="zuordnung" titel="Zuordnung: Was zeigt systemd-delta?" aufgabe="Ordne jede Markierung zu." paare={[
+  { links: '[EXTENDED]', rechts: 'Drop-ins ergänzen die Unit' },
+  { links: '[OVERRIDDEN]', rechts: 'eine ganze Datei in /etc ersetzt die des Pakets' },
+  { links: '[MASKED]', rechts: 'die Unit zeigt auf /dev/null' },
+  { links: '[REDIRECTED]', rechts: 'die Datei ist ein Link auf eine andere Unit' },
+]} />
+
+<Quiz id="k2" titel="Kurzcheck: Drop-ins" fragen={[
+  { frage: 'Du hast /etc/systemd/system/messd.service.d/neustart.conf von Hand angelegt. systemctl show -p Restart messd zeigt noch den alten Wert. Warum?', richtig: 'systemd hat die Dateien noch nicht neu eingelesen, es fehlt systemctl daemon-reload.', falsch: ['Drop-ins wirken erst nach einem Neustart des Rechners.', 'Drop-ins müssen override.conf heißen.'], erklaerung: 'Der Name der .conf-Datei ist frei. systemctl edit lädt selbst neu, Handarbeit braucht daemon-reload.' },
+]} />
+
+<Lueckentext id="luecke" titel="Lückentext: Ein Drop-in von Hand" aufgabe="Ergänze die Befehle, damit messd nach jedem Ende neu startet, ohne die Unit des Pakets zu ändern."
+  code={`$ sudo mkdir -p /etc/systemd/system/___
+$ sudo vi /etc/systemd/system/messd.service.d/neustart.conf
+[___]
+Restart=always
+
+$ sudo systemctl ___
+$ sudo systemctl restart messd`}
+  luecken={[
+    { loesungen: ['messd.service.d', 'messd.service.d/'] },
+    { loesungen: ['Service'] },
+    { loesungen: ['daemon-reload'] },
+  ]} />
+
+<Terminal id="anpassen" titel="Terminal: messd anpassen" welt={{ start: { units: true } }} aufgaben={[
+  { text: 'Lass dir die Unit messd zeigen.', befehl: '^systemctl cat messd(\\.service)?$', frage: 'In welchem Verzeichnis liegt sie?', antwort: ['/usr/lib/systemd/system', '/usr/lib/systemd/system/'] },
+  { text: 'Lege ein Drop-in an, das Restart=always setzt. Mit systemctl edit oder von Hand.', zustand: 'datei:/etc/systemd/system/messd.service.d/*~^Restart=always' },
+  { text: 'Sorge dafür, dass systemd die Änderung kennt, und prüfe den wirksamen Wert.', zustand: 'unit:messd=neugeladen', befehl: '^systemctl show (-p ?Restart|--property=Restart)( --value)? messd(\\.service)?$|^systemctl show messd(\\.service)? (-p ?Restart|--property=Restart)( --value)?$', frage: 'Welcher Wert gilt jetzt?', antwort: ['always', 'Restart=always'] },
+  { text: 'Lass dir alle Abweichungen vom Stand der Pakete zeigen.', befehl: '^systemd-delta', frage: 'Mit welcher Markierung erscheint messd?', antwort: ['EXTENDED', '[EXTENDED]'] },
+  { text: 'Bluetooth wird auf werkstatt nie gebraucht. Sorge dafür, dass es auch von Hand nicht mehr startet.', zustand: 'unit:bluetooth=masked' },
+  { text: 'Schau in die Verzeichnisse der Generatoren.', befehl: '^ls( -\\w+)? /run/systemd/generator/?$', frage: 'Welche Unit steht für das Wurzeldateisystem?', antwort: ['-.mount'] },
+  { text: 'Schalte messd ein und starte es gleich mit.', zustand: 'unit:messd=enabled && unit:messd=aktiv' },
+]} />
+
+<Terminal id="kollege" titel="Terminal: Der Kollege war schneller" welt={{ start: { units: true, dropinKaputt: true } }} aufgaben={[
+  { text: 'Schau nach, wie es messd geht.', befehl: '^systemctl status messd(\\.service)?$', auchFehler: true, frage: 'Mit welchem Status ist messd beendet? (Zahl/Wort hinter status=)', antwort: ['217/USER', '217'] },
+  { text: 'Finde heraus, welche Datei den Benutzer ändert.', befehl: '^systemctl cat messd(\\.service)?$|^systemd-delta|^systemctl status messd', auchFehler: true, frage: 'Welchen Benutzer setzt sie?', antwort: ['messdienst'] },
+  { text: 'Den Benutzer messdienst gibt es nicht. Entferne die Anpassung und bring messd zum Laufen.', zustand: 'fehlt:/etc/systemd/system/messd.service.d/kollege.conf && unit:messd=aktiv' },
+]} />
+
+<Labor id="labor" titel="Labor: Units auf srv1"
+  aufgabe="Schau auf srv1, welche Units Anpassungen haben und was die Generatoren erzeugt haben. Füge die Ausgabe ein."
+  befehl={"systemd-delta --type=extended,overridden\nls /run/systemd/generator/\nsystemctl cat ssh | head -3"}
+  muster={["overridden configuration files found", "\\.mount", "^# /(usr/)?lib/systemd/system/ssh\\.service"]}
+  erfolg="Auf einem frisch installierten Debian ist die Liste von systemd-delta oft schon gefüllt: Pakete passen über Drop-ins die Units anderer Pakete an." />
+
+<Hinweis titel="Prüfungstipp">
+Lernziel 202.1 nennt ausdrücklich /usr/lib/systemd/, /etc/systemd/, /run/systemd/, systemctl und systemd-delta. Merke dir die Rangfolge und dass Drop-ins einzelne Zeilen ergänzen. Im Entwurf 5.0 wird systemd zu 201.2 und 201.3 und bekommt mehr Gewicht, unter anderem mit Sicherheitsoptionen in Units.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Du willst messd nur bis zum nächsten Neustart mit Restart=always laufen lassen. Welcher Befehl legt das Drop-in an der passenden Stelle an?', richtig: 'systemctl edit --runtime messd', falsch: ['systemctl edit --full messd', 'systemctl set-property messd Restart=always'], erklaerung: '--runtime schreibt nach /run/systemd/system/messd.service.d/, das beim Neustart verschwindet.' },
+  { frage: 'bluetooth.service wurde mit disable abgeschaltet und läuft trotzdem nach dem Start. Was ist die wahrscheinlichste Erklärung?', richtig: 'Eine andere Unit zieht es als Abhängigkeit oder über D-Bus nach. Erst mask verhindert das.', falsch: ['disable wirkt erst nach daemon-reload.', 'disable gilt nur für den grafischen Start.'], erklaerung: 'disable entfernt nur die Links aus [Install]. Starten über Abhängigkeiten oder Aktivierung bleibt möglich.' },
+  { frage: 'Woher kommt eine Unit, die systemctl status mit „(/etc/init.d/messd; generated)“ zeigt?', richtig: 'systemd-sysv-generator hat sie aus dem SysV-Skript erzeugt.', falsch: ['Jemand hat sie mit systemctl edit --full angelegt.', 'Sie stammt aus /usr/lib/systemd/system.'], erklaerung: 'Generierte Units liegen unter /run/systemd/generator.late/ und entstehen bei jedem Start neu.' },
+]} />

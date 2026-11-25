@@ -77,6 +77,18 @@ export const DEB: Paket[] = [
   D('dwarves', '1.24-4.1', 'set of advanced DWARF utilities', ['libc6'], ['/usr/bin/pahole'], [], 900),
   D('dkms', '3.0.10-8+deb12u1', 'Dynamic Kernel Module System (DKMS)', ['kmod', 'gcc', 'make'], ['/usr/sbin/dkms', '/etc/dkms/framework.conf'], ['/etc/dkms/framework.conf'], 600),
   D('procinfo', '1:2.0.304-7', 'Displays system information from /proc', ['libc6'], ['/usr/bin/procinfo', '/usr/bin/lsdev', '/usr/bin/socklist'], [], 210),
+  // Bootloader und PXE (LPIC-2 Topic 202)
+  D('pxelinux', '3:6.04~git20190206.bf6db5b4+dfsg1-3', 'collection of bootloaders (PXE network bootloader)', ['syslinux-common'], ['/usr/lib/PXELINUX/pxelinux.0', '/usr/lib/PXELINUX/lpxelinux.0'], [], 180),
+  D('syslinux-common', '3:6.04~git20190206.bf6db5b4+dfsg1-3', 'collection of bootloaders (common)', [], ['/usr/lib/syslinux/modules/bios/ldlinux.c32', '/usr/lib/syslinux/modules/bios/menu.c32', '/usr/lib/syslinux/modules/bios/libutil.c32', '/usr/lib/syslinux/modules/efi64/ldlinux.e64', '/usr/lib/syslinux/mbr/mbr.bin', '/usr/lib/syslinux/mbr/gptmbr.bin'], [], 2800),
+  D('syslinux', '3:6.04~git20190206.bf6db5b4+dfsg1-3', 'collection of bootloaders (DOS FAT and NTFS bootloader)', ['syslinux-common'], ['/usr/bin/syslinux'], [], 130),
+  D('extlinux', '3:6.04~git20190206.bf6db5b4+dfsg1-3', 'collection of bootloaders (ext2/3/4 and btrfs bootloader)', ['syslinux-common'], ['/usr/bin/extlinux'], [], 140),
+  D('isolinux', '3:6.04~git20190206.bf6db5b4+dfsg1-3', 'collection of bootloaders (ISO 9660 bootloader)', [], ['/usr/lib/ISOLINUX/isolinux.bin', '/usr/lib/ISOLINUX/isohdpfx.bin', '/usr/lib/ISOLINUX/isohdpfo.bin'], [], 160),
+  D('tftp-hpa', '5.2+20150808-1.4', 'HPA\'s tftp client', ['libc6'], ['/usr/bin/tftp'], [], 60),
+  D('xorriso', '1.5.4-4', 'command line ISO-9660 and Rock Ridge manipulation tool', ['libc6'], ['/usr/bin/xorriso'], [], 330),
+  D('isc-dhcp-server', '4.4.3-P1-2', 'ISC DHCP server for automatic IP address assignment', ['libc6'], ['/usr/sbin/dhcpd', '/etc/default/isc-dhcp-server'], ['/etc/default/isc-dhcp-server'], 1500),
+  D('tftpd-hpa', '5.2+20150808-1.4', 'HPA\'s tftp server', ['libc6'], ['/usr/sbin/in.tftpd', '/etc/default/tftpd-hpa'], ['/etc/default/tftpd-hpa'], 120),
+  D('shim-signed', '1.44~1+deb12u1+15.8-1~deb12u1', 'Secure Boot chain-loading bootloader (Microsoft-signed binary)', [], ['/usr/lib/shim/shimx64.efi.signed'], [], 1900),
+  D('grub-efi-amd64-signed', '1+2.06+13+deb12u1', 'GRand Unified Bootloader, version 2 (amd64 UEFI signed by Debian)', [], ['/usr/lib/grub/x86_64-efi-signed/grubx64.efi.signed', '/usr/lib/grub/x86_64-efi-signed/grubnetx64.efi.signed'], [], 8000),
   D('lshw', '02.19.git.2021.06.19.996aaad9c7-2+b1', 'information about hardware configuration', ['libc6'], ['/usr/bin/lshw'], [], 980),
 ];
 export const DEB_START = ['libc6', 'libpcre2-8-0', 'libselinux1', 'coreutils', 'bash', 'pciutils', 'openssh-server', 'openssh-client', 'smartmontools', 'tzdata', 'grub-efi-amd64', 'vim-tiny', 'nano'];
@@ -224,7 +236,7 @@ function grubCfg(w: Welt): string {
   const opts = grubWert(w, 'GRUB_CMDLINE_LINUX_DEFAULT', 'quiet');
   const extra = grubWert(w, 'GRUB_CMDLINE_LINUX', '');
   const par = [extra, opts].filter(Boolean).join(' ');
-  const eintrag = (v: string, t: string, zusatz = par) => `menuentry '${t}' {\n\tlinux\t/vmlinuz-${v} root=UUID=3f1c0d6e-8a2b-4c51-9a0e-2d7b1e5c9f40 ro ${zusatz}\n${(`/boot/initrd.img-${v}` in w.fs) ? `\tinitrd\t/initrd.img-${v}\n` : ''}}`;
+  const eintrag = (v: string, t: string, zusatz = par) => `menuentry '${t}' {\n\tlinux\t/boot/vmlinuz-${v} root=UUID=3f1c0d6e-8a2b-4c51-9a0e-2d7b1e5c9f40 ro ${zusatz}\n${(`/boot/initrd.img-${v}` in w.fs) ? `\tinitrd\t/boot/initrd.img-${v}\n` : ''}}`;
   const kerne = bootKernel(w);
   const erster = kerne[0] ?? '6.1.0-27-amd64';
   const unter = kerne.flatMap((v) => [eintrag(v, `Debian GNU/Linux, with Linux ${v}`), eintrag(v, `Debian GNU/Linux, with Linux ${v} (recovery mode)`, 'single ' + extra)]).join('\n');

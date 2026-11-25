@@ -110,7 +110,8 @@ Am meisten hilft gerade:
 - [x] Topic 110 (Akt 10) und Generalprobe 102
 - [x] LPIC-2 Akt 0 (Labor) und Akt 1 (Topic 200)
 - [x] LPIC-2 Akt 2 (Topic 201)
-- [ ] LPIC-2 Akt 3 bis 13
+- [x] LPIC-2 Akt 3 (Topic 202)
+- [ ] LPIC-2 Akt 4 bis 13
 - [ ] **Labor-Aufgaben testen** auf anderen Distributionen und mit anderen Virtualisierern.
 
 ## Entstehung
