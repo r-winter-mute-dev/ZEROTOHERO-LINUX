@@ -8,6 +8,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/spielbar-LPIC--1_komplett-a6e3a1?labelColor=2a2a2a" alt="Spielbar: LPIC-1 komplett">
+  <img src="https://img.shields.io/badge/im_Aufbau-LPIC--2_Akt_0_bis_3-f9e2af?labelColor=2a2a2a" alt="Im Aufbau: LPIC-2 Akt 0 bis 3">
   <img src="https://img.shields.io/badge/kostenlos-ohne_Anmeldung-cba6f7?labelColor=2a2a2a" alt="Kostenlos, ohne Anmeldung">
   <img src="https://img.shields.io/badge/Inhalte-CC_BY--SA_4.0-a0a0a0?labelColor=2a2a2a" alt="Inhalte: CC BY-SA 4.0">
   <img src="https://img.shields.io/badge/Code-MIT-a0a0a0?labelColor=2a2a2a" alt="Code: MIT">
@@ -26,7 +27,7 @@
 | Kampagne | Zertifikat | Prüfungen | Lernziele | Stand |
 | :---: | --- | --- | :---: | :---: |
 | 1 | LPIC-1 Linux Administrator | 101-500, 102-500 | v5.0 | komplett spielbar: Akt 0 bis 10, Generalproben 101 und 102 |
-| 2 | LPIC-2 Linux Engineer | 201-450, 202-450 | v4.5 | im Aufbau: Akt 0 bis 2 spielbar. Stoff, der im angekündigten Entwurf 5.0 entfällt oder umzieht, ist in den Missionen gekennzeichnet |
+| 2 | LPIC-2 Linux Engineer | 201-450, 202-450 | v4.5 | im Aufbau: Akt 0 bis 3 spielbar. Stoff, der im angekündigten Entwurf 5.0 entfällt oder umzieht, ist in den Missionen gekennzeichnet |
 | 3 | LPIC-3 Security | 303-300 | v3.0 | Lehrplan steht |
 
 Jede Prüfung hat 60 Fragen in 90 Minuten. Bestanden ist ab 500 auf einer Skala von 200 bis 800.
@@ -57,7 +58,8 @@ Jede Prüfung hat 60 Fragen in 90 Minuten. Bestanden ist ab 500 auf einer Skala 
 | 0 | – | Aufbau der Prüfungen 201 und 202, Version 4.5 und Entwurf 5.0, Netzwerk-Labor mit Router, Server und Client | ✅ |
 | 1 | 200 | Last und CPU, Speicher und Swap, Platten-I/O mit iostat und iotop, Netzdurchsatz mit sar, iftop und iptraf-ng, Trends und Vorhersage mit sysstat, Überwachungssysteme, Bosskampf, Probeprüfung | ✅ |
 | 2 | 201 | Kernelversionen und Abbilder, Quellcode und Patches, Konfigurieren und Bauen, Installieren mit initramfs und GRUB, DKMS, Module zur Laufzeit, sysctl und /proc, udev, Bosskampf, Probeprüfung | ✅ |
-| 3–13 | 202–212 | Systemstart, Dateisysteme, RAID und LVM, Netzwerk, Wartung, DNS, Web, Samba und NFS, DHCP, PAM und LDAP, E-Mail, Sicherheit | 📝 |
+| 3 | 202 | SysV-init mit inittab, update-rc.d und chkconfig, systemd-Units mit Drop-ins und systemd-delta, BIOS und UEFI, ESP und efibootmgr, GRUB-Menü und GRUB-Shell, Rescue- und Emergency-Modus, Rettung aus dem Live-System mit chroot, SYSLINUX, PXE für BIOS und UEFI, hybride ISOs, Bosskampf, Probeprüfung | ✅ |
+| 4–13 | 203–212 | Dateisysteme, RAID und LVM, Netzwerk, Wartung, DNS, Web, Samba und NFS, DHCP, PAM und LDAP, E-Mail, Sicherheit | 📝 |
 
 ✅ spielbar · 📝 Lehrplan steht, Missionen folgen
 
@@ -102,16 +104,10 @@ Am meisten hilft gerade:
 
 - [ ] **Feedback von Einsteigern.** Wo bist du hängen geblieben?
 - [ ] **Prüfungserfahrung.** Wer die Prüfung abgelegt hat: Welche Themen kamen stärker dran als gedacht? (Bitte keine Prüfungsfragen weitergeben, das verbieten die Regeln des LPI.)
-- [x] Topic 105 (Akt 5)
-- [x] Topic 106 (Akt 6)
-- [x] Topic 107 (Akt 7)
-- [x] Topic 108 (Akt 8)
-- [x] Topic 109 (Akt 9)
-- [x] Topic 110 (Akt 10) und Generalprobe 102
-- [x] LPIC-2 Akt 0 (Labor) und Akt 1 (Topic 200)
-- [x] LPIC-2 Akt 2 (Topic 201)
-- [x] LPIC-2 Akt 3 (Topic 202)
-- [ ] LPIC-2 Akt 4 bis 13
+- [x] LPIC-1 komplett (Akt 0 bis 10, Generalproben 101 und 102)
+- [x] LPIC-2 Akt 0 bis 3 (Labor, Topics 200 bis 202)
+- [ ] LPIC-2 Akt 4 bis 13 (Topics 203 bis 212)
+- [ ] LPIC-3 Security
 - [ ] **Labor-Aufgaben testen** auf anderen Distributionen und mit anderen Virtualisierern.
 
 ## Entstehung
@@ -119,7 +115,7 @@ Am meisten hilft gerade:
 > [!NOTE]
 > Dieser Kurs entsteht mit Unterstützung von **Claude**, einer KI von Anthropic.
 
-Die Idee, die Ziele und die Entscheidungen kommen von einem Menschen. Texte, Übungen und Simulator schreibt die KI, ein Mensch prüft sie und gibt sie frei. Auch so können Fehler drinstecken. Wenn dir etwas falsch vorkommt, [öffne ein Issue](https://github.com/r-winter-mute-dev/ZEROTOHERO-LINUX/issues). Hinweise mit Quelle (Handbuchseite, Lernziel des LPI) helfen am meisten.
+Idee, Ziele und Entscheidungen kommen von **Winter-Mute** ([@r-winter-mute-dev](https://github.com/r-winter-mute-dev)), der das Projekt betreut. Texte, Übungen und Simulator schreibt die KI, er prüft sie und gibt sie frei. In der Git-Historie steht er als Autor, Claude als Co-Autor. Auch so können Fehler drinstecken. Wenn dir etwas falsch vorkommt, [öffne ein Issue](https://github.com/r-winter-mute-dev/ZEROTOHERO-LINUX/issues). Hinweise mit Quelle (Handbuchseite, Lernziel des LPI) helfen am meisten.
 
 **Linux to Hero** ist ein unabhängiges Projekt und gehört nicht zum Linux Professional Institute. LPIC ist eine Marke des LPI.
 
