@@ -92,6 +92,11 @@ Fachliche Inhalte sind gegen die Handbuchseiten der Programme und die offizielle
 
 ## Was du brauchst
 
+Linux musst du nicht kennen. Was du mitbringen solltest, was die Prüfungen verlangen und welche Regeln gelten, steht im **[Missionsbriefing](https://r-winter-mute-dev.github.io/ZEROTOHERO-LINUX/briefing/)** vor dem Start. In Kürze:
+
+- Grundlagen am Computer: Ordner, Downloads, Programme installieren.
+- Kurze englische Texte lesen. Die Prüfung 303 (LPIC-3 Security) gibt es nur auf Englisch und Japanisch.
+
 - Einen Computer, der zwei virtuelle Maschinen schafft (VirtualBox, UTM auf Macs mit Apple-Chip, virt-manager oder GNOME Boxes unter Linux).
 - Eine VM mit **Debian** und eine mit **AlmaLinux** oder **Rocky Linux**. Mission 0.2 führt durch die Einrichtung.
 - Ab Kampagne 2: ein kleines virtuelles Netz aus drei VMs. Ab Kampagne 3: ein abgeschottetes Labornetz.

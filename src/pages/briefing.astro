@@ -1,0 +1,132 @@
+---
+// Missionsbriefing: einmal vor dem Start, gilt für alle drei Kampagnen.
+import Basis from '../layouts/Basis.astro';
+import { SEITE, url } from '../config';
+
+const ausruestung = [
+  { t: 'Du kannst am Computer Ordner anlegen, Dateien herunterladen und Programme installieren.', hilfe: 'Diese Grundlagen erklärt der Kurs nicht. Ein Einsteigerkurs zu deinem Betriebssystem (Windows, macOS) hilft vorher. Linux selbst musst du nicht kennen.' },
+  { t: 'Dein Rechner schafft zwei virtuelle Maschinen gleichzeitig, und du darfst Software darauf installieren.', hilfe: 'Mission 0.2 führt durch die Einrichtung. Ohne eigenes Labor geht es mit dem Simulator weiter, die Laboraufgaben lassen sich überspringen. Auf Firmenrechnern ist Virtualisierung oft gesperrt.' },
+  { t: 'Du kannst die Virtualisierung im BIOS oder UEFI einschalten, falls sie aus ist.', hilfe: 'Das Menü sieht bei jedem Hersteller anders aus. Such nach „Intel VT-x“, „AMD-V“ oder „SVM“ zusammen mit dem Namen deines Rechners. Meldet die VM-Software beim Start einen Fehler zur Virtualisierung, ist sie meist ausgeschaltet.' },
+  { t: 'Kurze englische Texte schrecken dich nicht ab.', hilfe: 'Der Simulator spricht Deutsch. Auf deinem eigenen Linux sind Fehlermeldungen und Handbuchseiten oft englisch. Ein Wörterbuch genügt am Anfang, die Fachwörter lernst du nebenbei.' },
+  { t: 'Du kannst mehrmals pro Woche kurz üben, auch über mehrere Monate.', hilfe: 'Der Kurs lebt vom Wiederholen mit Abstand: Karten kommen nach Tagen und Wochen zurück. Einmal im Monat einen ganzen Tag lernen bringt weniger als oft und kurz.' },
+];
+---
+<Basis titel="Missionsbriefing" beschreibung="Bevor deine Mission zum Linux-Profi startet: Auftrag, Lage, Ausrüstung und Regeln.">
+  <section class="huelle briefing" data-kw-briefing>
+    <p class="kennung">MISSIONSBRIEFING · {SEITE.name.toUpperCase()}</p>
+    <h1>Bevor deine Mission zum Linux-Profi startet.</h1>
+    <p class="einstieg">Fünf Minuten Lesen, dann weißt du, worauf du dich einlässt, was du mitbringen musst und welche Regeln hier gelten.</p>
+
+    <ol class="abschnitte">
+      <li>
+        <p class="marke">01 · AUFTRAG</p>
+        <h2>Drei Zertifikate, ein Weg</h2>
+        <p>Du arbeitest dich durch drei Kampagnen, eine pro Zertifikat des Linux Professional Institute (LPI):</p>
+        <dl class="kampagnen">
+          <div><dt>Kampagne 1 · LPIC-1</dt><dd>Linux bedienen und verwalten: Hardware, Start, Pakete, Kommandozeile, Dateisysteme, Benutzer, Netzwerk, Sicherheit. <strong>Startet bei null.</strong></dd></div>
+          <div><dt>Kampagne 2 · LPIC-2</dt><dd>Das Netz einer kleinen Firma betreiben: Kernel, Systemstart, Speicher, DNS, Web, Freigaben, Mail, VPN.</dd></div>
+          <div><dt>Kampagne 3 · LPIC-3 Security</dt><dd>Systeme im ganzen Unternehmen absichern: Kryptografie, Härtung, Zugriffskontrolle, Netzwerksicherheit.</dd></div>
+        </dl>
+      </li>
+
+      <li>
+        <p class="marke">02 · LAGE</p>
+        <h2>Die Prüfungen</h2>
+        <ul>
+          <li>Jede Prüfung hat 60 Fragen in 90 Minuten. Bestanden ist ab 500 Punkten auf einer Skala von 200 bis 800.</li>
+          <li><strong>LPIC-1</strong> hat keine Voraussetzungen. Für <strong>LPIC-2</strong> brauchst du ein gültiges LPIC-1, für <strong>LPIC-3</strong> ein gültiges LPIC-2. Die Prüfungen selbst darfst du in beliebiger Reihenfolge ablegen, das Zertifikat bekommst du erst mit der Stufe darunter.</li>
+          <li>LPIC-1 und LPIC-2 kannst du auch auf Deutsch ablegen. <strong>Die Prüfung 303 für LPIC-3 Security gibt es nur auf Englisch und Japanisch.</strong> Spätestens in Kampagne 3 lernst du die Fachbegriffe deshalb auch auf Englisch.</li>
+          <li>Die Prüfungen kosten Geld und laufen über Pearson VUE. Der Kurs selbst ist kostenlos.</li>
+        </ul>
+        <p class="leise klein">Stand: November 2026. Quellen: <a href="https://www.lpi.org/8hg6">Übersicht der Zertifikate beim LPI</a>, <a href="https://www.pearsonvue.com/us/en/lpi.html">LPI bei Pearson VUE</a>. Preise und Sprachen können sich ändern, prüf sie vor der Anmeldung.</p>
+      </li>
+
+      <li>
+        <p class="marke">03 · AUSRÜSTUNG</p>
+        <h2>Ausrüstungscheck</h2>
+        <p>Linux musst du nicht kennen. Ein paar Dinge setzt der Kurs aber voraus. Hak ab, was auf dich zutrifft. Bei allem, was offen bleibt, steht, was du tun kannst.</p>
+        <ul class="check" data-br-check>
+          {ausruestung.map((a, i) => (
+            <li>
+              <label><input type="checkbox" data-i={i} /> <span>{a.t}</span></label>
+              <p class="hilfe" data-br-hilfe>{a.hilfe}</p>
+            </li>
+          ))}
+        </ul>
+        <p class="stand" data-br-stand aria-live="polite"></p>
+        <p>Für die späteren Kampagnen kommt dazu:</p>
+        <ul>
+          <li><strong>Kampagne 2:</strong> der Stoff von LPIC-1 sitzt (Kampagne 1 oder vergleichbare Erfahrung) und dein Rechner schafft drei kleine VMs: Router, Server und Client.</li>
+          <li><strong>Kampagne 3:</strong> der Stoff von LPIC-2 sitzt, du hast ein abgeschottetes Labornetz und liest englische Fachtexte.</li>
+        </ul>
+      </li>
+
+      <li>
+        <p class="marke">04 · EINSATZREGELN</p>
+        <h2>Was du wissen solltest</h2>
+        <ul>
+          <li><strong>Keine Garantie fürs Bestehen.</strong> Der Kurs folgt den offiziellen Lernzielen des LPI, maßgeblich sind aber immer diese selbst.</li>
+          <li><strong>Entstanden mit KI.</strong> Texte, Übungen und Simulator schreibt Claude, eine KI von Anthropic. Ein Mensch prüft und gibt frei. Trotzdem können Fehler drinstecken. Wenn dir etwas falsch vorkommt, <a href="https://github.com/r-winter-mute-dev/ZEROTOHERO-LINUX/issues">melde es</a>, am besten mit Quelle.</li>
+          <li><strong>Keine echten Prüfungsfragen.</strong> Alle Fragen sind selbst geschrieben. Bitte gib auch du keine Fragen aus deiner Prüfung weiter, das verbieten die Regeln des LPI.</li>
+          <li><strong>Unabhängig.</strong> {SEITE.name} gehört nicht zum LPI. LPIC ist eine Marke des Linux Professional Institute.</li>
+          <li><strong>Angriffswerkzeuge nur im eigenen Labor.</strong> Wer fremde Rechner ohne Erlaubnis angreift, macht sich strafbar, und schon ein Scan fremder Netze kann Ärger bringen. Alles aus Kampagne 3 übst du nur an Systemen, die dir gehören.</li>
+          <li><strong>Dein Fortschritt bleibt bei dir.</strong> Kein Konto, kein Tracking. Alles liegt im Speicher deines Browsers. Sichere ihn ab und zu unter <a href={url('fortschritt')}>Fortschritt</a>, sonst ist er weg, wenn du die Browserdaten löschst.</li>
+        </ul>
+      </li>
+    </ol>
+
+    <div class="start">
+      <a class="knopf" href={url('mission/l1-0-1')} data-br-los>Briefing verstanden, Mission starten</a>
+      <span class="leise">Weiter mit Mission 0.1 „Das Ziel“.</span>
+    </div>
+  </section>
+</Basis>
+
+<script>
+  const KEY = 'lth:briefing';
+  type Stand = { gelesen?: boolean; check?: number[] };
+  const lesen = (): Stand => { try { return JSON.parse(localStorage.getItem(KEY) ?? '{}'); } catch { return {}; } };
+  const schreiben = (s: Stand) => { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch { /* egal */ } };
+  const boxen = [...document.querySelectorAll<HTMLInputElement>('[data-br-check] input')];
+  const stand = document.querySelector<HTMLElement>('[data-br-stand]')!;
+  const an = new Set(lesen().check ?? []);
+  boxen.forEach((b) => (b.checked = an.has(Number(b.dataset.i))));
+  function zeichnen() {
+    boxen.forEach((b) => b.closest('li')!.classList.toggle('ok', b.checked));
+    const offen = boxen.filter((b) => !b.checked).length;
+    stand.textContent = offen === 0 ? 'Ausrüstung vollständig. Du bist bereit.' : `${boxen.length - offen} von ${boxen.length} Punkten abgehakt. Zu den offenen steht oben, was du tun kannst.`;
+    stand.classList.toggle('bereit', offen === 0);
+  }
+  zeichnen();
+  document.querySelector('[data-br-check]')!.addEventListener('change', () => {
+    schreiben({ ...lesen(), check: boxen.filter((b) => b.checked).map((b) => Number(b.dataset.i)) });
+    zeichnen();
+  });
+  document.querySelector('[data-br-los]')!.addEventListener('click', () => schreiben({ ...lesen(), gelesen: true }));
+</script>
+
+<style>
+  .briefing { padding-top: 2.5rem; padding-bottom: 3rem; max-width: 48rem; }
+  .kennung { font-family: var(--mono); font-size: 0.8rem; letter-spacing: 0.12em; color: var(--akzent-hell); margin: 0 0 0.6rem; }
+  .briefing h1 { max-width: 22ch; margin-top: 0; }
+  .einstieg { font-size: 1.15rem; color: var(--leise); }
+  .abschnitte { list-style: none; padding: 0; margin: 2rem 0 0; display: grid; gap: 1.4rem; }
+  .abschnitte > li { border: 1px solid var(--flaeche); border-left: 3px solid var(--akzent); border-radius: var(--radius); background: var(--flaeche-leicht); padding: 1.1rem 1.3rem 1.2rem; }
+  .marke { font-family: var(--mono); font-size: 0.78rem; letter-spacing: 0.14em; color: var(--akzent); margin: 0; }
+  .abschnitte h2 { margin: 0.2rem 0 0.7rem; font-size: 1.35rem; }
+  .abschnitte ul { padding-left: 1.2rem; }
+  .abschnitte ul li { margin: 0.35rem 0; }
+  .kampagnen { display: grid; gap: 0.7rem; margin: 0.8rem 0 0; }
+  .kampagnen dt { font-weight: 700; color: var(--akzent-hell); }
+  .kampagnen dd { margin: 0.1rem 0 0; }
+  .check { list-style: none; padding: 0 !important; margin: 1rem 0 0.6rem; display: grid; gap: 0.5rem; }
+  .check li { border: 1px solid var(--flaeche); border-radius: var(--radius-klein); padding: 0.6rem 0.8rem; background: var(--tief); margin: 0 !important; }
+  .check li.ok { border-color: var(--gut); }
+  .check label { display: flex; gap: 0.6rem; align-items: flex-start; cursor: pointer; }
+  .check input { margin-top: 0.3rem; accent-color: var(--gut); flex: none; }
+  .hilfe { margin: 0.4rem 0 0 1.6rem; font-size: 0.92rem; color: var(--warnung); }
+  .check li.ok .hilfe { display: none; }
+  .stand { font-weight: 700; color: var(--warnung); }
+  .stand.bereit { color: var(--gut); }
+  .start { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; margin-top: 2rem; }
+</style>
