@@ -1,0 +1,149 @@
+---
+id: l2-2-3
+checks:
+  - id: k1
+  - id: reihe
+  - id: installieren
+  - id: k2
+  - id: falsch
+  - id: alma
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "Installieren"
+    v: "sudo make modules_install → /lib/modules/VERSION · sudo make install → /boot/vmlinuz-, System.map-, config-VERSION · Reihenfolge: erst Module"
+  - t: "Haken"
+    v: "/etc/kernel/postinst.d: initramfs-tools, zz-update-grub, dkms · postrm.d räumt beim Entfernen auf"
+  - t: "initramfs (Debian)"
+    v: "update-initramfs -c -k VERSION · -u [-k all] · -d · mkinitramfs -o DATEI VERSION · lsinitramfs DATEI · /etc/initramfs-tools/"
+  - t: "initramfs (Red Hat)"
+    v: "dracut -f [DATEI VERSION] · mkinitrd DATEI VERSION · lsinitrd · /boot/initramfs-VERSION.img · /etc/dracut.conf.d/"
+  - t: "GRUB"
+    v: "update-grub bzw. grub-mkconfig -o /boot/grub/grub.cfg · Red Hat: grub2-mkconfig -o /boot/grub2/grub.cfg · neuester Kernel = Standard"
+  - t: "Als Paket"
+    v: "make bindeb-pkg → ../linux-image-*.deb · sudo dpkg -i · make binrpm-pkg auf Red Hat"
+karten:
+  - f: "Wohin installiert make modules_install die Module?"
+    a: ["/lib/modules/version", "/lib/modules/$(uname -r)", "/lib/modules/kernelversion"]
+  - f: "Welche drei Dateien legt make install nach /boot?"
+    a: ["vmlinuz, system.map und config", "vmlinuz-version, system.map-version, config-version"]
+  - f: "Warum muss make modules_install vor make install laufen?"
+    a: ["weil das initramfs sonst ohne module gebaut wird", "das initramfs braucht die module"]
+  - f: "Mit welchem Befehl erzeugst du auf Debian das initramfs für 6.18.65-lab neu?"
+    a: ["update-initramfs -u -k 6.18.65-lab", "update-initramfs -c -k 6.18.65-lab", "sudo update-initramfs -u -k 6.18.65-lab"]
+  - f: "Wie heißt das Werkzeug für das initramfs auf Red Hat?"
+    a: ["dracut"]
+  - f: "Mit welchem Befehl siehst du den Inhalt eines initramfs auf Debian?"
+    a: ["lsinitramfs", "lsinitramfs /boot/initrd.img-version"]
+  - f: "Welches make-Ziel baut Debian-Pakete aus dem Kernel?"
+    a: ["bindeb-pkg", "deb-pkg", "make bindeb-pkg"]
+  - f: "Was meldet der Kernel, wenn er die Wurzel nicht findet und kein initramfs hat?"
+    a: ["kernel panic - not syncing: vfs: unable to mount root fs", "kernel panic", "unable to mount root fs"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Reihenfolge from '../components/Reihenfolge.astro';
+
+Der neue Kernel ist gebaut, aber noch liegt er nur im Quellbaum. Bis messpc mit ihm startet, fehlen drei Dinge: die Module am richtigen Ort, ein initramfs und ein Eintrag im Bootloader. **Deine Mission: Installiere Kernel und Module in der richtigen Reihenfolge, sorge dafür, dass GRUB ihn findet, und rette einen Rechner, bei dem jemand die Reihenfolge vertauscht hat.** Lernziel 201.2, dazu die Fehlersuche beim Start aus 201.3.
+
+## Kernel installieren
+
+<Karte nr={1} titel="Module, Kernel, initramfs, GRUB">
+**sudo make modules_install** kopiert alle Module nach `/lib/modules/VERSION/`, für unseren Kernel also nach `/lib/modules/6.18.65-lab/`, und ruft danach **depmod** auf. depmod schreibt `modules.dep`, die Liste, welches Modul welche anderen braucht. Außerdem entsteht dort die Verknüpfung `build` auf den Quellbaum. Sie braucht man, um später Module außerhalb des Kernels zu bauen (Mission 2.4).
+
+**sudo make install** ruft das Skript **installkernel** der Distribution auf. Auf Debian kopiert es `arch/x86/boot/bzImage` als `/boot/vmlinuz-VERSION`, dazu `System.map-VERSION` und `config-VERSION`. Dann führt es alle Haken in **/etc/kernel/postinst.d/** aus:
+
+- **initramfs-tools** erzeugt `/boot/initrd.img-VERSION`,
+- **zz-update-grub** schreibt die GRUB-Konfiguration neu,
+- **dkms** baut fremde Module für den neuen Kernel (falls DKMS installiert ist).
+
+Darum ist die Reihenfolge wichtig: Das initramfs wird aus den Modulen unter /lib/modules gebaut. Wer `make install` vor `make modules_install` aufruft, bekommt ein initramfs ohne Treiber.
+
+Statt von Hand zu installieren, kannst du auch Pakete bauen: `make bindeb-pkg` legt `linux-image-VERSION_…_amd64.deb` und `linux-headers-…deb` **in den Ordner über dem Quellbaum**, die du mit `dpkg -i` installierst und mit `apt remove` sauber wieder los wirst. `make deb-pkg` baut zusätzlich ein Quellpaket. Auf Red Hat heißen die Ziele `binrpm-pkg` und `rpm-pkg`.
+</Karte>
+
+<Quiz id="k1" titel="Kurzcheck: Installieren" fragen={[
+  { frage: 'Welcher Befehl ruft auf Debian die Haken in /etc/kernel/postinst.d auf, die initramfs und GRUB-Menü erzeugen?', richtig: 'sudo make install (über installkernel)', falsch: ['sudo make modules_install', 'make bzImage'], erklaerung: 'modules_install kopiert nur die Module und ruft depmod auf.' },
+]} />
+
+<Reihenfolge id="reihe" titel="Reihenfolge: Vom Quellbaum bis zum Start" aufgabe="Bring die Schritte in die richtige Reihenfolge."
+  schritte={[
+    'cp /boot/config-$(uname -r) .config und make olddefconfig',
+    'make -j$(nproc)',
+    'sudo make modules_install',
+    'sudo make install (initramfs und GRUB über die Haken)',
+    'Neustart und mit uname -r prüfen',
+  ]}
+  erklaerung="Erst die Module, dann der Kernel: Das initramfs wird beim make install aus den Modulen gebaut." />
+
+<Terminal id="installieren" titel="Terminal: 6.18.65-lab installieren" welt={{ host: 'messpc', cwd: '/usr/src/linux-6.18.64', kern: { quelle: 'gebaut', werkzeuge: true } }} aufgaben={[
+  { text: 'Installiere die Module des neuen Kernels.', zustand: 'dep:e1000e@6.18.65-lab' },
+  { text: 'Installiere den Kernel.', zustand: 'kernelinst:6.18.65-lab' },
+  { text: 'Lass dir zeigen, was jetzt in /boot liegt.', befehl: '^ls( -\\w+)? /boot/?$', frage: 'Wie heißt das initramfs des neuen Kernels?', antwort: ['initrd.img-6.18.65-lab', '/boot/initrd.img-6.18.65-lab'] },
+  { text: 'Prüf, ob im initramfs der Treiber für die NVMe-SSD steckt, auf der die Wurzel liegt.', befehl: '^(sudo )?lsinitramfs /boot/initrd\\.img-6\\.18\\.65-lab( \\| (grep|less).*)?$', zustand: 'initrd:6.18.65-lab=mit' },
+  { text: 'Such in der GRUB-Konfiguration nach den Menüeinträgen.', befehl: '^grep .*menuentry.* /boot/grub/grub\\.cfg$', frage: 'Welcher Kernel steht im zweiten Eintrag, also gleich unter „Debian GNU/Linux“?', antwort: ['6.18.65-lab'] },
+  { text: 'Starte neu (Knopf unter dem Terminal) und prüf, welcher Kernel läuft.', zustand: 'neustart && kernel=6.18.65-lab' },
+]} />
+
+## Das initramfs
+
+<Karte nr={2} titel="Warum der Kernel eine Starthilfe braucht">
+Der Kernel muss die Wurzel einhängen. Liegt sie auf einer NVMe-SSD, in einem RAID, in LVM oder verschlüsselt, braucht er dafür Treiber und Programme. Distributionen bauen diese Treiber als Module, damit ein Kernel auf jeder Hardware startet. Die Module liegen aber auf der Wurzel, die er noch nicht lesen kann.
+
+Die Lösung ist das **initramfs**: ein gepacktes cpio-Archiv mit einer kleinen Umgebung, den nötigen Modulen und einem Startskript. Der Bootloader lädt es zusammen mit dem Kernel in den Speicher. Es lädt die Treiber, hängt die echte Wurzel ein und übergibt an `/sbin/init`. Der ältere Name **initrd** meinte eine RAM-Disk mit einem Dateisystem darin. Der Begriff blieb, auch wenn heute fast immer ein initramfs drinsteckt.
+
+| | Debian, Ubuntu | Red Hat, Fedora, SUSE |
+|---|---|---|
+| Werkzeug | `update-initramfs` (benutzt `mkinitramfs`) | `dracut` (`mkinitrd` ist ein Wrapper) |
+| Datei | `/boot/initrd.img-VERSION` | `/boot/initramfs-VERSION.img` |
+| Neu bauen | `update-initramfs -u -k VERSION` | `dracut -f /boot/initramfs-VERSION.img VERSION` |
+| Inhalt zeigen | `lsinitramfs DATEI` | `lsinitrd DATEI` |
+| Einstellungen | `/etc/initramfs-tools/` | `/etc/dracut.conf`, `/etc/dracut.conf.d/` |
+
+`update-initramfs -c` legt ein neues an, `-u` aktualisiert, `-d` löscht, `-k all` meint alle Kernel. Neu bauen musst du es, wenn sich Treiber für den Start ändern: neuer Kernel, ein Modul in `/etc/initramfs-tools/modules`, eine Änderung in `/etc/modprobe.d` für ein Startmodul, ein neues RAID.
+
+Findet der Kernel die Wurzel nicht, gibt es zwei typische Bilder: **Ohne initramfs** endet der Start mit `Kernel panic - not syncing: VFS: Unable to mount root fs on unknown-block(0,0)`. **Mit einem initramfs ohne die nötigen Treiber** wartet es eine Weile und landet in einer Notfall-Shell `(initramfs)` mit `ALERT! UUID=… does not exist`. In beiden Fällen startest du im GRUB-Menü unter „Advanced options“ den alten Kernel und reparierst von dort.
+</Karte>
+
+<Merke>initramfs: Treiber für die Wurzel. Debian: update-initramfs, lsinitramfs, /boot/initrd.img-*. Red Hat: dracut, lsinitrd, /boot/initramfs-*.img. Kein initramfs: Kernel panic. initramfs ohne Treiber: Shell (initramfs).</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: initramfs" fragen={[
+  { frage: 'Ein selbst gebauter Kernel startet nicht, die Meldung lautet „Kernel panic - not syncing: VFS: Unable to mount root fs on unknown-block(0,0)“. Was ist die wahrscheinlichste Ursache?', richtig: 'Es gibt kein initramfs, und der Treiber für die Wurzel ist nur als Modul gebaut.', falsch: ['Die Datei /etc/fstab ist fehlerhaft.', 'Das Root-Passwort ist falsch.'], erklaerung: 'Ohne initramfs kann der Kernel nur fest eingebaute Treiber nutzen. Abhilfe: initramfs bauen oder den Treiber mit =y einbauen.' },
+]} />
+
+<Terminal id="falsch" titel="Terminal: Ein Kollege war schneller" welt={{ host: 'messpc', cwd: '/usr/src/linux-6.18.64', kern: { quelle: 'gebaut', werkzeuge: true, fehlinstalliert: true } }} aufgaben={[
+  { text: 'Ein Kollege hat 6.18.65-lab gestern mit <code>sudo make install</code> installiert. Starte neu und sieh dir an, was passiert.', zustand: 'aus=kernelfehler' },
+  { text: 'Starte noch einmal neu. Diesmal nimmst du im GRUB-Menü den alten Kernel.', zustand: 'neustart && kernel=6.1.0-27-amd64 && nicht:aus=kernelfehler' },
+  { text: 'Finde heraus, was dem neuen Kernel fehlt.', befehl: '^ls( -\\w+)? /lib/modules/?$|^lsinitramfs /boot/initrd\\.img-6\\.18\\.65-lab( \\| .*)?$', frage: 'Fehlen die Module unter /lib/modules/6.18.65-lab? (ja/nein)', antwort: ['ja'] },
+  { text: 'Hol nach, was der Kollege vergessen hat, und bau das initramfs des neuen Kernels neu.', zustand: 'dep:e1000e@6.18.65-lab && initrd:6.18.65-lab=mit' },
+  { text: 'Starte neu. Jetzt muss 6.18.65-lab laufen.', zustand: 'kernel=6.18.65-lab' },
+]} />
+
+## Und auf Red Hat?
+
+<Terminal id="alma" titel="Terminal: dracut auf AlmaLinux" welt={{ distro: 'alma', kern: {} }} aufgaben={[
+  { text: 'Lass dir zeigen, welche Kernel-Dateien in /boot liegen.', befehl: '^ls( -\\w+)? /boot/?$', frage: 'Wie heißt hier die Datei mit dem initramfs? (ohne /boot/)', antwort: ['initramfs-5.14.0-427.13.1.el9_4.x86_64.img'] },
+  { text: 'Bau das initramfs des laufenden Kernels mit dracut neu. Die vorhandene Datei musst du dabei ausdrücklich überschreiben.', befehl: '^dracut (-f|--force)( -v)?$|^dracut (-f|--force) /boot/initramfs-(\\$\\(uname -r\\)|5\\.14\\.0-427\\.13\\.1\\.el9_4\\.x86_64)\\.img (\\$\\(uname -r\\)|5\\.14\\.0-427\\.13\\.1\\.el9_4\\.x86_64)$' },
+  { text: 'Sieh dir den Inhalt mit lsinitrd an.', befehl: '^lsinitrd( /boot/initramfs-\\S+\\.img)?( \\| (head|less|grep).*)?$', frage: 'Mit welcher dracut-Version wurde es gebaut? (Zahl hinter dracut-)', antwort: ['057', '57', '057-53.git20240104.el9'] },
+]} />
+
+<Labor id="labor" titel="Labor: Initramfs untersuchen"
+  aufgabe="Lass dir auf srv1 den Inhalt des initramfs zeigen und such darin die Treiber für die Platte. Bau es danach neu. Füge die Ausgabe ein."
+  befehl={"lsinitramfs /boot/initrd.img-$(uname -r) | grep -E 'ahci|virtio|nvme|ext4' | head\nsudo update-initramfs -u -k $(uname -r)\nls -l /boot/initrd.img-$(uname -r)"}
+  muster={["\\.ko", "update-initramfs: Generating /boot/initrd\\.img-", "initrd\\.img-"]}
+  erfolg="Je nach VM steckt ahci (SATA) oder virtio_blk (KVM) im initramfs. Hast du in Mission 2.2 einen Kernel gebaut, installiere ihn jetzt mit sudo make modules_install && sudo make install und starte neu." />
+
+<Hinweis titel="Prüfungstipp">
+Gefragt werden mkinitrd und mkinitramfs, die Reihenfolge modules_install vor install, /lib/modules/VERSION und dass der Bootloader den neuen Kernel finden muss. dracut ist nur „Awareness“, also Wissen ohne Detailfragen. Im Entwurf 5.0 stehen initramfs und mkinitramfs in 201.1 und 201.4, das Installieren eines selbst gebauten Kernels fällt weg.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Du hast einen Kernel von Hand nach /boot kopiert und startest neu. Er taucht im GRUB-Menü nicht auf. Was fehlt?', richtig: 'update-grub (grub-mkconfig -o /boot/grub/grub.cfg)', falsch: ['depmod -a', 'grub-install'], erklaerung: 'grub-install schreibt den Bootloader selbst neu. Die Menüeinträge erzeugt grub-mkconfig.' },
+  { frage: 'Wo landen die Pakete, die make bindeb-pkg baut?', richtig: 'Im Ordner über dem Quellbaum', falsch: ['In /var/cache/apt/archives', 'Im Quellbaum unter debian/'], erklaerung: 'Liegt der Baum in /usr/src, darfst du dort als Benutzer nicht schreiben. Darum baut man Pakete gern im Heimatverzeichnis.' },
+  { frage: 'Welcher Befehl erzeugt auf Red Hat das initramfs des laufenden Kernels neu?', richtig: 'dracut -f', falsch: ['update-initramfs -u', 'mkinitramfs -u'], erklaerung: 'update-initramfs und mkinitramfs gehören zu Debian.' },
+]} />

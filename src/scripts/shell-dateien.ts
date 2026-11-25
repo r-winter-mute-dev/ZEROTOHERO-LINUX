@@ -85,7 +85,9 @@ export function groesse(c: string | null | undefined): number {
   if (c.startsWith(BIN)) return Number(c.slice(BIN.length)) || 0;
   if (c.startsWith(KOMP)) { const [art, ...r] = c.slice(KOMP.length).split(':'); const roh = groesse(r.join(':')); return Math.max(20, Math.round(roh * ({ gz: 0.42, bz2: 0.38, xz: 0.33 } as Record<string, number>)[art])); }
   if (c.startsWith(TAR)) { try { return 10240 * Math.max(1, Math.ceil((JSON.parse(c.slice(TAR.length)) as { c: string | null }[]).reduce((a, e) => a + 512 + groesse(e.c ?? ''), 0) / 10240)); } catch { return 10240; } }
-  if (c.startsWith(CPIO)) return 512 * 2;
+  if (c.startsWith(CPIO)) return c.length > 400 ? 48 * 1024 * 1024 + c.length * 97 : 512 * 2;
+  if (c.startsWith('\u0007KERNEL:') || c.startsWith('\u0007KO:')) return Number(c.split(':')[c.startsWith('\u0007KO:') ? 3 : 1]) || 0;
+  if (c.startsWith('\u0007DEB:')) return 9_800_000 + c.length;
   return new TextEncoder().encode(c).length;
 }
 
@@ -99,6 +101,9 @@ export function dateityp(w: Welt, p: string): string {
   if (c.startsWith(KOMP)) { const art = c.slice(KOMP.length).split(':')[0]; return art === 'gz' ? 'gzip compressed data, from Unix' : art === 'bz2' ? 'bzip2 compressed data, block size = 900k' : 'XZ compressed data, checksum CRC64'; }
   if (/[\uF780-\uF7FF]/.test(c)) return 'ISO-8859 text';
   if (c.startsWith(TAR)) return 'POSIX tar archive (GNU)';
+  if (c.startsWith('\u0007KERNEL:')) return `Linux kernel x86 boot executable bzImage, version ${c.split(':').slice(2).join(':')}, RO-rootFS, swap_dev 0X8, Normal VGA`;
+  if (c.startsWith('\u0007KO:')) return `ELF 64-bit LSB relocatable, x86-64, version 1 (SYSV), BuildID[sha1]=4c1f0e9a7b2d6e3f8a5c9b0d1e2f3a4b5c6d7e8f, with debug_info, not stripped`;
+  if (c.startsWith('\u0007DEB:')) return 'Debian binary package (format 2.0), with control.tar.xz, data compression xz';
   if (c.startsWith(CPIO)) return 'ASCII cpio archive (SVR4 with no CRC)';
   if (c.startsWith(BIN) && /\.jpe?g$/i.test(p)) return 'JPEG image data, JFIF standard 1.01, aspect ratio, density 1x1, segment length 16, baseline, precision 8, 4032x3024, components 3';
   if (c.startsWith(BIN) && /\.png$/i.test(p)) return 'PNG image data, 1920 x 1080, 8-bit/color RGB, non-interlaced';
@@ -118,7 +123,7 @@ export function dateityp(w: Welt, p: string): string {
 
 export function rechteText(w: Welt, p: string): string {
   const m = meta(w, p); const c = w.fs[p];
-  const typ = c === null ? 'd' : typeof c === 'string' && c.startsWith('-> ') ? 'l' : p.startsWith('/dev/') && c !== null ? (p.match(/tty|null|zero|random/) ? 'c' : 'b') : '-';
+  const typ = c === null ? 'd' : typeof c === 'string' && c.startsWith('-> ') ? 'l' : p.startsWith('/dev/') && c !== null ? (p.match(/tty|null|zero|random|labsensor/) ? 'c' : 'b') : '-';
   const r = (b: number, s: boolean, sZeichen: string) => `${b & 4 ? 'r' : '-'}${b & 2 ? 'w' : '-'}${s ? (b & 1 ? sZeichen : sZeichen.toUpperCase()) : (b & 1 ? 'x' : '-')}`;
   const mode = typ === 'l' ? 0o777 : m.mode;
   return typ + r(mode >> 6, !!(mode & 0o4000), 's') + r(mode >> 3, !!(mode & 0o2000), 's') + r(mode, !!(mode & 0o1000), 't');

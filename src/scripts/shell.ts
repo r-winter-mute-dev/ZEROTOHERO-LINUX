@@ -3,7 +3,8 @@
 // Rechte (sudo), Pipes, Umleitungen, Kernelmodule mit Abhängigkeiten, systemd-Targets, geplanter Shutdown.
 // Der Rechner ist erfunden ("werkstatt"), die Ausgaben sind an echte Systeme angelehnt und gekürzt.
 
-import { paketBefehle, programmStarten, neustartPakete, startStand, zustandPakete, type PaketStand } from './shell-pakete';
+import { paketBefehle, programmStarten, neustartPakete, startStand, zustandPakete, paketeSetzen, paketHinzu, grubSchreiben, type PaketStand } from './shell-pakete';
+import { kernBefehle, kernBefehleRef, kernGrub, kernKern, kernNachApt, kernNeustart, kernProgramm, kernStarten, zustandKern, MODUL_ORT, type KernOptionen } from './shell-kernel';
 import { textBefehle } from './shell-text';
 import { SEITEN, EINGEBAUT_OHNE_SEITE, whatis, apropos } from './shell-man';
 import { locateDbAnlegen, rechteBefehle, linksAbgleichen, nurLesbar, zustandRechte, inode, linkZahl } from './shell-rechte';
@@ -271,11 +272,12 @@ function grundFs(): Record<string, string | null> {
 }
 
 function modulPfad(name: string) {
-  const ordner: Record<string, string> = { usb_storage: 'kernel/drivers/usb/storage', uas: 'kernel/drivers/usb/storage', e1000e: 'kernel/drivers/net/ethernet/intel/e1000e', iwlwifi: 'kernel/drivers/net/wireless/intel/iwlwifi', pcspkr: 'kernel/drivers/input/misc', floppy: 'kernel/drivers/block', i915: 'kernel/drivers/gpu/drm/i915', snd_hda_intel: 'kernel/sound/pci/hda', uvcvideo: 'kernel/drivers/media/usb/uvc', btusb: 'kernel/drivers/bluetooth', vfat: 'kernel/fs/fat', fat: 'kernel/fs/fat', nvme: 'kernel/drivers/nvme/host', nvme_core: 'kernel/drivers/nvme/host' };
+  if (MODUL_ORT[name]) return MODUL_ORT[name];
+  const ordner: Record<string, string> = { usb_storage: 'kernel/drivers/usb/storage', uas: 'kernel/drivers/usb/storage', e1000e: 'kernel/drivers/net/ethernet/intel/e1000e', iwlwifi: 'kernel/drivers/net/wireless/intel/iwlwifi', pcspkr: 'kernel/drivers/input/misc', floppy: 'kernel/drivers/block', i915: 'kernel/drivers/gpu/drm/i915', snd_hda_intel: 'kernel/sound/pci/hda', uvcvideo: 'kernel/drivers/media/usb/uvc', btusb: 'kernel/drivers/bluetooth', vfat: 'kernel/fs/fat', fat: 'kernel/fs/fat', nvme: 'kernel/drivers/nvme/host', nvme_core: 'kernel/drivers/nvme/host', scsi_mod: 'kernel/drivers/scsi', ahci: 'kernel/drivers/ata', libahci: 'kernel/drivers/ata', xhci_pci: 'kernel/drivers/usb/host', xhci_hcd: 'kernel/drivers/usb/host', usbcore: 'kernel/drivers/usb/core', usb_common: 'kernel/drivers/usb/common', cfg80211: 'kernel/net/wireless', rfkill: 'kernel/net/rfkill', bluetooth: 'kernel/net/bluetooth', snd: 'kernel/sound/core', soundcore: 'kernel/sound', snd_hda_codec: 'kernel/sound/pci/hda', drm: 'kernel/drivers/gpu/drm', drm_kms_helper: 'kernel/drivers/gpu/drm', video: 'kernel/drivers/acpi', videodev: 'kernel/drivers/media/v4l2-core' };
   return `${ordner[name] ?? 'kernel/drivers/misc'}/${name.replace(/_/g, name === 'usb_storage' ? '-' : '_')}.ko`;
 }
 
-export interface WeltOptionen { last?: LastOptionen; sicherheit?: SicherOptionen; netz?: NetzOptionen; dienste?: DienstOptionen; grafik?: 'x11' | 'wayland'; defaultTarget?: string; target?: string; ohne?: string[]; dateien?: Record<string, string>; prozesse?: Prozess[]; root?: boolean; distro?: 'debian' | 'alma' | 'suse'; virt?: string; host?: string; aptVeraltet?: boolean; geaendert?: string[]; pathStandard?: boolean; cwd?: string; rechte?: Record<string, string>; zeiten?: Record<string, number>; aliase?: Record<string, string>; extraProzesse?: Prozess[]; neuePlatte?: boolean | 'leer' | 'partitioniert' | 'formatiert'; kaputt?: string[]; }
+export interface WeltOptionen { kern?: KernOptionen; last?: LastOptionen; sicherheit?: SicherOptionen; netz?: NetzOptionen; dienste?: DienstOptionen; grafik?: 'x11' | 'wayland'; defaultTarget?: string; target?: string; ohne?: string[]; dateien?: Record<string, string>; prozesse?: Prozess[]; root?: boolean; distro?: 'debian' | 'alma' | 'suse'; virt?: string; host?: string; aptVeraltet?: boolean; geaendert?: string[]; pathStandard?: boolean; cwd?: string; rechte?: Record<string, string>; zeiten?: Record<string, number>; aliase?: Record<string, string>; extraProzesse?: Prozess[]; neuePlatte?: boolean | 'leer' | 'partitioniert' | 'formatiert'; kaputt?: string[]; }
 
 export function neueWelt(o: WeltOptionen = {}): Welt {
   const verfuegbar = Object.fromEntries(MODULE.map((x) => [x.name, x]));
@@ -320,6 +322,7 @@ export function neueWelt(o: WeltOptionen = {}): Welt {
   if (w.distro === 'debian') for (const d of ['/mnt', '/media', '/srv', '/opt', '/usr/local', '/usr/local/bin', '/usr/local/sbin', '/usr/share', '/usr/share/doc', '/usr/share/man', '/usr/lib', '/usr/include', '/var/tmp', '/var/lib', '/var/cache', '/var/spool', '/var/mail', '/run', '/boot', '/proc', '/sys', '/lib', '/home', '/root', '/etc/default', '/etc/opt']) if (!(d in w.fs)) w.fs[d] = null;
   w.platten = startPlatten({ neuePlatte: o.neuePlatte }, START_UHR);
   START_FSTAB.set(w, w.fs['/etc/fstab'] ?? undefined);
+  if (o.kern) kernStarten(w, o.kern);
   locateDbAnlegen(w);
   for (const d of o.kaputt ?? []) plattenKaputt(w, d);
   if (o.neuePlatte) { w.fs['/dev/sdb'] = ''; for (const p of w.platten.platten.find((x) => x.name === 'sdb')!.partitionen) w.fs['/dev/sdb' + p.nr] = ''; }
@@ -1062,7 +1065,7 @@ function wildcards(w: Welt, muster: string): string[] {
 // ---------- Befehlssuche über PATH ----------
 
 // Wo die Programme auf Debian 12 liegen (merged /usr: /bin -> usr/bin, /sbin -> usr/sbin)
-const SBIN = new Set(['mkfs', 'mkfs.ext2', 'mkfs.ext3', 'mkfs.ext4', 'mkfs.xfs', 'mkfs.vfat', 'mkfs.fat', 'mkfs.exfat', 'mkfs.btrfs', 'mke2fs', 'mkswap', 'swapoff', 'blkid', 'e2fsck', 'fsck.ext2', 'fsck.ext3', 'fsck.ext4', 'tune2fs', 'e2label', 'xfs_repair', 'xfs_fsr', 'xfs_db', 'xfs_admin', 'parted', 'gdisk', 'updatedb', 'chroot', 'fdisk', 'modprobe', 'insmod', 'rmmod', 'lsmod', 'modinfo', 'depmod', 'shutdown', 'reboot', 'poweroff', 'halt', 'telinit', 'init', 'runlevel', 'ldconfig', 'update-grub', 'grub-install', 'grub-mkconfig', 'swapon', 'swapoff', 'dpkg-reconfigure', 'sshd', 'mkfs', 'fsck', 'blkid', 'parted', 'useradd', 'usermod', 'userdel', 'groupadd', 'groupmod', 'groupdel', 'hwclock', 'rsyslogd', 'logrotate', 'sendmail', 'postsuper', 'lpadmin', 'cupsenable', 'cupsdisable', 'cupsaccept', 'cupsreject', 'lpinfo', 'ifconfig', 'route', 'ifup', 'ifdown', 'visudo', 'tcpdmatch', 'service', 'ethtool', 'sshd', 'iotop', 'iftop', 'iptraf-ng']);
+const SBIN = new Set(['mkfs', 'mkfs.ext2', 'mkfs.ext3', 'mkfs.ext4', 'mkfs.xfs', 'mkfs.vfat', 'mkfs.fat', 'mkfs.exfat', 'mkfs.btrfs', 'mke2fs', 'mkswap', 'swapoff', 'blkid', 'e2fsck', 'fsck.ext2', 'fsck.ext3', 'fsck.ext4', 'tune2fs', 'e2label', 'xfs_repair', 'xfs_fsr', 'xfs_db', 'xfs_admin', 'parted', 'gdisk', 'updatedb', 'chroot', 'fdisk', 'modprobe', 'insmod', 'rmmod', 'lsmod', 'modinfo', 'depmod', 'shutdown', 'reboot', 'poweroff', 'halt', 'telinit', 'init', 'runlevel', 'ldconfig', 'update-grub', 'grub-install', 'grub-mkconfig', 'swapon', 'swapoff', 'dpkg-reconfigure', 'sshd', 'mkfs', 'fsck', 'blkid', 'parted', 'useradd', 'usermod', 'userdel', 'groupadd', 'groupmod', 'groupdel', 'hwclock', 'rsyslogd', 'logrotate', 'sendmail', 'postsuper', 'lpadmin', 'cupsenable', 'cupsdisable', 'cupsaccept', 'cupsreject', 'lpinfo', 'ifconfig', 'route', 'ifup', 'ifdown', 'visudo', 'tcpdmatch', 'service', 'ethtool', 'sshd', 'iotop', 'iftop', 'iptraf-ng', 'sysctl', 'update-initramfs', 'mkinitramfs', 'dkms', 'installkernel']);
 const ROOT_PATH = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin';
 const AUCH_EXTERN = new Set(['echo', 'pwd', 'kill', 'true', 'false', 'printf', 'test', '[']);   // gibt es auch als Programm in /usr/bin
 const EIGENER_ORT: Record<string, string> = { 'apt-file': '/usr/bin' };
@@ -1250,6 +1253,7 @@ function pfadStarten(w: Welt, name: string, z: string, args: string[], stdin: st
   if (!darf(w, z, 'x', root)) return fehler(`bash: ${name}: Keine Berechtigung`, 126);
   const basis = z.split('/').pop()!;
   if (c.startsWith(BIN_MARKE) && befehle[basis]) return befehle[basis](w, args, stdin, root);
+  const kp = kernProgramm(w, z, args, root); if (kp) return kp;
   const prog = programmStarten(w, z);
   if (prog) return prog.code ? { out: '', err: prog.out, code: prog.code } : prog;
   if (c.startsWith('#!')) {
@@ -1603,6 +1607,7 @@ export function ausfuehren(w: Welt, zeile: string): Lauf {
   if (sk.fortsetzung !== undefined && !w.wartet && !w.vordergrund) { fortsetzungAlt = sk.fortsetzung; sk.fortsetzung = undefined; }
   if (w.vordergrund && !w.wartet) return { ausgabe: `(${w.vordergrund.cmd} läuft noch im Vordergrund. Drücke Strg+Z zum Anhalten oder Strg+C zum Abbrechen.)`, code: 0 };
   if (!roh.trim() && !w.wartet && fortsetzungAlt === undefined) return { ausgabe: meldungenAbholen(w), code: 0 };
+  if (w.aus === 'kernelfehler') return { ausgabe: `${(w as Welt & { kernelMeldung?: string }).kernelMeldung ?? 'Kernel panic'}\n\n(Der Start ist gescheitert. Mit "Neu starten" unter dem Terminal wählst du im GRUB-Menü den alten Kernel.)`, code: 1 };
   if (w.aus) return { ausgabe: `Das System ist ${w.aus === 'reboot' ? 'gerade beim Neustart' : 'heruntergefahren'}. Mit "Neu starten" unter dem Terminal geht es weiter.`, code: 1 };
   // Offene Rückfrage wie „Do you want to continue? [Y/n]“
   if (w.wartet) {
@@ -1684,7 +1689,7 @@ export function prompt(w: Welt) {
   return w.root ? `root@${w.host}:${ort.replace(/^~/, '/home/lena')}# ` : `lena@${w.host}:${ort}$ `;
 }
 
-export function neuStarten(w: Welt) {
+export function neuStarten(w: Welt): string | undefined {
   neustartPakete(w);
   w.wartet = null;
   w.aus = null; w.shutdown = null; w.root = false;
@@ -1702,6 +1707,7 @@ export function neuStarten(w: Welt) {
   w.env.SHLVL = '1';
   w.prozesse = w.prozesse.filter((p) => p.pid < 4000 && p.user !== 'max');
   benutzerBerechnen(w);
+  return kernNeustart(w, START_GELADEN);
 }
 
 Object.assign(befehle, paketBefehle({ ok, fehler, optionen, pfad, schreiben }));
@@ -1791,6 +1797,20 @@ Object.assign(befehle, lastBefehle({ ...befehle }));
   befehle.systemctl = (w, a, i, r) => lastSystemctl(w, a, r || w.root) ?? vorher(w, a, i, r);
   // Nach apt install sysstat liegt die echte /etc/default/sysstat bereit
   for (const n of ['apt', 'apt-get']) { const alt = befehle[n]; befehle[n] = (w, a, i, r) => { const x = alt(w, a, i, r); sysstatPruefen(w); return x; }; }
+}
+// Kernel aus LPIC-2 Topic 201
+kernKern({ pfad, dialog: (w, prompt, weiter) => { w.dialog = { prompt, eingabe: (z) => { w.dialog = null; return weiter(z); } }; }, benutzer: benutzerBerechnen, modulPfad, installieren: paketeSetzen, paketExtra: paketHinzu });
+kernGrub(grubSchreiben);
+Object.assign(befehle, kernBefehle({ ...befehle }));
+kernBefehleRef(befehle);
+for (const n of ['apt', 'apt-get']) {
+  const alt = befehle[n];
+  befehle[n] = (w, a, i, r) => {
+    const x = alt(w, a, i, r);
+    // Mit Rückfrage [Y/n] wird erst nach der Antwort installiert
+    if (w.wartet) { const wt = w.wartet; const ak = wt.aktion; wt.aktion = () => { const y = ak(); const e = kernNachApt(w); return e ? { ...y, out: [y.out, e].filter(Boolean).join('\n') } : y; }; }
+    const extra = kernNachApt(w); return extra ? { ...x, out: [x.out, extra].filter(Boolean).join('\n') } : x;
+  };
 }
 // /proc/modules wird aus dem Zustand der Module erzeugt
 befehle.cat = (w, a, i, r) => a.some((x) => pfad(w, x) === '/proc/modules') ? procCat(w, a, i, r) : textCat(w, a, i, r);
@@ -1907,6 +1927,7 @@ export function zustandStimmt(w: Welt, z: string): boolean {
     const zn = zustandNetz(w, s); if (zn !== undefined) return zn;
     const zs2 = zustandSicherheit(w, s); if (zs2 !== undefined) return zs2;
     const zl = zustandLast(w, s); if (zl !== undefined) return zl;
+    const zk = zustandKern(w, s); if (zk !== undefined) return zk;
     if (s === 'neustart') return w.verlauf.some((v) => v.zeile === '#neustart');
     // ---- ab Topic 103 ----
     // vi:ohne = beendet, ohne zu speichern (mit oder ohne Änderungen)

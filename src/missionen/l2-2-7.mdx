@@ -1,0 +1,147 @@
+---
+id: l2-2-7
+checks:
+  - id: k1
+  - id: reihe
+  - id: k2
+  - id: regel
+  - id: fehler
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "Ablauf"
+    v: "Kernel meldet uevent → systemd-udevd liest Regeln → /dev-Datei, Rechte, Links, Module, RUN"
+  - t: "Regeln"
+    v: "/lib/udev/rules.d (Pakete) · /etc/udev/rules.d (du, gewinnt bei gleichem Namen) · /run/udev/rules.d · nur *.rules, nach Namen sortiert"
+  - t: "Schlüssel"
+    v: "KERNEL, SUBSYSTEM, DRIVER, ATTR{x}: das Gerät · KERNELS, SUBSYSTEMS, DRIVERS, ATTRS{x}: EIN Elterngerät · == != vergleichen · = += := zuweisen"
+  - t: "Zuweisen"
+    v: "SYMLINK+=\"name\" · GROUP=\"gruppe\" · MODE=\"0660\" · OWNER · RUN+=\"/pfad\" · NAME nur für Netzwerk"
+  - t: "udevadm"
+    v: "info -a -n /dev/X · info -q property -n X · monitor (früher udevmonitor) · control --reload · trigger [--action=add] · test /sys/..."
+karten:
+  - f: "Wo legst du eigene udev-Regeln ab?"
+    a: ["/etc/udev/rules.d", "/etc/udev/rules.d/"]
+  - f: "Welche Endung müssen udev-Regeln haben?"
+    a: [".rules", "rules"]
+  - f: "Was unterscheidet ATTR von ATTRS?"
+    a: ["attr prüft das gerät selbst, attrs ein elterngerät", "attrs sucht in den eltern"]
+  - f: "Mit welchem Befehl siehst du alle Attribute eines Geräts und seiner Eltern?"
+    a: ["udevadm info -a -n", "udevadm info -a -n /dev/gerät", "udevadm info --attribute-walk"]
+  - f: "Mit welchem Befehl liest du die Ereignisse von Kernel und udev mit?"
+    a: ["udevadm monitor"]
+  - f: "Wie hieß udevadm monitor früher?"
+    a: ["udevmonitor"]
+  - f: "Wie wendest du geänderte Regeln auf schon vorhandene Geräte an?"
+    a: ["udevadm control --reload und udevadm trigger", "udevadm trigger"]
+  - f: "Welcher udev-Schlüssel legt einen zusätzlichen Namen unter /dev an?"
+    a: ["symlink", "symlink+="]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Reihenfolge from '../components/Reihenfolge.astro';
+
+Die Messbox meldet sich als `/dev/labsensor0`, aber nur root darf sie lesen, und nach dem nächsten Umstecken könnte sie `labsensor1` heißen. Das Messprogramm braucht einen festen Namen, und das Messteam soll ohne sudo messen. **Deine Mission: Verstehe, wie udev Gerätedateien anlegt, schreibe eine Regel für die Messbox und repariere die kaputte Regel eines Kollegen.** Lernziel 201.3.
+
+## Wie Gerätedateien entstehen
+
+<Karte nr={1} titel="Vom Kernel-Ereignis zur Datei in /dev">
+Erkennt der Kernel ein Gerät, schickt er ein **uevent**: „add“ mit dem Pfad des Geräts unter /sys und seinen Eigenschaften. Der Dienst **systemd-udevd** empfängt es und geht seine Regeln durch. Daraus folgt:
+
+- welches Modul geladen wird (über den Alias des Geräts und modules.alias),
+- wie die Datei unter `/dev` heißt, wem sie gehört und welche Rechte sie hat,
+- welche zusätzlichen Namen als Verknüpfung entstehen, etwa unter `/dev/disk/by-uuid/`,
+- welche Programme laufen.
+
+Die Gerätedatei selbst legt der Kernel im Dateisystem **devtmpfs** an, udev passt Rechte und Besitzer an und ergänzt die Verknüpfungen.
+
+Die Regeln liegen in **/lib/udev/rules.d/** (von den Paketen, nicht ändern), **/etc/udev/rules.d/** (deine, sie gewinnen bei gleichem Dateinamen) und /run/udev/rules.d/. Nur Dateien mit der Endung **.rules** zählen. Alle werden zusammen nach Dateinamen sortiert gelesen, darum beginnen die Namen mit einer Zahl. Eigene Regeln bekommen meist eine hohe Zahl wie 70 oder 99, damit Vorgaben wie die Gruppen aus 50-udev-default.rules schon gesetzt sind.
+
+Eine Regel ist eine Zeile aus Paaren `SCHLÜSSEL OPERATOR "WERT"`, getrennt durch Kommas. **==** und **!=** vergleichen, **=**, **+=** und **:=** weisen zu. Werte stehen immer in Anführungszeichen, `*`, `?` und `|` sind als Muster erlaubt.
+</Karte>
+
+<Quiz id="k1" titel="Kurzcheck: Regeldateien" fragen={[
+  { frage: 'Du legst eine Regel als /etc/udev/rules.d/99-messbox.conf ab. Was passiert?', richtig: 'udev ignoriert sie, weil nur Dateien mit der Endung .rules zählen.', falsch: ['udev liest sie als letzte Datei.', 'udev meldet einen Syntaxfehler und hält an.'], erklaerung: 'Umbenennen in 99-messbox.rules, dann udevadm control --reload.' },
+]} />
+
+<Reihenfolge id="reihe" titel="Reihenfolge: Die Messbox wird angesteckt" aufgabe="Bring die Schritte in die richtige Reihenfolge."
+  schritte={[
+    'Der USB-Treiber des Kernels erkennt ein neues Gerät mit der Kennung 1209:0001.',
+    'Der Kernel schickt ein uevent „add“ an systemd-udevd.',
+    'udevd findet über modules.alias den Treiber labsensor und lädt ihn.',
+    'Der Treiber meldet labsensor0 an, der Kernel legt /dev/labsensor0 an.',
+    'udevd wendet die Regeln an: Gruppe, Rechte und der Link /dev/messbox.',
+  ]}
+  erklaerung="Der Kernel meldet, udevd entscheidet. Darum siehst du in udevadm monitor zu jedem Ereignis eine KERNEL- und eine UDEV-Zeile." />
+
+## Regeln schreiben
+
+<Karte nr={2} titel="Das Gerät beschreiben">
+Um eine Regel zu schreiben, brauchst du Merkmale, an denen udev das Gerät erkennt. Sie zeigt **udevadm info -a -n /dev/labsensor0**: Erst kommt das Gerät selbst, dann jedes Elterngerät bis hinauf zum PCI-Bus.
+
+- `KERNEL`, `SUBSYSTEM`, `DRIVER`, `ATTR{x}` prüfen das Gerät selbst.
+- `KERNELS`, `SUBSYSTEMS`, `DRIVERS`, `ATTRS{x}` suchen in den Eltern. Alle diese Schlüssel einer Regel müssen zu **ein und demselben** Elterngerät passen. Herstellernummer (`idVendor`) und Seriennummer (`serial`) eines USB-Geräts stehen meist beim USB-Gerät, die Schnittstellenklasse eine Ebene tiefer.
+
+Was die Regel bewirkt:
+
+| Zuweisung | Wirkung |
+|---|---|
+| `SYMLINK+="messbox"` | zusätzlich `/dev/messbox` |
+| `GROUP="messteam"`, `MODE="0660"`, `OWNER="lena"` | Besitzer und Rechte |
+| `RUN+="/usr/local/bin/skript"` | Programm starten (nur kurz laufende) |
+| `NAME="lan0"` | umbenennen, geht nur bei Netzwerkschnittstellen |
+| `ENV{x}="…"` | Eigenschaft setzen |
+
+Unsere Regel für die Messbox:
+
+```
+SUBSYSTEM=="labsensor", ATTRS{idVendor}=="1209", ATTRS{idProduct}=="0001", GROUP="messteam", MODE="0660", SYMLINK+="messbox"
+```
+
+Danach `sudo udevadm control --reload` (Regeln neu lesen) und `sudo udevadm trigger`, damit sie auch für Geräte gelten, die schon da sind. `trigger` schickt ohne Angabe ein „change“, nicht ein „add“. Eine Regel mit `ACTION=="add"` greift erst mit `--action=add` oder beim nächsten Einstecken.
+
+Zum Prüfen: **udevadm test /sys/class/labsensor/labsensor0** spielt die Regeln probehalber durch und zeigt Fehler und Wirkung. **udevadm monitor** zeigt Ereignisse live, früher hieß das Programm **udevmonitor**. Mit `--property` siehst du alle Eigenschaften.
+</Karte>
+
+<Merke>udevadm info -a -n GERÄT liefert die Merkmale. ATTR: Gerät, ATTRS: ein Elterngerät. Eigene Regeln nach /etc/udev/rules.d/NN-name.rules. Dann udevadm control --reload und udevadm trigger.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: Regeln" fragen={[
+  { frage: 'Eine Regel enthält ATTR{serial}=="LS2-26-0042" und greift nicht. udevadm info -a zeigt serial erst beim Elterngerät 1-6. Was ist falsch?', richtig: 'Es muss ATTRS{serial} heißen, weil das Attribut beim Elterngerät steht.', falsch: ['Seriennummern darf udev nicht vergleichen.', 'Es muss ATTR{serial}="LS2-26-0042" mit einem Gleichheitszeichen heißen.'], erklaerung: 'Mit einem einfachen = wäre es eine Zuweisung, die einen sysfs-Wert schreiben würde.' },
+]} />
+
+<Terminal id="regel" titel="Terminal: Eine Regel für die Messbox" welt={{ host: 'messpc', kern: { sensor: true, dkms: 'installiert' } }} aufgaben={[
+  { text: 'Schau dir die Gerätedatei der Messbox an.', befehl: '^ls -l /dev/labsensor0$', frage: 'Welcher Gruppe gehört sie?', antwort: ['root'] },
+  { text: 'Lass dir alle Merkmale des Geräts und seiner Eltern zeigen.', befehl: '^udevadm info (-a|--attribute-walk) (-n|--name)[ =]?/dev/labsensor0$|^udevadm info (-a|--attribute-walk) /dev/labsensor0$|^udevadm info (-n|--name)[ =]?/dev/labsensor0 (-a|--attribute-walk)$', frage: 'Welche Seriennummer hat die Messbox?', antwort: ['LS2-26-0042'] },
+  { text: 'Schreib eine Regel nach /etc/udev/rules.d: Die Messbox (Hersteller 1209, Produkt 0001) gehört der Gruppe messteam mit Rechten 0660 und bekommt den Namen /dev/messbox.', zustand: 'datei:/etc/udev/rules.d/*~messbox' },
+  { text: 'Lies die Regeln neu ein und wende sie auf die Messbox an.', zustand: 'udev:link=messbox && udev:gruppe=messteam && udev:modus=0660' },
+  { text: 'Prüf das Ergebnis mit ls -l.', befehl: '^ls -l /dev/(labsensor0|messbox)( /dev/(labsensor0|messbox))?$', frage: 'Worauf zeigt /dev/messbox?', antwort: ['labsensor0', '/dev/labsensor0'] },
+  { text: 'Lies mit udevadm monitor mit, während die Messbox ab- und wieder angesteckt wird. Strg+C beendet.', befehl: '^udevadm monitor( --\\w+| -\\w)*$', frage: 'Welche Aktion meldet der Kernel zuerst für labsensor0?', antwort: ['remove'] },
+]} />
+
+<Terminal id="fehler" titel="Terminal: Die Regel des Kollegen" welt={{ host: 'messpc', kern: { sensor: true, dkms: 'installiert', regel: 'kaputt' } }} aufgaben={[
+  { text: 'Ein Kollege hat eine Regel für die Messbox geschrieben. Lies sie.', befehl: '^cat /etc/udev/rules.d/70-messbox\\.rules$' },
+  { text: 'Lass udev die Regeln probehalber auf die Messbox anwenden.', befehl: '^udevadm test (/sys)?/(class/labsensor/labsensor0|devices/\\S+labsensor0)$', frage: 'In welcher Zeile der Datei findet udev einen Fehler? (Zahl)', antwort: ['2'] },
+  { text: 'Berichtige beide Fehler in der Datei: den falschen Operator und den Schlüssel, der in den Eltern suchen müsste.', zustand: 'datei:/etc/udev/rules.d/70-messbox.rules~KERNEL=="labsensor && datei:/etc/udev/rules.d/70-messbox.rules~ATTRS\\{serial\\}' },
+  { text: 'Wende die Regeln an. Danach muss /dev/messbox-0042 existieren und die Gruppe stimmen.', zustand: 'udev:link=messbox-0042 && udev:gruppe=messteam' },
+]} />
+
+<Labor id="labor" titel="Labor: udev auf client1"
+  aufgabe="Steck in client1 (oder in VirtualBox über Geräte → USB) einen USB-Stick ein, lies dabei mit udevadm monitor mit und schreib eine Regel, die einen festen Namen anlegt. Füge die Ausgabe ein."
+  befehl={"udevadm monitor --udev   # Stick einstecken, dann Strg+C\nudevadm info -a -n /dev/sdb | grep -E 'ATTRS\\{(idVendor|idProduct|serial)\\}' | head -3\necho 'SUBSYSTEM==\"block\", ATTRS{idVendor}==\"XXXX\", SYMLINK+=\"meinstick%n\"' | sudo tee /etc/udev/rules.d/70-stick.rules\nsudo udevadm control --reload && sudo udevadm trigger\nls -l /dev/meinstick*"}
+  muster={["UDEV\\s+\\[", "ATTRS\\{idVendor\\}", "meinstick"]}
+  erfolg="XXXX ersetzt du durch die idVendor deines Sticks. %n hängt die Partitionsnummer an, so entsteht für jede Partition ein eigener Link." />
+
+<Hinweis titel="Prüfungstipp">
+Gefragt werden udevadm monitor (und der alte Name udevmonitor), /etc/udev/ und das Lesen von Regeln. Typische Fehler in Prüfungsaufgaben: = statt ==, ATTR statt ATTRS, eine Datei ohne die Endung .rules. Im Entwurf 5.0 steht udev mit denselben Begriffen in 201.1.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Du hast eine neue Regel nach /etc/udev/rules.d/99-messbox.rules geschrieben. Die Messbox steckt schon. Was tust du, damit die Regel sofort gilt?', richtig: 'sudo udevadm control --reload und sudo udevadm trigger', falsch: ['sudo systemctl restart udev reicht immer allein', 'sudo depmod -a'], erklaerung: 'reload liest die Regeln, trigger schickt für vorhandene Geräte ein neues Ereignis.' },
+  { frage: 'Welche Datei gewinnt, wenn es 60-messbox.rules sowohl in /lib/udev/rules.d als auch in /etc/udev/rules.d gibt?', richtig: 'Die Datei in /etc/udev/rules.d', falsch: ['Die Datei in /lib/udev/rules.d', 'Beide werden nacheinander gelesen'], erklaerung: 'Gleichnamige Dateien in /etc überdecken die der Pakete. So passt man Vorgaben an, ohne Paketdateien zu ändern.' },
+  { frage: 'Wofür darfst du NAME= in einer udev-Regel benutzen?', richtig: 'Nur, um Netzwerkschnittstellen umzubenennen', falsch: ['Für jedes Gerät unter /dev', 'Nur für USB-Sticks'], erklaerung: 'Für alle anderen Geräte legst du mit SYMLINK+= zusätzliche Namen an.' },
+]} />

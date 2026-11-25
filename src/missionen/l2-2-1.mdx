@@ -1,0 +1,155 @@
+---
+id: l2-2-1
+checks:
+  - id: k1
+  - id: abbilder
+  - id: k2
+  - id: quellen
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "Versionen"
+    v: "6.18.65 = Version 6, Patchlevel 18, Sublevel 65 · mainline (-rc) · stable · longterm · Distributionskernel wie 6.1.0-27-amd64"
+  - t: "Abbilder"
+    v: "vmlinux: ungepackt, ELF · zImage: alt, klein, unter 640 KiB · bzImage: big zImage, über 1 MiB geladen, nicht bzip2 · /boot/vmlinuz-VERSION"
+  - t: "Packverfahren"
+    v: "gzip · bzip2 · lzma · xz · lzo · lz4 · zstd · grep CONFIG_KERNEL_ /boot/config-$(uname -r)"
+  - t: "Quellen"
+    v: "kernel.org: linux-X.Y.Z.tar.xz + .tar.sign · /usr/src/linux → linux-X.Y.Z · Documentation/ · docs.kernel.org"
+  - t: "Patchen"
+    v: "xz -dc patch.xz | patch -p1 --dry-run · dann ohne --dry-run · -R nimmt zurück · .rej = abgelehnt"
+karten:
+  - f: "Was bedeuten die drei Zahlen in 6.18.65?"
+    a: ["version, patchlevel, sublevel", "hauptversion, patchlevel und sublevel"]
+  - f: "Was ist ein longterm-Kernel?"
+    a: ["ein kernel, der mehrere jahre fehlerkorrekturen bekommt", "lts", "langzeitpflege"]
+  - f: "Wofür steht das b in bzImage?"
+    a: ["big", "groß"]
+  - f: "Welche Datei ist der unkomprimierte Kernel im Quellbaum?"
+    a: ["vmlinux"]
+  - f: "Wo liegt traditionell der Quellcode des Kernels?"
+    a: ["/usr/src/linux"]
+  - f: "Wie spielst du einen gepackten Patch probehalber ein?"
+    a: ["xz -dc patch.xz | patch -p1 --dry-run", "xzcat patch.xz | patch -p1 --dry-run"]
+  - f: "Was bewirkt -p1 bei patch?"
+    a: ["schneidet den ersten teil des pfades ab", "entfernt a/ und b/", "einen pfadteil abschneiden"]
+  - f: "Wo steht, mit welchem Verfahren der laufende Debian-Kernel gepackt ist?"
+    a: ["/boot/config-$(uname -r)", "in /boot/config-version"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Zuordnung from '../components/Zuordnung.astro';
+
+Die Firma stellt einen neuen Messrechner auf: messpc. An ihm hängt die Messbox LS-2 der Labor Mess GmbH, und deren Treiber verlangt einen neueren Kernel als den von Debian 12. Die Chefin will keinen Kernel aus irgendeiner Quelle, sondern einen, den du verstehst. **Deine Mission: Lerne, woraus ein Kernel besteht, welche Versionen es gibt, wie die Abbilder in /boot heißen, und hol dir den Quellcode samt Patch auf messpc.** Lernziel 201.1.
+
+## Kernel, Module und Versionen
+
+<Karte nr={1} titel="Ein Kern, viele Module">
+Der Linux-Kernel ist **monolithisch**: Treiber, Dateisysteme und Netzwerk laufen alle im selben Adressraum. Damit er trotzdem nicht alles fest eingebaut haben muss, lassen sich Teile als **Module** (Dateien mit der Endung `.ko`) zur Laufzeit nachladen. Sie liegen unter `/lib/modules/VERSION/`, für den laufenden Kernel also unter `/lib/modules/$(uname -r)/`. Ob ein Treiber fest eingebaut (`y`) oder ein Modul (`m`) ist, entscheidet man beim Bauen.
+
+Die Versionsnummer des Kernels von kernel.org hat drei Teile: In **6.18.65** ist 6 die Version, 18 der Patchlevel und 65 der Sublevel. Der Sublevel zählt die Fehlerkorrekturen einer Reihe.
+
+kernel.org kennt diese Arten von Kerneln:
+
+| Art | Was es ist |
+|---|---|
+| **mainline** | Die Entwicklung von Linus Torvalds. Vor jeder neuen Version gibt es Vorabversionen mit `-rc1`, `-rc2` … |
+| **stable** | Nach der Freigabe bekommt eine Version einige Wochen lang Fehlerkorrekturen, bis die nächste da ist. |
+| **longterm** | Ausgewählte Versionen werden mehrere Jahre gepflegt. Im November 2026 sind das 6.18, 6.12, 6.6, 6.1, 5.15 und 5.10. |
+| **linux-next** | Was in die nächste Version soll, zum Testen. |
+
+Distributionen pflegen eigene Kernel. Debian 12 nennt seinen `6.1.0-27-amd64`: Basis 6.1, Paketstand 27, Variante amd64. Welche Upstream-Version dahintersteckt, zeigt `uname -v` (hier `Debian 6.1.115-1`).
+
+Die Prüfung nennt noch die Reihen 2.6.x, 3.x und 4.x. Zu Zeiten von 2.6 hatten Versionen vier Teile: In 2.6.32.71 zählte erst die vierte Zahl die Korrekturen. Seit 3.0 (2011) sind es drei. Die späteren Sprünge auf 4, 5 und 6 brachten keine technische Bruchstelle, nur kleinere Zahlen.
+</Karte>
+
+<Merke>X.Y.Z = Version, Patchlevel, Sublevel. mainline mit -rc, stable mit Korrekturen, longterm über Jahre. Module liegen unter /lib/modules/$(uname -r)/.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: Versionen" fragen={[
+  { frage: 'Du brauchst für einen Server einen Kernel, der mehrere Jahre Sicherheitskorrekturen bekommt. Welche Art von kernel.org nimmst du?', richtig: 'longterm', falsch: ['mainline', 'linux-next'], erklaerung: 'mainline ist die laufende Entwicklung, linux-next die Vorschau auf die nächste Version.' },
+]} />
+
+## Was in /boot liegt
+
+<Karte nr={2} titel="vmlinux, zImage, bzImage">
+Beim Bauen entsteht zuerst **vmlinux**: der ganze Kernel als ungepackte ELF-Datei, gut zum Debuggen, aber zu groß und nicht direkt startbar. Daraus wird ein gepacktes, startbares Abbild mit einem kleinen Entpacker davor:
+
+- **zImage**: das alte Format. Es musste in den unteren Speicher unter 640 KiB passen und durfte darum gepackt höchstens rund 512 KiB groß sein.
+- **bzImage**: „big zImage“. Es wird oberhalb von 1 MiB geladen und darf viel größer sein. Das **b** steht für *big*, nicht für bzip2. Auf x86 baut man heute nur noch bzImage, auf ARM heißt das Ziel weiter zImage.
+
+Gepackt wird mit einem dieser Verfahren: **gzip** (alter Standard), **bzip2**, **lzma**, **xz** (sehr klein), **lzo**, **lz4** (am schnellsten entpackt) oder **zstd**. Welches benutzt wurde, steht in der Konfiguration: `CONFIG_KERNEL_XZ=y` und so weiter.
+
+In `/boot` heißt das Abbild bei Debian und Red Hat **vmlinuz-VERSION**. Daneben liegen `initrd.img-VERSION` (Red Hat: `initramfs-VERSION.img`), `config-VERSION` mit der Konfiguration und `System.map-VERSION` mit den Adressen der Kernel-Symbole. `file /boot/vmlinuz-$(uname -r)` zeigt, dass es ein bzImage ist.
+</Karte>
+
+<Zuordnung id="abbilder" titel="Zuordnung: Was ist was?" aufgabe="Ordne jeder Beschreibung die passende Datei zu." paare={[
+  { links: 'Ungepackter Kernel als ELF-Datei im Quellbaum', rechts: 'vmlinux' },
+  { links: 'Gepackter Kernel, oberhalb von 1 MiB geladen', rechts: 'bzImage' },
+  { links: 'Altes Format für kleine Kernel unter 640 KiB', rechts: 'zImage' },
+  { links: 'Adressen der Kernel-Symbole', rechts: 'System.map' },
+  { links: 'Konfiguration, mit der der Kernel gebaut wurde', rechts: 'config-VERSION' },
+]} />
+
+<Quiz id="k2" titel="Kurzcheck: Abbilder" fragen={[
+  { frage: 'Ein Kollege sagt: „bzImage heißt so, weil es mit bzip2 gepackt ist.“ Stimmt das?', richtig: 'Nein. Das b steht für big. Gepackt sein kann es mit gzip, xz, zstd und anderen.', falsch: ['Ja, bzImage ist immer mit bzip2 gepackt.', 'Ja, und zImage ist mit gzip gepackt.'], erklaerung: 'Das Packverfahren wählst du in der Konfiguration unter General setup → Kernel compression mode.' },
+]} />
+
+## Quellcode und Patches
+
+<Karte nr={3} titel="Von kernel.org nach /usr/src">
+Den Quellcode gibt es auf kernel.org als `linux-X.Y.Z.tar.xz`. Daneben liegt `linux-X.Y.Z.tar.sign`, eine GnuPG-Signatur über das **entpackte** tar-Archiv: Erst `xz -d`, dann `gpg --verify linux-X.Y.Z.tar.sign` (Topic 110.3).
+
+Traditionell entpackt man nach **/usr/src** und legt eine Verknüpfung **/usr/src/linux** auf den aktuellen Baum. Bauen solltest du trotzdem als normaler Benutzer: Gib dir den Baum mit `chown`, oder entpacke gleich in deinem Heimatverzeichnis. Nur das Installieren braucht root.
+
+Im Baum steht die Dokumentation unter **Documentation/**. `Documentation/admin-guide/` richtet sich an Administratoren, `Documentation/process/changes.rst` nennt die Mindestversionen der Werkzeuge. Lesbar aufbereitet gibt es alles auf docs.kernel.org, lokal mit `make htmldocs`.
+
+Ein **Patch** ist eine Liste von Änderungen im Format von `diff -u`. Für longterm- und stable-Kernel gibt es auf kernel.org zwei Sorten: Der Patch `patch-6.18.65.xz` bringt die Basisversion 6.18 auf 6.18.65. Der inkrementelle Patch `patch-6.18.64-65.xz` bringt 6.18.64 auf 6.18.65. Den Patch spielst du so ein:
+
+```
+cd /usr/src/linux
+xz -dc ~/downloads/patch-6.18.64-65.xz | patch -p1 --dry-run
+xz -dc ~/downloads/patch-6.18.64-65.xz | patch -p1
+```
+
+`-p1` schneidet den ersten Teil der Pfade im Patch ab (`a/Makefile` wird zu `Makefile`). `--dry-run` prüft nur. `-R` nimmt einen Patch wieder zurück. Was nicht passt, schreibt patch in eine Datei mit der Endung `.rej`.
+</Karte>
+
+<Merke>tar.xz entpacken, /usr/src/linux verlinken, als Benutzer bauen. Patch: xz -dc DATEI | patch -p1, vorher mit --dry-run. -R nimmt zurück.</Merke>
+
+<Terminal id="quellen" titel="Terminal: Der Kernel von messpc" welt={{ host: 'messpc', kern: { quelle: 'download' } }} aufgaben={[
+  { text: 'Lass dir die Version des laufenden Kernels zeigen.', befehl: '^uname -r$|^uname -a$|^cat /proc/version$', frage: 'Welche Version läuft?', antwort: ['6.1.0-27-amd64'] },
+  { text: 'Finde heraus, welche Art Abbild in /boot liegt.', befehl: '^file /boot/vmlinuz-(\\$\\(uname -r\\)|6\\.1\\.0-27-amd64)$', frage: 'Welches Format hat es?', antwort: ['bzImage', 'bzimage'] },
+  { text: 'Such in der Konfiguration des laufenden Kernels, wie er gepackt ist.', befehl: '^grep .*CONFIG_KERNEL_.* /boot/config-(\\$\\(uname -r\\)|6\\.1\\.0-27-amd64)$', frage: 'Welches Verfahren ist mit =y eingeschaltet?', antwort: ['xz', 'XZ', 'CONFIG_KERNEL_XZ'] },
+  { text: 'In <code>~/downloads</code> liegt der longterm-Kernel 6.18.64. Pack ihn nach <code>/usr/src</code> aus.', zustand: 'ordner:/usr/src/linux-6.18.64' },
+  { text: 'Leg die Verknüpfung <code>/usr/src/linux</code> auf den neuen Baum.', zustand: 'datei:/usr/src/linux~linux-6\\.18\\.64' },
+  { text: 'Gib den Baum dem Benutzer lena, damit du nicht als root bauen musst.', zustand: 'besitzer:/usr/src/linux-6.18.64=lena && besitzer:/usr/src/linux-6.18.64/Makefile=lena' },
+  { text: 'Wirf einen Blick in die Dokumentation im Baum.', befehl: '^ls( -\\w+)? (/usr/src/linux(-6\\.18\\.64)?/)?Documentation/?$|^cat (/usr/src/linux/)?README$' },
+  { text: 'Prüf den Patch auf 6.18.65 zuerst mit einem Probelauf. (patch fehlt vielleicht noch.)', befehl: '^(xz -dc|xzcat|unxz -c) \\S*patch-6\\.18\\.64-65\\.xz \\| patch -p1 --dry-run$|^(xz -dc|xzcat|unxz -c) \\S*patch-6\\.18\\.64-65\\.xz \\| patch --dry-run -p1$' },
+  { text: 'Spiel den Patch ein.', zustand: 'baum:6.18.65' },
+  { text: 'Schau in die ersten Zeilen des Makefile.', befehl: '^head( -n ?\\d+| -\\d+)? (/usr/src/linux/)?Makefile$', frage: 'Welcher SUBLEVEL steht jetzt dort?', antwort: ['65'] },
+]} />
+
+<Hinweis titel="Signatur prüfen">
+Auf deinem Labor-Rechner kannst du die Signatur echt prüfen: `xz -d linux-6.18.64.tar.xz`, dann `gpg --locate-keys torvalds@kernel.org gregkh@kernel.org` und `gpg --verify linux-6.18.64.tar.sign`. Im Simulator ist das tar-Archiv nur eine Attrappe.
+</Hinweis>
+
+<Labor id="labor" titel="Labor: Kernel und Quellen auf srv1"
+  aufgabe="Lass dir auf srv1 die Kernelversion, das Abbild in /boot und das Packverfahren zeigen. Füge die Ausgabe ein."
+  befehl={"uname -rv\nls -l /boot\nfile /boot/vmlinuz-$(uname -r)\ngrep '^CONFIG_KERNEL_' /boot/config-$(uname -r)"}
+  muster={["^6\\.\\d+\\.\\d+-\\d+-amd64 #", "vmlinuz-", "bzImage", "^CONFIG_KERNEL_\\w+=y"]}
+  erfolg="Debian liefert das bzImage als /boot/vmlinuz-VERSION aus. Welches Packverfahren dein Kernel nutzt, siehst du in der letzten Zeile." />
+
+<Hinweis titel="Prüfungstipp">
+Gefragt werden die Abbilder (zImage, bzImage, vmlinux), dass das b in bzImage für big steht, der Ort /usr/src/linux, Documentation/ und die Packverfahren. Im Entwurf 5.0 geht 201.1 im neuen Lernziel 201.1 „Linux Kernel“ auf. Abbilder und Packverfahren stehen dort nicht mehr, dafür Versionsschema und DKMS.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Welche Datei im Quellbaum ist der ungepackte Kernel?', richtig: 'vmlinux', falsch: ['vmlinuz', 'bzImage'], erklaerung: 'vmlinuz in /boot ist das gepackte Abbild, also das bzImage unter anderem Namen.' },
+  { frage: 'Ein Patch beginnt mit „--- a/Makefile“ und „+++ b/Makefile“. Du stehst im Quellbaum. Welche Option brauchst du?', richtig: '-p1', falsch: ['-p0', '-R'], erklaerung: '-p1 schneidet a/ und b/ ab. -R würde den Patch zurücknehmen.' },
+  { frage: 'Gegen welche Version passt der Patch patch-6.18.65.xz von kernel.org?', richtig: 'Gegen die Basisversion 6.18', falsch: ['Gegen 6.18.64', 'Gegen jede 6.18.x'], erklaerung: 'Von 6.18.64 auf 6.18.65 bringt der inkrementelle Patch patch-6.18.64-65.xz.' },
+]} />

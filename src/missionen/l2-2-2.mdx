@@ -1,0 +1,152 @@
+---
+id: l2-2-2
+checks:
+  - id: k1
+  - id: ziele
+  - id: k2
+  - id: bauen
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "Werkzeuge (Debian)"
+    v: "sudo apt install build-essential bc bison flex libelf-dev libssl-dev libncurses-dev dwarves"
+  - t: "Konfigurieren"
+    v: "cp /boot/config-$(uname -r) .config · make oldconfig (fragt Neues) · make olddefconfig (still) · make menuconfig · make localmodconfig"
+  - t: "Kleine Änderungen"
+    v: "scripts/config --enable X · --disable X · --module X · --set-str LOCALVERSION -lab · --state X"
+  - t: "Bauen"
+    v: "make -j$(nproc) · Ergebnis: vmlinux, System.map, arch/x86/boot/bzImage, *.ko · make kernelrelease"
+  - t: "Aufräumen"
+    v: "make clean (behält .config) · make mrproper (löscht auch .config) · make distclean"
+  - t: "Debian-Falle"
+    v: "No rule to make target 'debian/certs/…' → scripts/config --disable SYSTEM_TRUSTED_KEYS"
+karten:
+  - f: "In welcher Datei steht die Konfiguration des Kernelbaums?"
+    a: [".config", "/usr/src/linux/.config"]
+  - f: "Welches Ziel übernimmt eine vorhandene .config und fragt nur nach neuen Optionen?"
+    a: ["oldconfig", "make oldconfig"]
+  - f: "Welches Ziel setzt neue Optionen ohne Frage auf ihre Vorgabe?"
+    a: ["olddefconfig", "make olddefconfig"]
+  - f: "Welches Ziel schaltet alle Module ab, die gerade nicht geladen sind?"
+    a: ["localmodconfig", "make localmodconfig"]
+  - f: "Welche Konfigurationsoberfläche läuft im Terminal und braucht ncurses?"
+    a: ["menuconfig", "make menuconfig", "nconfig"]
+  - f: "Welche Oberflächen brauchen eine grafische Sitzung?"
+    a: ["xconfig und gconfig", "gconfig und xconfig"]
+  - f: "Was löscht make mrproper zusätzlich zu make clean?"
+    a: [".config", "die konfiguration", "die .config und alle erzeugten dateien"]
+  - f: "Wie hängst du -lab an die Kernelversion an?"
+    a: ["config_localversion=\"-lab\"", "scripts/config --set-str localversion -lab", "localversion"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Zuordnung from '../components/Zuordnung.astro';
+
+Der Quellcode von 6.18.65 liegt in /usr/src/linux. Jetzt soll daraus ein Kernel werden, der auf messpc genauso gut läuft wie der von Debian, sich aber als eigener Bau zu erkennen gibt. **Deine Mission: Konfiguriere den Kernel auf Grundlage der Debian-Konfiguration, ändere gezielt einzelne Optionen und baue Kernel und Module.** Lernziel 201.2.
+
+## Was zum Bauen gebraucht wird
+
+<Karte nr={1} titel="Werkzeuge und die Datei .config">
+Zum Bauen brauchst du einen C-Compiler und make (Paket **build-essential**), dazu **flex** und **bison** für die Konfigurationsprogramme, **bc** für Berechnungen beim Bau, **libelf-dev** und **libssl-dev** für Objekt-Werkzeuge und Signaturen, **libncurses-dev** für menuconfig. Debian-Konfigurationen schalten Typinformationen (BTF) ein, dafür braucht es **pahole** aus dem Paket **dwarves**. Auf Red Hat heißen die Pakete ähnlich mit `-devel` am Ende.
+
+Welche Teile in den Kernel kommen, steht in der Datei **.config** im Quellbaum. Jede Option ist ein Symbol mit einem Wert:
+
+```
+CONFIG_E1000E=m              als Modul
+CONFIG_BLK_DEV_INITRD=y      fest eingebaut
+# CONFIG_BLK_DEV_FD is not set   gar nicht
+CONFIG_LOCALVERSION="-lab"   ein Text
+```
+
+Die bequemste Grundlage ist die Konfiguration des laufenden Kernels: `cp /boot/config-$(uname -r) .config`. Manche Kernel tragen ihre Konfiguration auch in sich, dann liegt sie unter `/proc/config.gz` (Option IKCONFIG_PROC).
+</Karte>
+
+<Merke>Werkzeuge: build-essential, flex, bison, bc, libelf-dev, libssl-dev, libncurses-dev. Grundlage: cp /boot/config-$(uname -r) .config.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: .config" fragen={[
+  { frage: 'In der .config steht „CONFIG_USB_STORAGE=m“. Was heißt das?', richtig: 'Der Treiber für USB-Speicher wird als ladbares Modul gebaut.', falsch: ['Der Treiber wird fest in den Kernel eingebaut.', 'Der Treiber ist abgeschaltet.'], erklaerung: 'y = fest eingebaut, m = Modul, „is not set“ = gar nicht.' },
+]} />
+
+## Die Ziele von make
+
+<Karte nr={2} titel="Konfigurieren">
+Alle Ziele zeigt `make help`. Fürs Konfigurieren gibt es mehrere Wege:
+
+| Ziel | Was es tut |
+|---|---|
+| `make config` | fragt jede Option einzeln ab, Zeile für Zeile |
+| `make menuconfig` | Menü im Terminal (ncurses). `nconfig` ist eine neuere Fassung. |
+| `make xconfig`, `make gconfig` | grafisch mit Qt bzw. GTK |
+| `make oldconfig` | übernimmt die vorhandene .config und fragt nur nach **neuen** Optionen |
+| `make olddefconfig` | wie oldconfig, setzt neue Optionen aber still auf ihre Vorgabe |
+| `make defconfig` | neue .config aus den Vorgaben der Architektur |
+| `make localmodconfig` | schaltet alle Module ab, die gerade nicht geladen sind. Ergibt einen kleinen Kernel, der genau auf diesen Rechner passt. |
+
+Einzelne Optionen ändert **scripts/config** ohne Menü: `scripts/config --enable IKCONFIG`, `--disable`, `--module`, `--set-str LOCALVERSION "-lab"`, `--state` zum Nachsehen. Danach `make olddefconfig`, damit abhängige Optionen stimmen.
+
+**LOCALVERSION** hängt einen Text an die Version. Aus 6.18.65 wird 6.18.65-lab, und genau so heißen später `/boot/vmlinuz-6.18.65-lab` und `/lib/modules/6.18.65-lab/`. Wer das vergisst, überschreibt beim Installieren womöglich einen anderen Kernel gleicher Version. `make kernelrelease` zeigt, wie der Kernel heißen wird.
+</Karte>
+
+<Zuordnung id="ziele" titel="Zuordnung: Welches make-Ziel?" aufgabe="Ordne jeder Aufgabe das passende Ziel zu." paare={[
+  { links: 'Vorhandene .config übernehmen, nur Neues fragen', rechts: 'oldconfig' },
+  { links: 'Vorhandene .config übernehmen, nichts fragen', rechts: 'olddefconfig' },
+  { links: 'Nur Module behalten, die gerade geladen sind', rechts: 'localmodconfig' },
+  { links: 'Menü im Terminal', rechts: 'menuconfig' },
+  { links: 'Alles Erzeugte samt .config löschen', rechts: 'mrproper' },
+]} />
+
+<Karte nr={3} titel="Bauen und aufräumen">
+`make` ohne Ziel (gleichbedeutend mit `make all`) baut den Kernel und alle Module. Mit **-j** arbeitet make mehrere Aufgaben gleichzeitig ab, üblich ist `make -j$(nproc)`. Einzeln gehen `make bzImage` und `make modules`. Je nach Konfiguration dauert das einige Minuten bis über eine Stunde. Ein Kernel aus der vollen Debian-Konfiguration baut Tausende Module, einer nach `localmodconfig` nur einige Dutzend.
+
+Danach liegen im Baum `vmlinux`, `System.map`, das gepackte Abbild **arch/x86/boot/bzImage** und die Module (`*.ko`). Die Zeile vor `BUILD arch/x86/boot/bzImage` zeigt das Packverfahren, etwa `XZKERN` oder `ZSTD22`. Gewählt wird es unter General setup → Kernel compression mode: gzip, bzip2, lzma, xz, lzo, lz4 oder zstd. Das initramfs packt Debian getrennt davon, eingestellt mit `COMPRESS=` in `/etc/initramfs-tools/initramfs.conf`.
+
+Aufräumen: `make clean` löscht das Erzeugte, behält aber die .config. `make mrproper` löscht auch die .config, `make distclean` zusätzlich Sicherungs- und Patch-Reste. Sichere die .config, bevor du mrproper aufrufst.
+
+Eine Falle mit der Debian-Konfiguration: Sie verlangt in `CONFIG_SYSTEM_TRUSTED_KEYS` eine Schlüsseldatei, die es nur im Quellpaket von Debian gibt. Der Bau bricht dann mit „Keine Regel vorhanden, um das Ziel „debian/certs/…“ … zu erstellen“ ab. Abhilfe: `scripts/config --disable SYSTEM_TRUSTED_KEYS` (oder mit `--set-str` leeren).
+</Karte>
+
+<Merke>make -j$(nproc) baut alles. Ergebnis: arch/x86/boot/bzImage und die Module. clean behält .config, mrproper nicht. Debian-Konfiguration: SYSTEM_TRUSTED_KEYS leeren.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: Bauen" fragen={[
+  { frage: 'Du hast die Debian-Konfiguration übernommen und willst so schnell wie möglich einen Kernel, der nur auf diesem Rechner laufen muss. Was machst du vor dem Bauen?', richtig: 'make localmodconfig, damit nur die gerade geladenen Module gebaut werden', falsch: ['make mrproper, damit der Bau sauber beginnt', 'make allmodconfig, damit alles als Modul gebaut wird'], erklaerung: 'mrproper würde die .config löschen. allmodconfig baut alles, was geht, als Modul und dauert am längsten.' },
+]} />
+
+## Selbst bauen
+
+<Terminal id="bauen" titel="Terminal: Kernel 6.18.65 für messpc" welt={{ host: 'messpc', cwd: '/usr/src/linux-6.18.64', kern: { quelle: 'entpackt' } }} aufgaben={[
+  { text: 'Installiere die Werkzeuge zum Bauen: build-essential, bc, bison, flex, libelf-dev, libssl-dev und libncurses-dev.', zustand: 'paket:build-essential=an && paket:bc=an && paket:bison=an && paket:flex=an && paket:libelf-dev=an && paket:libssl-dev=an && paket:libncurses-dev=an' },
+  { text: 'Nimm die Konfiguration des laufenden Kernels als Grundlage.', zustand: 'datei:/usr/src/linux-6.18.64/.config~CONFIG_SYSTEM_TRUSTED_KEYS' },
+  { text: 'Übernimm sie mit dem Ziel, das nur nach neuen Optionen fragt, und beantworte die Fragen. (Enter nimmt die Vorgabe, ? zeigt die Hilfe.)', befehl: '^make oldconfig$', zustand: 'nicht:konfig:SCHED_CLASS_EXT=undef && nicht:konfig:X86_USER_SHADOW_STACK=undef' },
+  { text: 'Häng mit scripts/config den Text <code>-lab</code> an die Version.', zustand: 'konfig:LOCALVERSION=-lab' },
+  { text: 'Lass dir zeigen, wie der Kernel heißen wird.', befehl: '^make (-s )?kernelrelease$', frage: 'Wie lautet die Version?', antwort: ['6.18.65-lab'] },
+  { text: 'Stell in make menuconfig das Packverfahren auf zstd um und schalte die Konfiguration in /proc/config.gz ein (IKCONFIG und IKCONFIG_PROC).', zustand: 'konfig:KERNEL_ZSTD=y && konfig:IKCONFIG=y && konfig:IKCONFIG_PROC=y' },
+  { text: 'Bau Kernel und Module mit so vielen Aufgaben, wie der Rechner Kerne hat.', befehl: '^make -j ?(\\$\\(nproc\\)|\\d+)( all)?$', auchFehler: true, frage: 'Der Bau bricht ab. Welche Datei fehlt?', antwort: ['debian/certs/debian-uefi-certs.pem', 'debian-uefi-certs.pem'] },
+  { text: 'Beseitige die Ursache mit scripts/config.', zustand: 'konfig:SYSTEM_TRUSTED_KEYS=' },
+  { text: 'Bau noch einmal, bis der Kernel fertig ist.', zustand: 'gebaut:6.18.65-lab' },
+  { text: 'Prüf das Ergebnis mit file.', befehl: '^file (\\./)?arch/x86/boot/bzImage$', frage: 'Welche Version steht im Abbild?', antwort: ['6.18.65-lab'] },
+]} />
+
+<Hinweis titel="Wenn etwas fehlt">
+Fehlt ein Werkzeug, bricht make mit Meldungen wie `flex: not found` oder `openssl/opensslv.h: No such file or directory` ab. Der Paketname steckt meist in der Meldung. Beim echten Bau lohnt `make -j$(nproc) 2>&1 | tee bau.log`: Die erste Fehlermeldung steht weit oben, nicht am Ende.
+</Hinweis>
+
+<Labor id="labor" titel="Labor: Einen Kernel auf srv1 konfigurieren"
+  aufgabe="Lade auf srv1 einen aktuellen longterm-Kernel von kernel.org, übernimm die Konfiguration mit localmodconfig und lass dir die Version zeigen. Füge die Ausgabe ein. Das eigentliche Bauen dauert auf einer kleinen VM lange und ist hier nicht verlangt."
+  befehl={"sudo apt install -y build-essential bc bison flex libelf-dev libssl-dev libncurses-dev dwarves wget\ncd ~ && wget https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.18.65.tar.xz\ntar xf linux-6.18.65.tar.xz && cd linux-6.18.65\ncp /boot/config-$(uname -r) .config\nmake localmodconfig\nscripts/config --disable SYSTEM_TRUSTED_KEYS --set-str LOCALVERSION -lab\nmake olddefconfig\nmake -s kernelrelease"}
+  muster={["configuration written to \\.config", "^6\\.18\\.\\d+-lab$"]}
+  erfolg="localmodconfig fragt eventuell nach Optionen, die dein alter Kernel nicht kannte. Enter nimmt die Vorgabe. Wenn du Zeit hast: make -j$(nproc) und danach Mission 2.3." />
+
+<Hinweis titel="Prüfungstipp">
+Gefragt werden die make-Ziele (config, menuconfig, xconfig, gconfig, oldconfig, mrproper, bzImage, modules), die Datei .config und /usr/src/linux. Im Entwurf 5.0 fällt das Bauen eines Kernels weg. Das allgemeine Bauen aus dem Quellcode bleibt in 204.1, das kommt bei dir in Akt 7.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Wo liegt nach dem Bau auf x86 das startbare, gepackte Abbild?', richtig: 'arch/x86/boot/bzImage', falsch: ['/boot/vmlinuz', 'vmlinux im Hauptordner'], erklaerung: 'vmlinux ist ungepackt. Nach /boot kommt das Abbild erst mit make install.' },
+  { frage: 'Welches Ziel fragt jede Option einzeln Zeile für Zeile ab?', richtig: 'make config', falsch: ['make oldconfig', 'make defconfig'], erklaerung: 'oldconfig fragt nur nach neuen Optionen, defconfig fragt gar nicht.' },
+  { frage: 'Warum sollte man den Kernel als normaler Benutzer bauen?', richtig: 'Weil das Bauen keine Root-Rechte braucht und ein Fehler im Bausystem so nichts am System kaputt macht', falsch: ['Weil make als root nicht startet', 'Weil die Module sonst root gehören und nicht laden'], erklaerung: 'Root brauchst du erst für make modules_install und make install.' },
+]} />

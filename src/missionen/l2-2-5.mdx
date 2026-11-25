@@ -1,0 +1,146 @@
+---
+id: l2-2-5
+checks:
+  - id: k1
+  - id: laufzeit
+  - id: k2
+  - id: tippfehler
+  - id: zuordnung
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "Ansehen"
+    v: "lsmod (= /proc/modules) · Spalte Used by · modinfo MODUL · modinfo -p MODUL · /sys/module/MODUL/parameters/"
+  - t: "Laden und entladen"
+    v: "modprobe MODUL [param=wert] · modprobe -r MODUL · insmod DATEI.ko · rmmod MODUL · nur entladbar bei Used by 0"
+  - t: "/etc/modprobe.d/*.conf"
+    v: "options MODUL param=wert · alias NAME MODUL · blacklist MODUL · install MODUL /bin/false · softdep MODUL pre: X"
+  - t: "Beim Start laden"
+    v: "/etc/modules-load.d/*.conf (ein Name pro Zeile) · Debian auch /etc/modules · Hardware lädt udev über modules.alias"
+  - t: "Prüfen"
+    v: "modprobe -c (ganze Konfiguration) · modprobe -n -v MODUL (nur zeigen) · modprobe --show-depends MODUL · dmesg"
+  - t: "Startparameter"
+    v: "Kernelzeile: MODUL.param=wert · modprobe.blacklist=MODUL"
+karten:
+  - f: "Woran erkennst du in lsmod, dass ein Modul entladen werden kann?"
+    a: ["used by ist 0", "die zahl bei used by ist null", "niemand benutzt es"]
+  - f: "Mit welchem Befehl siehst du nur die Parameter eines Moduls?"
+    a: ["modinfo -p", "modinfo -p modul"]
+  - f: "Wo siehst du die aktuellen Parameterwerte eines geladenen Moduls?"
+    a: ["/sys/module/modul/parameters", "/sys/module"]
+  - f: "Wie setzt du einen Modulparameter dauerhaft?"
+    a: ["options modul param=wert in /etc/modprobe.d", "mit options in /etc/modprobe.d/*.conf"]
+  - f: "Wie lädst du ein Modul unter einem anderen Namen als seinem Dateinamen?"
+    a: ["alias name modul in /etc/modprobe.d", "mit alias in /etc/modprobe.d"]
+  - f: "Was ist der Unterschied zwischen blacklist und install MODUL /bin/false?"
+    a: ["blacklist verhindert nur das automatische laden über aliase, install /bin/false verhindert jedes laden mit modprobe", "blacklist nur automatisch, install false auch von hand"]
+  - f: "Wo trägst du Module ein, die beim Start immer geladen werden sollen?"
+    a: ["/etc/modules-load.d", "/etc/modules-load.d/*.conf", "/etc/modules"]
+  - f: "Wie zeigt modprobe die gesamte wirksame Konfiguration?"
+    a: ["modprobe -c"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Zuordnung from '../components/Zuordnung.astro';
+
+Der Treiber der Messbox läuft. Jetzt kommen die Wünsche: Das Messteam will die Box unter einem eigenen Namen laden, das WLAN von messpc soll Strom sparen, und seit dem Herbst taucht im Kernelprotokoll eine Warnung zur Netzwerkkarte auf. **Deine Mission: Verwalte Module im laufenden Betrieb, setze Parameter dauerhaft und finde Fehler in der Modulkonfiguration.** Lernziel 201.3.
+
+## Module ansehen, laden und entladen
+
+<Karte nr={1} titel="lsmod, modinfo, modprobe und /sys/module">
+`lsmod` zeigt die geladenen Module, es formatiert nur `/proc/modules`. Die Spalte **Used by** nennt, wie oft ein Modul benutzt wird, und dahinter die Module, die es brauchen. Steht dort mehr als 0, lässt es sich nicht entladen: `rmmod snd` meldet dann „Module snd is in use by: snd_hda_intel …“. Erst müssen die Benutzer weg, oder das Gerät darf nicht mehr in Gebrauch sein.
+
+`modprobe -r MODUL` entlädt ein Modul und alle Abhängigkeiten, die danach niemand mehr braucht. `rmmod` entlädt nur genau eines.
+
+**modinfo MODUL** zeigt die Datei, die Beschreibung, die Abhängigkeiten (`depends`) und alle Parameter (`parm`). `modinfo -p MODUL` zeigt nur die Parameter. Den aktuellen Wert eines Parameters liest du unter **/sys/module/MODUL/parameters/**, sofern der Treiber ihn dort sichtbar macht. Manche Werte lassen sich dort sogar zur Laufzeit ändern.
+
+Parameter gibst du beim Laden mit: `modprobe iwlwifi power_save=1`. Dauerhaft gehören sie in eine Datei unter **/etc/modprobe.d/**, die auf `.conf` endet:
+
+```
+options iwlwifi power_save=1
+```
+
+Die neue Einstellung wirkt erst beim nächsten Laden. Ist das Modul schon geladen, also `modprobe -r iwlwifi && modprobe iwlwifi`. Für Module, die schon im initramfs geladen werden, musst du zusätzlich das initramfs neu bauen. Auf der Kernelzeile geht dasselbe als `iwlwifi.power_save=1`.
+</Karte>
+
+<Merke>lsmod: Used by 0 = entladbar. modinfo -p: Parameter. /sys/module/MODUL/parameters: aktuelle Werte. Dauerhaft: options MODUL param=wert in /etc/modprobe.d/*.conf, dann neu laden.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: Laden und entladen" fragen={[
+  { frage: 'lsmod zeigt „snd 126976 4 snd_hda_intel,snd_hda_codec“. Was passiert bei rmmod snd?', richtig: 'Es schlägt fehl, weil snd noch benutzt wird.', falsch: ['snd wird mit allen Abhängigkeiten entladen.', 'snd wird entladen, snd_hda_intel bleibt geladen.'], erklaerung: 'Erst die Module entladen, die snd benutzen. modprobe -r snd_hda_intel nimmt die nicht mehr gebrauchten gleich mit.' },
+]} />
+
+<Terminal id="laufzeit" titel="Terminal: Module auf messpc" welt={{ host: 'messpc', kern: { sensor: true, dkms: 'installiert' } }} aufgaben={[
+  { text: 'Lass dir die geladenen Tonmodule zeigen und versuch, snd zu entladen.', befehl: '^rmmod snd$|^modprobe -r snd$', auchFehler: true, frage: 'Lässt sich snd entladen? (ja/nein)', antwort: ['nein'] },
+  { text: 'Lass dir die Parameter von iwlwifi zeigen.', befehl: '^modinfo -p iwlwifi$|^modinfo iwlwifi$', frage: 'Wie heißt der Parameter für das Stromsparen?', antwort: ['power_save'] },
+  { text: 'Lies den aktuellen Wert dieses Parameters unter /sys.', befehl: '^cat /sys/module/iwlwifi/parameters/power_save$', frage: 'Welchen Wert hat er?', antwort: ['N'] },
+  { text: 'Schalt das Stromsparen dauerhaft mit einer eigenen Datei in /etc/modprobe.d ein und lade iwlwifi neu, damit es gilt.', zustand: 'datei:/etc/modprobe.d/*~^options iwlwifi .*power_save=(1|Y|y) && sysmod:iwlwifi.power_save=Y' },
+  { text: 'Das Messteam will den Treiber als <code>messbox</code> laden statt als labsensor. Leg dafür einen Alias an.', zustand: 'datei:/etc/modprobe.d/*~^alias messbox labsensor' },
+  { text: 'Entlade labsensor und lade es über den neuen Namen.', befehl: '^modprobe messbox$', zustand: 'modulgeladen:labsensor' },
+  { text: 'Lass dir die ganze wirksame Konfiguration von modprobe zeigen und filtere nach messbox.', befehl: '^modprobe -c \\| grep (-\\w+ )?["\']?messbox["\']?$|^modprobe --showconfig \\| grep (-\\w+ )?["\']?messbox["\']?$' },
+]} />
+
+## Namen, Sperren und der Start
+
+<Karte nr={2} titel="alias, blacklist, install und modules-load.d">
+Die Konfiguration von modprobe steht in `/etc/modprobe.d/*.conf` (dazu `/run/modprobe.d` und `/lib/modprobe.d`). Die wichtigsten Befehle:
+
+| Zeile | Wirkung |
+|---|---|
+| `alias messbox labsensor` | `modprobe messbox` lädt labsensor |
+| `options MODUL param=wert` | Parameter bei jedem Laden |
+| `blacklist pcspkr` | pcspkr wird nicht mehr **automatisch** über seine Aliase geladen. Von Hand mit `modprobe pcspkr` geht es weiter. |
+| `install pcspkr /bin/false` | statt zu laden, läuft /bin/false. Damit scheitert auch `modprobe pcspkr`. |
+| `softdep MODUL pre: ANDERES` | lädt ANDERES vorher |
+
+Modulnamen dürfen Minus oder Unterstrich enthalten, beide gelten als gleich. Die Datei von `usb_storage` heißt `usb-storage.ko`, und `modprobe usb-storage` funktioniert genauso.
+
+Wie kommt ein Treiber zum Gerät? Jedes Modul nennt in seinen Aliasen die Geräte, die es bedient, zum Beispiel `usb:v1209p0001…` für die Messbox. depmod sammelt sie in `modules.alias`. Steckt jemand das Gerät an, meldet der Kernel dessen Kennung, und udev lädt das passende Modul. Darum musst du Hardware-Treiber fast nie von Hand laden. Für Module ohne eigenes Gerät, etwa Dateisysteme oder Netzwerkfunktionen, gibt es **/etc/modules-load.d/*.conf** mit einem Modulnamen pro Zeile. Debian liest zusätzlich `/etc/modules`.
+
+Hilfreich zur Fehlersuche: `modprobe -c` zeigt die gesamte wirksame Konfiguration, `modprobe -n -v MODUL` zeigt, was passieren würde, ohne es zu tun, `modprobe --show-depends MODUL` die Abhängigkeiten. Unbekannte Parameter lehnt der Kernel nicht ab, sondern lädt das Modul und meldet in dmesg `unknown parameter '…' ignored`.
+</Karte>
+
+<Merke>alias: anderer Name. blacklist: nicht automatisch. install MODUL /bin/false: gar nicht. Beim Start: /etc/modules-load.d. Hardware lädt udev über modules.alias. Unbekannte Parameter: dmesg „unknown parameter … ignored“.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: Konfiguration" fragen={[
+  { frage: 'In /etc/modprobe.d/sperre.conf steht „blacklist floppy“. Was passiert bei sudo modprobe floppy?', richtig: 'floppy wird geladen. blacklist verhindert nur das automatische Laden.', falsch: ['modprobe meldet, dass floppy gesperrt ist.', 'Der Rechner startet neu.'], erklaerung: 'Wer jedes Laden verhindern will, schreibt install floppy /bin/false.' },
+]} />
+
+<Terminal id="tippfehler" titel="Terminal: Die Warnung im Protokoll" welt={{ host: 'messpc', kern: { tippfehler: true } }} aufgaben={[
+  { text: 'Such in den Kernelmeldungen nach e1000e.', befehl: '^dmesg( -\\w+)? \\| grep (-\\w+ )?["\']?e1000e["\']?$|^journalctl -k( -b)? \\| grep e1000e$', frage: 'Welcher Parameter wird ignoriert?', antwort: ['InterruptThrottelRate'] },
+  { text: 'Finde die Datei, in der dieser Parameter steht.', befehl: '^grep -r(l|i|n)? .*Throttel.* /etc/modprobe\\.d/?$|^cat /etc/modprobe\\.d/e1000e\\.conf$|^grep .*Throttel.* /etc/modprobe\\.d/\\*$' },
+  { text: 'Vergleich mit den Parametern, die e1000e wirklich kennt.', befehl: '^modinfo -p e1000e$|^modinfo e1000e$', frage: 'Wie heißt der Parameter richtig?', antwort: ['InterruptThrottleRate'] },
+  { text: 'Berichtige die Datei und lade e1000e neu. Danach muss der Treiber den Wert 3000 übernommen haben.', zustand: 'datei:/etc/modprobe.d/e1000e.conf~options e1000e InterruptThrottleRate=3000 && modopt:e1000e.InterruptThrottleRate=3000' },
+  { text: 'Prüf in dmesg, was der Treiber jetzt meldet.', befehl: '^dmesg( -\\w+)? \\| (grep .*|tail.*)$', frage: 'Auf wie viele Interrupts pro Sekunde ist er eingestellt?', antwort: ['3000'] },
+]} />
+
+<Hinweis titel="Netzwerk ist kurz weg">
+`modprobe -r e1000e` nimmt die Netzwerkkarte weg, bis der Treiber wieder geladen ist. Über SSH sägst du dir damit den Ast ab, auf dem du sitzt. Auf einem entfernten Rechner also `sudo modprobe -r e1000e && sudo modprobe e1000e` in einer Zeile, oder gleich in screen oder tmux.
+</Hinweis>
+
+<Zuordnung id="zuordnung" titel="Zuordnung: Welche Zeile?" aufgabe="Ordne jedem Ziel die passende Zeile in /etc/modprobe.d zu." paare={[
+  { links: 'modprobe messbox soll labsensor laden', rechts: 'alias messbox labsensor' },
+  { links: 'iwlwifi immer mit Stromsparen', rechts: 'options iwlwifi power_save=1' },
+  { links: 'pcspkr nicht mehr automatisch laden', rechts: 'blacklist pcspkr' },
+  { links: 'floppy darf nie geladen werden', rechts: 'install floppy /bin/false' },
+]} />
+
+<Labor id="labor" titel="Labor: Module auf srv1"
+  aufgabe="Such dir auf srv1 ein geladenes Modul mit Parametern aus, lies sie unter /sys/module und lass dir die wirksame modprobe-Konfiguration zeigen. Füge die Ausgabe ein."
+  befehl={"lsmod | head -15\nmodinfo -p e1000 2>/dev/null || modinfo -p virtio_net\nls /sys/module/$(lsmod | awk 'NR==2{print $1}')/\nmodprobe -c | grep -v '^alias' | head"}
+  muster={["^Module\\s+Size\\s+Used by", ":"]}
+  erfolg="VirtualBox-VMs haben meist e1000, KVM-VMs virtio_net. Nicht jedes Modul hat einen Ordner parameters." />
+
+<Hinweis titel="Prüfungstipp">
+Sehr beliebt: Wann lässt sich ein Modul entladen (Used by), wie lädt man es unter anderem Namen (alias), wo stehen Parameter (options, modinfo -p) und der Unterschied zwischen insmod und modprobe. Im Entwurf 5.0 stehen alle diese Werkzeuge in 201.1, dazu neu kmod.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Du änderst in /etc/modprobe.d einen Parameter von iwlwifi. Das Modul ist geladen. Wann gilt der neue Wert?', richtig: 'Beim nächsten Laden, also nach modprobe -r iwlwifi und modprobe iwlwifi oder nach einem Neustart', falsch: ['Sofort, modprobe liest die Datei ständig', 'Erst nach update-grub'], erklaerung: 'modprobe liest seine Konfiguration nur beim Laden.' },
+  { frage: 'Welche Datei liest lsmod?', richtig: '/proc/modules', falsch: ['/lib/modules/$(uname -r)/modules.dep', '/etc/modules'], erklaerung: 'modules.dep beschreibt, was verfügbar ist, /proc/modules, was geladen ist.' },
+  { frage: 'Ein Modul soll bei jedem Start geladen werden, obwohl kein Gerät dafür da ist. Wohin schreibst du seinen Namen?', richtig: 'In eine Datei unter /etc/modules-load.d/', falsch: ['In /etc/modprobe.d/ als alias', 'In /lib/modules/$(uname -r)/modules.order'], erklaerung: 'systemd-modules-load liest die Dateien beim Start. Debian liest auch /etc/modules.' },
+]} />

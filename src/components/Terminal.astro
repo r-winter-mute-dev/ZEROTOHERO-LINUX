@@ -240,10 +240,11 @@ const { id, titel = 'Terminal', aufgaben, welt = {}, einleitung } = Astro.props;
     });
 
     box.querySelector('[data-term-neustart]')!.addEventListener('click', () => {
-      neuStarten(w);
+      const meldung = neuStarten(w);
       w.verlauf.push({ zeile: '#neustart', code: 0, ausgabe: '' });
       zeile('--- Neustart ---\nDer Rechner fährt hoch. Module aus Sperrlisten werden nicht automatisch geladen.', 'info');
-      zeile(`Gestartet in: ${w.target}`, 'info');
+      if (meldung) zeile(meldung, 'info');
+      if (!w.aus) zeile(`Gestartet in: ${w.target}`, 'info');
       promptEl.textContent = prompt(w);
       pruefen();
     });

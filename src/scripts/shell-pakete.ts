@@ -49,6 +49,35 @@ export const DEB: Paket[] = [
   D('apt-file', '3.3', 'search for files within Debian packages (command-line interface)', ['libc6'], ['/usr/bin/apt-file'], [], 100),
   D('libmess1', '1.2-1', 'Messbibliothek für die Werkstatt (Beispielpaket)', ['libc6'], ['/usr/lib/x86_64-linux-gnu/libmess.so.1'], [], 80),
   D('sl', '5.02-1+b1', 'Correct you if you type `sl\' by mistake', ['libc6', 'libncursesw6'], ['/usr/games/sl'], [], 70),
+  // Kernel und Bauwerkzeuge (LPIC-2 Topic 201)
+  D('kmod', '30+20221128-1', 'tools for managing Linux kernel modules', ['libc6'], ['/usr/bin/kmod'], [], 260),
+  D('udev', '252.31-1~deb12u1', '/dev/ and hotplug management daemon', ['libc6', 'kmod'], ['/usr/bin/udevadm', '/etc/udev/udev.conf'], ['/etc/udev/udev.conf'], 9800),
+  D('procps', '2:4.0.2-3', '/proc file system utilities', ['libc6'], ['/usr/sbin/sysctl', '/etc/sysctl.conf'], ['/etc/sysctl.conf'], 2400),
+  D('initramfs-tools', '0.142+deb12u1', 'generic modular initramfs generator (automation)', ['kmod', 'udev'], ['/usr/sbin/update-initramfs', '/usr/sbin/mkinitramfs', '/usr/bin/lsinitramfs', '/etc/initramfs-tools/initramfs.conf'], ['/etc/initramfs-tools/initramfs.conf'], 120),
+  D('xz-utils', '5.4.1-1', 'XZ-format compression utilities', ['libc6'], ['/usr/bin/xz'], [], 480),
+  D('linux-image-6.1.0-27-amd64', '6.1.115-1', 'Linux 6.1 for 64-bit PCs (signed)', ['kmod', 'initramfs-tools'], ['/boot/vmlinuz-6.1.0-27-amd64', '/boot/config-6.1.0-27-amd64', '/boot/System.map-6.1.0-27-amd64'], [], 398000),
+  D('linux-image-6.1.0-26-amd64', '6.1.112-1', 'Linux 6.1 for 64-bit PCs (signed)', ['kmod', 'initramfs-tools'], ['/boot/vmlinuz-6.1.0-26-amd64', '/boot/config-6.1.0-26-amd64', '/boot/System.map-6.1.0-26-amd64'], [], 397800),
+  D('linux-image-amd64', '6.1.115-1', 'Linux for 64-bit PCs (meta-package)', ['linux-image-6.1.0-27-amd64'], [], [], 1),
+  D('linux-headers-6.1.0-27-common', '6.1.115-1', 'Common header files for Linux 6.1.0-27', [], ['/usr/src/linux-headers-6.1.0-27-common/Makefile'], [], 58000),
+  D('linux-kbuild-6.1', '6.1.115-1', 'Kbuild infrastructure for Linux 6.1', ['libc6'], ['/usr/lib/linux-kbuild-6.1/scripts/basic/fixdep'], [], 2900),
+  D('linux-headers-6.1.0-27-amd64', '6.1.115-1', 'Header files for Linux 6.1.0-27-amd64', ['linux-headers-6.1.0-27-common', 'linux-kbuild-6.1'], ['/usr/src/linux-headers-6.1.0-27-amd64/.config'], [], 5600),
+  D('linux-headers-amd64', '6.1.115-1', 'Header files for Linux amd64 configuration (meta-package)', ['linux-headers-6.1.0-27-amd64'], [], [], 1),
+  D('make', '4.3-4.1', 'utility for directing compilation', ['libc6'], ['/usr/bin/make'], [], 1600),
+  D('patch', '2.7.6-7', 'Apply a diff file to an original', ['libc6'], ['/usr/bin/patch'], [], 290),
+  D('libc6-dev', '2.36-9+deb12u9', 'GNU C Library: Development Libraries and Header Files', ['libc6'], ['/usr/include/stdio.h'], [], 12900),
+  D('gcc', '4:12.2.0-3', 'GNU C compiler', ['libc6'], ['/usr/bin/gcc', '/usr/bin/cc'], [], 52000),
+  D('dpkg-dev', '1.21.22', 'Debian package development tools', ['make', 'patch', 'xz-utils'], ['/usr/bin/dpkg-buildpackage'], [], 3300),
+  D('build-essential', '12.9', 'Informational list of build-essential packages', ['gcc', 'make', 'dpkg-dev', 'libc6-dev'], [], [], 20),
+  D('bc', '1.07.1-3+b1', 'GNU bc arbitrary precision calculator language', ['libc6'], ['/usr/bin/bc'], [], 220),
+  D('bison', '2:3.8.2+dfsg-1+b1', 'YACC-compatible parser generator', ['libc6'], ['/usr/bin/bison'], [], 2100),
+  D('flex', '2.6.4-8.2', 'fast lexical analyzer generator', ['libc6'], ['/usr/bin/flex'], [], 1200),
+  D('libelf-dev', '0.188-2.1', 'libelf1 development libraries and header files', ['libc6'], ['/usr/include/libelf.h', '/usr/include/gelf.h'], [], 1300),
+  D('libssl-dev', '3.0.15-1~deb12u1', 'Secure Sockets Layer toolkit - development files', ['libc6'], ['/usr/include/openssl/opensslv.h'], [], 12000),
+  D('libncurses-dev', '6.4-4', 'developer\'s libraries for ncurses', ['libc6', 'libncursesw6'], ['/usr/include/ncurses.h'], [], 3000),
+  D('dwarves', '1.24-4.1', 'set of advanced DWARF utilities', ['libc6'], ['/usr/bin/pahole'], [], 900),
+  D('dkms', '3.0.10-8+deb12u1', 'Dynamic Kernel Module System (DKMS)', ['kmod', 'gcc', 'make'], ['/usr/sbin/dkms', '/etc/dkms/framework.conf'], ['/etc/dkms/framework.conf'], 600),
+  D('procinfo', '1:2.0.304-7', 'Displays system information from /proc', ['libc6'], ['/usr/bin/procinfo', '/usr/bin/lsdev', '/usr/bin/socklist'], [], 210),
+  D('lshw', '02.19.git.2021.06.19.996aaad9c7-2+b1', 'information about hardware configuration', ['libc6'], ['/usr/bin/lshw'], [], 980),
 ];
 export const DEB_START = ['libc6', 'libpcre2-8-0', 'libselinux1', 'coreutils', 'bash', 'pciutils', 'openssh-server', 'openssh-client', 'smartmontools', 'tzdata', 'grub-efi-amd64', 'vim-tiny', 'nano'];
 // Lokale Paketdatei im Download-Ordner: braucht libmess1
@@ -105,6 +134,7 @@ export interface PaketStand {
   geaendert: string[];                      // vom Admin veränderte Konfigurationsdateien (für -V)
   ldCache: string[];                        // Verzeichnisse, die ldconfig kennt
   maschinenId: string;
+  extra?: Paket[];                          // selbst gebaute Pakete (etwa Kernel aus make bindeb-pkg)
 }
 
 export function startStand(w: Welt) {
@@ -155,13 +185,27 @@ export function startStand(w: Welt) {
   for (const t of ['rsa', 'ecdsa', 'ed25519']) { w.fs[`/etc/ssh/ssh_host_${t}_key`] = `(privater ${t}-Schlüssel)\n`; w.fs[`/etc/ssh/ssh_host_${t}_key.pub`] = `ssh-${t} AAAA…${t.toUpperCase()}1 root@${w.host}\n`; }
 }
 
+/** Pakete samt Dateien als installiert markieren (für vorbereitete Welten). */
+export function paketeSetzen(w: Welt, namen: string[]) {
+  if (!w.pakete) return;
+  const alle = new Set<string>();
+  const besuch = (n: string) => { if (alle.has(n)) return; const p = finde(w, n); if (!p) return; alle.add(n); p.abh.forEach(besuch); };
+  namen.forEach(besuch);
+  for (const n of alle) { const p = finde(w, n)!; w.pakete.installiert[n] = 'ii'; for (const f of p.dateien) dateiAnlegen(w, f, p.konf?.includes(f) ? `# ${f} aus ${p.name}\n` : ''); }
+}
+export function paketHinzu(w: Welt, name: string, version: string, text: string, dateien: string[]) {
+  if (!w.pakete) return;
+  w.pakete.extra = [...(w.pakete.extra ?? []).filter((p) => p.name !== name), D(name, version, text, [], dateien)];
+  w.pakete.installiert[name] = 'ii';
+}
+
 function dateiAnlegen(w: Welt, f: string, inhalt: string) {
   const teile = f.split('/').filter(Boolean);
   for (let i = 1; i < teile.length; i++) { const d = '/' + teile.slice(0, i).join('/'); if (!(d in w.fs)) w.fs[d] = null; }
   if (!(f in w.fs)) w.fs[f] = inhalt;
 }
 
-function db(w: Welt): Paket[] { return w.distro === 'alma' ? RPM : w.distro === 'suse' ? SUSE : DEB; }
+function db(w: Welt): Paket[] { const b = w.distro === 'alma' ? RPM : w.distro === 'suse' ? SUSE : DEB; return w.pakete?.extra?.length ? [...b, ...w.pakete.extra] : b; }
 const finde = (w: Welt, n: string) => db(w).find((p) => p.name === n);
 const st = (w: Welt) => w.pakete!;
 
@@ -171,14 +215,25 @@ function grubWert(w: Welt, schluessel: string, standard: string) {
   const m = (w.fs['/etc/default/grub'] ?? '').match(new RegExp(`^${schluessel}=(.*)$`, 'm'));
   return m ? m[1].replace(/^"|"$/g, '') : standard;
 }
+function bootKernel(w: Welt): string[] {
+  const teil = (v: string) => v.split(/[.-]/).map((x) => (/^\d+$/.test(x) ? x.padStart(6, '0') : x)).join('.');
+  return Object.keys(w.fs).filter((p) => /^\/boot\/vmlinuz-[^/]+$/.test(p) && !p.endsWith('.old')).map((p) => p.slice('/boot/vmlinuz-'.length)).sort((a, b) => (teil(a) < teil(b) ? 1 : -1));
+}
 function grubCfg(w: Welt): string {
   const timeout = grubWert(w, 'GRUB_TIMEOUT', '5');
   const opts = grubWert(w, 'GRUB_CMDLINE_LINUX_DEFAULT', 'quiet');
   const extra = grubWert(w, 'GRUB_CMDLINE_LINUX', '');
   const par = [extra, opts].filter(Boolean).join(' ');
-  const eintrag = (v: string, t: string, zusatz = par) => `menuentry '${t}' {\n\tlinux\t/vmlinuz-${v} root=UUID=3f1c0d6e-8a2b-4c51-9a0e-2d7b1e5c9f40 ro ${zusatz}\n\tinitrd\t/initrd.img-${v}\n}`;
-  return `#\n# DO NOT EDIT THIS FILE\n#\n# It is automatically generated by grub-mkconfig using templates\n# from /etc/grub.d and settings from /etc/default/grub\n#\nset default="${grubWert(w, 'GRUB_DEFAULT', '0')}"\nset timeout=${timeout}\n${eintrag('6.1.0-27-amd64', 'Debian GNU/Linux')}\nsubmenu 'Advanced options for Debian GNU/Linux' {\n${eintrag('6.1.0-27-amd64', 'Debian GNU/Linux, with Linux 6.1.0-27-amd64 (recovery mode)', 'single ' + extra)}\n${eintrag('6.1.0-26-amd64', 'Debian GNU/Linux, with Linux 6.1.0-26-amd64')}\n}\n${(w.fs['/etc/grub.d/40_custom'] ?? '').split('\n').slice(3).join('\n')}`.trim() + '\n';
+  const eintrag = (v: string, t: string, zusatz = par) => `menuentry '${t}' {\n\tlinux\t/vmlinuz-${v} root=UUID=3f1c0d6e-8a2b-4c51-9a0e-2d7b1e5c9f40 ro ${zusatz}\n${(`/boot/initrd.img-${v}` in w.fs) ? `\tinitrd\t/initrd.img-${v}\n` : ''}}`;
+  const kerne = bootKernel(w);
+  const erster = kerne[0] ?? '6.1.0-27-amd64';
+  const unter = kerne.flatMap((v) => [eintrag(v, `Debian GNU/Linux, with Linux ${v}`), eintrag(v, `Debian GNU/Linux, with Linux ${v} (recovery mode)`, 'single ' + extra)]).join('\n');
+  return `#\n# DO NOT EDIT THIS FILE\n#\n# It is automatically generated by grub-mkconfig using templates\n# from /etc/grub.d and settings from /etc/default/grub\n#\nset default="${grubWert(w, 'GRUB_DEFAULT', '0')}"\nset timeout=${timeout}\n${eintrag(erster, 'Debian GNU/Linux')}\nsubmenu 'Advanced options for Debian GNU/Linux' {\n${unter}\n}\n${(w.fs['/etc/grub.d/40_custom'] ?? '').split('\n').slice(3).join('\n')}`.trim() + '\n';
 }
+export function grubMeldung(w: Welt): string {
+  return ['Generating grub configuration file ...', ...bootKernel(w).flatMap((v) => [`Found linux image: /boot/vmlinuz-${v}`, ...((`/boot/initrd.img-${v}` in w.fs) ? [`Found initrd image: /boot/initrd.img-${v}`] : [])]), 'Adding boot menu entry for UEFI Firmware Settings ...', 'done'].join('\n');
+}
+export function grubSchreiben(w: Welt): string { w.fs['/boot/grub/grub.cfg'] = grubCfg(w); return grubMeldung(w); }
 
 // ---------------- Befehle ----------------
 
@@ -276,7 +331,7 @@ Device     Boot Start      End  Sectors  Size Id Type
     'update-grub': (w, a, i, root) => b['grub-mkconfig'](w, ['-o', '/boot/grub/grub.cfg'], i, root),
     'grub-mkconfig': (w, a, _i, root) => {
       const oi = a.indexOf('-o'); const ziel = oi >= 0 ? a[oi + 1] : null;
-      const meldung = 'Generating grub configuration file ...\nFound linux image: /boot/vmlinuz-6.1.0-27-amd64\nFound initrd image: /boot/initrd.img-6.1.0-27-amd64\nFound linux image: /boot/vmlinuz-6.1.0-26-amd64\nFound initrd image: /boot/initrd.img-6.1.0-26-amd64\nAdding boot menu entry for UEFI Firmware Settings ...\ndone';
+      const meldung = grubMeldung(w);
       if (!ziel) return ok(grubCfg(w) + '\n' + meldung);
       if (!root) return fehler(`/usr/sbin/grub-mkconfig: 287: cannot create ${ziel}.new: Permission denied`);
       w.fs[pfad(w, ziel)] = grubCfg(w);

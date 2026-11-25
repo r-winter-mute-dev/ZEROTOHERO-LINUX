@@ -1,0 +1,138 @@
+---
+id: l2-2-4
+checks:
+  - id: k1
+  - id: handarbeit
+  - id: k2
+  - id: dkms
+  - id: luecke
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "Fremdes Modul von Hand"
+    v: "sudo apt install linux-headers-$(uname -r) · make -C /lib/modules/$(uname -r)/build M=$PWD · insmod ./modul.ko"
+  - t: "modprobe findet es erst"
+    v: "nach /lib/modules/$(uname -r)/extra/ (oder updates/) kopieren · sudo depmod -a"
+  - t: "DKMS"
+    v: "Quelle in /usr/src/NAME-VERSION mit dkms.conf · dkms add NAME/VERSION · dkms install NAME/VERSION · dkms status · dkms autoinstall -k KERNEL · dkms remove NAME/VERSION --all"
+  - t: "Wohin"
+    v: "/var/lib/dkms/NAME/VERSION/ · Modul: /lib/modules/KERNEL/updates/dkms/"
+  - t: "Tainted"
+    v: "cat /proc/sys/kernel/tainted · 4096 = fremdes Modul (O) · 8192 = unsigniert (E)"
+karten:
+  - f: "Welches Paket brauchst du auf Debian, um Module für den laufenden Kernel zu bauen?"
+    a: ["linux-headers-$(uname -r)", "linux-headers"]
+  - f: "Was unterscheidet insmod von modprobe?"
+    a: ["insmod lädt eine datei ohne abhängigkeiten, modprobe sucht in modules.dep und lädt abhängigkeiten", "insmod braucht den pfad, modprobe den namen"]
+  - f: "Was musst du tun, nachdem du ein Modul von Hand nach /lib/modules kopiert hast?"
+    a: ["depmod -a", "depmod", "sudo depmod -a"]
+  - f: "Was löst DKMS?"
+    a: ["fremde module werden für jeden neuen kernel automatisch neu gebaut", "module außerhalb des kernels bei kernel-updates neu bauen"]
+  - f: "Wo erwartet DKMS den Quellcode eines Moduls?"
+    a: ["/usr/src/name-version", "/usr/src"]
+  - f: "Welche Datei beschreibt ein Modul für DKMS?"
+    a: ["dkms.conf"]
+  - f: "Mit welchem Befehl siehst du, für welche Kernel ein DKMS-Modul gebaut ist?"
+    a: ["dkms status"]
+  - f: "Was steht in der Zeile vermagic von modinfo?"
+    a: ["für welchen kernel das modul gebaut ist", "die kernelversion, zu der das modul passt"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Lueckentext from '../components/Lueckentext.astro';
+
+Die Messbox LS-2 steckt am USB-Anschluss von messpc, aber kein Treiber fühlt sich zuständig. Die Labor Mess GmbH liefert ihren Treiber nicht mit dem Kernel aus, sondern als Quellcode in `/usr/src/labsensor-1.2`. **Deine Mission: Bau das Modul einmal von Hand, damit du verstehst, was passiert, und richte es dann mit DKMS so ein, dass es jedes Kernel-Update übersteht.** Lernziel 201.2.
+
+## Ein Modul außerhalb des Kernels
+
+<Karte nr={1} titel="Header, Kbuild, insmod und depmod">
+Module, die nicht im Kernel-Quellcode stecken, heißen **out-of-tree**. Grafiktreiber von NVIDIA, WLAN-Treiber mancher Hersteller und die Gasterweiterungen von VirtualBox sind Beispiele. Zum Bauen brauchst du nicht den ganzen Kernel-Quellcode, aber seine **Header** und das Bausystem, genau passend zum Kernel. Auf Debian installiert sie `sudo apt install linux-headers-$(uname -r)`. Sie landen in `/usr/src/linux-headers-VERSION`, und `/lib/modules/VERSION/build` zeigt darauf.
+
+Das Makefile eines solchen Moduls ist kurz. Die Zeile `obj-m += labsensor.o` sagt, was gebaut wird, und `make -C /lib/modules/$(uname -r)/build M=$PWD modules` übergibt die Arbeit an das Bausystem des Kernels. Heraus kommt `labsensor.ko`.
+
+**insmod ./labsensor.ko** lädt genau diese Datei. Es löst keine Abhängigkeiten auf und liest keine Einstellungen aus /etc/modprobe.d. **modprobe labsensor** dagegen sucht das Modul per Namen in `modules.dep`. Darum findet modprobe ein frisch kopiertes Modul erst, nachdem **depmod -a** die Liste neu geschrieben hat. Eigene Module legt man nach `/lib/modules/VERSION/extra/` oder `updates/`. Dateien unter updates/ haben Vorrang vor gleichnamigen unter kernel/.
+
+`modinfo` zeigt in der Zeile **vermagic**, für welchen Kernel ein Modul gebaut ist. Passt sie nicht zum laufenden Kernel, verweigert er das Laden mit `Invalid module format`.
+
+Lädt der Kernel ein fremdes Modul, gilt er als **tainted** (verunreinigt). `cat /proc/sys/kernel/tainted` zeigt eine Bitmaske: 4096 heißt „fremdes Modul“, 8192 „unsigniertes Modul“. Entwickler des Kernels nehmen Fehlerberichte von einem tainted Kernel oft nicht an, weil der Fehler im fremden Code liegen kann.
+</Karte>
+
+<Merke>Header: linux-headers-$(uname -r). insmod DATEI: ohne Abhängigkeiten. modprobe NAME: über modules.dep, darum nach dem Kopieren depmod -a. vermagic muss zum Kernel passen.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: Von Hand" fragen={[
+  { frage: 'Welche Verknüpfung muss existieren, damit make -C /lib/modules/$(uname -r)/build M=$PWD ein fremdes Modul bauen kann?', richtig: '/lib/modules/$(uname -r)/build auf die Header des laufenden Kernels', falsch: ['/usr/src/linux auf den Quellbaum von kernel.org', '/boot/vmlinuz auf den laufenden Kernel'], erklaerung: 'Auf Debian legt das Paket linux-headers-$(uname -r) sie an.' },
+]} />
+
+<Terminal id="handarbeit" titel="Terminal: Der Treiber von Hand" welt={{ host: 'messpc', kern: { sensor: true, dkms: 'quelle' } }} aufgaben={[
+  { text: 'Schau nach, wie die Messbox am USB hängt.', befehl: '^lsusb -t$', frage: 'Welcher Treiber ist für Port 6 zuständig?', antwort: ['keiner', '[none]', 'none', 'kein'] },
+  { text: 'Installiere die Werkzeuge und die Header des laufenden Kernels.', zustand: 'paket:build-essential=an && paket:linux-headers-6.1.0-27-amd64=an' },
+  { text: 'Kopier den Quellcode aus <code>/usr/src/labsensor-1.2</code> in dein Heimatverzeichnis und bau dort das Modul.', zustand: 'da:/home/lena/labsensor-1.2/labsensor.ko' },
+  { text: 'Lass dir die Angaben des gebauten Moduls zeigen.', befehl: '^modinfo (\\./|~/labsensor-1\\.2/|/home/lena/labsensor-1\\.2/)?labsensor\\.ko$', frage: 'Für welchen Kernel ist es gebaut? (vermagic)', antwort: ['6.1.0-27-amd64'] },
+  { text: 'Lade die Datei direkt mit insmod.', zustand: 'modulgeladen:labsensor' },
+  { text: 'Lies die letzten Kernelmeldungen und den Wert von kernel.tainted.', befehl: '^cat /proc/sys/kernel/tainted$|^sysctl kernel\\.tainted$|^sysctl -n kernel\\.tainted$', frage: 'Welchen Wert hat kernel.tainted?', antwort: ['12288'] },
+  { text: 'Entlade das Modul wieder und versuch, es mit modprobe zu laden.', befehl: '^modprobe labsensor$', auchFehler: true },
+  { text: 'Kopier labsensor.ko nach <code>/lib/modules/$(uname -r)/extra/</code>, sorg dafür, dass modprobe es findet, und lade es so.', zustand: 'dep:labsensor && modulgeladen:labsensor' },
+]} />
+
+## DKMS
+
+<Karte nr={2} titel="Module, die Kernel-Updates überleben">
+Von Hand gebaute Module passen nur zu genau einem Kernel. Nach dem nächsten Kernel-Update ist der Treiber weg, und die Messbox schweigt. **DKMS** (Dynamic Kernel Module Support) löst das: Es kennt den Quellcode und baut das Modul für jeden neu installierten Kernel automatisch nach.
+
+- Der Quellcode liegt in **/usr/src/NAME-VERSION/**, mit einer Datei **dkms.conf**, die Name, Version und das entstehende Modul nennt. `AUTOINSTALL="yes"` sorgt für das automatische Nachbauen.
+- `dkms add NAME/VERSION` nimmt das Modul auf, es erscheint in **/var/lib/dkms/**.
+- `dkms build NAME/VERSION` baut es für den laufenden Kernel (oder `-k KERNEL`), `dkms install NAME/VERSION` baut, falls nötig, und installiert nach `/lib/modules/KERNEL/updates/dkms/`, samt depmod.
+- `dkms status` zeigt jede Kombination aus Modul und Kernel mit „added“, „built“ oder „installed“.
+- `dkms autoinstall -k KERNEL` baut alle Module mit AUTOINSTALL für einen Kernel. Genau das ruft der Haken **/etc/kernel/postinst.d/dkms** auf, wenn ein neuer Kernel installiert wird.
+- `dkms remove NAME/VERSION --all` entfernt das Modul aus allen Kerneln.
+
+Auch DKMS braucht die Header jedes Kernels. Fehlen sie, meldet es „Your kernel headers for kernel … cannot be found“. Für selbst gebaute Kernel legt `make modules_install` die Verknüpfung `build` an, für Pakete aus `make bindeb-pkg` gibt es ein eigenes linux-headers-Paket.
+
+Ist Secure Boot an, lädt der Kernel nur signierte Module. DKMS kann sie mit einem eigenen Schlüssel signieren, den du einmalig mit `mokutil --import` in die Firmware einträgst. Ohne Secure Boot lädt das Modul auch unsigniert, der Kernel gilt dann aber als tainted.
+</Karte>
+
+<Merke>DKMS: Quelle in /usr/src/NAME-VERSION mit dkms.conf. dkms add, dkms install, dkms status. Der Haken in /etc/kernel/postinst.d baut bei jedem neuen Kernel nach. Header nicht vergessen.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: DKMS" fragen={[
+  { frage: 'dkms status zeigt „labsensor/1.2, 6.1.0-27-amd64, x86_64: installed“, aber nichts für 6.1.0-28-amd64, der seit gestern läuft. Was ist die wahrscheinlichste Ursache?', richtig: 'Die Header für 6.1.0-28-amd64 fehlen, darum konnte DKMS nicht bauen.', falsch: ['DKMS baut Module nur für den ersten Kernel.', 'Das Modul ist für 6.1.0-28 fest eingebaut.'], erklaerung: 'Abhilfe: sudo apt install linux-headers-$(uname -r). Debian ruft danach DKMS selbst auf, sonst sudo dkms autoinstall.' },
+]} />
+
+<Terminal id="dkms" titel="Terminal: Die Messbox mit DKMS" welt={{ host: 'messpc', kern: { sensor: true, dkms: 'quelle' } }} aufgaben={[
+  { text: 'Lies die Beschreibung des Treibers für DKMS.', befehl: '^cat /usr/src/labsensor-1\\.2/dkms\\.conf$', frage: 'Wird das Modul bei neuen Kerneln automatisch gebaut? (ja/nein)', antwort: ['ja'] },
+  { text: 'Installiere DKMS und die Header des laufenden Kernels.', zustand: 'paket:dkms=an && paket:linux-headers-6.1.0-27-amd64=an' },
+  { text: 'Nimm labsensor 1.2 in DKMS auf.', zustand: 'dkms:added' },
+  { text: 'Bau und installier das Modul für den laufenden Kernel.', zustand: 'dkms:installed' },
+  { text: 'Lass dir den Stand von DKMS zeigen.', befehl: '^dkms status$', frage: 'Welchen Zustand meldet DKMS für 6.1.0-27-amd64?', antwort: ['installed'] },
+  { text: 'Lade den Treiber mit modprobe.', zustand: 'modulgeladen:labsensor' },
+  { text: 'Prüf, ob jetzt eine Gerätedatei für die Messbox da ist.', befehl: '^ls -l /dev/labsensor0$|^ls -l /dev/lab\\*$|^ls -l /dev \\| grep lab', frage: 'Welcher Gruppe gehört /dev/labsensor0?', antwort: ['root'] },
+]} />
+
+<Lueckentext id="luecke" titel="Lückentext: dkms.conf" aufgabe="Ergänze die Datei, mit der DKMS ein Modul namens messkarte in Version 2.0 kennt."
+  code={`PACKAGE_NAME="___"
+PACKAGE_VERSION="___"
+BUILT_MODULE_NAME[0]="messkarte"
+DEST_MODULE_LOCATION[0]="/updates/dkms"
+___="yes"
+# Die Quelle liegt in /usr/src/___`}
+  luecken={[{ loesungen: ['messkarte'] }, { loesungen: ['2.0'] }, { loesungen: ['AUTOINSTALL'] }, { loesungen: ['messkarte-2.0', 'messkarte-2.0/'] }]} />
+
+<Labor id="labor" titel="Labor: DKMS auf srv1 vorbereiten"
+  aufgabe="Installier auf srv1 DKMS und die Header des laufenden Kernels und zeig, wo DKMS sich einklinkt. Füge die Ausgabe ein."
+  befehl={"sudo apt install -y dkms linux-headers-$(uname -r)\nls -l /lib/modules/$(uname -r)/build\nls /etc/kernel/postinst.d/\ndkms status"}
+  muster={["build -> /usr/src/linux-headers-", "dkms"]}
+  erfolg="build zeigt auf die Header, und in /etc/kernel/postinst.d liegt jetzt der Haken dkms. dkms status bleibt leer, bis ein Paket ein Modul mitbringt. Auf einem Rechner mit VirtualBox-Gasterweiterungen oder einem NVIDIA-Treiber stehen dort echte Einträge." />
+
+<Hinweis titel="Prüfungstipp">
+Die Lernziele verlangen „DKMS zum Bauen von Kernelmodulen benutzen“. Gefragt werden dkms add, build, install, status und der Ort /usr/src. Im Entwurf 5.0 steht DKMS weiter in 201.1, die Header und modules.dep ebenso.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Du hast labsensor.ko nach /lib/modules/$(uname -r)/extra/ kopiert. modprobe labsensor meldet „not found“. Was fehlt?', richtig: 'sudo depmod -a', falsch: ['sudo update-grub', 'sudo modprobe -c'], erklaerung: 'modprobe sucht in modules.dep. depmod schreibt die Datei neu.' },
+  { frage: 'insmod meldet „Invalid module format“. Woran liegt das meistens?', richtig: 'Das Modul wurde für einen anderen Kernel gebaut (vermagic passt nicht).', falsch: ['Die Datei endet nicht auf .ko.xz.', 'Das Modul hat zu viele Parameter.'], erklaerung: 'dmesg zeigt dann „version magic … should be …“. Abhilfe: für den laufenden Kernel neu bauen, am besten mit DKMS.' },
+  { frage: 'Welcher dkms-Befehl baut alle Module mit AUTOINSTALL für einen bestimmten Kernel?', richtig: 'dkms autoinstall -k KERNEL', falsch: ['dkms add -k KERNEL', 'dkms status -k KERNEL'], erklaerung: 'Diesen Befehl ruft der Haken in /etc/kernel/postinst.d bei jeder Kernel-Installation auf.' },
+]} />

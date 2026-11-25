@@ -1,0 +1,21 @@
+---
+id: l2-2-probe
+abzeichen: "Topic 201 bestanden"
+checks:
+  - id: probe
+---
+import Probe from '../components/Probe.astro';
+import Karte from '../components/Karte.astro';
+import Hinweis from '../components/Hinweis.astro';
+
+Topic 201 bringt in Prüfung 201 ungefähr **9 von 60 Fragen**, die meisten davon zu 201.3. **Deine Mission: Bestehe die Probe mit mindestens 80 %.**
+
+<Karte nr={1} titel="Was diese Probe mischt">
+Neben Topic 201 kommen Fragen aus LPIC-1, auf denen der Kernel-Stoff aufbaut: Hardware erkennen und Module laden (101.1), der Startvorgang (101.2), der Bootloader (102.2) und Pakete unter Debian (102.4). Wer `lsmod`, `modprobe` und `update-grub` aus LPIC-1 nicht mehr sicher kann, verliert hier Punkte.
+</Karte>
+
+<Hinweis titel="Zum Tempo">
+20 Fragen in 30 Minuten. Gemischt nach den Gewichten der Lernziele: etwa neun aus Topic 201, der Rest aus LPIC-1. Falsch beantwortete Fragen landen morgen in deiner Wiederholung.
+</Hinweis>
+
+<Probe id="probe" titel="Probeprüfung: Topic 201 mit Wiederholung aus LPIC-1" ziele={['201.1', '201.2', '201.3', '101.1', '101.2', '102.2', '102.4']} anzahl={20} />

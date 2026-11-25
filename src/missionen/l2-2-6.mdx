@@ -1,0 +1,146 @@
+---
+id: l2-2-6
+checks:
+  - id: k1
+  - id: sysctl
+  - id: luecke
+  - id: k2
+  - id: hardware
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "/proc"
+    v: "cmdline · version · cpuinfo · meminfo · modules · interrupts · ioports · dma · partitions · mounts · /proc/PID/ · /proc/sys/"
+  - t: "sysctl"
+    v: "sysctl SCHLÜSSEL · sysctl -a · sudo sysctl -w SCHLÜSSEL=WERT · sysctl -n · net.ipv4.ip_forward = /proc/sys/net/ipv4/ip_forward"
+  - t: "Dauerhaft"
+    v: "/etc/sysctl.d/NN-name.conf · /etc/sysctl.conf · sudo sysctl -p DATEI · sudo sysctl --system"
+  - t: "Schreiben in /proc"
+    v: "echo 1 | sudo tee /proc/sys/… (sudo echo … > … geht nicht)"
+  - t: "Hardware"
+    v: "lspci -k (Treiber) · lspci -nn · lsusb -t · lsdev (procinfo) · sudo lshw -short · lshw -C network · dmesg"
+karten:
+  - f: "Welcher Datei entspricht der sysctl-Schlüssel net.ipv4.ip_forward?"
+    a: ["/proc/sys/net/ipv4/ip_forward"]
+  - f: "Wie setzt du einen Kernelparameter sofort?"
+    a: ["sysctl -w schlüssel=wert", "sudo sysctl -w"]
+  - f: "Wo legst du Kernelparameter dauerhaft ab?"
+    a: ["/etc/sysctl.d", "/etc/sysctl.conf", "/etc/sysctl.d/*.conf"]
+  - f: "Wie wendest du alle sysctl-Dateien sofort an?"
+    a: ["sysctl --system", "sudo sysctl --system"]
+  - f: "Warum scheitert sudo echo 1 > /proc/sys/net/ipv4/ip_forward?"
+    a: ["die umleitung macht die shell des benutzers, nicht sudo", "weil die umleitung ohne root läuft"]
+  - f: "Wo steht die Kernelzeile, mit der gestartet wurde?"
+    a: ["/proc/cmdline"]
+  - f: "Woraus liest lsdev seine Daten?"
+    a: ["/proc/interrupts, /proc/ioports und /proc/dma", "aus /proc"]
+  - f: "Welcher Befehl zeigt zu jedem PCI-Gerät den Treiber?"
+    a: ["lspci -k"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Lueckentext from '../components/Lueckentext.astro';
+
+messpc soll künftig auch Messdaten aus einem zweiten Netz weiterreichen und unter Last nicht so schnell auslagern. Außerdem will die Chefin eine Liste der Hardware für die Inventur. **Deine Mission: Lies Kernel und Hardware über /proc aus, ändere Kernelparameter zur Laufzeit und dauerhaft, und finde heraus, welcher Treiber welches Gerät bedient.** Lernziel 201.3.
+
+## /proc und /proc/sys
+
+<Karte nr={1} titel="Ein Dateisystem, das der Kernel erfindet">
+Unter **/proc** liegt kein echtes Dateisystem auf der Platte. Der Kernel erzeugt jede Datei in dem Moment, in dem du sie liest. Die wichtigsten:
+
+| Datei | Inhalt |
+|---|---|
+| `/proc/cmdline` | die Kernelzeile, mit der gestartet wurde |
+| `/proc/version` | Version, Compiler, Bauzeit |
+| `/proc/cpuinfo`, `/proc/meminfo` | Prozessoren, Speicher |
+| `/proc/modules` | geladene Module (das liest lsmod) |
+| `/proc/interrupts`, `/proc/ioports`, `/proc/dma` | Interrupts, I/O-Ports und DMA-Kanäle je Gerät |
+| `/proc/partitions`, `/proc/mounts` | Partitionen, eingehängte Dateisysteme |
+| `/proc/PID/` | ein Ordner je Prozess |
+| `/proc/sys/` | einstellbare Kernelparameter |
+
+Unter **/proc/sys** sind die Dateien beschreibbar. Wer `1` in `/proc/sys/net/ipv4/ip_forward` schreibt, macht den Rechner zum Router. Weil die Umleitung `>` von deiner Shell ausgeführt wird und nicht von sudo, scheitert `sudo echo 1 > /proc/sys/...`. Es geht mit `echo 1 | sudo tee /proc/sys/net/ipv4/ip_forward`.
+
+Bequemer ist **sysctl**. Jeder Schlüssel ist der Pfad unter /proc/sys mit Punkten: `net.ipv4.ip_forward` ist `/proc/sys/net/ipv4/ip_forward`, `vm.swappiness` ist `/proc/sys/vm/swappiness`, `kernel.pid_max` liegt unter `/proc/sys/kernel/`.
+
+- `sysctl net.ipv4.ip_forward` zeigt einen Wert, `-n` nur die Zahl, `sysctl -a` alle.
+- `sudo sysctl -w net.ipv4.ip_forward=1` setzt ihn sofort.
+
+Beides gilt nur bis zum Neustart. Dauerhaft gehören Einstellungen in eine Datei unter **/etc/sysctl.d/** mit der Endung `.conf`, oder klassisch in **/etc/sysctl.conf**. Die Zeilen haben die Form `SCHLÜSSEL = WERT`. Beim Start liest `systemd-sysctl` alle Dateien aus `/etc/sysctl.d`, `/run/sysctl.d` und `/usr/lib/sysctl.d` nach Namen sortiert, bei gleichen Schlüsseln gewinnt die spätere Datei. Sofort anwenden: `sudo sysctl -p DATEI` für eine Datei (ohne Datei `/etc/sysctl.conf`), `sudo sysctl --system` für alle.
+</Karte>
+
+<Merke>/proc/sys: Kernelparameter. sysctl SCHLÜSSEL, sudo sysctl -w SCHLÜSSEL=WERT gilt bis zum Neustart. Dauerhaft: /etc/sysctl.d/*.conf oder /etc/sysctl.conf, dann sysctl --system.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: /proc" fragen={[
+  { frage: 'Welcher sysctl-Schlüssel gehört zur Datei /proc/sys/vm/swappiness?', richtig: 'vm.swappiness', falsch: ['proc.sys.vm.swappiness', 'swappiness.vm'], erklaerung: 'Der Pfad unter /proc/sys, Schrägstriche durch Punkte ersetzt.' },
+]} />
+
+<Terminal id="sysctl" titel="Terminal: Kernelparameter auf messpc" welt={{ host: 'messpc', kern: {} }} aufgaben={[
+  { text: 'Lies direkt unter /proc/sys, ob messpc Pakete weiterleitet.', befehl: '^cat /proc/sys/net/ipv4/ip_forward$', frage: 'Welcher Wert steht dort?', antwort: ['0'] },
+  { text: 'Schalte das Weiterleiten mit sysctl sofort ein.', zustand: 'sysctl:net.ipv4.ip_forward=1' },
+  { text: 'Setz vm.swappiness auf 10, diesmal durch Schreiben unter /proc/sys.', befehl: '^echo 10 \\| (sudo )?tee /proc/sys/vm/swappiness$', zustand: 'sysctl:vm.swappiness=10' },
+  { text: 'Lass dir alle Parameter zeigen und filtere nach pid_max.', befehl: '^sysctl -a \\| grep (-\\w+ )?["\']?pid_max["\']?$|^sysctl kernel\\.pid_max$', frage: 'Welchen Wert hat kernel.pid_max?', antwort: ['4194304'] },
+  { text: 'Beide Einstellungen sollen den Neustart überleben. Schreib sie in eine eigene Datei unter /etc/sysctl.d.', zustand: 'sysctlstart:net.ipv4.ip_forward=1 && sysctlstart:vm.swappiness=10 && datei:/etc/sysctl.d/*~swappiness' },
+  { text: 'Lass alle sysctl-Dateien neu einlesen, wie beim Start.', befehl: '^sysctl --system$', frage: 'Welche Datei wird als letzte angewendet?', antwort: ['/etc/sysctl.conf', 'sysctl.conf'] },
+  { text: 'Starte neu und prüf, ob beide Werte noch stimmen.', zustand: 'neustart && sysctl:net.ipv4.ip_forward=1 && sysctl:vm.swappiness=10' },
+  { text: 'Lies die Kernelzeile, mit der messpc gestartet ist.', befehl: '^cat /proc/cmdline$', frage: 'Wird die Wurzel per UUID angegeben? (ja/nein)', antwort: ['ja'] },
+]} />
+
+<Lueckentext id="luecke" titel="Lückentext: /etc/sysctl.d/90-messpc.conf" aufgabe="Ergänze die Datei und den Befehl, der sie sofort anwendet."
+  code={`# Router für das Messnetz
+net.ipv4.___ = 1
+# Weniger auslagern
+vm.___ = 10
+
+$ sudo sysctl ___ /etc/sysctl.d/90-messpc.conf`}
+  luecken={[{ loesungen: ['ip_forward'] }, { loesungen: ['swappiness'] }, { loesungen: ['-p', '--load'] }]} />
+
+<Quiz id="k2" titel="Kurzcheck: sysctl" fragen={[
+  { frage: 'Ein Kollege hat gestern mit sudo sysctl -w net.ipv4.ip_forward=1 das Routing eingeschaltet. Nach dem Neustart heute geht es nicht mehr. Warum?', richtig: 'sysctl -w ändert nur den laufenden Kernel. Dauerhaft muss es in /etc/sysctl.d/ oder /etc/sysctl.conf stehen.', falsch: ['sysctl -w wirkt erst nach einem Neustart.', 'Der Wert wird nach 24 Stunden zurückgesetzt.'], erklaerung: 'Nach dem Eintrag in eine Datei wendet sudo sysctl --system ihn auch ohne Neustart an.' },
+]} />
+
+## Was steckt in der Kiste?
+
+<Karte nr={2} titel="Hardware abfragen">
+Welche Geräte da sind und welche Treiber sie bedienen, zeigen diese Werkzeuge:
+
+- **lspci** listet die PCI-Geräte. `lspci -k` zeigt dazu den Treiber („Kernel driver in use“) und die passenden Module, `lspci -nn` die Nummern von Hersteller und Gerät, `lspci -v` Details, `lspci -s 00:1f.6` nur ein Gerät.
+- **lsusb** listet die USB-Geräte. `lsusb -t` zeigt sie als Baum mit dem Treiber jedes Anschlusses, `lsusb -v` die Beschreibung des Geräts.
+- **lsdev** aus dem Paket procinfo fasst `/proc/interrupts`, `/proc/ioports` und `/proc/dma` je Gerät zusammen: welche IRQ-Nummer, welche I/O-Ports, welcher DMA-Kanal.
+- **lshw** (Paket lshw) zeigt die ganze Hardware als Baum. Ohne root fehlen Angaben. `sudo lshw -short` ist die Übersicht, `sudo lshw -C network` nur eine Klasse.
+- **dmesg** zeigt, was der Kernel beim Erkennen gemeldet hat.
+
+Dazu die Orte, die die Lernziele nennen: In **/** liegen die Ordner nach FHS, in **/boot** Kernel, initramfs, config und System.map, in **/lib/modules/VERSION/** die Module mit modules.dep, modules.alias und modules.builtin (fest eingebaute Treiber).
+</Karte>
+
+<Merke>lspci -k: Treiber je PCI-Gerät. lsusb -t: USB-Baum mit Treibern. lsdev: IRQ, I/O, DMA (procinfo). lshw -short als root. /lib/modules/VERSION: modules.dep, modules.alias, modules.builtin.</Merke>
+
+<Terminal id="hardware" titel="Terminal: Inventur von messpc" welt={{ host: 'messpc', kern: { sensor: true, dkms: 'installiert' } }} aufgaben={[
+  { text: 'Finde heraus, welcher Treiber die Netzwerkkarte im Steckplatz 00:1f.6 bedient.', befehl: '^lspci -k( -s 00:1f\\.6)?$|^lspci -s 00:1f\\.6 -k$|^lspci -ks 00:1f\\.6$|^lspci -v( -s 00:1f\\.6)?$', frage: 'Welcher Treiber?', antwort: ['e1000e'] },
+  { text: 'Lass dir die USB-Geräte als Baum mit Treibern zeigen.', befehl: '^lsusb -t$', frage: 'Welcher Treiber bedient die Webcam?', antwort: ['uvcvideo'] },
+  { text: 'Installiere procinfo und lshw.', zustand: 'paket:procinfo=an && paket:lshw=an' },
+  { text: 'Lass dir mit lsdev die Ressourcen der Geräte zeigen.', befehl: '^lsdev$', frage: 'Welche IRQ-Nummer hat enp0s31f6?', antwort: ['125'] },
+  { text: 'Lass dir als root mit lshw eine kurze Übersicht zeigen.', befehl: '^lshw -short$', frage: 'Wie beschreibt lshw das Gerät unter /0/100/14/0/6?', antwort: ['Messbox LS-2', 'messbox ls-2'] },
+  { text: 'Schau in /lib/modules nach, welche Kernel Module haben.', befehl: '^ls( -\\w+)? /lib/modules/?$' },
+]} />
+
+<Labor id="labor" titel="Labor: Kernel und Hardware von srv1"
+  aufgabe="Lies auf srv1 einige Dateien unter /proc, schalte das Weiterleiten dauerhaft ein und lass dir die Hardware zeigen. Auf gw hast du ip_forward schon in Mission 0.2 gesetzt. Füge die Ausgabe ein."
+  befehl={"cat /proc/cmdline\nsysctl net.ipv4.ip_forward vm.swappiness\necho 'vm.swappiness = 10' | sudo tee /etc/sysctl.d/90-srv1.conf\nsudo sysctl --system | tail -3\nlspci -k | head -12\nsudo apt install -y lshw && sudo lshw -short | head"}
+  muster={["root=", "vm\\.swappiness = ", "Kernel driver in use", "H/W path"]}
+  erfolg="Starte srv1 einmal neu und prüf mit sysctl vm.swappiness, ob der Wert geblieben ist." />
+
+<Hinweis titel="Prüfungstipp">
+Gefragt werden sysctl und seine Dateien, /proc/sys/kernel/, lspci, lsusb, lsdev und dmesg. Im Entwurf 5.0 kommt lshw dazu, lsdev fällt weg. /proc, /proc/sys und sysctl bleiben in 201.1.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Welcher Befehl schaltet das Weiterleiten von IPv4 sofort ein?', richtig: 'sudo sysctl -w net.ipv4.ip_forward=1', falsch: ['sudo sysctl -p net.ipv4.ip_forward=1', 'sudo echo 1 > /proc/sys/net/ipv4/ip_forward'], erklaerung: '-p lädt eine Datei. Bei sudo echo … > … macht die Umleitung deine Shell ohne Root-Rechte.' },
+  { frage: 'Welches Werkzeug zeigt IRQ, I/O-Ports und DMA-Kanäle je Gerät auf einen Blick?', richtig: 'lsdev', falsch: ['lsusb', 'lsmod'], erklaerung: 'lsdev liest /proc/interrupts, /proc/ioports und /proc/dma.' },
+  { frage: 'Zwei Dateien setzen vm.swappiness: /etc/sysctl.d/10-a.conf auf 30 und /etc/sysctl.d/90-b.conf auf 10. Welcher Wert gilt nach dem Start?', richtig: '10', falsch: ['30', '60, weil sich widersprechende Werte verworfen werden'], erklaerung: 'Die Dateien werden nach Namen sortiert gelesen, die spätere gewinnt.' },
+]} />
