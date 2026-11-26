@@ -3221,5 +3221,165 @@
   "antworten": [
    "/dev/sdd1"
   ]
+ },
+ "l2-6-1/schnittstellen": {
+  "befehle": [
+   "ip link",
+   "sudo ip addr add 192.168.1.50/24 dev enp0s31f6 label enp0s31f6:web",
+   "ifconfig",
+   "sudo ip link add link enp0s31f6 name enp0s31f6.20 type vlan id 20",
+   "sudo ip addr add 10.20.20.23/24 dev enp0s31f6.20",
+   "sudo ip link set enp0s31f6.20 up",
+   "ip -d link show enp0s31f6.20",
+   "sudo ip route add 10.20.30.0/24 via 10.20.20.1",
+   "route -n",
+   "sudo ip -6 addr add 2001:db8:1::50/64 dev enp0s31f6"
+  ],
+  "antworten": [
+   "1500",
+   "enp0s31f6:web",
+   "802.1Q",
+   "UG"
+  ]
+ },
+ "l2-6-2/drucker": {
+  "befehle": [
+   "ping -c 3 laser.lan",
+   "arp -n",
+   "ip neigh show",
+   "cat /etc/ethers",
+   "sudo ip neigh del 192.168.1.40 dev enp0s31f6",
+   "ping -c 1 laser.lan",
+   "arp -a",
+   "sudo sed -i \"s/00:1f:29:aa:bb:cc/00:1f:29:dd:ee:01/\" /etc/ethers"
+  ],
+  "antworten": [
+   "0",
+   "CM",
+   "PERMANENT",
+   "2019",
+   "00:1f:29:dd:ee:01"
+  ]
+ },
+ "l2-6-3/wlan": {
+  "befehle": [
+   "rfkill",
+   "sudo rfkill unblock wifi",
+   "sudo ip link set wlp2s0 up",
+   "sudo iw dev wlp2s0 scan",
+   "sudo apt install -y wireless-tools",
+   "iwconfig",
+   "wpa_passphrase Labor-WLAN Werkstatt2026 | sudo tee /etc/wpa_supplicant/wpa_supplicant-wlp2s0.conf",
+   "sudo sed -i '/#psk/d' /etc/wpa_supplicant/wpa_supplicant-wlp2s0.conf",
+   "sudo chmod 600 /etc/wpa_supplicant/wpa_supplicant-wlp2s0.conf",
+   "sudo wpa_supplicant -B -i wlp2s0 -c /etc/wpa_supplicant/wpa_supplicant-wlp2s0.conf",
+   "sudo dhclient -v wlp2s0",
+   "ip route get 203.0.113.80"
+  ],
+  "antworten": [
+   "soft",
+   "36",
+   "off/any",
+   "wlp2s0"
+  ]
+ },
+ "l2-6-4/zweinetze": {
+  "befehle": [
+   "ip -br link",
+   "sudo dmesg",
+   "sudo ip link set enp3s0 up",
+   "sudo ip addr add 10.20.0.23/16 dev enp3s0",
+   "ip route get 10.20.0.5",
+   "sudo ip route add 10.30.0.0/16 via 10.20.0.1",
+   "printf \"\\nauto enp3s0\\niface enp3s0 inet static\\n    address 10.20.0.23/16\\n    up ip route add 10.30.0.0/16 via 10.20.0.1\\n\" | sudo tee -a /etc/network/interfaces",
+   "sudo ifup enp3s0",
+   "sudo sysctl -w net.ipv4.ip_forward=1",
+   "echo \"net.ipv4.ip_forward = 1\" | sudo tee /etc/sysctl.d/30-ipforward.conf",
+   "traceroute messplatz.lab"
+  ],
+  "antworten": [
+   "enp3s0",
+   "eth1",
+   "10.20.0.23",
+   "2"
+  ]
+ },
+ "l2-6-5/lauschen": {
+  "befehle": [
+   "ss -tn",
+   "sudo ss -tnp",
+   "sudo apt install -y tcpdump",
+   "sudo tcpdump -n -c 5 port 4444",
+   "sudo tcpdump -n -c 20 -w /tmp/beweis.pcap host 203.0.113.66",
+   "ls -l /proc/2777/exe",
+   "ls /home/lena/.config/autostart",
+   "kill 2777",
+   "rm /home/lena/.config/autostart/updater.desktop",
+   "sudo tcpdump -n -c 5 port 4444"
+  ],
+  "antworten": [
+   "50644",
+   "2777",
+   "128",
+   "/home/lena/.config/autostart",
+   "0"
+  ]
+ },
+ "l2-6-6/debian": {
+  "befehle": [
+   "ping -c 1 www.example.org",
+   "cat /etc/resolv.conf",
+   "sudo nmcli con mod \"Kabelgebundene Verbindung 1\" ipv4.dns 192.168.1.1",
+   "sudo nmcli con up \"Kabelgebundene Verbindung 1\"",
+   "tcpdmatch sshd 192.168.1.17",
+   "echo \"sshd: 192.168.1.0/24\" | sudo tee -a /etc/hosts.allow",
+   "sudo ifup enp3s0",
+   "sudo sed -i \"s/adress /address /\" /etc/network/interfaces",
+   "sudo ifup enp3s0",
+   "cat /etc/hostname",
+   "traceroute6 www.example.org"
+  ],
+  "antworten": [
+   "Temporary failure in name resolution",
+   "192.168.1.9",
+   "/etc/hosts.deny",
+   "werkstatt",
+   "3"
+  ]
+ },
+ "l2-6-6/alma": {
+  "befehle": [
+   "ping -c 1 www.example.org",
+   "ip route",
+   "sudo sed -i \"s/^GATEWAY=.*/GATEWAY=192.168.1.1/\" /etc/sysconfig/network-scripts/ifcfg-enp0s31f6",
+   "sudo nmcli con reload",
+   "sudo nmcli con up \"System enp0s31f6\"",
+   "mtr --report www.example.org"
+  ],
+  "antworten": [
+   "192.168.1.23",
+   "192.168.1.11",
+   "router.lan"
+  ]
+ },
+ "l2-6-boss/umzug": {
+  "befehle": [
+   "sudo ss -tnp",
+   "sudo nmcli con mod \"Kabelgebundene Verbindung 1\" ipv4.dns 192.168.1.1",
+   "sudo nmcli con up \"Kabelgebundene Verbindung 1\"",
+   "sudo ip neigh del 192.168.1.40 dev enp0s31f6",
+   "ping -c 1 laser.lan",
+   "sudo sed -i \"/00:1f:29:aa:bb:cc/d\" /etc/ethers",
+   "printf \"\\nauto enp3s0\\niface enp3s0 inet static\\n    address 10.20.0.23/16\\n    up ip route add 10.30.0.0/16 via 10.20.0.1\\n\" | sudo tee -a /etc/network/interfaces",
+   "sudo ifup enp3s0",
+   "kill 2777",
+   "rm /home/lena/.config/autostart/updater.desktop",
+   "sudo apt install -y tcpdump",
+   "sudo tcpdump -n -c 5 port 4444"
+  ],
+  "antworten": [
+   "4444",
+   "0"
+  ]
  }
 }

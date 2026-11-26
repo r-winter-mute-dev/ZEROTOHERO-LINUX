@@ -19,8 +19,8 @@ export function netzKern(k: NetzKern) { K = k; }
 
 // ---------- Das erfundene Netz ----------
 
-interface Host { ip: string; name: string; ports: number[]; ip6?: string; lan?: string }
-const HOSTS: Host[] = [
+export interface Host { ip: string; name: string; ports: number[]; ip6?: string; lan?: string }
+export const HOSTS: Host[] = [
   { ip: '192.168.1.1', name: 'router.lan', ports: [53, 80], lan: '192.168.1.0/24' },
   { ip: '192.168.1.254', name: 'labor-gw.lan', ports: [22], lan: '192.168.1.0/24' },
   { ip: '192.168.1.24', name: 'labor2.lab.example.org', ports: [22], lan: '192.168.1.0/24' },
@@ -29,7 +29,9 @@ const HOSTS: Host[] = [
   { ip: '203.0.113.80', name: 'www.example.org', ports: [80, 443], ip6: '2001:db8:80::80' },
   { ip: '203.0.113.25', name: 'mail.example.org', ports: [25, 465, 993, 995] },
   { ip: '203.0.113.53', name: 'ns1.example.org', ports: [53] },
-  { ip: '10.20.0.5', name: 'logserver.example.org', ports: [22, 514] },
+  { ip: '10.20.0.5', name: 'logserver.example.org', ports: [22, 514], lan: '10.20.0.0/16' },
+  { ip: '10.20.0.1', name: 'labor-router.lab', ports: [22], lan: '10.20.0.0/16' },
+  { ip: '10.30.0.7', name: 'messplatz.lab', ports: [22, 502] },
 ];
 const DNS: Record<string, { A?: string[]; AAAA?: string[]; MX?: string[]; NS?: string[]; CNAME?: string }> = {
   'example.org': { A: ['203.0.113.10'], MX: ['10 mail.example.org'], NS: ['ns1.example.org'] },
@@ -43,32 +45,34 @@ const DNS: Record<string, { A?: string[]; AAAA?: string[]; MX?: string[]; NS?: s
   'router.lan': { A: ['192.168.1.1'] },
   'laser.lan': { A: ['192.168.1.40'] },
   'labor-gw.lan': { A: ['192.168.1.254'] },
+  'labor-router.lab': { A: ['10.20.0.1'] },
+  'messplatz.lab': { A: ['10.30.0.7'] },
 };
 const PTR: Record<string, string> = { '203.0.113.80': 'www.example.org', '203.0.113.25': 'mail.example.org', '192.168.1.24': 'labor2.lab.example.org', '192.168.1.23': 'werkstatt.lab.example.org' };
 // Welcher Router erreicht welche Netze?
-const ROUTER: Record<string, string[]> = { '192.168.1.1': ['0.0.0.0/0'], '192.168.2.1': ['0.0.0.0/0'], '192.168.1.254': ['10.20.0.0/16'] };
+export const ROUTER: Record<string, string[]> = { '192.168.1.1': ['0.0.0.0/0'], '192.168.2.1': ['0.0.0.0/0'], '192.168.1.254': ['10.20.0.0/16'], '10.20.0.1': ['10.30.0.0/16'] };
 const BLOCKIERT_UEBER: Record<string, string[]> = { '192.168.1.1': ['10.0.0.0/8'], '192.168.2.1': ['10.0.0.0/8'] };
 
 // ---------- IP-Rechnerei ----------
 
 export const ipZahl = (ip: string) => ip.split('.').reduce((s, x) => s * 256 + Number(x), 0);
-const zahlIp = (n: number) => [24, 16, 8, 0].map((s) => Math.floor(n / 2 ** s) % 256).join('.');
-const istIp = (s: string) => /^(\d{1,3})(\.\d{1,3}){3}$/.test(s) && s.split('.').every((x) => Number(x) <= 255);
+export const zahlIp = (n: number) => [24, 16, 8, 0].map((s) => Math.floor(n / 2 ** s) % 256).join('.');
+export const istIp = (s: string) => /^(\d{1,3})(\.\d{1,3}){3}$/.test(s) && s.split('.').every((x) => Number(x) <= 255);
 export function imNetz(ip: string, cidr: string) {
   const [n, p] = cidr.split('/'); const bits = Number(p ?? 32);
   if (bits === 0) return true;
   const m = 2 ** 32 - 2 ** (32 - bits);
   return (ipZahl(ip) & m) >>> 0 === (ipZahl(n) & m) >>> 0;
 }
-const netzVon = (cidr: string) => { const [ip, p] = cidr.split('/'); const b = Number(p); const m = b ? 2 ** 32 - 2 ** (32 - b) : 0; return `${zahlIp((ipZahl(ip) & m) >>> 0)}/${b}`; };
-const maske = (b: number) => zahlIp(b ? 2 ** 32 - 2 ** (32 - b) : 0);
-const bcast = (cidr: string) => { const [ip, p] = cidr.split('/'); const b = Number(p); return zahlIp(((ipZahl(ip) | (2 ** (32 - b) - 1)) >>> 0)); };
-const maskeBits = (m: string) => m.split('.').map(Number).reduce((s, x) => s + x.toString(2).split('').filter((c) => c === '1').length, 0);
+export const netzVon = (cidr: string) => { const [ip, p] = cidr.split('/'); const b = Number(p); const m = b ? 2 ** 32 - 2 ** (32 - b) : 0; return `${zahlIp((ipZahl(ip) & m) >>> 0)}/${b}`; };
+export const maske = (b: number) => zahlIp(b ? 2 ** 32 - 2 ** (32 - b) : 0);
+export const bcast = (cidr: string) => { const [ip, p] = cidr.split('/'); const b = Number(p); return zahlIp(((ipZahl(ip) | (2 ** (32 - b) - 1)) >>> 0)); };
+export const maskeBits = (m: string) => m.split('.').map(Number).reduce((s, x) => s + x.toString(2).split('').filter((c) => c === '1').length, 0);
 
 // ---------- Zustand ----------
 
-interface If { mac: string; up: boolean; addr: string[]; addr6: string[]; typ: 'loopback' | 'ethernet' | 'wifi'; kabel: boolean }
-interface Route { ziel: string; via?: string; dev: string; proto: string; metric?: number; src?: string }
+export interface If { mac: string; up: boolean; addr: string[]; addr6: string[]; typ: 'loopback' | 'ethernet' | 'wifi'; kabel: boolean; lan?: string; mtu?: number; art?: 'vlan' | 'dummy' | 'veth'; vlan?: { von: string; id: number }; peer?: string; labels?: Record<string, string> }
+export interface Route { ziel: string; via?: string; dev: string; proto: string; metric?: number; src?: string }
 interface Profil { typ: 'ethernet' | 'wifi'; ifname: string; method: 'auto' | 'manual' | 'disabled'; addresses: string[]; gateway?: string; dns: string[]; autoconnect: boolean; ssid?: string; psk?: string; uuid: string }
 export interface NetzStand { ifs: Record<string, If>; routes: Route[]; route6: boolean; profile: Record<string, Profil>; aktiv: Record<string, string>; wlan: boolean; ifupdown: string[] }
 const KABEL = 'Kabelgebundene Verbindung 1';
@@ -117,34 +121,42 @@ export function netzStarten(w: Welt, o: NetzOptionen = {}) {
 
 // ---------- Erreichbarkeit ----------
 
-function eigeneIps(st: NetzStand) { return Object.values(st.ifs).filter((i) => i.up).flatMap((i) => i.addr.map((a) => a.split('/')[0])); }
-function routeFuer(st: NetzStand, ip: string): Route | null {
+export function eigeneIps(st: NetzStand) { return Object.values(st.ifs).filter((i) => i.up).flatMap((i) => i.addr.map((a) => a.split('/')[0])); }
+export function routeFuer(st: NetzStand, ip: string): Route | null {
   let best: Route | null = null; let bits = -1;
   for (const r of st.routes) {
     const ziel = r.ziel === 'default' ? '0.0.0.0/0' : r.ziel; const b = Number(ziel.split('/')[1] ?? 32);
-    if (imNetz(ip, ziel) && b > bits && st.ifs[r.dev]?.up) { best = r; bits = b; }
+    if (imNetz(ip, ziel) && st.ifs[r.dev]?.up && (b > bits || (b === bits && best && (r.metric ?? 0) < (best.metric ?? 0)))) { best = r; bits = b; }
   }
   return best;
 }
-type Weg = { art: 'ok'; hops: string[] } | { art: 'kein-netz' } | { art: 'nicht-da'; von: string } | { art: 'still'; hops: string[] };
-function weg(w: Welt, ip: string): Weg {
+export type Weg = { art: 'ok'; hops: string[] } | { art: 'kein-netz' } | { art: 'nicht-da'; von: string } | { art: 'still'; hops: string[] };
+/** Weitere Prüfungen auf dem Weg (ARP, Firewall …), von anderen Modulen gemeldet. */
+export const wegPruefer: ((w: Welt, ip: string, r: Route, naechster: string) => Weg | null)[] = [];
+/** Mit welchem Netz ist eine Schnittstelle verkabelt? */
+export function ifLan(n: string, i: If): string | undefined { if (i.lan !== undefined) return i.lan || undefined; return n === 'wlp2s0' ? '192.168.2.0/24' : n === 'enp0s31f6' ? '192.168.1.0/24' : undefined; }
+export function weg(w: Welt, ip: string): Weg {
   const st = ns(w);
   if (ip.startsWith('127.') || eigeneIps(st).includes(ip)) return { art: 'ok', hops: [ip] };
   const r = routeFuer(st, ip); if (!r) return { art: 'kein-netz' };
   const src = st.ifs[r.dev].addr.find((a) => !r.src || a.startsWith(r.src))?.split('/')[0] ?? '';
-  const lanHost = (x: string) => HOSTS.find((h) => h.ip === x && h.lan && imNetz(x, h.lan) && st.ifs[r.dev].addr.some((a) => imNetz(x, netzVon(a))));
+  const lan = ifLan(r.dev, st.ifs[r.dev]);
+  const lanHost = (x: string) => HOSTS.find((h) => h.ip === x && h.lan && h.lan === lan && st.ifs[r.dev].addr.some((a) => imNetz(x, netzVon(a))));
+  for (const f of wegPruefer) { const x = f(w, ip, r, r.via ?? ip); if (x) return x; }
   if (!r.via) {
     // direkt erreichbar: Der Host muss wirklich in diesem Netz stehen und die Schnittstelle Kabel haben
-    const h = HOSTS.find((x) => x.ip === ip && x.lan && st.ifs[r.dev].addr.some((a) => imNetz(ip, netzVon(a))) && (r.dev === 'wlp2s0' ? x.lan === '192.168.2.0/24' : x.lan === '192.168.1.0/24'));
+    const h = lanHost(ip);
     return h && st.ifs[r.dev].kabel ? { art: 'ok', hops: [ip] } : { art: 'nicht-da', von: src };
   }
   if (!lanHost(r.via) || !st.ifs[r.dev].kabel || !ROUTER[r.via]) return { art: 'nicht-da', von: src };
   if ((BLOCKIERT_UEBER[r.via] ?? []).some((n) => imNetz(ip, n)) || !ROUTER[r.via].some((n) => imNetz(ip, n))) return { art: 'still', hops: [r.via] };
   const h = HOSTS.find((x) => x.ip === ip);
+  // hinter dem Labor-Gateway liegt noch der Labor-Router mit 10.30.0.0/16
+  if (r.via === '192.168.1.254' && imNetz(ip, '10.30.0.0/16')) return h ? { art: 'ok', hops: [r.via, '10.20.0.1', ip] } : { art: 'still', hops: [r.via, '10.20.0.1'] };
   if (!h) return { art: 'still', hops: [r.via, ...(ip.startsWith('10.') ? [] : ['100.64.0.1', '198.51.100.1'])] };
   return { art: 'ok', hops: [r.via, ...(ip.startsWith('10.') ? [] : ['100.64.0.1', '198.51.100.1']), ip] };
 }
-const nameVon = (ip: string) => HOSTS.find((h) => h.ip === ip)?.name ?? ip;
+export const nameVon = (ip: string) => HOSTS.find((h) => h.ip === ip)?.name ?? ip;
 
 /** Lauscht auf dem eigenen Rechner etwas an diesem TCP-Port, für diese Adresse? */
 export function lokalOffen(w: Welt, ip: string, port: number): boolean {
@@ -161,6 +173,7 @@ export function fernZiel(w: Welt, name: string): { ip: string | null; name: stri
   const h = HOSTS.find((x) => x.ip === r.ip);
   return { ip: r.ip, name: lokal ? (r.ip.startsWith('127.') ? 'localhost' : w.host) : h?.name ?? name, erreichbar: wg.art === 'ok', lokal, ports: lokal ? [] : h?.ports ?? [] };
 }
+export const alleExtraSockets = extraSockets;
 export function netzHosts(w: Welt, cidr: string): string[] { return [...eigeneIps(ns(w)).filter((ip) => imNetz(ip, cidr)), ...HOSTS.filter((h) => imNetz(h.ip, cidr) && weg(w, h.ip).art === 'ok').map((h) => h.ip)]; }
 
 // ---------- Namensauflösung ----------
@@ -200,27 +213,28 @@ export function aufloesen(w: Welt, name: string): { ip: string | null; fehler?: 
 // ---------- Befehle ----------
 
 const NUR_ROOT = 'RTNETLINK answers: Operation not permitted';
-function ipZeigen(w: Welt, nurDev?: string, kurz = false, mitAdr = true, v6 = true, v4 = true): string {
+export function ipZeigen(w: Welt, nurDev?: string, kurz = false, mitAdr = true, v6 = true, v4 = true): string {
   const st = ns(w); const out: string[] = []; let k = 0;
   for (const [n, i] of Object.entries(st.ifs)) {
     k++; if (nurDev && n !== nurDev) continue;
     const zustand = n === 'lo' ? 'UNKNOWN' : i.up && i.kabel ? 'UP' : i.up ? 'DOWN' : 'DOWN';
-    if (kurz) { out.push(`${n.padEnd(16)} ${zustand.padEnd(14)} ${mitAdr ? [...(v4 ? i.addr : []), ...(v6 ? i.addr6 : [])].join(' ') : i.mac + ' <' + (i.up ? 'BROADCAST,MULTICAST,UP,LOWER_UP' : 'BROADCAST,MULTICAST') + '>'} `); continue; }
     const flags = n === 'lo' ? 'LOOPBACK,UP,LOWER_UP' : i.up ? (i.kabel ? 'BROADCAST,MULTICAST,UP,LOWER_UP' : 'NO-CARRIER,BROADCAST,MULTICAST,UP') : 'BROADCAST,MULTICAST';
-    out.push(`${k}: ${n}: <${flags}> mtu ${n === 'lo' ? 65536 : 1500} qdisc ${n === 'lo' ? 'noqueue' : i.typ === 'wifi' ? 'noqueue' : 'fq_codel'} state ${zustand} group default qlen 1000`);
+    if (kurz) { out.push(`${(i.vlan ? `${n}@${i.vlan.von}` : i.peer ? `${n}@${i.peer}` : n).padEnd(16)} ${zustand.padEnd(14)} ${mitAdr ? [...(v4 ? i.addr : []), ...(v6 ? i.addr6 : [])].join(' ') : i.mac + ' <' + flags + '>'} `); continue; }
+    const anzeige = i.vlan ? `${n}@${i.vlan.von}` : i.peer ? `${n}@${i.peer}` : n;
+    out.push(`${k}: ${anzeige}: <${flags}> mtu ${i.mtu ?? (n === 'lo' ? 65536 : 1500)} qdisc ${n === 'lo' || i.art ? 'noqueue' : i.typ === 'wifi' ? 'noqueue' : 'fq_codel'} state ${i.art === 'dummy' && i.up ? 'UNKNOWN' : zustand} ${i.art ? 'mode DEFAULT ' : ''}group default qlen 1000`);
     out.push(`    link/${n === 'lo' ? 'loopback' : 'ether'} ${i.mac} brd ${n === 'lo' ? '00:00:00:00:00:00' : 'ff:ff:ff:ff:ff:ff'}`);
     if (!mitAdr) continue;
-    if (v4) for (const a of i.addr) out.push(`    inet ${a}${n === 'lo' ? '' : ' brd ' + bcast(a)} scope ${n === 'lo' ? 'host' : 'global'}${st.aktiv[n] && st.profile[st.aktiv[n]]?.method === 'auto' ? ' dynamic noprefixroute' : st.aktiv[n] ? ' noprefixroute' : ''} ${n}`, `       valid_lft ${st.aktiv[n] && st.profile[st.aktiv[n]]?.method === 'auto' ? '85231sec preferred_lft 85231sec' : 'forever preferred_lft forever'}`);
+    if (v4) for (const [ai, a] of i.addr.entries()) out.push(`    inet ${a}${n === 'lo' ? '' : ' brd ' + bcast(a)} scope ${n === 'lo' ? 'host' : 'global'}${i.addr.slice(0, ai).some((x) => netzVon(x) === netzVon(a)) ? ' secondary' : ''}${ai === 0 && st.aktiv[n] && st.profile[st.aktiv[n]]?.method === 'auto' ? ' dynamic noprefixroute' : ai === 0 && st.aktiv[n] ? ' noprefixroute' : ''} ${i.labels?.[a] ?? n}`, `       valid_lft ${st.aktiv[n] && st.profile[st.aktiv[n]]?.method === 'auto' ? '85231sec preferred_lft 85231sec' : 'forever preferred_lft forever'}`);
     if (v6) for (const a of i.addr6) out.push(`    inet6 ${a} scope ${a === '::1/128' ? 'host' : a.startsWith('fe80') ? 'link' : 'global dynamic mngtmpaddr'} ${a.startsWith('fe80') || a === '::1/128' ? 'noprefixroute ' : ''}`, `       valid_lft forever preferred_lft forever`);
   }
   return out.join('\n');
 }
 function routeText(r: Route) { return `${r.ziel}${r.via ? ` via ${r.via}` : ''} dev ${r.dev} proto ${r.proto}${r.via ? '' : ' scope link'}${r.src ? ` src ${r.src}` : ''}${r.metric !== undefined ? ` metric ${r.metric}` : ''} `; }
-function adrHinzu(st: NetzStand, dev: string, cidr: string) {
+export function adrHinzu(st: NetzStand, dev: string, cidr: string) {
   st.ifs[dev].addr.push(cidr);
   const net = netzVon(cidr); if (!st.routes.some((r) => r.ziel === net && r.dev === dev)) st.routes.push({ ziel: net, dev, proto: 'kernel', src: cidr.split('/')[0] });
 }
-function adrWeg(st: NetzStand, dev: string, cidr?: string) {
+export function adrWeg(st: NetzStand, dev: string, cidr?: string) {
   const weg = cidr ? st.ifs[dev].addr.filter((a) => a === cidr) : st.ifs[dev].addr;
   st.ifs[dev].addr = st.ifs[dev].addr.filter((a) => !weg.includes(a));
   for (const a of weg) { const net = netzVon(a); st.routes = st.routes.filter((r) => !(r.dev === dev && (r.ziel === net || (r.via && imNetz(r.via, net))))); }
@@ -256,7 +270,8 @@ export function netzBefehle(alt: Record<string, B>): Record<string, B> {
     const st = ns(w); const r = root || w.root;
     const opt = a.filter((x) => /^-[46a-z]+$/.test(x) && !['-c'].includes(x)); const rest = a.filter((x) => !opt.includes(x));
     const v4 = !opt.includes('-6'); const v6 = !opt.includes('-4'); const kurz = opt.some((x) => /^-b(r|rief)?$/.test(x)) || opt.includes('-br');
-    const [obj = 'help', cmd = 'show', ...args] = rest;
+    const [obj = 'help', cmd0 = 'show', ...args] = rest;
+    const cmd = /^s(h(ow?)?)?$/.test(cmd0) ? 'show' : /^l(i(st?)?|s)?$/.test(cmd0) && cmd0 !== 'l' ? 'list' : /^a(dd?)?$/.test(cmd0) ? 'add' : /^d(el?)?$/.test(cmd0) ? 'del' : cmd0;
     const devArg = () => { const k = args.indexOf('dev'); return k >= 0 ? args[k + 1] : args.find((x) => st.ifs[x]); };
     if (/^a(d(dr?)?)?$|^address$/.test(obj)) {
       if (cmd === 'show' || cmd === 'list' || cmd === 'ls' || st.ifs[cmd]) { const d = st.ifs[cmd] ? cmd : devArg(); if (d && !st.ifs[d]) return fehler(`Device "${d}" does not exist.`); return ok(ipZeigen(w, d, kurz, true, v6, v4)); }
@@ -285,7 +300,7 @@ export function netzBefehle(alt: Record<string, B>): Record<string, B> {
       if (cmd === 'add' || cmd === 'replace') {
         if (via) { const direkt = st.routes.find((q) => !q.via && q.ziel !== 'default' && imNetz(via, q.ziel) && st.ifs[q.dev]?.up); if (!direkt) return fehler('Error: Nexthop has invalid gateway.', 2); dev = dev ?? direkt.dev; }
         if (!dev) return fehler('Error: Device for nexthop is not up.', 2);
-        if (cmd === 'add' && st.routes.some((q) => q.ziel === ziel && q.dev === dev && (q.metric ?? 0) === Number(args[args.indexOf('metric') + 1] ?? 0))) return fehler('RTNETLINK answers: File exists', 2);
+        if (cmd === 'add' && st.routes.some((q) => q.ziel === ziel && q.dev === dev && (q.metric ?? 0) === (args.includes('metric') ? Number(args[args.indexOf('metric') + 1]) : 0))) return fehler('RTNETLINK answers: File exists', 2);
         if (cmd === 'replace') st.routes = st.routes.filter((q) => q.ziel !== ziel);
         st.routes.push({ ziel, via, dev, proto: 'static', ...(args.includes('metric') ? { metric: Number(args[args.indexOf('metric') + 1]) } : {}) });
         return ok();
@@ -310,10 +325,12 @@ export function netzBefehle(alt: Record<string, B>): Record<string, B> {
     for (const [n, i] of Object.entries(st.ifs)) {
       if (d && n !== d) continue; if (!d && !i.up && !a.includes('-a')) continue;
       const fl = n === 'lo' ? '73<UP,LOOPBACK,RUNNING>' : i.up && i.kabel ? '4163<UP,BROADCAST,RUNNING,MULTICAST>' : i.up ? '4099<UP,BROADCAST,MULTICAST>' : '4098<BROADCAST,MULTICAST>';
-      out.push(`${n}: flags=${fl}  mtu ${n === 'lo' ? 65536 : 1500}`);
-      for (const x of i.addr) { const [ip, p] = x.split('/'); out.push(`        inet ${ip}  netmask ${maske(Number(p))}${n === 'lo' ? '' : `  broadcast ${bcast(x)}`}`); }
+      out.push(`${n}: flags=${fl}  mtu ${i.mtu ?? (n === 'lo' ? 65536 : 1500)}`);
+      const alias = i.addr.filter((x) => i.labels?.[x] && i.labels[x] !== n);
+      for (const x of i.addr.filter((y) => !alias.includes(y)).slice(0, 1)) { const [ip, p] = x.split('/'); out.push(`        inet ${ip}  netmask ${maske(Number(p))}${n === 'lo' ? '' : `  broadcast ${bcast(x)}`}`); }
       for (const x of i.addr6) { const [ip, p] = x.split('/'); out.push(`        inet6 ${ip}  prefixlen ${p}  scopeid ${ip.startsWith('fe80') ? '0x20<link>' : ip === '::1' ? '0x10<host>' : '0x0<global>'}`); }
       out.push(n === 'lo' ? '        loop  txqueuelen 1000  (Lokale Schleife)' : `        ether ${i.mac}  txqueuelen 1000  (Ethernet)`, `        RX packets ${n === 'lo' ? 4120 : i.addr.length ? 182344 : 0}  bytes ${n === 'lo' ? 401233 : i.addr.length ? 201233412 : 0}`, `        TX packets ${n === 'lo' ? 4120 : i.addr.length ? 98211 : 0}  bytes ${n === 'lo' ? 401233 : i.addr.length ? 12873411 : 0}`, '');
+      for (const x of alias) { const [ip, p] = x.split('/'); out.push(`${i.labels![x]}: flags=${fl}  mtu ${i.mtu ?? 1500}`, `        inet ${ip}  netmask ${maske(Number(p))}  broadcast ${bcast(x)}`, `        ether ${i.mac}  txqueuelen 1000  (Ethernet)`, ''); }
     }
     return ok(out.join('\n').replace(/\n$/, ''));
   };
@@ -509,6 +526,7 @@ export function netzBefehle(alt: Record<string, B>): Record<string, B> {
     if (d === 'lo') return ok();
     if (!auf) { if (!st.ifupdown.includes(d)) return fehler(`ifdown: interface ${d} not configured`); st.ifupdown = st.ifupdown.filter((x) => x !== d); adrWeg(st, d); st.routes = st.routes.filter((r) => r.dev !== d); st.ifs[d].up = false; return ok(); }
     if (st.ifupdown.includes(d)) return fehler(`ifup: interface ${d} already configured`);
+    if (m[1] !== 'dhcp' && !m[2].match(/^\s*address\s+(\S+)/m)) return fehler(`ifup: missing required variable: address\nifup: missing required configuration variables for interface ${d}/inet\nifup: failed to bring up ${d}`);
     delete st.aktiv[d]; adrWeg(st, d); st.routes = st.routes.filter((r) => r.dev !== d); st.ifs[d].up = true;
     if (m[1] === 'dhcp') adrHinzu(st, d, '192.168.1.23/24'), st.routes.unshift({ ziel: 'default', via: '192.168.1.1', dev: d, proto: 'dhcp' });
     else {
@@ -574,9 +592,9 @@ export function netzBefehle(alt: Record<string, B>): Record<string, B> {
 
 export function zustandNetz(w: Welt, s: string): boolean | undefined {
   const st = ns(w); let m;
-  if ((m = s.match(/^addr:(\w+)=(\S+)$/))) return !!st.ifs[m[1]]?.addr.includes(m[2]);
-  if ((m = s.match(/^keinaddr:(\w+)=(\S+)$/))) return !st.ifs[m[1]]?.addr.includes(m[2]);
-  if ((m = s.match(/^link:(\w+)=(up|down)$/))) return !!st.ifs[m[1]] && st.ifs[m[1]].up === (m[2] === 'up');
+  if ((m = s.match(/^addr:([\w.-]+)=(\S+)$/))) return !!st.ifs[m[1]]?.addr.includes(m[2]);
+  if ((m = s.match(/^keinaddr:([\w.-]+)=(\S+)$/))) return !st.ifs[m[1]]?.addr.includes(m[2]);
+  if ((m = s.match(/^link:([\w.-]+)=(up|down)$/))) return !!st.ifs[m[1]] && st.ifs[m[1]].up === (m[2] === 'up');
   if ((m = s.match(/^route:(\S+)=(\S+)$/))) return st.routes.some((r) => (r.ziel === m![1] || (m![1] !== 'default' && r.ziel === netzVon(m![1]))) && (m![2] === '*' || r.via === m![2]) && st.ifs[r.dev]?.up);
   if ((m = s.match(/^erreichbar:(\S+)$/))) { const r = aufloesen(w, m[1]); return !!r.ip && weg(w, r.ip).art === 'ok'; }
   if ((m = s.match(/^aufloesbar:(\S+)$/))) return !!aufloesen(w, m[1]).ip;
@@ -585,6 +603,6 @@ export function zustandNetz(w: Welt, s: string): boolean | undefined {
   if ((m = s.match(/^nm:(.+?)~(\S+)=(.*)$/))) { const p = st.profile[m[1]] as unknown as Record<string, unknown> | undefined; if (!p) return false; const v = p[m[2]]; return new RegExp(m[3]).test(Array.isArray(v) ? v.join(',') : String(v ?? '')); }
   if ((m = s.match(/^hostname=(\S+)$/))) return w.host === m[1];
   if (s === 'wlan:aus') return !st.wlan;
-  if ((m = s.match(/^ifup:(\w+)$/))) return st.ifupdown.includes(m[1]);
+  if ((m = s.match(/^ifup:([\w.-]+)$/))) return st.ifupdown.includes(m[1]);
   return undefined;
 }

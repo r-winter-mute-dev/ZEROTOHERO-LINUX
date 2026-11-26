@@ -16,6 +16,8 @@ for (const [g, e] of Object.entries(echt.gruppen)) {
     gesamt++;
     const t = s.faelle.find((x) => x.name === f.name);
     if (!t) { unterschiede.push(`| ${f.name} | ${f.code} | fehlt | ${kurz(f.ausgabe)} | |`); continue; }
+    const norm = (x) => (x ?? '').split('\n').map((z) => z.trimEnd()).join('\n').trim();
+    if (t.vergleicheAusgabe && t.code === f.code && norm(t.ausgabe) !== norm(f.ausgabe)) { unterschiede.push(`| ${f.name} (Ausgabe) | ${kurz(f.ausgabe)} | ${kurz(t.ausgabe)} | | |`); continue; }
     if (t.code !== f.code) unterschiede.push(`| ${f.name} | ${f.code} | ${t.code} | ${kurz(f.ausgabe)} | ${kurz(t.ausgabe)} |`);
   }
   abw += unterschiede.length;

@@ -1,0 +1,51 @@
+{
+ "name": "wpa_passphrase: PSK berechnen",
+ "version": "wpa_supplicant -v | head -1",
+ "welt": {
+  "netzwerk": {}
+ },
+ "vorbereitung": [],
+ "faelle": [
+  {
+   "name": "Labor-WLAN / 13 Zeichen",
+   "dateien": {},
+   "befehl": "wpa_passphrase 'Labor-WLAN' 'Werkstatt2026'",
+   "ausgabe": true
+  },
+  {
+   "name": "Gast WLAN ä / 17 Zeichen",
+   "dateien": {},
+   "befehl": "wpa_passphrase 'Gast WLAN ä' 'Pässwort mit Leer'",
+   "ausgabe": true
+  },
+  {
+   "name": "x / 4 Zeichen",
+   "dateien": {},
+   "befehl": "wpa_passphrase 'x' 'kurz'",
+   "ausgabe": true
+  },
+  {
+   "name": "Lang / 63 Zeichen",
+   "dateien": {},
+   "befehl": "wpa_passphrase 'Lang' 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'",
+   "ausgabe": true
+  },
+  {
+   "name": "Zulang / 64 Zeichen",
+   "dateien": {},
+   "befehl": "wpa_passphrase 'Zulang' 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'",
+   "ausgabe": true
+  },
+  {
+   "name": "Sonder / 19 Zeichen",
+   "dateien": {},
+   "befehl": "wpa_passphrase 'Sonder' '\"zitat\" und \\\\ back'",
+   "ausgabe": true
+  },
+  {
+   "name": "ohne Argumente",
+   "dateien": {},
+   "befehl": "wpa_passphrase"
+  }
+ ]
+}

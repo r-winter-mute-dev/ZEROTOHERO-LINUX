@@ -83,6 +83,9 @@ export const DEB: Paket[] = [
   D('syslinux', '3:6.04~git20190206.bf6db5b4+dfsg1-3', 'collection of bootloaders (DOS FAT and NTFS bootloader)', ['syslinux-common'], ['/usr/bin/syslinux'], [], 130),
   D('extlinux', '3:6.04~git20190206.bf6db5b4+dfsg1-3', 'collection of bootloaders (ext2/3/4 and btrfs bootloader)', ['syslinux-common'], ['/usr/bin/extlinux'], [], 140),
   D('isolinux', '3:6.04~git20190206.bf6db5b4+dfsg1-3', 'collection of bootloaders (ISO 9660 bootloader)', [], ['/usr/lib/ISOLINUX/isolinux.bin', '/usr/lib/ISOLINUX/isohdpfx.bin', '/usr/lib/ISOLINUX/isohdpfo.bin'], [], 160),
+  // Netzwerk (LPIC-2 Topic 205)
+  D('tcpdump', '4.99.3-1', 'command-line network traffic analyzer', ['libc6'], ['/usr/bin/tcpdump'], [], 1200),
+  D('wireless-tools', '30~pre9-14', 'Tools for manipulating Linux Wireless Extensions', ['libc6'], ['/usr/sbin/iwconfig', '/usr/sbin/iwlist', '/usr/sbin/iwspy', '/usr/sbin/iwpriv'], [], 330),
   // Speicher (LPIC-2 Topic 204)
   D('open-iscsi', '2.1.8-1', 'iSCSI initiator tools', ['libc6'], ['/usr/sbin/iscsiadm', '/usr/sbin/iscsid', '/etc/iscsi/iscsid.conf', '/etc/iscsi/initiatorname.iscsi'], ['/etc/iscsi/iscsid.conf', '/etc/iscsi/initiatorname.iscsi'], 1400),
   D('nvme-cli', '2.4+really2.3-3', 'NVMe management command line interface', ['libc6'], ['/usr/sbin/nvme'], [], 1600),

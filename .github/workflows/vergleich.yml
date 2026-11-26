@@ -1,7 +1,7 @@
 name: Simulator gegen echte Systeme
 
 # Führt die Fälle aus tests/vergleich/faelle auf echtem Debian und AlmaLinux aus (in Containern,
-# nur für Programme, die nicht vom Kernel abhängen) und vergleicht die Rückgabecodes mit dem Simulator.
+# Programme, die nicht oder kaum vom Kernel abhängen; ip nutzt dabei den Kernel des Runners) und vergleicht die Rückgabecodes mit dem Simulator.
 
 on:
   push:
@@ -22,11 +22,11 @@ jobs:
           - system: debian-12
             simulator: debian
             image: debian:bookworm
-            installieren: apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq openssh-server sudo python3 >/dev/null
+            installieren: apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq openssh-server sudo python3 iproute2 wpasupplicant >/dev/null
           - system: alma-9
             simulator: alma
             image: almalinux:9
-            installieren: dnf install -y -q openssh-server sudo python3 >/dev/null
+            installieren: dnf install -y -q openssh-server sudo python3 iproute wpa_supplicant >/dev/null
     steps:
       - name: Code holen
         uses: actions/checkout@v7
@@ -42,7 +42,7 @@ jobs:
 
       - name: Fälle auf ${{ matrix.system }} ausführen
         run: |
-          docker run --rm -v "$PWD:/w" -w /w ${{ matrix.image }} bash -c \
+          docker run --rm --cap-add NET_ADMIN -v "$PWD:/w" -w /w ${{ matrix.image }} bash -c \
             "${{ matrix.installieren }} && python3 tests/vergleich/echt.py ${{ matrix.system }} /w/echt.json"
 
       - name: Fälle im Simulator ausführen

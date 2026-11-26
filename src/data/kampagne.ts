@@ -291,7 +291,20 @@ const LPIC2: Akt[] = [
       m('l2-5-probe', 'Probe 5', 'Probeprüfung Topic 204', 'Topic 204 gemischt mit Plattenaufteilung, Dateisystemen, fstab und Topic 203.', 'Topic 204 und Wiederholung', 'Prüfungssimulation', { probe: true, ziele: ['204.1', '204.2', '204.3', '102.1', '104.1', '104.3', '203.1'], bereit: true }),
     ],
   },
-  geplanterAkt('l2', 6, 'Netzwerkkonfiguration', '205', 'Netzwerke einrichten und Fehler finden.', 'lpic2'),
+  {
+    nr: 6, titel: 'Netzwerkkonfiguration', teil: 'l2-6', teilName: 'Topic 205',
+    ziel: 'Schnittstellen mit Adressen, VLANs und Routen einrichten, ARP verstehen, ins WLAN gehen, mehrere Netze verbinden, Verkehr mitschneiden und Netzwerkfehler auf Debian und Red Hat systematisch finden. 11 von 60 Fragen in Prüfung 202.',
+    missionen: [
+      m('l2-6-1', '6.1', 'Schnittstellen und Routen', 'Eine zweite Adresse mit Label, ein VLAN und eine Route ins Netz der Messgeräte einrichten.', 'iproute2 und net-tools, ip addr/link/route, Labels und Alias-Schnittstellen, MTU, VLAN 802.1Q, veth, dummy, route -n', 'Terminal-Simulator, Lückentext, Zuordnung, Quiz', { ziele: ['205.1'], bereit: true }),
+      m('l2-6-2', '6.2', 'ARP und Nachbarn', 'Herausfinden, warum der neue Drucker nicht antwortet, und die Nachbartabelle aufräumen.', 'ARP, Neighbor Discovery, ip neigh, arp -n/-a/-s/-d/-f, Zustände REACHABLE bis PERMANENT, /etc/ethers, Gratuitous ARP', 'Terminal-Simulator, Reihenfolge, Lückentext, Quiz', { ziele: ['205.1'], bereit: true }),
+      m('l2-6-3', '6.3', 'WLAN ohne NetworkManager', 'Den Funk freigeben, Netze suchen, per wpa_supplicant verbinden und eine Adresse holen.', 'rfkill, iw, iwconfig, iwlist, wpa_passphrase, wpa_supplicant, wpa_cli, dhclient, Metrik der Standardroute', 'Terminal-Simulator, Lückentext, Zuordnung, Quiz', { ziele: ['205.1'], bereit: true }),
+      m('l2-6-4', '6.4', 'Ein Rechner, zwei Netze', 'Eine zweite Karte ins Labornetz bringen, Routen dauerhaft machen und weiterleiten.', 'multi-homed, lspci -k, dmesg, ip route get, /etc/network/interfaces, up-Zeilen, ip_forward, rp_filter, Policy Routing', 'Terminal-Simulator, Reihenfolge, Lückentext, Quiz', { ziele: ['205.2'], bereit: true }),
+      m('l2-6-5', '6.5', 'Verkehr belauschen', 'Eine verdächtige Verbindung finden, mitschneiden und abstellen.', 'ss, netstat, lsof -i, tcpdump mit Filtern, -w/-r, nc -zv, nmap', 'Terminal-Simulator, Lückentext, Zuordnung, Quiz', { ziele: ['205.2'], bereit: true }),
+      m('l2-6-6', '6.6', 'Fehlersuche', 'Drei Tickets auf Debian und einen Fehler in der Red-Hat-Konfiguration beheben.', 'Vorgehen von unten nach oben, /etc/network, /etc/sysconfig/network-scripts, NetworkManager und resolv.conf, hosts.allow/deny, /etc/hostname, mtr, traceroute6, Protokolle', 'Terminal-Simulator, Lückentext, Zuordnung, Quiz', { ziele: ['205.3'], bereit: true }),
+      m('l2-6-boss', 'Boss 6', 'werkstatt nach dem Umzug', 'Namensauflösung, Drucker, Labornetz und einen ungebetenen Gast dauerhaft in Ordnung bringen.', 'Alles aus Topic 205', 'Terminal-Simulator', { boss: true, ziele: ['205.1', '205.2', '205.3'], bereit: true }),
+      m('l2-6-probe', 'Probe 6', 'Probeprüfung Topic 205', 'Topic 205 gemischt mit den Netzwerkgrundlagen aus LPIC-1.', 'Topic 205 und Wiederholung aus LPIC-1', 'Prüfungssimulation', { probe: true, ziele: ['205.1', '205.2', '205.3', '109.1', '109.2', '109.3', '109.4'], bereit: true }),
+    ],
+  },
   geplanterAkt('l2', 7, 'Systemwartung', '206', 'Aus dem Quellcode bauen, sichern und Nutzer informieren.', 'lpic2', [
     m('l2-7-probe', 'Probe 201', 'Generalprobe Prüfung 201', '60 Fragen, 90 Minuten, gewichtet wie die echte Prüfung 201-450.', 'Topics 200 bis 206', 'Prüfungssimulation', { probe: true }),
   ]),

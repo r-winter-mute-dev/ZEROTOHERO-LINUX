@@ -1,0 +1,443 @@
+{
+ "name": "ip: Schnittstellen, Adressen, Routen, Nachbarn",
+ "version": "ip -V",
+ "welt": {
+  "netzwerk": {}
+ },
+ "vorbereitung": [
+  "ip link set lo up"
+ ],
+ "faelle": [
+  {
+   "name": "veth-Paar anlegen",
+   "dateien": {},
+   "vorher": [],
+   "befehl": "ip link add lth0 type veth peer name lth1",
+   "aufraeumen": [
+    "ip link del lth0 2>/dev/null; ip link del lthx 2>/dev/null; true"
+   ]
+  },
+  {
+   "name": "veth-Paar doppelt",
+   "dateien": {},
+   "vorher": [
+    "ip link add lth0 type veth peer name lth1"
+   ],
+   "befehl": "ip link add lth0 type veth peer name lth1",
+   "aufraeumen": [
+    "ip link del lth0 2>/dev/null; ip link del lthx 2>/dev/null; true"
+   ]
+  },
+  {
+   "name": "Adresse hinzufügen",
+   "dateien": {},
+   "vorher": [
+    "ip link add lth0 type veth peer name lth1",
+    "ip link set lth0 up"
+   ],
+   "befehl": "ip addr add 10.99.0.1/24 dev lth0",
+   "aufraeumen": [
+    "ip link del lth0 2>/dev/null; ip link del lthx 2>/dev/null; true"
+   ]
+  },
+  {
+   "name": "Adresse doppelt",
+   "dateien": {},
+   "vorher": [
+    "ip link add lth0 type veth peer name lth1",
+    "ip link set lth0 up",
+    "ip addr add 10.99.0.1/24 dev lth0"
+   ],
+   "befehl": "ip addr add 10.99.0.1/24 dev lth0",
+   "aufraeumen": [
+    "ip link del lth0 2>/dev/null; ip link del lthx 2>/dev/null; true"
+   ]
+  },
+  {
+   "name": "Adresse mit ungültigem Oktett",
+   "dateien": {},
+   "vorher": [
+    "ip link add lth0 type veth peer name lth1",
+    "ip link set lth0 up"
+   ],
+   "befehl": "ip addr add 10.99.0.300/24 dev lth0",
+   "aufraeumen": [
+    "ip link del lth0 2>/dev/null; ip link del lthx 2>/dev/null; true"
+   ]
+  },
+  {
+   "name": "Präfix /33",
+   "dateien": {},
+   "vorher": [
+    "ip link add lth0 type veth peer name lth1",
+    "ip link set lth0 up"
+   ],
+   "befehl": "ip addr add 10.99.0.1/33 dev lth0",
+   "aufraeumen": [
+    "ip link del lth0 2>/dev/null; ip link del lthx 2>/dev/null; true"
+   ]
+  },
+  {
+   "name": "Adresse mit Label",
+   "dateien": {},
+   "vorher": [
+    "ip link add lth0 type veth peer name lth1",
+    "ip link set lth0 up",
+    "ip addr add 10.99.0.1/24 dev lth0"
+   ],
+   "befehl": "ip addr add 10.99.0.2/24 dev lth0 label lth0:web",
+   "aufraeumen": [
+    "ip link del lth0 2>/dev/null; ip link del lthx 2>/dev/null; true"
+   ]
+  },
+  {
+   "name": "Label ohne Gerätename",
+   "dateien": {},
+   "vorher": [
+    "ip link add lth0 type veth peer name lth1",
+    "ip link set lth0 up",
+    "ip addr add 10.99.0.1/24 dev lth0"
+   ],
+   "befehl": "ip addr add 10.99.0.3/24 dev lth0 label web",
+   "aufraeumen": [
+    "ip link del lth0 2>/dev/null; ip link del lthx 2>/dev/null; true"
+   ]
+  },
+  {
+   "name": "Adresse auf fehlendem Gerät",
+   "dateien": {},
+   "vorher": [],
+   "befehl": "ip addr add 10.99.0.4/24 dev gibtsnicht",
+   "aufraeumen": [
+    "ip link del lth0 2>/dev/null; ip link del lthx 2>/dev/null; true"
+   ]
+  },
+  {
+   "name": "Fehlende Adresse löschen",
+   "dateien": {},
+   "vorher": [
+    "ip link add lth0 type veth peer name lth1",
+    "ip link set lth0 up",
+    "ip addr add 10.99.0.1/24 dev lth0"
+   ],
+   "befehl": "ip addr del 10.99.0.9/24 dev lth0",
+   "aufraeumen": [
+    "ip link del lth0 2>/dev/null; ip link del lthx 2>/dev/null; true"
+   ]
+  },
+  {
+   "name": "Vorhandene Adresse löschen",
+   "dateien": {},
+   "vorher": [
+    "ip link add lth0 type veth peer name lth1",
+    "ip link set lth0 up",
+    "ip addr add 10.99.0.1/24 dev lth0"
+   ],
+   "befehl": "ip addr del 10.99.0.1/24 dev lth0",
+   "aufraeumen": [
+    "ip link del lth0 2>/dev/null; ip link del lthx 2>/dev/null; true"
+   ]
+  },
+  {
+   "name": "Route über erreichbares Gateway",
+   "dateien": {},
+   "vorher": [
+    "ip link add lth0 type veth peer name lth1",
+    "ip link set lth0 up",
+    "ip addr add 10.99.0.1/24 dev lth0"
+   ],
+   "befehl": "ip route add 10.98.0.0/24 via 10.99.0.254",
+   "aufraeumen": [
+    "ip link del lth0 2>/dev/null; ip link del lthx 2>/dev/null; true"
+   ]
+  },
+  {
+   "name": "Route doppelt",
+   "dateien": {},
+   "vorher": [
+    "ip link add lth0 type veth peer name lth1",
+    "ip link set lth0 up",
+    "ip addr add 10.99.0.1/24 dev lth0",
+    "ip route add 10.98.0.0/24 via 10.99.0.254"
+   ],
+   "befehl": "ip route add 10.98.0.0/24 via 10.99.0.254",
+   "aufraeumen": [
+    "ip link del lth0 2>/dev/null; ip link del lthx 2>/dev/null; true"
+   ]
+  },
+  {
+   "name": "Route über unerreichbares Gateway",
+   "dateien": {},
+   "vorher": [
+    "ip link add lth0 type veth peer name lth1",
+    "ip link set lth0 up",
+    "ip addr add 10.99.0.1/24 dev lth0"
+   ],
+   "befehl": "ip route add 10.97.0.0/24 via 10.55.0.1",
+   "aufraeumen": [
+    "ip link del lth0 2>/dev/null; ip link del lthx 2>/dev/null; true"
+   ]
+  },
+  {
+   "name": "Route mit Präfix /33",
+   "dateien": {},
+   "vorher": [
+    "ip link add lth0 type veth peer name lth1",
+    "ip link set lth0 up",
+    "ip addr add 10.99.0.1/24 dev lth0"
+   ],
+   "befehl": "ip route add 10.96.0.0/33 via 10.99.0.254",
+   "aufraeumen": [
+    "ip link del lth0 2>/dev/null; ip link del lthx 2>/dev/null; true"
+   ]
+  },
+  {
+   "name": "Fehlende Route löschen",
+   "dateien": {},
+   "vorher": [
+    "ip link add lth0 type veth peer name lth1",
+    "ip link set lth0 up",
+    "ip addr add 10.99.0.1/24 dev lth0"
+   ],
+   "befehl": "ip route del 10.95.0.0/24",
+   "aufraeumen": [
+    "ip link del lth0 2>/dev/null; ip link del lthx 2>/dev/null; true"
+   ]
+  },
+  {
+   "name": "Gateway ist keine Adresse",
+   "dateien": {},
+   "vorher": [
+    "ip link add lth0 type veth peer name lth1",
+    "ip link set lth0 up",
+    "ip addr add 10.99.0.1/24 dev lth0"
+   ],
+   "befehl": "ip route add 10.94.0.0/24 via gateway",
+   "aufraeumen": [
+    "ip link del lth0 2>/dev/null; ip link del lthx 2>/dev/null; true"
+   ]
+  },
+  {
+   "name": "MTU 9000",
+   "dateien": {},
+   "vorher": [
+    "ip link add lth0 type veth peer name lth1"
+   ],
+   "befehl": "ip link set lth0 mtu 9000",
+   "aufraeumen": [
+    "ip link del lth0 2>/dev/null; ip link del lthx 2>/dev/null; true"
+   ]
+  },
+  {
+   "name": "MTU zu groß",
+   "dateien": {},
+   "vorher": [
+    "ip link add lth0 type veth peer name lth1"
+   ],
+   "befehl": "ip link set lth0 mtu 70000",
+   "aufraeumen": [
+    "ip link del lth0 2>/dev/null; ip link del lthx 2>/dev/null; true"
+   ]
+  },
+  {
+   "name": "MTU zu klein",
+   "dateien": {},
+   "vorher": [
+    "ip link add lth0 type veth peer name lth1"
+   ],
+   "befehl": "ip link set lth0 mtu 50",
+   "aufraeumen": [
+    "ip link del lth0 2>/dev/null; ip link del lthx 2>/dev/null; true"
+   ]
+  },
+  {
+   "name": "MTU keine Zahl",
+   "dateien": {},
+   "vorher": [
+    "ip link add lth0 type veth peer name lth1"
+   ],
+   "befehl": "ip link set lth0 mtu viel",
+   "aufraeumen": [
+    "ip link del lth0 2>/dev/null; ip link del lthx 2>/dev/null; true"
+   ]
+  },
+  {
+   "name": "MAC-Adresse setzen",
+   "dateien": {},
+   "vorher": [
+    "ip link add lth0 type veth peer name lth1"
+   ],
+   "befehl": "ip link set lth0 address 02:00:00:00:00:01",
+   "aufraeumen": [
+    "ip link del lth0 2>/dev/null; ip link del lthx 2>/dev/null; true"
+   ]
+  },
+  {
+   "name": "MAC-Adresse ungültig",
+   "dateien": {},
+   "vorher": [
+    "ip link add lth0 type veth peer name lth1"
+   ],
+   "befehl": "ip link set lth0 address zz:00",
+   "aufraeumen": [
+    "ip link del lth0 2>/dev/null; ip link del lthx 2>/dev/null; true"
+   ]
+  },
+  {
+   "name": "Umbenennen ausgeschaltet",
+   "dateien": {},
+   "vorher": [
+    "ip link add lth0 type veth peer name lth1"
+   ],
+   "befehl": "ip link set lth0 name lthx",
+   "aufraeumen": [
+    "ip link del lth0 2>/dev/null; ip link del lthx 2>/dev/null; true"
+   ]
+  },
+  {
+   "name": "Fehlendes Gerät einschalten",
+   "dateien": {},
+   "vorher": [],
+   "befehl": "ip link set gibtsnicht up",
+   "aufraeumen": [
+    "ip link del lth0 2>/dev/null; ip link del lthx 2>/dev/null; true"
+   ]
+  },
+  {
+   "name": "Nachbar fest eintragen",
+   "dateien": {},
+   "vorher": [
+    "ip link add lth0 type veth peer name lth1",
+    "ip link set lth0 up",
+    "ip addr add 10.99.0.1/24 dev lth0"
+   ],
+   "befehl": "ip neigh add 10.99.0.50 lladdr 02:00:00:00:00:50 dev lth0 nud permanent",
+   "aufraeumen": [
+    "ip link del lth0 2>/dev/null; ip link del lthx 2>/dev/null; true"
+   ]
+  },
+  {
+   "name": "Nachbar doppelt",
+   "dateien": {},
+   "vorher": [
+    "ip link add lth0 type veth peer name lth1",
+    "ip link set lth0 up",
+    "ip addr add 10.99.0.1/24 dev lth0",
+    "ip neigh add 10.99.0.50 lladdr 02:00:00:00:00:50 dev lth0 nud permanent"
+   ],
+   "befehl": "ip neigh add 10.99.0.50 lladdr 02:00:00:00:00:51 dev lth0 nud permanent",
+   "aufraeumen": [
+    "ip link del lth0 2>/dev/null; ip link del lthx 2>/dev/null; true"
+   ]
+  },
+  {
+   "name": "Nachbar ersetzen",
+   "dateien": {},
+   "vorher": [
+    "ip link add lth0 type veth peer name lth1",
+    "ip link set lth0 up",
+    "ip addr add 10.99.0.1/24 dev lth0",
+    "ip neigh add 10.99.0.50 lladdr 02:00:00:00:00:50 dev lth0 nud permanent"
+   ],
+   "befehl": "ip neigh replace 10.99.0.50 lladdr 02:00:00:00:00:51 dev lth0 nud permanent",
+   "aufraeumen": [
+    "ip link del lth0 2>/dev/null; ip link del lthx 2>/dev/null; true"
+   ]
+  },
+  {
+   "name": "Nachbar löschen",
+   "dateien": {},
+   "vorher": [
+    "ip link add lth0 type veth peer name lth1",
+    "ip link set lth0 up",
+    "ip addr add 10.99.0.1/24 dev lth0",
+    "ip neigh add 10.99.0.50 lladdr 02:00:00:00:00:50 dev lth0 nud permanent"
+   ],
+   "befehl": "ip neigh del 10.99.0.50 dev lth0",
+   "aufraeumen": [
+    "ip link del lth0 2>/dev/null; ip link del lthx 2>/dev/null; true"
+   ]
+  },
+  {
+   "name": "Fehlenden Nachbarn löschen",
+   "dateien": {},
+   "vorher": [
+    "ip link add lth0 type veth peer name lth1",
+    "ip link set lth0 up",
+    "ip addr add 10.99.0.1/24 dev lth0"
+   ],
+   "befehl": "ip neigh del 10.99.0.51 dev lth0",
+   "aufraeumen": [
+    "ip link del lth0 2>/dev/null; ip link del lthx 2>/dev/null; true"
+   ]
+  },
+  {
+   "name": "Nachbar mit ungültiger MAC",
+   "dateien": {},
+   "vorher": [
+    "ip link add lth0 type veth peer name lth1",
+    "ip link set lth0 up",
+    "ip addr add 10.99.0.1/24 dev lth0"
+   ],
+   "befehl": "ip neigh add 10.99.0.52 lladdr 02:00 dev lth0",
+   "aufraeumen": [
+    "ip link del lth0 2>/dev/null; ip link del lthx 2>/dev/null; true"
+   ]
+  },
+  {
+   "name": "Nachbartabelle leeren",
+   "dateien": {},
+   "vorher": [
+    "ip link add lth0 type veth peer name lth1",
+    "ip link set lth0 up",
+    "ip addr add 10.99.0.1/24 dev lth0"
+   ],
+   "befehl": "ip neigh flush dev lth0",
+   "aufraeumen": [
+    "ip link del lth0 2>/dev/null; ip link del lthx 2>/dev/null; true"
+   ]
+  },
+  {
+   "name": "veth über den Partner löschen",
+   "dateien": {},
+   "vorher": [
+    "ip link add lth0 type veth peer name lth1"
+   ],
+   "befehl": "ip link del lth1",
+   "aufraeumen": [
+    "ip link del lth0 2>/dev/null; ip link del lthx 2>/dev/null; true"
+   ]
+  },
+  {
+   "name": "Fehlendes Gerät löschen",
+   "dateien": {},
+   "vorher": [],
+   "befehl": "ip link del gibtsnicht",
+   "aufraeumen": [
+    "ip link del lth0 2>/dev/null; ip link del lthx 2>/dev/null; true"
+   ]
+  },
+  {
+   "name": "Unbekanntes Objekt",
+   "dateien": {},
+   "vorher": [],
+   "befehl": "ip foo",
+   "aufraeumen": [
+    "ip link del lth0 2>/dev/null; ip link del lthx 2>/dev/null; true"
+   ]
+  },
+  {
+   "name": "Kurze Schreibweise",
+   "dateien": {},
+   "vorher": [
+    "ip link add lth0 type veth peer name lth1",
+    "ip link set lth0 up",
+    "ip addr add 10.99.0.1/24 dev lth0"
+   ],
+   "befehl": "ip a s dev lth0",
+   "aufraeumen": [
+    "ip link del lth0 2>/dev/null; ip link del lthx 2>/dev/null; true"
+   ]
+  }
+ ]
+}

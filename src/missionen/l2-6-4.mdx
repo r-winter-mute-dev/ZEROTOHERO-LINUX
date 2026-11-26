@@ -1,0 +1,152 @@
+---
+id: l2-6-4
+checks:
+  - id: k1
+  - id: reihe
+  - id: k2
+  - id: luecke
+  - id: zweinetze
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "Karte finden"
+    v: "ip -br link · lspci | grep -i ethernet · lspci -k (Treiber) · dmesg | grep -i eth (renamed from eth1)"
+  - t: "Einrichten"
+    v: "ip link set enp3s0 up · ip addr add 10.20.0.23/16 dev enp3s0 · ip route add 10.30.0.0/16 via 10.20.0.1 · ip route get ZIEL zeigt Schnittstelle und Absender"
+  - t: "Dauerhaft (Debian)"
+    v: "/etc/network/interfaces: auto enp3s0 · iface enp3s0 inet static · address 10.20.0.23/16 · up ip route add 10.30.0.0/16 via 10.20.0.1 · ifup enp3s0"
+  - t: "Weiterleiten"
+    v: "sysctl -w net.ipv4.ip_forward=1 · dauerhaft in /etc/sysctl.d/*.conf · sysctl --system · IPv6: net.ipv6.conf.all.forwarding"
+  - t: "Fallen"
+    v: "Nur eine Standardroute · rp_filter verwirft Antworten auf dem falschen Weg · Absenderadresse hängt von der gewählten Route ab"
+karten:
+  - f: "Was heißt multi-homed?"
+    a: ["ein rechner hängt an mehreren netzen", "ein rechner mit mehreren netzwerkanschlüssen"]
+  - f: "Welcher sysctl-Wert erlaubt dem Kernel, Pakete zwischen Schnittstellen weiterzuleiten?"
+    a: ["net.ipv4.ip_forward", "net.ipv4.ip_forward=1"]
+  - f: "Wie zeigst du, über welche Schnittstelle und mit welcher Absenderadresse ein Paket an 10.20.0.5 geht?"
+    a: ["ip route get 10.20.0.5"]
+  - f: "Welche Zeile in /etc/network/interfaces führt beim Einschalten einen Befehl aus?"
+    a: ["up", "post-up", "up BEFEHL"]
+  - f: "Was prüft rp_filter?"
+    a: ["ob ein paket auf der schnittstelle ankommt, über die die antwort zurückginge", "den rückweg eines pakets"]
+  - f: "Warum sollte ein Rechner mit zwei Netzen nur eine Standardroute haben?"
+    a: ["sonst entscheidet nur die metrik, wohin aller verkehr geht", "weil sonst der weg ins internet unklar ist"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Reihenfolge from '../components/Reihenfolge.astro';
+import Lueckentext from '../components/Lueckentext.astro';
+
+werkstatt hat eine zweite Netzwerkkarte bekommen. Sie hängt direkt im Labornetz 10.20.0.0/16, in dem der Logserver steht. Hinter dem Labor-Router 10.20.0.1 liegt außerdem das Netz der Messplätze 10.30.0.0/16. Bisher führte der Weg zum Labor umständlich über das Gateway im Büronetz. **Deine Mission: Nimm die zweite Karte in Betrieb, führ den Verkehr ins Labor direkt darüber, mach die Einstellungen dauerhaft und lass werkstatt für die Kollegen im Büro als Router ins Labornetz arbeiten.** Lernziel 205.2.
+
+## Ein Rechner, zwei Netze
+
+<Karte nr={1} titel="Multi-homed">
+Ein Rechner mit Anschlüssen in mehreren Netzen heißt **multi-homed**. Für jede Schnittstelle mit Adresse legt der Kernel automatisch eine Route ins direkt angeschlossene Netz an (`proto kernel scope link`). Für alle anderen Ziele entscheidet die Routentabelle.
+
+Neue Hardware findest du so:
+
+```
+ip -br link                            # Ist die Schnittstelle da? Zustand DOWN heißt: noch aus
+lspci | grep -i ethernet               # Erkennt der Kernel die Karte?
+lspci -k                               # Welcher Treiber ist geladen?
+dmesg | grep -i e1000e                 # Meldungen des Treibers, auch die Umbenennung
+```
+
+Der Treiber meldet die Karte zuerst als `eth1`, udev benennt sie dann nach ihrer Lage auf dem Bus um: `enp3s0` heißt PCI-Bus 3, Slot 0. Dieses **Predictable Network Interface Naming** sorgt dafür, dass der Name nach einem Neustart derselbe bleibt.
+
+Wichtige Regeln für mehrere Netze:
+
+- **Nur eine Standardroute.** Liefern beide Netze per DHCP ein Gateway, entscheidet nur die Metrik, wohin der ganze Verkehr fließt.
+- Die **Absenderadresse** eines Pakets hängt von der Route ab: An 10.20.0.5 schickt werkstatt mit 10.20.0.23, ins Internet mit 192.168.1.23. `ip route get ZIEL` zeigt beides.
+- **rp_filter** (`net.ipv4.conf.*.rp_filter`) verwirft im strengen Modus Pakete, die auf einer Schnittstelle ankommen, über die die Antwort nicht zurückginge. Asymmetrische Wege fallen dann still aus.
+- Für Fälle, in denen die Absenderadresse den Weg bestimmen soll, gibt es **Policy Routing** mit `ip rule` und mehreren Routentabellen.
+</Karte>
+
+<Quiz id="k1" titel="Kurzcheck: Mehrere Netze" fragen={[
+  { frage: 'Beide Karten bekommen per DHCP eine Standardroute, beide mit Metrik 100. Was passiert?', richtig: 'Der Kernel nimmt die zuerst eingetragene. Welche das ist, hängt davon ab, welche Karte zuerst ihre Adresse bekam.', falsch: ['Der Kernel verteilt den Verkehr gleichmäßig auf beide Gateways.', 'Die zweite Karte bekommt keine Adresse.'], erklaerung: 'Ohne ausdrückliches Multipath-Routing wird nicht verteilt. Darum: nur eine Standardroute, alle anderen Netze mit eigener Route.' },
+]} />
+
+## Dauerhaft und weiterleitend
+
+<Karte nr={2} titel="interfaces und ip_forward">
+Auf Debian ohne NetworkManager steht die Konfiguration in **/etc/network/interfaces**:
+
+```
+auto enp3s0
+iface enp3s0 inet static
+    address 10.20.0.23/16
+    up ip route add 10.30.0.0/16 via 10.20.0.1
+```
+
+`auto` schaltet die Schnittstelle beim Start ein, `iface … inet static` legt die Adresse fest (`inet dhcp` holt sie per DHCP). Mit `up` oder `post-up` folgen Befehle nach dem Einschalten, mit `down` vor dem Ausschalten. Ein `gateway` gehört nur in die Stanza mit der Standardroute. `ifup enp3s0` und `ifdown enp3s0` wenden die Datei an.
+
+Soll werkstatt Pakete aus dem Büronetz ins Labornetz weiterreichen, muss der Kernel **weiterleiten** dürfen:
+
+```
+sudo sysctl -w net.ipv4.ip_forward=1                                   # sofort
+echo 'net.ipv4.ip_forward = 1' | sudo tee /etc/sysctl.d/30-ipforward.conf   # dauerhaft
+sudo sysctl --system                                                   # alle Dateien neu laden
+```
+
+Für IPv6 heißt der Schalter `net.ipv6.conf.all.forwarding`. Damit die Antworten zurückfinden, brauchen die Rechner im Labornetz eine Route ins Büronetz über werkstatt, oder werkstatt maskiert die Absender per NAT. Weiterleiten ist ein Sicherheitsthema: Ein Rechner, der routet, gehört hinter eine Paketfilterregel, die nur erlaubten Verkehr durchlässt.
+</Karte>
+
+<Reihenfolge id="reihe" titel="Reihenfolge: Neue Karte in Betrieb nehmen" aufgabe="Bring die Schritte in die richtige Reihenfolge." schritte={[
+  'Mit ip -br link und dmesg den Namen der Karte finden',
+  'ip link set enp3s0 up',
+  'ip addr add 10.20.0.23/16 dev enp3s0',
+  'ip route add 10.30.0.0/16 via 10.20.0.1',
+  'Alles in /etc/network/interfaces eintragen',
+  'Mit ifdown und ifup prüfen',
+]} />
+
+<Merke>Eine Standardroute, alle anderen Netze mit eigener Route. ip route get zeigt Weg und Absender. ip_forward erlaubt das Weiterleiten, dauerhaft in /etc/sysctl.d.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: Weiterleiten" fragen={[
+  { frage: 'sysctl -w net.ipv4.ip_forward=1 wirkt. Nach dem Neustart leitet werkstatt nicht mehr weiter. Warum?', richtig: 'sysctl -w gilt nur bis zum Neustart, der Wert gehört in eine Datei unter /etc/sysctl.d.', falsch: ['ip_forward wird nach jedem Neustart von NetworkManager zurückgesetzt.', 'Der Wert muss zusätzlich in /etc/network/interfaces stehen.'], erklaerung: 'Beim Start liest systemd-sysctl die Dateien in /etc/sysctl.d, /run/sysctl.d und /usr/lib/sysctl.d.' },
+]} />
+
+<Lueckentext id="luecke" titel="Lückentext: Die zweite Karte dauerhaft" aufgabe="Ergänze die Stanza in /etc/network/interfaces."
+  code={`___ enp3s0
+iface enp3s0 inet ___
+    address 10.20.0.23/16
+    ___ ip route add 10.30.0.0/16 via 10.20.0.1`}
+  luecken={[
+    { loesungen: ['auto', 'allow-hotplug'] },
+    { loesungen: ['static'] },
+    { loesungen: ['up', 'post-up'] },
+  ]} />
+
+<Terminal id="zweinetze" titel="Terminal: werkstatt im Labornetz" welt={{ netzwerk: { zweiteKarte: true } }} aufgaben={[
+  { text: 'Finde die neue Karte.', befehl: '^(ip (-br )?(l|link)( show)?|lspci( -k)?)', frage: 'Wie heißt die neue Schnittstelle?', antwort: ['enp3s0'] },
+  { text: 'Lies nach, wie der Treiber die Karte beim Start genannt hat.', befehl: 'dmesg', frage: 'Welchen Namen hatte sie, bevor udev sie umbenannt hat?', antwort: ['eth1'] },
+  { text: 'Schalte die Karte ein und gib ihr 10.20.0.23/16. Danach soll der Logserver logserver.example.org direkt erreichbar sein.', zustand: 'link:enp3s0=up && addr:enp3s0=10.20.0.23/16 && erreichbar:logserver.example.org' },
+  { text: 'Prüf, welchen Weg ein Paket an den Logserver 10.20.0.5 nimmt.', befehl: 'ip (r|route) get 10\\.20\\.0\\.5', frage: 'Mit welcher Absenderadresse geht es hinaus?', antwort: ['10.20.0.23'] },
+  { text: 'Mach die Messplätze im Netz 10.30.0.0/16 hinter dem Labor-Router 10.20.0.1 erreichbar.', zustand: 'route:10.30.0.0/16=10.20.0.1 && erreichbar:messplatz.lab' },
+  { text: 'Trag Adresse und Route für enp3s0 in /etc/network/interfaces ein und prüf die Datei mit ifdown und ifup.', zustand: 'datei:/etc/network/interfaces~^iface enp3s0 inet static && datei:/etc/network/interfaces~10\\.30\\.0\\.0/16 via 10\\.20\\.0\\.1 && ifup:enp3s0 && route:10.30.0.0/16=10.20.0.1' },
+  { text: 'Lass werkstatt zwischen seinen Netzen weiterleiten, sofort und dauerhaft über /etc/sysctl.d/30-ipforward.conf.', zustand: 'forward:an && datei:/etc/sysctl.d/30-ipforward.conf~^\\s*net\\.ipv4\\.ip_forward\\s*=\\s*1' },
+  { text: 'Verfolge den Weg zu einem Messplatz.', befehl: '^(traceroute|mtr .*(-r|--report)|tracepath) .*(10\\.30\\.0\\.7|messplatz)', frage: 'Wie viele Hops sind es bis messplatz.lab?', antwort: ['2', 'zwei'] },
+]} />
+
+<Labor id="labor" titel="Labor: Weiterleiten auf dem Router deines Labors"
+  aufgabe="Im Labor aus Mission 0.2 arbeitet eine Maschine schon als Router zwischen zwei Netzen. Lies dort aus, ob weitergeleitet wird und welche Wege gelten. Füge die Ausgabe ein."
+  befehl={"sysctl net.ipv4.ip_forward\nip -br addr\nip route\nip route get 1.1.1.1"}
+  muster={["net.ipv4.ip_forward = 1", "default via", " src "]}
+  erfolg="Der Router hat in jedem seiner Netze eine Adresse, eine Standardroute und ip_forward auf 1. Für ein Ziel im Internet nennt ip route get die Schnittstelle nach außen und die Adresse, mit der er dort auftritt." />
+
+<Hinweis titel="Prüfungstipp">
+Das Lernziel 205.2 spricht ausdrücklich von einem multi-homed Gerät. Gefragt werden Routen für einzelne Netze, die eine Standardroute und ip_forward. Im Entwurf 5.0 bleibt das Routing Prüfungsstoff.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Welche Zeile in /etc/network/interfaces fügt beim Einschalten von enp3s0 eine Route hinzu?', richtig: 'up ip route add 10.30.0.0/16 via 10.20.0.1', falsch: ['route 10.30.0.0/16 10.20.0.1', 'gateway 10.20.0.1 for 10.30.0.0/16'], erklaerung: 'up und post-up führen beliebige Befehle aus, gateway setzt nur die Standardroute.' },
+  { frage: 'werkstatt leitet weiter, aber Rechner im Labornetz antworten Büro-PCs nicht. Was fehlt am wahrscheinlichsten?', richtig: 'Eine Route im Labornetz zurück ins Büronetz über werkstatt, oder NAT auf werkstatt', falsch: ['ip_forward auch auf den Laborrechnern', 'Ein zweites Gateway in /etc/resolv.conf'], erklaerung: 'Hin- und Rückweg müssen beide bekannt sein.' },
+  { frage: 'Wofür steht der Name enp3s0?', richtig: 'Ethernet, PCI-Bus 3, Slot 0', falsch: ['Die dritte Ethernet-Karte, Port 0', 'Ethernet mit Energiesparprofil 3'], erklaerung: 'Predictable Names leiten sich aus der Lage der Karte ab, nicht aus der Reihenfolge der Erkennung.' },
+]} />

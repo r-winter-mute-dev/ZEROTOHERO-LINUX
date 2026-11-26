@@ -2,7 +2,7 @@
 // und Ports (lsof, fuser, nmap), sudoers und visudo, Dienste mit Sockets, xinetd, TCP-Wrapper, /etc/nologin,
 // der SSH-Client mit Schlüsseln, known_hosts, Agent und Tunneln, der SSH-Server und GnuPG.
 import type { Welt } from './shell';
-import { fernZiel, netzExtraSockets, netzHosts, lokalOffen, type Sock } from './shell-netz';
+import { fernZiel, netzExtraSockets, netzHosts, lokalOffen, alleExtraSockets, type Sock } from './shell-netz';
 
 type Ergebnis = { out: string; err?: string; code: number };
 type B = (w: Welt, a: string[], stdin: string, root: boolean) => Ergebnis;
@@ -609,7 +609,7 @@ export function sicherBefehle(alt: Record<string, (w: Welt, a: string[], stdin: 
   // --- Offene Dateien und Ports ---
   const lsofSockets = (w: Welt) => {
     const basis: Sock[] = [{ p: 'tcp', s: 'LISTEN', l: '*:22', f: '', prog: 'sshd', pid: 901 }, { p: 'tcp', s: 'LISTEN', l: 'localhost:25', f: '', prog: 'master', pid: 1301 }, { p: 'tcp', s: 'LISTEN', l: 'localhost:631', f: '', prog: 'cupsd', pid: 1712 }, { p: 'udp', s: 'UNCONN', l: '*:5353', f: '', prog: 'avahi-dae', pid: 601 }, { p: 'tcp', s: 'ESTABLISHED', l: 'werkstatt.lab.example.org:22->192.168.1.17:51122', f: '', prog: 'sshd', pid: 3048 }, { p: 'tcp', s: 'ESTABLISHED', l: 'werkstatt.lab.example.org:43110->www.example.org:443', f: '', prog: 'firefox-e', pid: 1450 }];
-    const extra = sicherSockets(w).filter((x) => x.s !== 'WEG').map((x) => ({ ...x, l: x.l.replace(/^0\.0\.0\.0/, '*').replace(/^127\.0\.0\.1/, 'localhost') }));
+    const extra = alleExtraSockets(w).filter((x) => x.s !== 'WEG').map((x) => (x.s === 'ESTAB' ? { ...x, s: 'ESTABLISHED', l: `${x.l.replace(/^192\.168\.1\.23:/, 'werkstatt.lab.example.org:')}->${x.f}`, f: '' } : { ...x, l: x.l.replace(/^0\.0\.0\.0/, '*').replace(/^127\.0\.0\.1/, 'localhost') }));
     const sshAus = sicherSockets(w).some((x) => x.s === 'WEG');
     return [...basis.filter((x) => !(sshAus && x.pid === 901)), ...extra];
   };
@@ -623,7 +623,7 @@ export function sicherBefehle(alt: Record<string, (w: Welt, a: string[], stdin: 
       const port = iArg.match(/:(\d+)$/)?.[1]; const prot = iArg.match(/^(tcp|udp)/i)?.[1].toLowerCase();
       const z = lsofSockets(w).filter((x) => (r || x.prog.startsWith('firefox')) && (!port || x.l.includes(':' + port)) && (!prot || x.p === prot));
       if (!z.length) return { out: '', code: 1 };
-      const userVon = (p: number) => (p === 1450 ? 'lena' : 'root');
+      const userVon = (p: number) => (p === 1450 ? 'lena' : w.prozesse.find((q) => q.pid === p)?.user ?? 'root');
       return ok(`COMMAND    PID USER   FD   TYPE DEVICE SIZE/OFF NODE NAME\n${z.map((x) => `${x.prog.slice(0, 9).padEnd(9)} ${String(x.pid).padStart(5)} ${userVon(x.pid).padEnd(6)} ${'3u'.padEnd(4)} IPv4  ${String(18000 + x.pid).padEnd(6)}      0t0  ${x.p.toUpperCase()} ${zahl ? x.l : x.l.replace(/:(\d+)/g, (m, p) => ':' + (dienst[p] ?? p))}${x.s === 'LISTEN' ? ' (LISTEN)' : x.s === 'ESTABLISHED' ? ' (ESTABLISHED)' : ''}`).join('\n')}`);
     }
     const uArg = a.includes('-u') ? a[a.indexOf('-u') + 1] : undefined;

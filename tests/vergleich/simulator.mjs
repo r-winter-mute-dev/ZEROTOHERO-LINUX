@@ -14,10 +14,11 @@ for (const d of dateien) {
   const gruppe = JSON.parse(fs.readFileSync(d, 'utf8'));
   const liste = [];
   for (const fall of gruppe.faelle) {
-    const w = neueWelt({ root: true, distro: system === 'alma' ? 'alma' : 'debian' });
+    const w = neueWelt({ ...(gruppe.welt ?? {}), root: true, distro: system === 'alma' ? 'alma' : 'debian' });
     for (const [p, x] of Object.entries(fall.dateien)) { w.fs[p] = x.inhalt; const m = meta(w, p); m.mode = parseInt(x.modus ?? '600', 8); m.owner = 'root'; m.group = 'root'; }
+    for (const v of fall.vorher ?? []) ausfuehren(w, v);
     const r = ausfuehren(w, fall.befehl);
-    liste.push({ name: fall.name, code: r.code, ausgabe: r.ausgabe.trim() });
+    liste.push({ name: fall.name, code: r.code, ausgabe: r.ausgabe.trim(), ...(fall.ausgabe ? { vergleicheAusgabe: true } : {}) });
   }
   ergebnis.gruppen[path.basename(d, '.json')] = { faelle: liste };
 }

@@ -1,0 +1,169 @@
+---
+id: l2-6-1
+checks:
+  - id: k1
+  - id: zuordnung
+  - id: k2
+  - id: luecke
+  - id: schnittstellen
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "Anzeigen"
+    v: "ip -br addr · ip addr show dev enp0s31f6 · ip -d link show · ip -6 addr · ifconfig -a · route -n · ip route"
+  - t: "Adressen"
+    v: "ip addr add 192.168.1.50/24 dev enp0s31f6 label enp0s31f6:web · ip addr del … · ip -6 addr add 2001:db8:1::50/64 dev enp0s31f6 · ifconfig enp0s31f6:1 192.168.1.51 netmask 255.255.255.0"
+  - t: "Schnittstellen"
+    v: "ip link set dev X up|down · mtu 9000 · name NEU (nur ausgeschaltet) · address MAC · ip link add link enp0s31f6 name enp0s31f6.20 type vlan id 20 · type dummy · type veth peer name B · ip link del X"
+  - t: "Routen"
+    v: "ip route add NETZ/PRÄFIX via GW [dev X] [metric N] · ip route del … · route add -net 10.20.30.0 netmask 255.255.255.0 gw 10.20.20.1 · route -n: Flags U, G, H"
+  - t: "Vorsicht"
+    v: "Alles mit ip und ifconfig gilt nur bis zum Neustart. Dauerhaft: /etc/network/interfaces, NetworkManager oder systemd-networkd."
+karten:
+  - f: "Welcher Befehl zeigt alle Adressen kurz, eine Schnittstelle pro Zeile?"
+    a: ["ip -br addr", "ip -br a", "ip --brief address"]
+  - f: "Wie gibst du einer zusätzlichen Adresse auf enp0s31f6 das Label enp0s31f6:web?"
+    a: ["ip addr add 192.168.1.50/24 dev enp0s31f6 label enp0s31f6:web", "mit label enp0s31f6:web"]
+  - f: "Wie legst du auf enp0s31f6 eine Schnittstelle für VLAN 20 an?"
+    a: ["ip link add link enp0s31f6 name enp0s31f6.20 type vlan id 20"]
+  - f: "Was bedeutet das Flag G in der Ausgabe von route -n?"
+    a: ["die route führt über ein gateway", "gateway"]
+  - f: "Welches Kernelmodul braucht ein VLAN nach 802.1Q?"
+    a: ["8021q"]
+  - f: "Wann darf eine Schnittstelle umbenannt werden?"
+    a: ["wenn sie ausgeschaltet ist", "nur im zustand down"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Zuordnung from '../components/Zuordnung.astro';
+import Lueckentext from '../components/Lueckentext.astro';
+
+Das Labor zieht um. Im neuen Raum hängt werkstatt an einem Switch, der mehrere Netze über ein Kabel führt: das normale Büronetz und, als VLAN 20, das Netz der Messgeräte. Außerdem soll werkstatt für eine Übergangszeit unter einer zweiten Adresse erreichbar sein, weil alte Skripte noch 192.168.1.50 ansprechen. **Deine Mission: Gib der Netzwerkkarte eine zweite Adresse, richte die VLAN-Schnittstelle ein und sorg mit einer Route dafür, dass werkstatt das Netz hinter den Messgeräten findet.** Lernziel 205.1.
+
+## Werkzeuge alt und neu
+
+<Karte nr={1} titel="iproute2 und net-tools">
+Unter Linux gibt es zwei Werkzeugfamilien für das Netz:
+
+- **net-tools** mit `ifconfig`, `route`, `arp` und `netstat`. Sie stammen aus den 1990ern, werden nicht mehr weiterentwickelt und sind auf vielen Systemen gar nicht mehr installiert. Für die Prüfung musst du sie trotzdem lesen und bedienen können.
+- **iproute2** mit `ip` und `ss`. Ein Programm für alles, mit Objekten wie `link`, `address`, `route`, `neigh` und Abkürzungen wie `ip a`, `ip r`, `ip l`, `ip n`.
+
+```
+ip -br addr                     # kurz: Schnittstelle, Zustand, Adressen
+ip addr show dev enp0s31f6       # ausführlich
+ip -d link show                  # mit Details wie VLAN-ID oder Typ
+ip -4 route                      # nur IPv4
+ifconfig -a                      # auch ausgeschaltete Schnittstellen
+route -n                         # Routentabelle ohne Namensauflösung
+```
+
+Ein wichtiger Unterschied: `ifconfig` zeigt pro Schnittstelle nur **eine** IPv4-Adresse. Weitere Adressen sieht es nur, wenn sie ein **Label** wie `enp0s31f6:web` tragen. Dann erscheinen sie als eigene „Alias-Schnittstelle“.
+
+**Alles, was du mit `ip` oder `ifconfig` einstellst, gilt nur bis zum nächsten Neustart.** Wie man es dauerhaft macht, kommt in Mission 6.6.
+</Karte>
+
+<Quiz id="k1" titel="Kurzcheck: Werkzeuge" fragen={[
+  { frage: 'ip addr zeigt auf enp0s31f6 zwei IPv4-Adressen ohne Label, ifconfig nur eine. Was ist los?', richtig: 'ifconfig zeigt nur die erste Adresse ohne Label, die zweite ist trotzdem aktiv.', falsch: ['Die zweite Adresse ist nur vorgemerkt und wird erst nach ifup aktiv.', 'ifconfig zeigt nur Adressen, die in /etc/network/interfaces stehen.'], erklaerung: 'Mit label enp0s31f6:NAME erscheint sie bei ifconfig als eigene Alias-Schnittstelle.' },
+]} />
+
+## Adressen, MTU, VLAN
+
+<Karte nr={2} titel="Eine Karte, mehrere Gesichter">
+**Zusätzliche Adressen** hängst du einfach an:
+
+```
+sudo ip addr add 192.168.1.50/24 dev enp0s31f6 label enp0s31f6:web
+sudo ifconfig enp0s31f6:1 192.168.1.51 netmask 255.255.255.0       # dasselbe mit net-tools
+sudo ip -6 addr add 2001:db8:1::50/64 dev enp0s31f6
+```
+
+Eine zweite Adresse aus demselben Netz markiert `ip addr` als **secondary**. Löscht man die primäre, entfernt der Kernel standardmäßig auch die secondary-Adressen dieses Netzes. Erst mit `net.ipv4.conf.all.promote_secondaries=1`, das systemd auf vielen Systemen setzt, rückt stattdessen eine secondary-Adresse nach.
+
+Die **MTU** (Maximum Transmission Unit) ist das größte Paket, das eine Schnittstelle am Stück verschickt, im Ethernet normal 1500 Byte. In Speichernetzen nutzt man **Jumbo Frames** mit 9000 Byte, dann aber auf allen Geräten im Netz:
+
+```
+sudo ip link set dev enp0s31f6 mtu 9000
+```
+
+Ein **VLAN** (802.1Q) trennt mehrere logische Netze auf einem Kabel. Der Switch kennzeichnet jedes Paket mit einer VLAN-ID (1 bis 4094). Linux legt dafür eine eigene Schnittstelle an, das Kernelmodul heißt `8021q`:
+
+```
+sudo ip link add link enp0s31f6 name enp0s31f6.20 type vlan id 20
+sudo ip addr add 10.20.20.23/24 dev enp0s31f6.20
+sudo ip link set enp0s31f6.20 up
+```
+
+Weitere virtuelle Typen: `dummy` (eine Schnittstelle ohne Kabel, etwa für Dienstadressen) und `veth` (ein Paar, dessen Enden miteinander verbunden sind, Grundlage für Container). Umbenennen geht mit `ip link set X name Y`, aber nur, solange X ausgeschaltet ist.
+</Karte>
+
+<Zuordnung id="zuordnung" titel="Zuordnung: Was tut welcher Befehl?" aufgabe="Ordne jeder Wirkung den passenden Befehl zu." paare={[
+  { links: 'Alias-Adresse mit net-tools', rechts: 'ifconfig enp0s31f6:1 192.168.1.51' },
+  { links: 'VLAN-Schnittstelle anlegen', rechts: 'ip link add … type vlan id 20' },
+  { links: 'Jumbo Frames einschalten', rechts: 'ip link set dev X mtu 9000' },
+  { links: 'Details wie die VLAN-ID zeigen', rechts: 'ip -d link show' },
+  { links: 'Routentabelle ohne Namen', rechts: 'route -n' },
+]} />
+
+## Routen
+
+<Karte nr={3} titel="Wohin mit Paketen für fremde Netze">
+Für jedes Ziel sucht der Kernel die Route mit dem **längsten passenden Präfix**. Gibt es für dieselbe Länge mehrere, gewinnt die kleinste **Metrik**. Die Standardroute `default` (0.0.0.0/0) passt immer, aber am schlechtesten.
+
+```
+sudo ip route add 10.20.30.0/24 via 10.20.20.1
+sudo route add -net 10.20.30.0 netmask 255.255.255.0 gw 10.20.20.1      # net-tools
+ip route get 10.20.30.7                                                   # welche Route gilt?
+```
+
+Das Gateway muss in einem Netz liegen, das direkt erreichbar ist, sonst meldet `ip` „Nexthop has invalid gateway“. In `route -n` steht in der Spalte Flags **U** für eine aktive Route, **G** für den Weg über ein Gateway und **H** für eine Route zu einem einzelnen Rechner.
+</Karte>
+
+<Merke>ip addr add … label, ip link add … type vlan id N, ip link set … mtu, ip route add NETZ via GW. ifconfig sieht weitere Adressen nur mit Label. Nichts davon übersteht einen Neustart.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: Routen" fragen={[
+  { frage: 'Es gibt default via 192.168.1.1 und 10.20.0.0/16 via 192.168.1.254. Wohin geht ein Paket an 10.20.0.5?', richtig: 'Über 192.168.1.254, weil /16 länger passt als /0', falsch: ['Über 192.168.1.1, weil die Standardroute Vorrang hat', 'Abwechselnd über beide Gateways'], erklaerung: 'Das längste passende Präfix gewinnt. Die Metrik entscheidet erst bei gleicher Länge.' },
+]} />
+
+<Lueckentext id="luecke" titel="Lückentext: VLAN und Route" aufgabe="Ergänze die Befehle."
+  code={`$ sudo ip link add link enp0s31f6 name enp0s31f6.20 type ___ id 20
+$ sudo ip addr ___ 10.20.20.23/24 dev enp0s31f6.20
+$ sudo ip link set enp0s31f6.20 ___
+$ sudo ip route add 10.20.30.0/24 ___ 10.20.20.1`}
+  luecken={[
+    { loesungen: ['vlan'] },
+    { loesungen: ['add', 'a'] },
+    { loesungen: ['up'] },
+    { loesungen: ['via'] },
+  ]} />
+
+<Terminal id="schnittstellen" titel="Terminal: werkstatt im neuen Labor" welt={{ netzwerk: {} }} aufgaben={[
+  { text: 'Verschaff dir einen Überblick über die Schnittstellen.', befehl: '^(ip (-br |-d )?(l|link|a|addr|address)( show)?|ifconfig( -a)?)', frage: 'Welche MTU hat enp0s31f6?', antwort: ['1500'] },
+  { text: 'Gib enp0s31f6 zusätzlich die Adresse 192.168.1.50/24 mit dem Label enp0s31f6:web.', zustand: 'label:192.168.1.50/24=enp0s31f6:web' },
+  { text: 'Sieh dir das Ergebnis mit dem alten Werkzeug an.', befehl: '^(/sbin/)?ifconfig', frage: 'Unter welchem Namen zeigt ifconfig die neue Adresse?', antwort: ['enp0s31f6:web'] },
+  { text: 'Richte die Schnittstelle enp0s31f6.20 für VLAN 20 ein, gib ihr 10.20.20.23/24 und schalte sie ein.', zustand: 'vlan:enp0s31f6.20=20 && addr:enp0s31f6.20=10.20.20.23/24 && link:enp0s31f6.20=up' },
+  { text: 'Lass dir die Details der VLAN-Schnittstelle zeigen.', befehl: 'ip (-d|-details) l(ink)? (show )?(dev )?enp0s31f6\\.20', frage: 'Welches Protokoll nennt ip für das VLAN?', antwort: ['802.1Q', '802.1q'] },
+  { text: 'Die Messgeräte stehen im Netz 10.20.30.0/24 hinter dem Router 10.20.20.1. Leg die passende Route an.', zustand: 'route:10.20.30.0/24=10.20.20.1' },
+  { text: 'Prüf die Routentabelle mit net-tools, ohne Namensauflösung.', befehl: '^(/sbin/)?route -n|^netstat -rn', frage: 'Welche Flags hat die neue Route?', antwort: ['UG'] },
+  { text: 'Gib enp0s31f6 auch die IPv6-Adresse 2001:db8:1::50/64.', zustand: 'addr6:enp0s31f6=2001:db8:1::50/64' },
+]} />
+
+<Labor id="labor" titel="Labor: Virtuelle Schnittstellen auf srv1"
+  aufgabe="Leg auf srv1 ein veth-Paar an, gib beiden Enden Adressen und pinge von einem zum anderen. Räum danach auf. Füge die Ausgabe ein."
+  befehl={"sudo ip link add lab0 type veth peer name lab1\nsudo ip addr add 10.99.0.1/24 dev lab0\nsudo ip link set lab0 up; sudo ip link set lab1 up\nip -br link | grep lab\nip -d link show lab0 | head -3\nsudo ip link del lab0\nip -br link | grep -c lab"}
+  muster={["lab0@lab1", "veth", "^0$"]}
+  erfolg="Das Paar ist wie ein Kabel mit zwei Enden: Was in lab0 hineingeht, kommt aus lab1 heraus. Beim Löschen eines Endes verschwindet das andere mit, darum zählt grep am Ende null Zeilen." />
+
+<Hinweis titel="Prüfungstipp">
+Das Lernziel nennt ip, ifconfig, route und arp. Rechne mit Fragen, die dieselbe Aufgabe in beiden Welten verlangen, etwa eine Route mit ip route add und mit route add -net. Im Entwurf 5.0 treten net-tools weiter zurück.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'ip link set enp3s0 name labor meldet „Device or resource busy“. Was hilft?', richtig: 'Die Schnittstelle vorher mit ip link set enp3s0 down ausschalten', falsch: ['Den neuen Namen mit einer Ziffer enden lassen', 'Das Kernelmodul der Karte neu laden'], erklaerung: 'Laufende Schnittstellen lassen sich nicht umbenennen.' },
+  { frage: 'Welche Aussage über Jumbo Frames stimmt?', richtig: 'Alle Geräte im selben Netz müssen dieselbe große MTU unterstützen und eingestellt haben.', falsch: ['Sie wirken nur auf IPv6-Pakete.', 'Der Kernel handelt die MTU mit dem Switch selbst aus, Einstellen ist unnötig.'], erklaerung: 'Sonst werden große Pakete unterwegs verworfen.' },
+  { frage: 'Was ist ein veth-Paar?', richtig: 'Zwei virtuelle Schnittstellen, die wie ein Kabel miteinander verbunden sind', falsch: ['Zwei Adressen auf derselben Netzwerkkarte', 'Ein VLAN mit genau zwei Teilnehmern'], erklaerung: 'Container verbinden so ihren eigenen Netz-Namensraum mit dem Rechner.' },
+]} />

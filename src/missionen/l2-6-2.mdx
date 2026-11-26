@@ -1,0 +1,141 @@
+---
+id: l2-6-2
+checks:
+  - id: k1
+  - id: reihe
+  - id: k2
+  - id: luecke
+  - id: drucker
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "Anzeigen"
+    v: "ip neigh show [dev X] · ip -6 neigh · arp -n · arp -an · arp -a"
+  - t: "Ändern"
+    v: "ip neigh add|replace ADRESSE lladdr MAC dev X nud permanent · ip neigh del ADRESSE dev X · ip neigh flush dev X · arp -s ADRESSE MAC · arp -d ADRESSE · arp -f /etc/ethers"
+  - t: "Zustände"
+    v: "REACHABLE gerade bestätigt · STALE alt, wird beim nächsten Paket geprüft · DELAY/PROBE wird geprüft · FAILED keine Antwort · INCOMPLETE Anfrage läuft · PERMANENT fest eingetragen, wird nie geprüft"
+  - t: "arp -n Flags"
+    v: "C vollständig · M permanent (fest) · P veröffentlicht (Proxy-ARP)"
+karten:
+  - f: "Was löst ARP auf?"
+    a: ["ip-adressen in mac-adressen", "eine ipv4-adresse in eine mac-adresse"]
+  - f: "Was übernimmt bei IPv6 die Aufgabe von ARP?"
+    a: ["neighbor discovery", "ndp", "das neighbor discovery protocol"]
+  - f: "Welcher Zustand in ip neigh bedeutet, dass ein Eintrag nie überprüft wird?"
+    a: ["permanent"]
+  - f: "Wie löschst du mit net-tools den ARP-Eintrag für 192.168.1.40?"
+    a: ["arp -d 192.168.1.40"]
+  - f: "Welche Datei liest arp -f, wenn keine angegeben ist?"
+    a: ["/etc/ethers"]
+  - f: "Was ist ein Gratuitous ARP?"
+    a: ["eine arp-antwort, nach der niemand gefragt hat", "ein rechner verkündet seine eigene zuordnung"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Reihenfolge from '../components/Reihenfolge.astro';
+import Lueckentext from '../components/Lueckentext.astro';
+
+Der alte Laserdrucker ist am Wochenende gegen ein neues Modell getauscht worden. Er hat dieselbe Adresse 192.168.1.40 bekommen, die Kollegen drucken problemlos. Nur von werkstatt aus kommt nichts an, nicht einmal ein Ping. Kabel, Adresse und Route stimmen. **Deine Mission: Finde heraus, warum werkstatt den neuen Drucker nicht erreicht, räum die Nachbartabelle auf und sorg dafür, dass der Fehler beim nächsten Start nicht wiederkommt.** Lernziel 205.1.
+
+## Vom Paket zum Kabel
+
+<Karte nr={1} titel="ARP: Wer hat 192.168.1.40?">
+IP-Adressen gelten im ganzen Netz, aber auf dem Ethernet-Kabel zählt die **MAC-Adresse** (48 Bit, etwa `00:1f:29:dd:ee:01`). Bevor werkstatt ein Paket an einen Nachbarn im eigenen Netz schickt, muss es dessen MAC kennen. Das erledigt **ARP** (Address Resolution Protocol, RFC 826):
+
+1. werkstatt fragt per Broadcast: „Wer hat 192.168.1.40? Sag es 192.168.1.23.“
+2. Der Drucker antwortet direkt: „192.168.1.40 ist bei 00:1f:29:dd:ee:01.“
+3. werkstatt merkt sich die Antwort in der **Nachbartabelle** (ARP-Cache).
+
+Für Ziele in fremden Netzen fragt werkstatt nicht nach dem Ziel, sondern nach der MAC des **Gateways**. Bei IPv6 übernimmt **Neighbor Discovery** (NDP) mit ICMPv6 dieselbe Aufgabe, zu sehen mit `ip -6 neigh`.
+
+Ein **Gratuitous ARP** ist eine Antwort, nach der niemand gefragt hat: Ein Rechner verkündet seine eigene Zuordnung, etwa nach dem Start oder wenn bei einem Ausfall eine andere Maschine eine Adresse übernimmt. Genau diesen Mechanismus nutzen Angreifer beim **ARP-Spoofing**, darum tragen manche Admins wichtige Nachbarn fest ein.
+</Karte>
+
+<Quiz id="k1" titel="Kurzcheck: ARP" fragen={[
+  { frage: 'werkstatt schickt ein Paket an www.example.org im Internet. Nach welcher MAC-Adresse fragt es per ARP?', richtig: 'Nach der MAC des Gateways 192.168.1.1', falsch: ['Nach der MAC von www.example.org', 'Nach gar keiner, ARP gilt nur für Drucker und Server im LAN'], erklaerung: 'Außerhalb des eigenen Netzes geht jedes Paket an das Gateway. Dessen MAC muss werkstatt kennen.' },
+]} />
+
+## Die Nachbartabelle
+
+<Karte nr={2} titel="Ansehen, prüfen, ändern">
+```
+$ ip neigh show
+192.168.1.1 dev enp0s31f6 lladdr 9c:c9:eb:12:34:56 router REACHABLE
+192.168.1.40 dev enp0s31f6 lladdr 00:1f:29:aa:bb:cc PERMANENT
+$ arp -n
+Address                  HWtype  HWaddress           Flags Mask            Iface
+192.168.1.40             ether   00:1f:29:aa:bb:cc   CM                    enp0s31f6
+```
+
+Die Zustände: **REACHABLE** ist frisch bestätigt. **STALE** ist alt, der Eintrag gilt aber weiter und wird beim nächsten Paket über **DELAY** und **PROBE** geprüft. **FAILED** bekam keine Antwort, **INCOMPLETE** wartet gerade auf eine. **PERMANENT** hat jemand fest eingetragen. Dieser Eintrag wird **nie** geprüft und nie ersetzt, auch wenn das Gerät dahinter längst ein anderes ist. In `arp -n` steht dafür das Flag **M**, `C` heißt vollständig.
+
+```
+sudo ip neigh del 192.168.1.40 dev enp0s31f6
+sudo ip neigh replace 192.168.1.40 lladdr 00:1f:29:dd:ee:01 dev enp0s31f6 nud permanent
+sudo ip neigh flush dev enp0s31f6            # alle dynamischen Einträge verwerfen
+sudo arp -d 192.168.1.40                     # net-tools
+sudo arp -s 192.168.1.40 00:1f:29:dd:ee:01   # fester Eintrag mit net-tools
+sudo arp -f /etc/ethers                      # feste Einträge aus einer Datei laden
+```
+
+Feste Einträge kennt der Kernel nur bis zum Neustart. Wer sie dauerhaft braucht, legt sie in **/etc/ethers** ab (`MAC ADRESSE` pro Zeile) und lässt sie beim Start mit `arp -f` laden, etwa per systemd-Unit. Das schützt vor Spoofing, wird aber zur Falle, sobald Hardware getauscht wird.
+</Karte>
+
+<Reihenfolge id="reihe" titel="Reihenfolge: Ein Gerät ist im LAN nicht erreichbar" aufgabe="Bring die Prüfschritte in eine sinnvolle Reihenfolge, vom Allgemeinen zum Besonderen." schritte={[
+  'ip -br addr: Hat werkstatt eine Adresse im selben Netz?',
+  'ip route get 192.168.1.40: Geht das Paket direkt oder über ein Gateway?',
+  'ping -c 3 192.168.1.40: Kommt eine Antwort?',
+  'ip neigh show: Welche MAC hat werkstatt für das Ziel gespeichert?',
+  'Mit der MAC auf dem Gerät vergleichen',
+]} />
+
+<Merke>ARP verbindet IP und MAC im eigenen Netz. PERMANENT wird nie geprüft. ip neigh und arp zeigen und ändern die Tabelle, dauerhaft nur über /etc/ethers oder ein Startskript.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: Zustände" fragen={[
+  { frage: 'Ein Eintrag steht seit einer halben Stunde als STALE in der Tabelle. Was passiert beim nächsten Paket an diese Adresse?', richtig: 'Das Paket geht an die gespeicherte MAC, der Kernel prüft den Eintrag dann nach.', falsch: ['Das Paket wird verworfen, bis eine neue ARP-Antwort kommt.', 'Der Eintrag wird zu PERMANENT.'], erklaerung: 'STALE heißt alt, nicht ungültig.' },
+  { frage: 'Welcher Befehl ersetzt einen falschen festen Eintrag in einem Schritt?', richtig: 'ip neigh replace 192.168.1.40 lladdr 00:1f:29:dd:ee:01 dev enp0s31f6 nud permanent', falsch: ['ip neigh add 192.168.1.40 lladdr 00:1f:29:dd:ee:01 dev enp0s31f6', 'ip neigh flush dev enp0s31f6'], erklaerung: 'add scheitert mit File exists, flush lässt feste Einträge stehen.' },
+]} />
+
+<Lueckentext id="luecke" titel="Lückentext: Nachbarn" aufgabe="Ergänze die Befehle."
+  code={`$ ip ___ show dev enp0s31f6
+$ arp ___                     # Tabelle, nur Adressen, keine Namen
+$ sudo arp ___ 192.168.1.40   # Eintrag löschen
+$ sudo arp -f /etc/___`}
+  luecken={[
+    { loesungen: ['neigh', 'neighbour', 'neighbor', 'n'] },
+    { loesungen: ['-n'] },
+    { loesungen: ['-d'] },
+    { loesungen: ['ethers'] },
+  ]} />
+
+<Terminal id="drucker" titel="Terminal: Der neue Drucker antwortet nicht" welt={{ netzwerk: { arpFalsch: true } }} aufgaben={[
+  { text: 'Prüf, ob werkstatt den Drucker laser.lan erreicht. Drei Pakete reichen.', befehl: 'ping (-c ?3 .*laser|.*laser.* -c ?3)', auchFehler: true, frage: 'Wie viele Antworten kommen zurück?', antwort: ['0', 'keine'] },
+  { text: 'Sieh dir die ARP-Tabelle mit net-tools an, ohne Namen.', befehl: '^(/usr/sbin/)?arp -n', frage: 'Welche Flags hat der Eintrag für 192.168.1.40?', antwort: ['CM'] },
+  { text: 'Sieh dir denselben Eintrag mit iproute2 an.', befehl: '^ip (n|neigh|neighbour|neighbor)( show| s| list)?', frage: 'In welchem Zustand ist er?', antwort: ['PERMANENT', 'permanent'] },
+  { text: 'Finde heraus, woher der feste Eintrag stammt. Ein Tipp: Es gibt eine Datei genau dafür.', befehl: '(cat|less|more|grep .*) /etc/ethers', frage: 'Seit welchem Jahr steht er dort?', antwort: ['2019'] },
+  { text: 'Entferne den veralteten Eintrag und sorg dafür, dass werkstatt den Drucker wieder erreicht.', zustand: 'erreichbar:laser.lan && neigh:192.168.1.40=ok' },
+  { text: 'Sieh nach, was werkstatt jetzt über den Drucker gelernt hat.', befehl: '^(/usr/sbin/)?arp -a|^ip (n|neigh)', frage: 'Welche MAC-Adresse hat der neue Drucker?', antwort: ['00:1f:29:dd:ee:01'] },
+  { text: 'Sorg dafür, dass der Fehler beim nächsten Start nicht zurückkommt: /etc/ethers darf die alte MAC nicht mehr enthalten.', zustand: 'nicht:datei:/etc/ethers~00:1f:29:aa:bb:cc' },
+]} />
+
+<Labor id="labor" titel="Labor: Die Nachbartabelle von srv1"
+  aufgabe="Lies auf srv1 die Nachbartabelle, pinge das Gateway und sieh zu, wie sich der Eintrag ändert. Füge die Ausgabe ein."
+  befehl={"GW=$(ip route show default | awk '{print $3; exit}')\nsudo ip neigh flush dev $(ip route show default | awk '{print $5; exit}')\nip neigh show $GW\nping -c 1 $GW >/dev/null\nip neigh show $GW"}
+  muster={["lladdr ([0-9a-f]{2}:){5}[0-9a-f]{2}", "REACHABLE|DELAY|STALE"]}
+  erfolg="Nach dem flush war der Eintrag für das Gateway weg oder auf FAILED, der Ping hat ihn neu gelernt. Wäre er PERMANENT gewesen, hätte flush ihn stehen lassen." />
+
+<Hinweis titel="Prüfungstipp">
+arp steht ausdrücklich in den Lernzielen 205.1 und 205.2. Gefragt wird nach Anzeigen, Löschen und festen Einträgen mit arp und ip neigh, nach den Flags in arp -n und nach der Rolle von ARP beim Weg über ein Gateway.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Zwei Rechner im LAN haben versehentlich dieselbe IP-Adresse. Welches Symptom ist typisch?', richtig: 'Verbindungen brechen sporadisch ab, weil die Nachbartabellen der anderen mal die eine, mal die andere MAC speichern.', falsch: ['Der Kernel verweigert beiden Rechnern jeden Netzverkehr.', 'Nichts, der Switch verteilt die Pakete gleichmäßig auf beide.'], erklaerung: 'Mit arping -D lässt sich vor dem Vergeben prüfen, ob eine Adresse schon belegt ist.' },
+  { frage: 'Was bewirkt ip neigh flush dev enp0s31f6?', richtig: 'Es löscht die dynamisch gelernten Einträge, feste bleiben stehen.', falsch: ['Es löscht alle Einträge einschließlich der festen.', 'Es schaltet ARP auf der Schnittstelle ab.'], erklaerung: 'Feste Einträge verschwinden mit ip neigh del oder arp -d.' },
+  { frage: 'Welche Ausgabe zeigt arp -a für einen festen Eintrag?', richtig: 'laser.lan (192.168.1.40) at 00:1f:29:dd:ee:01 [ether] PERM on enp0s31f6', falsch: ['192.168.1.40 lladdr 00:1f:29:dd:ee:01 STATIC', 'laser.lan 00:1f:29:dd:ee:01 fixed enp0s31f6'], erklaerung: 'arp -a nutzt das BSD-Format mit PERM für feste Einträge.' },
+]} />

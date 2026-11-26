@@ -1,0 +1,160 @@
+---
+id: l2-6-6
+checks:
+  - id: k1
+  - id: zuordnung
+  - id: k2
+  - id: luecke
+  - id: debian
+  - id: alma
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "Reihenfolge"
+    v: "Link (ip -br link, dmesg) → Adresse (ip -br addr) → Route (ip route, ip route get) → Gateway (ping) → Name (getent hosts, /etc/resolv.conf) → Dienst (ss, nc -zv) → Zugriff (hosts.allow/deny, Firewall)"
+  - t: "Debian"
+    v: "/etc/network/interfaces, interfaces.d/ · ifup/ifdown · /etc/hostname · /etc/hosts · Logs: /var/log/syslog, journalctl -u networking"
+  - t: "Red Hat"
+    v: "/etc/sysconfig/network-scripts/ifcfg-NAME (älter) · /etc/NetworkManager/system-connections/*.nmconnection · nmcli con reload, nmcli con up · /var/log/messages · journalctl -u NetworkManager"
+  - t: "NetworkManager"
+    v: "Schreibt /etc/resolv.conf neu · Änderung im Profil: nmcli con mod NAME ipv4.dns … · ignoriert Geräte mit unmanaged-devices · nmcli device status"
+  - t: "Werkzeuge"
+    v: "ping, ping6, traceroute, traceroute6, mtr --report, hostname, dmesg, lspci -k, tcpdmatch, journalctl -b"
+karten:
+  - f: "In welcher Datei steht auf Red Hat die alte Konfiguration einer Schnittstelle enp0s31f6?"
+    a: ["/etc/sysconfig/network-scripts/ifcfg-enp0s31f6"]
+  - f: "Wo stehen auf Debian die Schnittstellen für ifup und ifdown?"
+    a: ["/etc/network/interfaces"]
+  - f: "In welcher Datei steht auf Debian der dauerhafte Rechnername?"
+    a: ["/etc/hostname"]
+  - f: "Welche Datei nutzten ältere SUSE-Systeme für den Rechnernamen?"
+    a: ["/etc/hostname", "/etc/HOSTNAME"]
+  - f: "Was musst du nach einer Änderung an einer ifcfg-Datei NetworkManager sagen?"
+    a: ["nmcli connection reload", "nmcli con reload"]
+  - f: "Welches Werkzeug verbindet traceroute und ping zu einer laufenden Anzeige?"
+    a: ["mtr"]
+  - f: "In welcher Reihenfolge werden hosts.allow und hosts.deny ausgewertet?"
+    a: ["erst hosts.allow, dann hosts.deny", "zuerst allow"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Zuordnung from '../components/Zuordnung.astro';
+import Lueckentext from '../components/Lueckentext.astro';
+
+Montagmorgen, drei Tickets auf einmal. Auf werkstatt lösen die Kollegen keine Namen mehr auf. Tom kommt per SSH nicht auf werkstatt, obwohl der Dienst läuft. Die zweite Karte fürs Labornetz kommt nach dem Neustart nicht hoch. Und der Laborrechner mit AlmaLinux erreicht seit dem Wochenende das Internet nicht. **Deine Mission: Arbeite die Fehler der Reihe nach ab, behebe jeden dort, wo er dauerhaft verschwindet, und finde den Fehler auf dem Alma-Rechner in der Red-Hat-Konfiguration.** Lernziel 205.3.
+
+## Von unten nach oben
+
+<Karte nr={1} titel="Eine Reihenfolge, die nicht im Kreis führt">
+Netzwerkfehler sucht man am schnellsten Schicht für Schicht von unten:
+
+1. **Link:** Erkennt der Kernel die Karte (`lspci -k`, `dmesg`)? Steckt das Kabel (`ip -br link`, Zustand UP und LOWER_UP)?
+2. **Adresse:** Hat die Schnittstelle die richtige Adresse und Maske (`ip -br addr`)?
+3. **Route:** Gibt es eine Standardroute, und zeigt `ip route get ZIEL` den erwarteten Weg?
+4. **Gateway:** Antwortet das Gateway auf `ping`? „Destination Host Unreachable“ von der eigenen Adresse heißt: ARP findet das Gateway nicht.
+5. **Weg:** `traceroute`, `traceroute6` oder `mtr --report` zeigen, an welchem Router es hängt.
+6. **Namen:** Löst `getent hosts NAME` auf? Wer steht in /etc/resolv.conf, was in /etc/hosts und /etc/nsswitch.conf?
+7. **Dienst und Zugriff:** Lauscht der Dienst (`ss -tlnp`)? Lässt ihn ein Paketfilter oder **/etc/hosts.allow** und **/etc/hosts.deny** durch?
+
+Bei jedem Schritt hilft ein Blick in die Protokolle: `/var/log/syslog` (Debian), `/var/log/messages` (Red Hat) oder `journalctl -b`, gezielt `journalctl -u NetworkManager` oder `-u networking`.
+
+Für die TCP-Wrapper gilt: zuerst hosts.allow, dann hosts.deny, steht nichts darin, ist es erlaubt. Ob ein Dienst die Dateien überhaupt beachtet, hängt davon ab, ob er mit libwrap gebaut ist. `tcpdmatch DIENST ADRESSE` sagt, was die Dateien entscheiden würden.
+</Karte>
+
+<Quiz id="k1" titel="Kurzcheck: Reihenfolge" fragen={[
+  { frage: 'ping 203.0.113.80 klappt, ping www.example.org meldet „Temporary failure in name resolution“. Wo suchst du weiter?', richtig: 'Bei der Namensauflösung: /etc/resolv.conf und ob der Nameserver erreichbar ist', falsch: ['Bei der Standardroute', 'Beim Kabel und dmesg'], erklaerung: 'Die Adresse ist erreichbar, also stimmen Link, Adresse und Route.' },
+]} />
+
+## Wer schreibt die Konfiguration?
+
+<Karte nr={2} titel="Debian, Red Hat und NetworkManager">
+Je nach System verwaltet jemand anderes das Netz, und eine Änderung an der falschen Stelle hält nur bis zum nächsten Neustart:
+
+| | Debian/Ubuntu klassisch | Red Hat bis 8 | Red Hat ab 9, Desktops |
+|---|---|---|---|
+| Verwalter | ifupdown | NetworkManager mit ifcfg-rh | NetworkManager |
+| Dateien | /etc/network/interfaces | /etc/sysconfig/network-scripts/ifcfg-NAME | /etc/NetworkManager/system-connections/NAME.nmconnection |
+| Anwenden | ifdown/ifup | nmcli con reload, nmcli con up | nmcli con up |
+
+Eine ifcfg-Datei sieht so aus:
+
+```
+DEVICE=enp0s31f6
+BOOTPROTO=none
+ONBOOT=yes
+IPADDR=192.168.1.23
+PREFIX=24
+GATEWAY=192.168.1.1
+DNS1=192.168.1.1
+```
+
+**NetworkManager** schreibt /etc/resolv.conf aus seinen Profilen neu, bei jedem Aktivieren einer Verbindung und bei jedem Neustart des Dienstes. Wer dort den Nameserver von Hand ändert, verliert die Änderung. Richtig ist `nmcli con mod NAME ipv4.dns ADRESSE` und danach `nmcli con up NAME`. Geräte, die NetworkManager nicht anfassen soll, stehen als `unmanaged-devices` in /etc/NetworkManager/conf.d/, unter Debian sind Schnittstellen aus /etc/network/interfaces in der Regel unmanaged.
+
+Der Rechnername steht dauerhaft in **/etc/hostname** (ältere SUSE: **/etc/HOSTNAME**), seine Adresse für den eigenen Gebrauch meist in /etc/hosts.
+</Karte>
+
+<Zuordnung id="zuordnung" titel="Zuordnung: Wo steht das?" aufgabe="Ordne jeder Information die Datei zu, in der sie dauerhaft steht." paare={[
+  { links: 'Statische Adresse unter Debian mit ifupdown', rechts: '/etc/network/interfaces' },
+  { links: 'Gateway in der alten Red-Hat-Konfiguration', rechts: '/etc/sysconfig/network-scripts/ifcfg-enp0s31f6' },
+  { links: 'Rechnername unter Debian', rechts: '/etc/hostname' },
+  { links: 'Wer per TCP-Wrapper verboten ist', rechts: '/etc/hosts.deny' },
+  { links: 'Nameserver, den NetworkManager schreibt', rechts: '/etc/resolv.conf' },
+]} />
+
+<Merke>Von unten nach oben: Link, Adresse, Route, Gateway, Weg, Namen, Dienst. Ändere immer die Quelle: interfaces, ifcfg oder das NetworkManager-Profil, nicht die Datei, die daraus erzeugt wird.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: NetworkManager" fragen={[
+  { frage: 'Du korrigierst den Nameserver in /etc/resolv.conf, nach dem nächsten Neustart steht wieder der alte drin. Warum?', richtig: 'NetworkManager erzeugt die Datei aus dem Verbindungsprofil neu.', falsch: ['resolv.conf ist schreibgeschützt und die Änderung wurde nie gespeichert.', 'systemd setzt beim Start alle Dateien in /etc zurück.'], erklaerung: 'Der Kopf „# Generated by NetworkManager“ verrät es.' },
+  { frage: 'Was bewirkt nmcli connection reload?', richtig: 'NetworkManager liest geänderte Profildateien und ifcfg-Dateien neu ein.', falsch: ['Es aktiviert alle Verbindungen neu.', 'Es startet den Dienst NetworkManager neu.'], erklaerung: 'Aktiv wird eine geänderte Verbindung erst mit nmcli connection up NAME.' },
+]} />
+
+<Lueckentext id="luecke" titel="Lückentext: Fehler dort beheben, wo er entsteht" aufgabe="Ergänze die Befehle."
+  code={`$ sudo nmcli con ___ "Kabelgebundene Verbindung 1" ipv4.dns 192.168.1.1
+$ sudo nmcli con ___ "Kabelgebundene Verbindung 1"
+$ echo "sshd: 192.168.1.0/24" | sudo tee -a /etc/hosts.___
+$ sudo nmcli con ___                    # ifcfg-Dateien neu lesen (Red Hat)`}
+  luecken={[
+    { loesungen: ['mod', 'modify'] },
+    { loesungen: ['up'] },
+    { loesungen: ['allow'] },
+    { loesungen: ['reload'] },
+  ]} />
+
+<Terminal id="debian" titel="Terminal: Drei Tickets auf werkstatt" welt={{ netzwerk: { nmDns: true, hostsDeny: true, zweiteKarte: true, interfacesFehler: true } }} aufgaben={[
+  { text: 'Prüf, ob werkstatt www.example.org erreicht.', befehl: 'ping .*www\\.example\\.org', auchFehler: true, frage: 'Welche Fehlermeldung nennt ping? (der Teil nach dem Namen)', antwort: ['Temporary failure in name resolution', 'temporary failure in name resolution'] },
+  { text: 'Sieh nach, welchen Nameserver werkstatt fragt.', befehl: '(cat|less|grep .*) /etc/resolv\\.conf', frage: 'Welche Adresse steht dort?', antwort: ['192.168.1.9'] },
+  { text: 'Der richtige Nameserver ist 192.168.1.1. Korrigier das so, dass es einen Neustart von NetworkManager übersteht.', zustand: 'nm:Kabelgebundene Verbindung 1~dns=^192\\.168\\.1\\.1$ && aufloesbar:www.example.org' },
+  { text: 'Tom (192.168.1.17) kommt per SSH nicht herein. Prüf, was die TCP-Wrapper für ihn entscheiden.', befehl: 'tcpdmatch sshd 192\\.168\\.1\\.17', frage: 'In welcher Datei steht die Regel, die ihn sperrt? (vollständiger Pfad)', antwort: ['/etc/hosts.deny'] },
+  { text: 'Erlaub SSH für das ganze Büronetz 192.168.1.0/24, ohne die Sperre für alle anderen aufzuheben.', zustand: 'wrapper:sshd@192.168.1.17=erlaubt && wrapper:sshd@203.0.113.9=verboten' },
+  { text: 'Die zweite Karte enp3s0 kommt mit ifup nicht hoch. Finde den Fehler in der Konfiguration und bring sie hoch.', zustand: 'ifup:enp3s0 && addr:enp3s0=10.20.0.23/16 && link:enp3s0=up' },
+  { text: 'Lies den dauerhaft gespeicherten Rechnernamen.', befehl: '(cat|less) /etc/hostname|^hostnamectl', frage: 'Wie lautet er?', antwort: ['werkstatt'] },
+  { text: 'Prüf zum Schluss den Weg per IPv6 zum Webserver www.example.org.', befehl: '^(traceroute6|traceroute -6|tracepath6|tracepath -6) ', frage: 'Wie viele Hops sind es?', antwort: ['3', 'drei'] },
+]} />
+
+<Terminal id="alma" titel="Terminal: Der Laborrechner mit AlmaLinux" welt={{ distro: 'alma', host: 'laborpc', netzwerk: { ifcfg: 'gatewayFalsch' } }} aufgaben={[
+  { text: 'Prüf, ob der Rechner www.example.org erreicht.', befehl: 'ping .*www\\.example\\.org', auchFehler: true, frage: 'Wer meldet „Destination Host Unreachable“? (Adresse)', antwort: ['192.168.1.23'] },
+  { text: 'Sieh dir die Routentabelle an.', befehl: '^(ip (r|route)( show)?|route -n|netstat -rn)$', frage: 'Welches Gateway steht in der Standardroute?', antwort: ['192.168.1.11'] },
+  { text: 'Finde die Datei, aus der NetworkManager diese Verbindung lädt, und korrigier das Gateway auf 192.168.1.1. Lade die Konfiguration neu und aktiviere die Verbindung.', zustand: 'ifcfg:enp0s31f6~^GATEWAY=192\\.168\\.1\\.1$ && route:default=192.168.1.1 && erreichbar:www.example.org' },
+  { text: 'Prüf den Weg nach draußen mit einem Bericht von mtr.', befehl: 'mtr .*(-r|--report).*www\\.example\\.org|mtr .*www\\.example\\.org.*(-r|--report)', frage: 'Wie heißt der erste Hop?', antwort: ['router.lan', '192.168.1.1'] },
+]} />
+
+<Labor id="labor" titel="Labor: Wer verwaltet das Netz auf srv1?"
+  aufgabe="Finde auf srv1 heraus, welches Werkzeug das Netz verwaltet und wo die Konfiguration steht. Füge die Ausgabe ein."
+  befehl={"systemctl is-active NetworkManager systemd-networkd networking 2>/dev/null\nhead -1 /etc/resolv.conf\nls /etc/network/interfaces /etc/sysconfig/network-scripts /etc/NetworkManager/system-connections /etc/systemd/network 2>/dev/null\ncat /etc/hostname"}
+  muster={["active|inactive", "^#|nameserver"]}
+  erfolg="Welche der Dienste active melden, sagt dir, wo eine Änderung dauerhaft hingehört. Die erste Zeile von resolv.conf verrät meist, wer sie geschrieben hat: NetworkManager, systemd-resolved oder dhclient." />
+
+<Hinweis titel="Prüfungstipp">
+Das Lernziel 205.3 nennt ausdrücklich /etc/network/, /etc/sysconfig/network-scripts/, /etc/hostname, /etc/HOSTNAME, /etc/hosts.allow, /etc/hosts.deny, die Protokolle und das Bewusstsein, dass NetworkManager die Konfiguration beeinflusst. Im Entwurf 5.0 rücken NetworkManager und systemd-networkd stärker in den Vordergrund.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'ping zum Gateway meldet „From 192.168.1.23 icmp_seq=1 Destination Host Unreachable“. Was bedeutet das?', richtig: 'werkstatt selbst bekommt auf seine ARP-Anfrage nach dem Gateway keine Antwort.', falsch: ['Das Gateway antwortet, verweigert aber ICMP.', 'Ein Router im Internet hat das Ziel nicht gefunden.'], erklaerung: 'Die eigene Adresse als Absender der Meldung zeigt: Das Problem liegt im eigenen Netz.' },
+  { frage: 'Welche Zeile in /etc/hosts.allow erlaubt SSH nur aus dem Netz 192.168.1.0/24?', richtig: 'sshd: 192.168.1.0/24', falsch: ['ssh ALLOW 192.168.1.0/24', 'sshd = 192.168.1.*'], erklaerung: 'Format: DIENST: CLIENTS. Auch 192.168.1. mit Punkt am Ende ist erlaubt.' },
+  { frage: 'Wo suchst du auf AlmaLinux nach Meldungen von NetworkManager?', richtig: 'journalctl -u NetworkManager oder /var/log/messages', falsch: ['/var/log/syslog', '/etc/NetworkManager/NetworkManager.log'], erklaerung: '/var/log/syslog ist der Name auf Debian und Ubuntu.' },
+]} />

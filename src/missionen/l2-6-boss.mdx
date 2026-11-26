@@ -1,0 +1,31 @@
+---
+id: l2-6-boss
+checks:
+  - id: umzug
+spick:
+  - t: "Überblick"
+    v: "ip -br link · ip -br addr · ip route · ip neigh · ss -tnp · cat /etc/resolv.conf · dmesg"
+  - t: "Dauerhaft"
+    v: "nmcli con mod NAME ipv4.dns … && nmcli con up NAME · /etc/network/interfaces mit auto, iface … inet static, address, up ip route add … · ifup · /etc/ethers"
+  - t: "Nachbarn"
+    v: "ip neigh del ADRESSE dev X · arp -d ADRESSE · ip neigh replace … nud permanent"
+  - t: "Verkehr"
+    v: "ss -tnp · lsof -i :PORT · tcpdump -n -c 5 port PORT · kill PID · ~/.config/autostart"
+---
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+
+Freitag, 16 Uhr, der Umzug ins neue Labor ist fast geschafft. Auf werkstatt läuft aber noch nichts richtig: Namen werden nicht aufgelöst, der neue Laserdrucker bleibt stumm, das Labornetz an der zweiten Karte ist nicht eingerichtet, und die Firewall meldet wieder seltsamen Verkehr nach draußen. Montag früh soll alles laufen, auch nach einem Neustart. **Dein Bosskampf: Bring werkstatt im neuen Labor vollständig ans Netz und räum dabei auf.** Alles aus Topic 205.
+
+<Hinweis titel="Vorgehen">
+Die Aufgaben nennen nur das Ziel. Arbeite von unten nach oben und behebe jeden Fehler an seiner Quelle, nicht nur bis zum nächsten Neustart. Der richtige Nameserver ist 192.168.1.1, die zweite Karte bekommt 10.20.0.23/16, die Messplätze 10.30.0.0/16 liegen hinter 10.20.0.1.
+</Hinweis>
+
+<Terminal id="umzug" titel="Bosskampf: werkstatt nach dem Umzug" welt={{ netzwerk: { zweiteKarte: true, arpFalsch: true, geheim: true, nmDns: true } }} aufgaben={[
+  { text: 'Verschaff dir einen Überblick über die bestehenden Verbindungen.', befehl: '^(sudo )?(ss|netstat) -[a-z]*t|^lsof -i', frage: 'Zu welchem entfernten Port geht die verdächtige Verbindung?', antwort: ['4444'] },
+  { text: 'Sorg dafür, dass werkstatt wieder Namen auflöst, auch nach einem Neustart von NetworkManager.', zustand: 'nm:Kabelgebundene Verbindung 1~dns=^192\\.168\\.1\\.1$ && aufloesbar:www.example.org' },
+  { text: 'Mach den Laserdrucker laser.lan erreichbar, so dass es beim nächsten Start so bleibt.', zustand: 'erreichbar:laser.lan && neigh:192.168.1.40=ok && nicht:datei:/etc/ethers~00:1f:29:aa:bb:cc' },
+  { text: 'Bring das Labornetz an der zweiten Karte dauerhaft in Betrieb, samt Weg zu den Messplätzen.', zustand: 'ifup:enp3s0 && addr:enp3s0=10.20.0.23/16 && route:10.30.0.0/16=10.20.0.1 && erreichbar:messplatz.lab && datei:/etc/network/interfaces~10\\.30\\.0\\.0/16 via 10\\.20\\.0\\.1' },
+  { text: 'Beende den verdächtigen Verkehr dauerhaft.', zustand: 'geheim:weg && fehlt:/home/lena/.config/autostart/updater.desktop' },
+  { text: 'Belege mit einem Mitschnitt, dass nach draußen nichts mehr an diesen Port geht.', befehl: 'tcpdump .*(port 4444|host 203\\.0\\.113\\.66)', frage: 'Wie viele Pakete hat tcpdump mitgeschnitten?', antwort: ['0', 'keine'] },
+]} />

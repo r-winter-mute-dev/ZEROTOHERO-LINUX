@@ -1,0 +1,142 @@
+---
+id: l2-6-5
+checks:
+  - id: k1
+  - id: zuordnung
+  - id: k2
+  - id: luecke
+  - id: lauschen
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "Sockets"
+    v: "ss -tulpn (lauschende TCP/UDP mit Prozess) · ss -tnp (Verbindungen) · netstat -tulpn · lsof -i :4444 · lsof -i TCP -n -P"
+  - t: "tcpdump"
+    v: "tcpdump -i X -n -c 10 · -nn auch Ports als Zahl · -e MAC · -w datei.pcap · -r datei.pcap · -D Schnittstellen · -i any"
+  - t: "Filter"
+    v: "host 203.0.113.66 · src/dst host · net 10.20.0.0/16 · port 53 · tcp/udp/icmp/arp · and, or, not, Klammern in Anführungszeichen: \"udp and (port 53 or port 123)\""
+  - t: "Prüfen"
+    v: "ping/ping6 · nc -zv RECHNER PORT · nc -l -p PORT · nmap RECHNER · nmap -p 22,80 -sT RECHNER"
+karten:
+  - f: "Welcher Befehl zeigt alle lauschenden TCP- und UDP-Ports mit Prozess, ohne Namensauflösung?"
+    a: ["ss -tulpn", "ss -tlnpu", "netstat -tulpn"]
+  - f: "Wie findest du mit lsof den Prozess, der Port 4444 benutzt?"
+    a: ["lsof -i :4444"]
+  - f: "Mit welcher Option schreibt tcpdump den Mitschnitt in eine Datei?"
+    a: ["-w", "-w DATEI"]
+  - f: "Wie liest tcpdump einen gespeicherten Mitschnitt?"
+    a: ["tcpdump -r DATEI", "-r"]
+  - f: "Was bewirkt -n bei tcpdump?"
+    a: ["keine namensauflösung", "adressen werden nicht in namen umgewandelt"]
+  - f: "Wie prüfst du mit nc, ob auf srv1 Port 22 offen ist, ohne Daten zu senden?"
+    a: ["nc -zv srv1 22", "nc -z srv1 22"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Zuordnung from '../components/Zuordnung.astro';
+import Lueckentext from '../components/Lueckentext.astro';
+
+Die Firewall des Instituts meldet: Von 192.168.1.23 gehen seit Tagen alle paar Sekunden kleine Pakete an 203.0.113.66, Port 4444. Das ist werkstatt. Niemand im Labor kennt diese Adresse. **Deine Mission: Finde die Verbindung, den Prozess dahinter und den Weg, auf dem er startet. Sichere einen Mitschnitt als Beweis, beende den Spuk und zeig, dass danach Ruhe ist.** Lernziel 205.2.
+
+## Wer redet mit wem?
+
+<Karte nr={1} titel="ss, netstat und lsof">
+Jede Netzverbindung ist für den Kernel ein **Socket**. Drei Werkzeuge zeigen sie:
+
+```
+ss -tulpn          # t TCP, u UDP, l nur lauschende, p Prozess, n Zahlen statt Namen
+ss -tnp            # bestehende TCP-Verbindungen mit Prozess
+netstat -tulpn     # dasselbe mit net-tools
+lsof -i :4444      # alle Sockets mit Port 4444, lokal oder entfernt
+lsof -i TCP -n -P  # alle TCP-Sockets, ohne Namen und Portnamen
+```
+
+Den Prozess zum Socket sehen ss und netstat nur als root vollständig. Ohne root bleibt die Spalte bei fremden Prozessen leer.
+
+Lauschende Sockets auf `0.0.0.0` oder `[::]` sind aus allen Netzen erreichbar, solche auf `127.0.0.1` nur vom Rechner selbst. Ob ein Port von außen offen aussieht, prüft man von einem anderen Rechner aus mit `nc -zv werkstatt 22` oder `nmap werkstatt`.
+</Karte>
+
+<Quiz id="k1" titel="Kurzcheck: Sockets" fragen={[
+  { frage: 'ss -tlnp zeigt „LISTEN 127.0.0.1:631“. Wer kann diesen Dienst erreichen?', richtig: 'Nur Programme auf werkstatt selbst', falsch: ['Alle Rechner im Büronetz', 'Niemand, der Dienst lauscht nur, er antwortet nicht'], erklaerung: '127.0.0.1 ist die Loopback-Adresse. 0.0.0.0 hieße: auf allen Adressen.' },
+]} />
+
+## tcpdump
+
+<Karte nr={2} titel="Pakete ansehen">
+**tcpdump** zeigt, was wirklich über eine Schnittstelle geht. Es braucht root (oder die Fähigkeit CAP_NET_RAW) und schaltet die Karte in den Promiscuous Mode.
+
+```
+sudo tcpdump -i enp0s31f6 -n -c 10                        # zehn Pakete, ohne Namen
+sudo tcpdump -nn port 4444                                 # auch Ports als Zahl
+sudo tcpdump -n "host 203.0.113.66 and tcp"
+sudo tcpdump -n "udp and (port 53 or port 123)"            # Klammern in Anführungszeichen
+sudo tcpdump -n -w beweis.pcap host 203.0.113.66           # in eine Datei schreiben
+tcpdump -n -r beweis.pcap                                  # Datei lesen, auch ohne root
+```
+
+Ohne `-c` läuft tcpdump, bis man Strg+C drückt, und zählt dann die mitgeschnittenen Pakete. Der Filter (pcap-filter) kennt `host`, `net`, `port`, die Richtungen `src` und `dst`, die Protokolle `tcp`, `udp`, `icmp`, `arp` und die Verknüpfungen `and`, `or`, `not`. Eine Zeile sieht so aus:
+
+```
+08:41:12.301000 IP 192.168.1.23.50644 > 203.0.113.66.4444: Flags [P.], seq 88321:88449, ack 1, win 502, length 128
+```
+
+Zeit, Absender mit Port, Empfänger mit Port, TCP-Flags (S = SYN, P = PUSH, . = ACK, F = FIN, R = RST) und die Länge der Nutzdaten. Mitschnitte im pcap-Format öffnet auch **Wireshark** grafisch.
+</Karte>
+
+<Zuordnung id="zuordnung" titel="Zuordnung: Welcher Filter?" aufgabe="Ordne jeder Absicht den passenden tcpdump-Filter zu." paare={[
+  { links: 'Nur Namensauflösung', rechts: 'udp port 53' },
+  { links: 'Alles von und zu einem Rechner', rechts: 'host 203.0.113.66' },
+  { links: 'Nur Pakete, die werkstatt verschickt', rechts: 'src host 192.168.1.23' },
+  { links: 'Alles außer der eigenen SSH-Sitzung', rechts: 'not port 22' },
+  { links: 'Nur Adressauflösung im LAN', rechts: 'arp' },
+]} />
+
+<Merke>ss -tulpn und lsof -i finden Sockets und Prozesse. tcpdump -n -c ANZAHL FILTER zeigt Pakete, -w schreibt, -r liest. Filter: host, net, port, src, dst, and, or, not.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: tcpdump" fragen={[
+  { frage: 'Warum ist „not port 22“ beim Mitschneiden über SSH fast immer sinnvoll?', richtig: 'Sonst schneidet tcpdump die eigene SSH-Sitzung mit, die durch die Ausgabe ständig neue Pakete erzeugt.', falsch: ['Port 22 lässt sich aus rechtlichen Gründen nicht mitschneiden.', 'tcpdump stürzt bei verschlüsseltem Verkehr ab.'], erklaerung: 'Jede Zeile auf dem Bildschirm erzeugt SSH-Pakete, die wieder als Zeilen erscheinen.' },
+  { frage: 'Was zeigt tcpdump -e zusätzlich?', richtig: 'Die MAC-Adressen von Absender und Empfänger', falsch: ['Den Inhalt der Pakete als Text', 'Die Prozesse, die die Pakete verschickt haben'], erklaerung: 'Den Inhalt zeigen -A (ASCII) und -X (hex und ASCII). Prozesse kennt tcpdump nicht.' },
+]} />
+
+<Lueckentext id="luecke" titel="Lückentext: Der Fremde auf Port 4444" aufgabe="Ergänze die Befehle."
+  code={`$ sudo ss -___p
+$ sudo lsof -i ___
+$ sudo tcpdump -n -c 5 ___ 4444
+$ sudo tcpdump -n -c 20 -___ beweis.pcap host 203.0.113.66`}
+  luecken={[
+    { loesungen: ['tn', 'tan', 'nt', 'atn'] },
+    { loesungen: [':4444', 'tcp:4444', 'TCP:4444'] },
+    { loesungen: ['port'] },
+    { loesungen: ['w'] },
+  ]} />
+
+<Terminal id="lauschen" titel="Terminal: Wer funkt nach 203.0.113.66?" welt={{ netzwerk: { geheim: true } }} aufgaben={[
+  { text: 'Sieh dir die bestehenden TCP-Verbindungen an, mit Zahlen statt Namen.', befehl: '^(ss|netstat) -[a-z]*t[a-z]*n|^(ss|netstat) -[a-z]*n[a-z]*t', frage: 'Von welchem lokalen Port geht die Verbindung nach 203.0.113.66 aus?', antwort: ['50644'] },
+  { text: 'Finde den Prozess hinter der Verbindung.', befehl: '(ss -[a-z]*p|netstat -[a-z]*p|lsof -i)', frage: 'Welche PID hat er?', antwort: ['2777'] },
+  { text: 'Installier tcpdump und sieh dir fünf Pakete dieser Verbindung an.', befehl: 'tcpdump .*port 4444|tcpdump .*host 203\\.0\\.113\\.66', frage: 'Wie viele Byte Nutzdaten trägt jedes Paket? (length)', antwort: ['128'] },
+  { text: 'Sichere als Beweis einen Mitschnitt aller Pakete von und zu 203.0.113.66 in /tmp/beweis.pcap.', zustand: 'datei:/tmp/beweis.pcap~203\\.0\\.113\\.66 && nicht:datei:/tmp/beweis.pcap~"dp":53' },
+  { text: 'Finde heraus, wo das Programm liegt und wie es bei jeder Anmeldung startet.', befehl: '(ps .*|pgrep -a .*|ls -l /proc/2777/exe|cat /proc/2777/cmdline|grep -r .*updater .*autostart|ls .*autostart)', frage: 'In welchem Verzeichnis steht die Datei, die es startet? (vollständiger Pfad)', antwort: ['/home/lena/.config/autostart', '/home/lena/.config/autostart/', '~/.config/autostart'] },
+  { text: 'Beende den Prozess und entferne den Autostart-Eintrag.', zustand: 'geheim:weg && fehlt:/home/lena/.config/autostart/updater.desktop' },
+  { text: 'Zeig mit tcpdump, dass jetzt Ruhe ist.', befehl: 'tcpdump .*(port 4444|host 203\\.0\\.113\\.66)', frage: 'Wie viele Pakete hat tcpdump mitgeschnitten?', antwort: ['0', 'keine'] },
+]} />
+
+<Labor id="labor" titel="Labor: tcpdump auf srv1"
+  aufgabe="Schneide auf srv1 ein paar Pakete der Namensauflösung mit, während du einen Namen auflöst. Füge die Ausgabe ein."
+  befehl={"sudo apt install -y tcpdump\n(sleep 2; getent hosts debian.org >/dev/null) &\nsudo timeout 10 tcpdump -n -c 4 -i any port 53"}
+  muster={["listening on any", "\\.53[: ]", "packets captured"]}
+  erfolg="Du siehst die Frage nach debian.org und die Antwort des Nameservers. Fragt srv1 über systemd-resolved, läuft die Anfrage zuerst an 127.0.0.53 und von dort weiter, darum lohnt -i any." />
+
+<Hinweis titel="Prüfungstipp">
+Das Lernziel 205.2 nennt ss, netstat, lsof, ping, ping6, nc, tcpdump und nmap. Für tcpdump solltest du -i, -n, -c, -w und -r sowie einfache Filter mit host, port und and/or/not lesen und schreiben können.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Welcher Befehl zeigt, welcher Prozess auf werkstatt Port 80 belegt?', richtig: 'ss -tlnp | grep :80', falsch: ['tcpdump -n port 80', 'ping -p 80 werkstatt'], erklaerung: 'Ebenso lsof -i :80 oder netstat -tlnp. tcpdump sieht Pakete, aber keine Prozesse.' },
+  { frage: 'tcpdump -n -r beweis.pcap funktioniert auch ohne root. Warum?', richtig: 'Beim Lesen einer Datei wird keine Schnittstelle geöffnet, es reichen Leserechte auf die Datei.', falsch: ['tcpdump hat das SUID-Bit gesetzt.', 'Beim Lesen werden nur die Kopfzeilen angezeigt, keine Pakete.'], erklaerung: 'Root oder CAP_NET_RAW braucht nur das Mitschneiden an einer Schnittstelle.' },
+  { frage: 'nc -zv 192.168.1.40 9100 meldet „succeeded“. Was heißt das?', richtig: 'Auf dem Drucker nimmt ein Dienst TCP-Verbindungen an Port 9100 an.', falsch: ['Der Drucker hat 9100 Seiten in der Warteschlange.', 'Port 9100 ist auf werkstatt geöffnet.'], erklaerung: '-z baut die Verbindung nur auf und schließt sie gleich wieder, -v zeigt das Ergebnis.' },
+]} />

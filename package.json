@@ -12,7 +12,7 @@
     "build": "astro build",
     "preview": "astro preview",
     "test:fragen": "node tests/fragen.mjs",
-    "test:vergleich": "docker run --rm -v \"$PWD:/w\" -w /w debian:bookworm bash -c 'apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq openssh-server sudo python3 >/dev/null && python3 tests/vergleich/echt.py debian-12 tests/.build/echt.json' && node tests/vergleich/simulator.mjs debian tests/.build/sim.json && node tests/vergleich/vergleiche.mjs tests/.build/echt.json tests/.build/sim.json",
+    "test:vergleich": "docker run --rm --cap-add NET_ADMIN -v \"$PWD:/w\" -w /w debian:bookworm bash -c 'apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq openssh-server sudo python3 iproute2 wpasupplicant >/dev/null && python3 tests/vergleich/echt.py debian-12 tests/.build/echt.json' && node tests/vergleich/simulator.mjs debian tests/.build/sim.json && node tests/vergleich/vergleiche.mjs tests/.build/echt.json tests/.build/sim.json",
     "test:e2e": "python3 tests/e2e.py"
   },
   "dependencies": {

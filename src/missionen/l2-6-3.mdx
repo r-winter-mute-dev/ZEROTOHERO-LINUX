@@ -1,0 +1,170 @@
+---
+id: l2-6-3
+checks:
+  - id: k1
+  - id: zuordnung
+  - id: k2
+  - id: luecke
+  - id: wlan
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "Funk freigeben"
+    v: "rfkill (oder rfkill list) · rfkill unblock wifi · Hard blocked = Schalter oder BIOS · ip link set wlp2s0 up"
+  - t: "Sehen"
+    v: "iw dev · iw dev wlp2s0 link · iw dev wlp2s0 scan (root) · iw list · iw reg get · alt: iwconfig, iwlist wlp2s0 scan (Paket wireless-tools)"
+  - t: "Verbinden (WPA2)"
+    v: "wpa_passphrase SSID PASSWORT > /etc/wpa_supplicant/wpa_supplicant-wlp2s0.conf · chmod 600 · #psk-Zeile löschen · wpa_supplicant -B -i wlp2s0 -c DATEI · wpa_cli status"
+  - t: "Adresse"
+    v: "dhclient -v wlp2s0 · dhclient -r wlp2s0 · Standardroute ohne Metrik schlägt die Route mit Metrik 100"
+  - t: "Dauerhaft"
+    v: "Debian: systemctl enable wpa_supplicant@wlp2s0 plus /etc/network/interfaces (iface wlp2s0 inet dhcp) · sonst NetworkManager: nmcli device wifi connect SSID password PW"
+karten:
+  - f: "Mit welchem Befehl hebst du einen Soft-Block der WLAN-Karte auf?"
+    a: ["rfkill unblock wifi", "rfkill unblock wlan", "rfkill unblock all"]
+  - f: "Welcher Befehl zeigt, mit welchem Access Point wlp2s0 verbunden ist?"
+    a: ["iw dev wlp2s0 link", "iwconfig wlp2s0"]
+  - f: "Welches Programm erledigt die WPA2-Anmeldung?"
+    a: ["wpa_supplicant"]
+  - f: "Was erzeugt wpa_passphrase?"
+    a: ["einen network-block mit dem psk", "den psk für wpa_supplicant.conf"]
+  - f: "Zu welchem Paket gehören iwconfig und iwlist?"
+    a: ["wireless-tools"]
+  - f: "Kann iw connect ein WPA2-Netz verbinden?"
+    a: ["nein", "nein, nur offene netze und wep"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Zuordnung from '../components/Zuordnung.astro';
+import Lueckentext from '../components/Lueckentext.astro';
+
+Morgen tauscht die Haustechnik den Switch im Labor, das Kabelnetz ist dann für ein paar Stunden weg. werkstatt hat eine WLAN-Karte, die aber nie benutzt wurde: NetworkManager ist für sie abgeschaltet, und irgendwer hat den Funk blockiert. **Deine Mission: Gib die WLAN-Karte frei, finde das Labor-WLAN, verbinde dich ohne NetworkManager per wpa_supplicant (Passwort: Werkstatt2026) und hol dir eine Adresse.** Lernziel 205.1.
+
+## Funk ein, Funk aus
+
+<Karte nr={1} titel="rfkill und die Werkzeuge für WLAN">
+Bevor eine WLAN-Karte senden darf, prüft der Kernel den **rfkill**-Zustand. Ein **Soft-Block** ist ein Software-Schalter, etwa durch eine Funktionstaste, den Flugmodus oder `rfkill block`. Ein **Hard-Block** kommt von einem echten Schalter oder dem BIOS und lässt sich aus Linux heraus nicht aufheben.
+
+```
+$ rfkill
+ID TYPE      DEVICE      SOFT      HARD
+ 1 wlan      phy0     blocked unblocked
+$ sudo rfkill unblock wifi
+```
+
+Solange ein Block besteht, scheitern `ip link set wlp2s0 up` und jeder Scan mit „Operation not possible due to RF-kill“.
+
+Für WLAN gibt es zwei Werkzeugfamilien:
+
+- **iw** (aktuell, nl80211): `iw dev`, `iw dev wlp2s0 link`, `iw dev wlp2s0 scan`, `iw list`, `iw reg get`.
+- **wireless-tools** (veraltet, Wireless Extensions): `iwconfig` zeigt und setzt ESSID, Modus und Sendeleistung, `iwlist wlp2s0 scan` sucht Netze. Auf vielen Systemen nicht mehr installiert.
+
+Scannen braucht root, ohne root zeigen die Werkzeuge höchstens zwischengespeicherte Ergebnisse.
+</Karte>
+
+<Zuordnung id="zuordnung" titel="Zuordnung: Welcher Befehl?" aufgabe="Ordne jeder Aufgabe den passenden Befehl zu." paare={[
+  { links: 'Funk-Block aufheben', rechts: 'rfkill unblock wifi' },
+  { links: 'Verbindung zum Access Point zeigen', rechts: 'iw dev wlp2s0 link' },
+  { links: 'Netze suchen mit wireless-tools', rechts: 'iwlist wlp2s0 scan' },
+  { links: 'WPA2-Schlüssel berechnen', rechts: 'wpa_passphrase' },
+  { links: 'Adresse per DHCP holen', rechts: 'dhclient wlp2s0' },
+]} />
+
+## Anmelden mit wpa_supplicant
+
+<Karte nr={2} titel="Vom Passwort zum PSK">
+`iw dev wlp2s0 connect SSID` verbindet nur mit offenen Netzen oder WEP. Für **WPA2** und **WPA3** braucht es **wpa_supplicant**. Der Dienst handelt mit dem Access Point die Schlüssel aus und hält die Verbindung.
+
+Die Konfiguration erzeugt `wpa_passphrase`. Es rechnet aus Passwort und SSID den 256-Bit-**PSK** (PBKDF2 mit 4096 Runden):
+
+```
+$ wpa_passphrase Labor-WLAN Werkstatt2026 | sudo tee /etc/wpa_supplicant/wpa_supplicant-wlp2s0.conf
+network={
+	ssid="Labor-WLAN"
+	#psk="Werkstatt2026"
+	psk=9b8f6fba7006590e7e400d939dfe005db4830a496e54a0b540f6c32c90d356c9
+}
+```
+
+Die Zeile `#psk=` enthält das Passwort im Klartext und gehört gelöscht, die Datei bekommt die Rechte 600. Dann:
+
+```
+sudo wpa_supplicant -B -i wlp2s0 -c /etc/wpa_supplicant/wpa_supplicant-wlp2s0.conf
+sudo wpa_cli status                  # wpa_state=COMPLETED heißt verbunden
+iw dev wlp2s0 link
+sudo dhclient -v wlp2s0              # Adresse, Gateway und DNS per DHCP
+```
+
+`-B` schickt den Dienst in den Hintergrund. Auf Debian startet `systemctl enable --now wpa_supplicant@wlp2s0` genau diese Datei bei jedem Start.
+
+Wo **NetworkManager** läuft, übernimmt er das alles selbst (`nmcli device wifi connect Labor-WLAN password …`) und startet wpa_supplicant über D-Bus. Beides gleichzeitig auf derselben Karte geht nicht gut. Darum ist wlp2s0 auf werkstatt in /etc/NetworkManager/conf.d/ als `unmanaged` eingetragen.
+</Karte>
+
+<Merke>rfkill unblock, ip link set up, iw scan, wpa_passphrase, wpa_supplicant -B -i -c, dhclient. Die #psk-Zeile löschen, Datei chmod 600.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: WLAN" fragen={[
+  { frage: 'rfkill zeigt beim WLAN „HARD blocked“. Was hilft?', richtig: 'Den Funkschalter am Gerät oder die Einstellung im BIOS umstellen', falsch: ['rfkill unblock wifi', 'nmcli radio wifi on'], erklaerung: 'Ein Hard-Block liegt außerhalb der Software.' },
+  { frage: 'Warum sollte man die Zeile #psk="…" aus der Datei von wpa_passphrase entfernen?', richtig: 'Sie enthält das WLAN-Passwort im Klartext, wpa_supplicant braucht nur den berechneten PSK.', falsch: ['wpa_supplicant bricht sonst mit einem Syntaxfehler ab.', 'Mit dieser Zeile nutzt wpa_supplicant nur WPA statt WPA2.'], erklaerung: 'Die Raute macht die Zeile zum Kommentar, schadet also nicht dem Ablauf, aber der Geheimhaltung.' },
+]} />
+
+## Zwei Standardrouten
+
+<Karte nr={3} titel="Wenn Kabel und Funk gleichzeitig da sind">
+`dhclient` trägt die Standardroute ohne Metrik ein, also mit 0. NetworkManager vergibt für Kabel 100 und für WLAN 600. Sind beide da, gewinnt bei gleich langem Präfix die **kleinere Metrik**:
+
+```
+default via 192.168.2.1 dev wlp2s0 proto dhcp src 192.168.2.31
+default via 192.168.1.1 dev enp0s31f6 proto dhcp src 192.168.1.23 metric 100
+```
+
+Damit geht plötzlich der ganze Verkehr über das langsamere WLAN, obwohl das Kabel noch steckt. `ip route get ZIEL` zeigt, welcher Weg gilt. Ändern lässt sich das mit `ip route replace default via 192.168.2.1 dev wlp2s0 metric 700` oder dauerhaft über die Metrik im jeweiligen Werkzeug.
+</Karte>
+
+<Quiz id="k2" titel="Kurzcheck: Metrik" fragen={[
+  { frage: 'Es gibt default über enp0s31f6 mit metric 100 und default über wlp2s0 mit metric 600. Welcher Weg gilt?', richtig: 'Über enp0s31f6', falsch: ['Über wlp2s0, weil die größere Metrik Vorrang hat', 'Abwechselnd über beide'], erklaerung: 'Kleinere Metrik gewinnt. Fällt das Kabel weg, verschwindet seine Route, und die WLAN-Route springt ein.' },
+]} />
+
+<Lueckentext id="luecke" titel="Lückentext: WLAN ohne NetworkManager" aufgabe="Ergänze die Befehle."
+  code={`$ sudo rfkill ___ wifi
+$ sudo iw dev wlp2s0 ___ | grep SSID
+$ wpa_passphrase Labor-WLAN Werkstatt2026 | sudo tee /etc/wpa_supplicant/wpa_supplicant-wlp2s0.conf
+$ sudo wpa_supplicant ___ -i wlp2s0 -c /etc/wpa_supplicant/wpa_supplicant-wlp2s0.conf
+$ sudo ___ -v wlp2s0`}
+  luecken={[
+    { loesungen: ['unblock'] },
+    { loesungen: ['scan'] },
+    { loesungen: ['-B'] },
+    { loesungen: ['dhclient'] },
+  ]} />
+
+<Terminal id="wlan" titel="Terminal: werkstatt geht ins WLAN" welt={{ netzwerk: { wlan: 'blockiert' } }} aufgaben={[
+  { text: 'Finde heraus, wie die WLAN-Karte heißt und ob sie funken darf.', befehl: '^(sudo )?rfkill( list)?$', frage: 'Welche Art von Block liegt auf dem WLAN? (soft oder hard)', antwort: ['soft', 'soft blocked'] },
+  { text: 'Heb den Block auf und schalte die Schnittstelle ein.', zustand: 'rfkill:wlan=frei && link:wlp2s0=up' },
+  { text: 'Such nach Funknetzen mit iw.', befehl: 'iw (dev )?wlp2s0 scan', frage: 'Auf welchem Kanal sendet Labor-WLAN?', antwort: ['36'] },
+  { text: 'Installier die alten wireless-tools und prüf mit iwconfig, ob die Karte schon verbunden ist.', befehl: 'iwconfig', frage: 'Welche ESSID zeigt iwconfig?', antwort: ['off/any'] },
+  { text: 'Erzeug /etc/wpa_supplicant/wpa_supplicant-wlp2s0.conf für Labor-WLAN. Kein Klartext-Passwort in der Datei, nur root darf sie lesen.', zustand: 'datei:/etc/wpa_supplicant/wpa_supplicant-wlp2s0.conf~psk=9b8f6fba7006590e7e400d939dfe005db4830a496e54a0b540f6c32c90d356c9 && nicht:datei:/etc/wpa_supplicant/wpa_supplicant-wlp2s0.conf~#psk && modus:/etc/wpa_supplicant/wpa_supplicant-wlp2s0.conf=600' },
+  { text: 'Starte wpa_supplicant im Hintergrund mit dieser Datei.', zustand: 'wlan:verbunden=Labor-WLAN' },
+  { text: 'Hol dir per DHCP eine Adresse für wlp2s0.', zustand: 'dhcp:wlp2s0 && addr:wlp2s0=192.168.2.31/24' },
+  { text: 'Prüf, über welche Schnittstelle werkstatt jetzt www.example.org (203.0.113.80) erreicht.', befehl: 'ip (r|route) get 203\\.0\\.113\\.80', frage: 'Welche Schnittstelle ist es?', antwort: ['wlp2s0'] },
+]} />
+
+<Labor id="labor" titel="Labor: WLAN-Werkzeuge auf deinem Rechner"
+  aufgabe="Auf srv1 gibt es kein WLAN. Lies stattdessen auf einem Rechner mit WLAN-Karte den Zustand aus. Ohne WLAN-Karte zeigt die Ausgabe zumindest, dass keine vorhanden ist. Füge sie ein."
+  befehl={"rfkill\niw dev\nwpa_passphrase Testnetz einPasswort123"}
+  muster={["ID\\s+TYPE|rfkill", "psk=[0-9a-f]{64}"]}
+  erfolg="Der PSK hängt nur von Passwort und SSID ab. Dasselbe Passwort ergibt in einem Netz mit anderem Namen einen völlig anderen Schlüssel. Darum lassen sich vorberechnete Tabellen nur für häufige SSIDs nutzen." />
+
+<Hinweis titel="Prüfungstipp">
+Das Lernziel 205.1 nennt iw, iwconfig und iwlist und verlangt „grundlegenden Zugang zu Funknetzen“. wpa_supplicant und rfkill stehen nicht in der Liste, ohne sie kommt man in der Praxis aber an kein WPA2-Netz.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'iw dev wlp2s0 scan meldet „Network is down (-100)“. Was fehlt?', richtig: 'ip link set wlp2s0 up', falsch: ['rfkill unblock wifi', 'Ein laufender wpa_supplicant'], erklaerung: 'Bei einem Funk-Block hieße die Meldung „Operation not possible due to RF-kill“.' },
+  { frage: 'Welcher Befehl zeigt mit wireless-tools die Funknetze in Reichweite?', richtig: 'iwlist wlp2s0 scan', falsch: ['iwconfig wlp2s0 scan', 'iw list'], erklaerung: 'iw list zeigt die Fähigkeiten der Karte, nicht die Netze.' },
+  { frage: 'wpa_supplicant meldet „ctrl_iface exists and seems to be in use“. Was ist los?', richtig: 'Für die Schnittstelle läuft schon ein wpa_supplicant, etwa von NetworkManager gestartet.', falsch: ['Die Konfigurationsdatei hat falsche Rechte.', 'Der Access Point lehnt die Anmeldung ab.'], erklaerung: 'Zwei Instanzen auf derselben Karte stören sich. Erst die eine beenden.' },
+]} />

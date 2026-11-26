@@ -14,21 +14,25 @@ dateien = dateien or sorted(str(p) for p in (HIER / 'faelle').glob('*.json'))
 umgebung = {**os.environ, 'LANG': os.environ.get('LTH_LANG', 'C.UTF-8'), 'LC_ALL': os.environ.get('LTH_LANG', 'C.UTF-8')}
 
 def version(befehl):
-    r = subprocess.run(befehl, shell=True, capture_output=True, text=True)
+    r = subprocess.run(befehl, shell=True, capture_output=True, text=True, stdin=subprocess.DEVNULL, timeout=30)
     return (r.stdout + r.stderr).strip().splitlines()[0] if (r.stdout + r.stderr).strip() else ''
 
 ergebnis = {'system': system, 'os': Path('/etc/os-release').read_text(), 'gruppen': {}}
 for d in dateien:
     gruppe = json.loads(Path(d).read_text(encoding='utf-8'))
     for v in gruppe.get('vorbereitung', []):
-        subprocess.run(v, shell=True, capture_output=True, env=umgebung)
+        subprocess.run(v, shell=True, capture_output=True, env=umgebung, stdin=subprocess.DEVNULL, timeout=120)
     liste = []
     for fall in gruppe['faelle']:
         for pfad, inhalt in fall['dateien'].items():
             Path(pfad).write_text(inhalt['inhalt'], encoding='utf-8')
             os.chmod(pfad, int(inhalt.get('modus', '600'), 8))
-        r = subprocess.run(fall['befehl'], shell=True, capture_output=True, text=True, env=umgebung, timeout=60)
+        for v in fall.get('vorher', []):
+            subprocess.run(v, shell=True, capture_output=True, env=umgebung, timeout=60, stdin=subprocess.DEVNULL)
+        r = subprocess.run(fall['befehl'], shell=True, capture_output=True, text=True, env=umgebung, timeout=60, stdin=subprocess.DEVNULL)
         liste.append({'name': fall['name'], 'code': r.returncode, 'ausgabe': (r.stdout + r.stderr).strip()})
+        for v in fall.get('aufraeumen', []):
+            subprocess.run(v, shell=True, capture_output=True, env=umgebung, timeout=60, stdin=subprocess.DEVNULL)
         for pfad in fall['dateien']:
             Path(pfad).unlink(missing_ok=True)
     ergebnis['gruppen'][Path(d).stem] = {'version': version(gruppe.get('version', 'true')), 'faelle': liste}
