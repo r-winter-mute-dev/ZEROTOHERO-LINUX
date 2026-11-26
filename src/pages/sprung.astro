@@ -1,0 +1,101 @@
+---
+// Sprung-Codes: zu jeder Mission springen, ohne die vorherigen zu spielen.
+import Basis from '../layouts/Basis.astro';
+import { KAMPAGNEN } from '../data/kampagne';
+import { url } from '../config';
+---
+<Basis titel="Zu einer Mission springen" beschreibung="Sprung-Codes für alle Missionen: direkt einsteigen, wenn du den Stoff davor schon kannst.">
+  <section class="huelle text seite">
+    <h1>Zu einer Mission springen</h1>
+    <p>Normalerweise öffnet sich eine Mission erst, wenn du die davor geschafft hast. Kennst du den Stoff schon, etwa weil du LPIC-1 bereits hast, kannst du mit einem <strong>Sprung-Code</strong> direkt einsteigen.</p>
+    <ul>
+      <li>Ein Code schaltet nur seine Mission frei. Punkte und Abzeichen der übersprungenen Missionen bekommst du nicht.</li>
+      <li>Danach geht es wie gewohnt weiter: Schaffst du die Mission, öffnet sich die nächste.</li>
+      <li>Die Freischaltung gehört zu deinem Fortschritt und kommt im Fortschritts-Code mit.</li>
+    </ul>
+
+    <form class="eingabe" data-sp-form>
+      <label for="sp-code">Sprung-Code</label>
+      <div class="zeile">
+        <input id="sp-code" autocomplete="off" spellcheck="false" placeholder="L2-4-3-K7Q" required />
+        <button class="knopf" type="submit">Springen</button>
+      </div>
+      <p class="meldung" data-sp-meldung role="status"></p>
+    </form>
+
+    <h2>Alle Codes</h2>
+    <p class="leise klein">Ein Klick auf „Springen“ schaltet die Mission frei und öffnet sie. Mit dem Code <code>ALLE-FREI</code> öffnest du alle Missionen auf einmal, praktisch zum Ausprobieren und Testen.</p>
+    {KAMPAGNEN.map((k) => (
+      <details class="kampagne" open={k.nr === 1}>
+        <summary>Kampagne {k.nr} · {k.titel}</summary>
+        {k.akte.filter((a) => a.missionen.some((m) => m.bereit)).map((a) => (
+          <>
+            <h3>Akt {a.nr}: {a.titel} <span class="leise">({a.teilName})</span></h3>
+            <table class="codes">
+              <tbody>
+                {a.missionen.filter((m) => m.bereit).map((m) => (
+                  <tr data-sp-mission={m.id}>
+                    <td class="nr">{m.nr}</td>
+                    <td><a href={url(`mission/${m.id}`)}>{m.titel}</a> <span class="status leise klein" data-sp-status></span></td>
+                    <td><code data-sp-code></code></td>
+                    <td><button class="knopf zweit klein" type="button" data-sp-los>Springen</button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        ))}
+        {!k.akte.some((a) => a.missionen.some((m) => m.bereit)) && <p class="leise">Die Missionen dieser Kampagne werden gerade geschrieben.</p>}
+      </details>
+    ))}
+
+    <h2>Freischaltungen zurücknehmen</h2>
+    <p>Sperrt alle Missionen wieder, die du nur per Code geöffnet hast. Geschaffte Missionen bleiben geschafft.</p>
+    <button class="knopf zweit" type="button" data-sp-reset>Zurücknehmen</button>
+    <p class="meldung" data-sp-reset-meldung role="status"></p>
+  </section>
+</Basis>
+
+<script>
+  import { ALLE_MISSIONEN } from '../data/kampagne';
+  import { beiAenderung, freiZuruecknehmen, istFertig, istFreigeschaltet, laden, sprungCode, sprungEinloesen } from '../scripts/engine';
+  import { url } from '../config';
+  const ids = ALLE_MISSIONEN.filter((m) => m.bereit).map((m) => m.id);
+  const $ = <T extends HTMLElement = HTMLElement>(s: string) => document.querySelector<T>(s)!;
+  function zeigen() {
+    const frei = laden().frei ?? [];
+    document.querySelectorAll<HTMLElement>('[data-sp-mission]').forEach((tr) => {
+      const id = tr.dataset.spMission!;
+      tr.querySelector('[data-sp-code]')!.textContent = sprungCode(id);
+      tr.querySelector('[data-sp-status]')!.textContent = istFertig(id) ? '· geschafft' : frei.includes(id) || frei.includes('*') ? '· per Code offen' : istFreigeschaltet(id) ? '· offen' : '';
+    });
+  }
+  function springen(code: string) {
+    const r = sprungEinloesen(code, ids);
+    const m = $('[data-sp-meldung]');
+    if (!r.ok) { m.textContent = r.fehler!; m.className = 'meldung fehler'; return; }
+    if (r.id === '*') { m.textContent = 'Alle Missionen sind jetzt offen.'; m.className = 'meldung gut'; zeigen(); return; }
+    location.href = url(`mission/${r.id}`);
+  }
+  $<HTMLFormElement>('[data-sp-form]').addEventListener('submit', (e) => { e.preventDefault(); springen($<HTMLInputElement>('#sp-code').value); });
+  document.querySelectorAll<HTMLButtonElement>('[data-sp-los]').forEach((b) => b.addEventListener('click', () => springen(sprungCode(b.closest<HTMLElement>('[data-sp-mission]')!.dataset.spMission!))));
+  $('[data-sp-reset]').addEventListener('click', () => { freiZuruecknehmen(); const m = $('[data-sp-reset-meldung]'); m.textContent = 'Erledigt. Per Code geöffnete Missionen sind wieder gesperrt.'; m.className = 'meldung gut'; });
+  // Aufruf mit #CODE springt direkt, etwa …/sprung#L2-4-3-K7Q
+  if (location.hash.length > 1) springen(decodeURIComponent(location.hash.slice(1)));
+  zeigen();
+  beiAenderung(zeigen);
+</script>
+
+<style>
+  .eingabe { margin: 1.5rem 0; }
+  .eingabe .zeile { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+  .eingabe input { font-family: var(--mono); font-size: 1rem; padding: 0.45rem 0.6rem; background: var(--tief); color: var(--text); border: 1px solid var(--flaeche); border-radius: var(--radius-klein); min-width: 14rem; text-transform: uppercase; }
+  .kampagne { margin: 1rem 0; border: 1px solid var(--flaeche); border-radius: var(--radius); padding: 0.6rem 1rem; background: var(--flaeche-leicht); }
+  .kampagne summary { cursor: pointer; font-weight: 700; }
+  .kampagne h3 { font-size: 1.05rem; margin: 1.2rem 0 0.4rem; }
+  .codes { width: 100%; border-collapse: collapse; }
+  .codes td { padding: 0.3rem 0.4rem; border-top: 1px solid var(--flaeche); vertical-align: middle; }
+  .codes .nr { width: 4.5rem; color: var(--leise); white-space: nowrap; }
+  .codes code { white-space: nowrap; }
+  .codes td:last-child { text-align: right; width: 1%; }
+</style>

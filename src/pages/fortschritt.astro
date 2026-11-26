@@ -1,5 +1,6 @@
 ---
 import Basis from '../layouts/Basis.astro';
+import { url } from '../config';
 const dateien = import.meta.glob('../missionen/*.mdx', { eager: true }) as Record<string, { frontmatter: any }>;
 const abzeichen = Object.values(dateien).map((d) => d.frontmatter?.abzeichen).filter(Boolean) as string[];
 ---
@@ -26,6 +27,9 @@ const abzeichen = Object.values(dateien).map((d) => d.frontmatter?.abzeichen).fi
       <p><button class="knopf" type="submit">Fortschritt laden</button></p>
       <p class="meldung" data-fs-meldung role="status"></p>
     </form>
+
+    <h2>Zu einer Mission springen</h2>
+    <p>Du kennst den Stoff schon? Mit einem <a href={url('sprung')}>Sprung-Code</a> öffnest du jede Mission direkt.</p>
 
     <h2>Neu anfangen</h2>
     <p>Löscht deinen gesamten Fortschritt in diesem Browser.</p>

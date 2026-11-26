@@ -44,7 +44,7 @@ export function station(el: HTMLElement): Station {
       if (s.darf()) return false;
       const v = vorherige(mid);
       s.melden(v
-        ? `Noch gesperrt: Schließe zuerst Mission ${v.nr} „${v.titel}“ ab. Hast du dort Aufgaben im Labor übersprungen, setze dort den Haken „ohne Labor“.`
+        ? `Noch gesperrt: Schließe zuerst Mission ${v.nr} „${v.titel}“ ab. Hast du dort Aufgaben im Labor übersprungen, setze dort den Haken „ohne Labor“. Kennst du den Stoff schon, hilft ein Sprung-Code (Link ganz unten auf der Seite).`
         : 'Diese Mission ist noch gesperrt.', 'warnung');
       return true;
     },

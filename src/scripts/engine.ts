@@ -17,6 +17,7 @@ export interface Zustand {
   abzeichen: string[];
   wiederholen: Record<string, Wiederholung>;   // Karteikarten und Prüfungsfragen im Wiederholsystem
   proben: { id: string; am: string; prozent: number; proZiel: Record<string, [number, number]> }[];
+  frei?: string[];                             // per Sprung-Code freigeschaltete Missionen, '*' = alle
 }
 
 export interface Wiederholung { box: number; faellig: string; richtig: number; falsch: number; }
@@ -59,8 +60,27 @@ export function istFertig(id: string): boolean { return !!laden().missionen[id];
 
 export function istFreigeschaltet(id: string): boolean {
   const v = vorherige(id);
-  return !v || istFertig(v.id);
+  const frei = laden().frei ?? [];
+  return !v || istFertig(v.id) || frei.includes(id) || frei.includes('*');
 }
+
+// ---------- Sprung-Codes ----------
+// Jede Mission hat einen festen Code. Er schaltet nur diese Mission frei: keine Punkte, keine Abzeichen,
+// die Missionen davor bleiben offen. ALLE-FREI schaltet alles frei (zum Ausprobieren und Testen).
+export const ALLE_FREI = 'ALLE-FREI';
+export function sprungCode(id: string): string {
+  return `${id.toUpperCase()}-${pruefsumme('sprung:' + id).slice(-3).toUpperCase()}`;
+}
+export function sprungEinloesen(code: string, ids: string[]): { ok: boolean; id?: string; fehler?: string } {
+  const c = code.trim().toUpperCase().replace(/\s+/g, '');
+  const z = laden();
+  if (c === ALLE_FREI) { speichern({ ...z, frei: ['*'] }); return { ok: true, id: '*' }; }
+  const id = ids.find((x) => sprungCode(x) === c);
+  if (!id) return { ok: false, fehler: 'Diesen Code gibt es nicht. Er sieht aus wie L2-4-3-K7Q.' };
+  speichern({ ...z, frei: [...new Set([...(z.frei ?? []), id])] });
+  return { ok: true, id };
+}
+export function freiZuruecknehmen() { const z = laden(); speichern({ ...z, frei: [] }); }
 
 export function checkBestanden(mid: string, cid: string): boolean {
   return !!laden().checks[mid]?.[cid];
