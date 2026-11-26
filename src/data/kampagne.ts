@@ -293,7 +293,7 @@ const LPIC2: Akt[] = [
   },
   {
     nr: 6, titel: 'Netzwerkkonfiguration', teil: 'l2-6', teilName: 'Topic 205',
-    ziel: 'Schnittstellen mit Adressen, VLANs und Routen einrichten, ARP verstehen, ins WLAN gehen, mehrere Netze verbinden, Verkehr mitschneiden und Netzwerkfehler auf Debian und Red Hat systematisch finden. 11 von 60 Fragen in Prüfung 202.',
+    ziel: 'Schnittstellen mit Adressen, VLANs und Routen einrichten, ARP verstehen, ins WLAN gehen, mehrere Netze verbinden, Verkehr mitschneiden und Netzwerkfehler auf Debian und Red Hat systematisch finden. 11 von 60 Fragen in Prüfung 201.',
     missionen: [
       m('l2-6-1', '6.1', 'Schnittstellen und Routen', 'Eine zweite Adresse mit Label, ein VLAN und eine Route ins Netz der Messgeräte einrichten.', 'iproute2 und net-tools, ip addr/link/route, Labels und Alias-Schnittstellen, MTU, VLAN 802.1Q, veth, dummy, route -n', 'Terminal-Simulator, Lückentext, Zuordnung, Quiz', { ziele: ['205.1'], bereit: true }),
       m('l2-6-2', '6.2', 'ARP und Nachbarn', 'Herausfinden, warum der neue Drucker nicht antwortet, und die Nachbartabelle aufräumen.', 'ARP, Neighbor Discovery, ip neigh, arp -n/-a/-s/-d/-f, Zustände REACHABLE bis PERMANENT, /etc/ethers, Gratuitous ARP', 'Terminal-Simulator, Reihenfolge, Lückentext, Quiz', { ziele: ['205.1'], bereit: true }),
