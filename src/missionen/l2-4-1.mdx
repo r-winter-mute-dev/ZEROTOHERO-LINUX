@@ -1,0 +1,152 @@
+---
+id: l2-4-1
+checks:
+  - id: k1
+  - id: zuordnung
+  - id: k2
+  - id: luecke
+  - id: einhaengen
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "Was ist eingehängt?"
+    v: "/proc/mounts (der Kernel) · /etc/mtab → ../proc/self/mounts · findmnt · mount ohne Argumente"
+  - t: "fstab-Felder"
+    v: "Gerät (UUID=…, LABEL=…) · Einhängepunkt · Typ · Optionen · dump (0) · fsck-Reihenfolge (1 = /, 2 = andere, 0 = nie)"
+  - t: "Kennungen"
+    v: "blkid · lsblk -f · /dev/disk/by-uuid/ · UUID gehört zum Dateisystem, PARTUUID zur Partition"
+  - t: "mount"
+    v: "mount -a (alles aus fstab außer noauto) · mount -o remount,ro /pfad · umount /pfad · sync schreibt Puffer"
+  - t: "Mount-Unit"
+    v: "Name aus dem Pfad: systemd-escape -p --suffix=mount /srv/daten → srv-daten.mount · [Mount] What= Where= Type= Options= · daemon-reload"
+karten:
+  - f: "Woher bekommt /etc/mtab heute seinen Inhalt?"
+    a: ["/proc/self/mounts", "vom kernel", "es ist ein link auf /proc/self/mounts", "../proc/self/mounts"]
+  - f: "Was steht im sechsten Feld einer fstab-Zeile?"
+    a: ["die reihenfolge für fsck beim start", "fsck-reihenfolge", "pass"]
+  - f: "Warum hängt man in der fstab besser per UUID ein als per /dev/sdb1?"
+    a: ["weil sich gerätenamen beim start ändern können", "die uuid bleibt gleich, der gerätename nicht"]
+  - f: "Mit welchem Befehl hängst du alles aus der fstab ein, was noch fehlt?"
+    a: ["mount -a"]
+  - f: "Wie heißt die Mount-Unit für /srv/daten?"
+    a: ["srv-daten.mount"]
+  - f: "Was tut sync?"
+    a: ["schreibt gepufferte daten auf die platte", "leert die schreibpuffer"]
+  - f: "Wie hängst du /srv/archiv im laufenden Betrieb nur lesbar ein?"
+    a: ["mount -o remount,ro /srv/archiv"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Zuordnung from '../components/Zuordnung.astro';
+import Lueckentext from '../components/Lueckentext.astro';
+
+In werkstatt steckt seit gestern eine zweite SSD mit drei Partitionen: Messdaten (ext4), Swap und ein Archiv (XFS). Eingehängt ist noch nichts. **Deine Mission: Finde heraus, was der Kernel eingehängt hat, trag das Archiv dauerhaft per UUID ein und häng die Messdaten über eine systemd-Mount-Unit ein.** Lernziel 203.1. Vieles kennst du aus LPIC-1 (104.3), hier geht es um die Feinheiten.
+
+## Wer weiß, was eingehängt ist?
+
+<Karte nr={1} titel="/proc/mounts, /etc/mtab und die fstab">
+Drei Dateien werden gern verwechselt:
+
+| Datei | Wer schreibt sie | Was steht drin |
+|---|---|---|
+| **/etc/fstab** | du | was beim Start eingehängt werden **soll** |
+| **/proc/mounts** | der Kernel | was gerade eingehängt **ist**, mit allen wirksamen Optionen |
+| **/etc/mtab** | früher `mount`, heute niemand | ein symbolischer Link auf `../proc/self/mounts` |
+
+Früher schrieb `mount` jede Einhängung selbst in /etc/mtab. Lief dabei etwas schief, stimmte die Datei nicht mehr. Heute zeigt sie einfach auf die Sicht des Kernels.
+
+Eine fstab-Zeile hat sechs Felder:
+
+```
+UUID=5a6b7c8d-…   /srv/archiv   xfs   defaults,noatime   0   0
+Gerät             Einhängepunkt Typ   Optionen           dump fsck
+```
+
+Das Gerät gibst du am besten als **UUID** an. Gerätenamen wie /dev/sdb3 vergibt der Kernel in der Reihenfolge, in der er Platten findet. Kommt ein USB-Stick dazu, kann aus sdb plötzlich sdc werden. Die UUID gehört zum Dateisystem und bleibt. `blkid` und `lsblk -f` zeigen sie, und unter `/dev/disk/by-uuid/` liegt für jede UUID ein Link aufs Gerät. Das fünfte Feld (dump) ist ein Überbleibsel und fast immer 0. Das sechste legt fest, ob und in welcher Reihenfolge fsck beim Start prüft: 1 für /, 2 für alle anderen, 0 für nie. XFS prüft man so nicht, dort steht 0.
+</Karte>
+
+<Merke>fstab = Soll, /proc/mounts = Ist, /etc/mtab = Link auf die Sicht des Kernels. In der fstab per UUID einhängen.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: Ist und Soll" fragen={[
+  { frage: 'Du willst wissen, mit welchen Optionen /srv/archiv gerade wirklich eingehängt ist. Wo schaust du nach?', richtig: 'In /proc/mounts.', falsch: ['In /etc/fstab.', 'In /etc/default/mount.'], erklaerung: 'Die fstab sagt, was beim Start geschehen soll. Was gilt, weiß nur der Kernel.' },
+]} />
+
+## Optionen, sync und Mount-Units
+
+<Karte nr={2} titel="Im laufenden Betrieb ändern">
+- `mount -a` hängt alles aus der fstab ein, was noch fehlt, außer Zeilen mit **noauto**.
+- `mount -o remount,ro /srv/archiv` ändert die Optionen, ohne auszuhängen. So machst du ein Dateisystem schnell schreibgeschützt.
+- `noatime` spart Schreibzugriffe, weil der Kernel nicht bei jedem Lesen die Zugriffszeit aktualisiert. `relatime` (Standard) aktualisiert sie nur selten.
+- **sync** schreibt alle Daten, die der Kernel noch im Speicher puffert, auf die Platten. `umount` tut das ohnehin für sein Dateisystem. Vor dem Abziehen eines Geräts oder einem harten Neustart ist sync aber eine gute Gewohnheit.
+
+systemd macht aus jeder fstab-Zeile eine **Mount-Unit**. Du kannst sie auch selbst schreiben, etwa wenn das Einhängen von einem Dienst abhängen soll. Der Dateiname muss zum Einhängepunkt passen: aus `/srv/daten` wird `srv-daten.mount`. Bindestriche im Pfad werden zu `\x2d`. Den Namen berechnet `systemd-escape -p --suffix=mount /srv/daten`.
+
+```ini
+[Unit]
+Description=Messdaten
+
+[Mount]
+What=/dev/disk/by-uuid/b7e1c2d3-…
+Where=/srv/daten
+Type=ext4
+Options=defaults
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Danach `systemctl daemon-reload` und `systemctl enable --now srv-daten.mount`. Hast du die fstab geändert, braucht systemd ebenfalls `daemon-reload`, sonst arbeitet es mit dem alten Stand.
+</Karte>
+
+<Zuordnung id="zuordnung" titel="Zuordnung: Welche Option?" aufgabe="Ordne jeder Wirkung die Option in der fstab zu." paare={[
+  { links: 'Beim Start nicht einhängen', rechts: 'noauto' },
+  { links: 'Zugriffszeiten nie schreiben', rechts: 'noatime' },
+  { links: 'Fehlendes Gerät blockiert den Start nicht', rechts: 'nofail' },
+  { links: 'Nur lesbar einhängen', rechts: 'ro' },
+  { links: 'Keine Programme von dort starten', rechts: 'noexec' },
+]} />
+
+<Quiz id="k2" titel="Kurzcheck: Mount-Units" fragen={[
+  { frage: 'Wie muss die Mount-Unit für den Einhängepunkt /srv/mess-daten heißen?', richtig: 'srv-mess\\x2ddaten.mount', falsch: ['srv-mess-daten.mount', 'srv/mess-daten.mount'], erklaerung: 'Schrägstriche werden zu Bindestrichen, echte Bindestriche zu \\x2d. systemd-escape rechnet das für dich aus.' },
+]} />
+
+<Lueckentext id="luecke" titel="Lückentext: Das Archiv in der fstab" aufgabe="Ergänze die Zeile: Archiv per UUID nach /srv/archiv, XFS, ohne Zugriffszeiten, keine Prüfung durch fsck beim Start."
+  code={`___=5a6b7c8d-9e0f-4a1b-8c2d-3e4f5a6b7c8d  /srv/archiv  ___  defaults,___  0  ___`}
+  luecken={[
+    { loesungen: ['UUID'] },
+    { loesungen: ['xfs'] },
+    { loesungen: ['noatime'] },
+    { loesungen: ['0'] },
+  ]} />
+
+<Terminal id="einhaengen" titel="Terminal: Die neue SSD in werkstatt" welt={{ neuePlatte: 'formatiert', dsys: {} }} aufgaben={[
+  { text: 'Schau, worauf /etc/mtab verweist.', befehl: '^ls -l\\w* /etc/mtab$|^readlink( -f)? /etc/mtab$|^file /etc/mtab$|^stat /etc/mtab$', frage: 'Welche Datei steht hinter dem Pfeil?', antwort: ['../proc/self/mounts', '/proc/self/mounts'] },
+  { text: 'Lies die Liste der Einhängungen direkt beim Kernel.', befehl: '^(cat|less|grep .*) /proc/(self/)?mounts', frage: 'Mit welchem Dateisystem ist / eingehängt?', antwort: ['ext4'] },
+  { text: 'Finde die UUID des Archivs auf /dev/sdb3.', befehl: '^(sudo )?(blkid( /dev/sdb3)?|lsblk -f.*)$|^ls -l /dev/disk/by-uuid/?$', frage: 'Mit welchen acht Zeichen beginnt sie?', antwort: ['5a6b7c8d'] },
+  { text: 'Trag das Archiv dauerhaft per UUID ein: Einhängepunkt /srv/archiv, XFS, mit noatime, ohne fsck beim Start.', zustand: 'datei:/etc/fstab~^UUID="?5a6b7c8d-9e0f-4a1b-8c2d-3e4f5a6b7c8d"?\\s+/srv/archiv/?\\s+xfs\\s+\\S*noatime\\S*\\s+0\\s+0' },
+  { text: 'Häng alles aus der fstab ein, ohne den Einhängepunkt einzeln zu nennen, und sag systemd Bescheid.', zustand: 'eingehaengt:/dev/sdb3=/srv/archiv && mountopt:/dev/sdb3~noatime', befehl: 'daemon-reload' },
+  { text: 'Das Archiv soll nur gelesen werden. Mach es im laufenden Betrieb schreibgeschützt.', zustand: 'mountopt:/dev/sdb3~^ro' },
+  { text: 'Lass alle Puffer schreiben und häng das Archiv aus.', befehl: '^(sudo )?sync$', zustand: 'ausgehaengt:/dev/sdb3' },
+  { text: 'Häng die Messdaten (/dev/sdb1) über eine eigene Mount-Unit nach /srv/daten, die auch beim Start greift. Das Gerät gibst du per UUID an.', zustand: 'unitaktiv:srv-daten.mount && eingehaengt:/dev/sdb1=/srv/daten && datei:/etc/systemd/system/srv-daten.mount~^What=(/dev/disk/by-uuid/|UUID=)b7e1c2d3' },
+]} />
+
+<Labor id="labor" titel="Labor: Einhängungen auf srv1"
+  aufgabe="Vergleiche auf srv1 Soll und Ist. Füge die Ausgabe ein."
+  befehl={"ls -l /etc/mtab\ngrep -v '^#' /etc/fstab\nfindmnt -t ext4,xfs,vfat\nsystemctl list-units --type=mount --no-pager | head"}
+  muster={["/etc/mtab -> \\.\\./proc/self/mounts", "TARGET", "\\.mount"]}
+  erfolg="Jede Zeile der fstab taucht als .mount-Unit wieder auf. Was in /proc/mounts steht, aber nicht in der fstab, hat jemand anders eingehängt: systemd selbst, udisks oder du von Hand." />
+
+<Hinweis titel="Prüfungstipp">
+203.1 nennt /etc/fstab, /etc/mtab, /proc/mounts, mount und umount, blkid, sync, swapon und swapoff. Swap kommt in der nächsten Mission. Im Entwurf 5.0 fällt dieses Lernziel weg, weil es LPIC-1 zu sehr ähnelt. Für die Prüfung 4.5 bleibt es mit Gewicht 4 eines der größten in Prüfung 201.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Nach dem Einbau eines USB-Sticks startet ein Server nicht mehr, weil /srv/daten nicht gefunden wird. In der fstab steht /dev/sdb1. Was ist die dauerhafte Lösung?', richtig: 'Das Gerät per UUID oder LABEL angeben.', falsch: ['Den Stick immer erst nach dem Start einstecken.', 'In der fstab /dev/sdc1 eintragen.'], erklaerung: 'Gerätenamen hängen von der Reihenfolge ab, in der der Kernel Platten findet. UUID und LABEL gehören zum Dateisystem.' },
+  { frage: 'Was bewirkt die 2 im letzten Feld einer fstab-Zeile?', richtig: 'fsck prüft das Dateisystem beim Start, nach der Wurzel.', falsch: ['Das Dateisystem wird als zweites eingehängt.', 'dump sichert es alle zwei Tage.'], erklaerung: '1 steht für die Wurzel, 2 für alle anderen, 0 für keine Prüfung.' },
+  { frage: 'Du hast eine Zeile in /etc/fstab ergänzt. mount -a hat sie eingehängt, mount meldet aber einen Hinweis. Was fehlt?', richtig: 'systemctl daemon-reload', falsch: ['sync', 'umount -a'], erklaerung: 'systemd erzeugt seine Mount-Units aus der fstab und braucht nach Änderungen daemon-reload.' },
+]} />

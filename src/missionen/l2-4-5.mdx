@@ -1,0 +1,156 @@
+---
+id: l2-4-5
+checks:
+  - id: k1
+  - id: zuordnung
+  - id: k2
+  - id: luecke
+  - id: smart
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "XFS"
+    v: "mkfs.xfs · xfs_info /mnt (eingehängt) · xfs_repair -n (nur prüfen, ausgehängt) · xfs_repair · xfs_admin -L · xfs_check gibt es nicht mehr"
+  - t: "xfsdump"
+    v: "xfsdump -l 0 -L sitzung -M medium -f /backup/a.dump /srv/archiv · Stufe 0 = alles, 1–9 = seit der letzten niedrigeren · Inventar in /var/lib/xfsdump"
+  - t: "xfsrestore"
+    v: "xfsrestore -f /backup/a.dump /ziel · -t Inhalt zeigen · -I Inventar zeigen · -r Stufen nacheinander"
+  - t: "smartctl"
+    v: "-i Info · -H Gesamturteil · -A Attribute · -a alles · -t short|long Selbsttest · -l selftest Ergebnis"
+  - t: "smartd"
+    v: "/etc/smartd.conf · /dev/sdb -a -m root -s (S/../.././02|L/../../6/03) · DEVICESCAN = alle · systemctl restart smartd"
+karten:
+  - f: "Welcher Befehl zeigt Aufbau und Blockgröße eines eingehängten XFS?"
+    a: ["xfs_info"]
+  - f: "Womit prüfst du ein XFS, ohne etwas zu ändern?"
+    a: ["xfs_repair -n"]
+  - f: "Was bedeutet Stufe 0 bei xfsdump?"
+    a: ["vollsicherung", "alles wird gesichert"]
+  - f: "Mit welcher Option zeigt xfsrestore das Inventar der Sicherungen?"
+    a: ["-I"]
+  - f: "Welche Option von smartctl zeigt nur das Gesamturteil?"
+    a: ["-H", "--health"]
+  - f: "Welche SMART-Attribute deuten auf eine sterbende Platte, auch wenn das Gesamturteil PASSED lautet?"
+    a: ["reallocated_sector_ct und current_pending_sector", "umgelagerte und schwebende sektoren"]
+  - f: "In welcher Datei steht, welche Platten smartd überwacht?"
+    a: ["/etc/smartd.conf"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Zuordnung from '../components/Zuordnung.astro';
+import Lueckentext from '../components/Lueckentext.astro';
+
+Im Journal von werkstatt tauchen Lesefehler auf /dev/sdb auf. Die SSD ist zwei Jahre alt und trägt das Archiv der Messreihen auf XFS. **Deine Mission: Frag die SSD mit smartctl, wie es ihr geht, lass smartd sie künftig überwachen und sichere das Archiv mit xfsdump, solange es noch geht.** Lernziel 203.2 (XFS und SMART).
+
+## XFS
+
+<Karte nr={1} titel="Werkzeuge für XFS">
+XFS ist das Standarddateisystem von Red Hat und für große Dateien und viele parallele Zugriffe gebaut. Verkleinern kann man es nicht, nur vergrößern (`xfs_growfs`).
+
+| Befehl | Wirkung |
+|---|---|
+| `mkfs.xfs -L archiv /dev/sdb3` | anlegen (`-f` überschreibt ein bestehendes Dateisystem) |
+| `xfs_info /srv/archiv` | Aufbau zeigen: Allocation Groups (agcount), Blockgröße, Log |
+| `xfs_repair -n /dev/sdb3` | prüfen, **ohne** zu ändern (ausgehängt) |
+| `xfs_repair /dev/sdb3` | reparieren (ausgehängt) |
+| `xfs_admin -L neu /dev/sdb3` | Label ändern |
+| `xfs_db`, `xfs_fsr` | untersuchen, defragmentieren |
+
+`xfs_check` steht noch in den Lernzielen, wurde aber aus den xfsprogs entfernt. Heute prüft man mit `xfs_repair -n`. `fsck.xfs` tut absichtlich nichts, darum steht in der fstab bei XFS als letztes Feld 0.
+
+Zum Sichern hat XFS eigene Programme im Paket **xfsdump**. `xfsdump` sichert ein eingehängtes XFS mit Rechten, erweiterten Attributen und Quotas in eine Datei oder auf Band. Die **Stufe** (`-l`) bestimmt den Umfang: 0 sichert alles, Stufe n sichert, was sich seit der letzten Sicherung mit kleinerer Stufe geändert hat. Über alle Läufe führt xfsdump ein **Inventar**, das `xfsrestore -I` zeigt.
+
+```
+xfsdump -l 0 -L voll-2026-11 -M platte -f /backup/archiv-0.dump /srv/archiv
+xfsrestore -f /backup/archiv-0.dump -t           # Inhalt zeigen
+xfsrestore -f /backup/archiv-0.dump /tmp/zurueck  # zurückspielen
+```
+
+`-L` setzt die Bezeichnung der Sitzung, `-M` die des Mediums. Fehlen sie, fragt xfsdump danach.
+</Karte>
+
+<Merke>XFS prüfen mit xfs_repair -n, nicht mit fsck oder xfs_check. Sichern mit xfsdump -l 0 -f DATEI QUELLE, zurück mit xfsrestore -f DATEI ZIEL.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: XFS" fragen={[
+  { frage: 'Eine Anleitung empfiehlt xfs_check /dev/sdb3. Der Befehl fehlt. Was nimmst du?', richtig: 'xfs_repair -n /dev/sdb3', falsch: ['fsck.xfs -f /dev/sdb3', 'e2fsck -n /dev/sdb3'], erklaerung: 'xfs_check wurde entfernt. -n lässt xfs_repair nur prüfen.' },
+]} />
+
+## SMART
+
+<Karte nr={2} titel="Die Platte selbst fragen">
+**SMART** (Self-Monitoring, Analysis and Reporting Technology) ist die Selbstüberwachung in Festplatten und SSDs. Das Paket **smartmontools** bringt zwei Programme mit:
+
+**smartctl** fragt einmalig ab:
+
+| Option | Zeigt |
+|---|---|
+| `-i` | Modell, Seriennummer, Firmware |
+| `-H` | Gesamturteil PASSED oder FAILED |
+| `-A` | die Attribute mit Rohwerten |
+| `-a` | alles zusammen |
+| `-t short` / `-t long` | Selbsttest starten (Minuten bzw. Stunden) |
+| `-l selftest` | Ergebnisse der Selbsttests |
+
+Das Gesamturteil schlägt erst sehr spät an. Wichtiger sind die Rohwerte: **Reallocated_Sector_Ct** (schon ersetzte Sektoren), **Current_Pending_Sector** (Sektoren, die sich nicht mehr lesen lassen) und **Offline_Uncorrectable**. Steigen sie, gehören die Daten auf eine andere Platte, auch wenn noch PASSED dasteht.
+
+**smartd** überwacht im Hintergrund nach `/etc/smartd.conf`. Debian liefert eine Zeile mit **DEVICESCAN**, die alle Platten findet und alles Folgende ignoriert. Für einzelne Platten schreibst du eigene Zeilen:
+
+```
+/dev/sdb -a -o on -S on -s (S/../.././02|L/../../6/03) -m root
+```
+
+`-a` überwacht alles, `-s` plant Selbsttests (kurz jeden Tag um 2 Uhr, lang samstags um 3 Uhr), `-m root` schickt bei Problemen eine Mail an root. Danach `systemctl restart smartd` (Debian: smartmontools.service).
+</Karte>
+
+<Zuordnung id="zuordnung" titel="Zuordnung: Was zeigt smartctl?" aufgabe="Ordne jeder Option ihre Ausgabe zu." paare={[
+  { links: 'smartctl -H', rechts: 'Gesamturteil PASSED oder FAILED' },
+  { links: 'smartctl -A', rechts: 'Attribute mit Rohwerten' },
+  { links: 'smartctl -t long', rechts: 'startet einen langen Selbsttest' },
+  { links: 'smartctl -l selftest', rechts: 'Ergebnisse der Selbsttests' },
+  { links: 'smartctl -i', rechts: 'Modell, Seriennummer, Firmware' },
+]} />
+
+<Quiz id="k2" titel="Kurzcheck: SMART lesen" fragen={[
+  { frage: 'smartctl -H meldet PASSED, aber Current_Pending_Sector steht auf 27. Was folgt daraus?', richtig: 'Die Platte hat unlesbare Sektoren. Daten sichern und Austausch planen.', falsch: ['Alles in Ordnung, maßgeblich ist das Gesamturteil.', 'Die Zahl gibt nur an, wie viele Selbsttests anstehen.'], erklaerung: 'Das Gesamturteil kippt erst, wenn Attribute ihre Schwelle unterschreiten. Das ist oft zu spät.' },
+]} />
+
+<Lueckentext id="luecke" titel="Lückentext: Das Archiv sichern" aufgabe="Ergänze den Befehl für eine Vollsicherung des Archivs in eine Datei und den Befehl, der danach das Inventar zeigt."
+  code={`$ sudo xfsdump -l ___ -L voll -M platte -___ /backup/archiv-0.dump /srv/archiv
+$ sudo xfsrestore ___`}
+  luecken={[
+    { loesungen: ['0'] },
+    { loesungen: ['f'] },
+    { loesungen: ['-I'] },
+  ]} />
+
+<Terminal id="smart" titel="Terminal: Lesefehler auf /dev/sdb" welt={{ neuePlatte: 'formatiert', dsys: { smart: 'warnung' }, dateien: { '/srv/archiv': '/', '/backup': '/' } }} aufgaben={[
+  { text: 'Frag /dev/sdb nach ihrem Gesamturteil.', befehl: '^sudo smartctl (-H|--health) /dev/sdb$', frage: 'Was meldet sie?', antwort: ['PASSED'] },
+  { text: 'Lass dir die Attribute zeigen.', befehl: '^sudo smartctl (-A|-a|-x|--attributes|--all) /dev/sdb$', auchFehler: true, frage: 'Wie viele Sektoren wurden schon ersetzt? (Rohwert von Reallocated_Sector_Ct)', antwort: ['312'] },
+  { text: 'Starte einen kurzen Selbsttest und lies das Ergebnis.', zustand: 'smarttest:sdb', befehl: 'smartctl (-l selftest|-a|-x) /dev/sdb', auchFehler: true, frage: 'Welcher Fehler steht im Status?', antwort: ['read failure', 'Completed: read failure'] },
+  { text: 'Lass smartd künftig gezielt /dev/sdb überwachen (alles, mit Mail an root) statt aller Geräte über DEVICESCAN, und starte den Dienst neu.', zustand: 'smartd~^/dev/sdb\\s.*-a.*-m\\s+root|^/dev/sdb\\s.*-m\\s+root.*-a && nicht:smartd~^DEVICESCAN' },
+  { text: 'Häng das Archiv (/dev/sdb3, XFS) nach /srv/archiv ein und lass dir seinen Aufbau zeigen.', befehl: '^(sudo )?xfs_info (/srv/archiv/?|/dev/sdb3)$', frage: 'Wie viele Allocation Groups hat es? (agcount)', antwort: ['4'] },
+  { text: 'Sichere das ganze Archiv mit xfsdump nach /backup/archiv-0.dump. Die Sitzung heißt voll, das Medium platte.', zustand: 'xfsdump:/backup/archiv-0.dump' },
+  { text: 'Prüfe die Sicherung: Spiel sie zur Probe nach /tmp/probe zurück.', zustand: 'da:/tmp/probe/2025/bericht-2025.pdf' },
+  { text: 'Häng das Archiv aus und prüf es, ohne etwas zu verändern.', befehl: '^sudo xfs_repair -n /dev/sdb3$' },
+]} />
+
+<Labor id="labor" titel="Labor: SMART auf deinem Rechner"
+  aufgabe="Virtuelle Platten haben meist kein SMART. Probier smartctl deshalb auf deinem echten Linux-Rechner oder einem Live-System aus, wenn du eins hast. Sonst zeig, was die VM meldet. Füge die Ausgabe ein."
+  befehl={"sudo apt install -y smartmontools\nlsblk -d -o NAME,MODEL\nsudo smartctl -i /dev/sda 2>&1 | head -12\nsudo smartctl -H /dev/sda 2>&1 | tail -3"}
+  muster={["NAME", "smartctl", "(PASSED|FAILED|Unavailable|not supported|QEMU|VBOX)"]}
+  erfolg="Eine VM meldet meist, dass SMART nicht verfügbar ist. Auf echter Hardware siehst du PASSED und mit -A die Rohwerte, die du künftig im Auge behalten solltest." />
+
+<Hinweis titel="Prüfungstipp">
+203.2 nennt xfs_info, xfs_check, xfs_repair, xfsdump, xfsrestore, smartd und smartctl. Gefragt wird gern, welche Option von smartctl einen Test startet oder das Gesamturteil zeigt, und welche Stufe bei xfsdump eine Vollsicherung ist. Im Entwurf 5.0 bleibt SMART erhalten (202.1, zusammen mit LUKS), XFS fällt weg.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Du hast am Sonntag eine Sicherung mit Stufe 0 gemacht, am Mittwoch eine mit Stufe 1. Was enthält eine Sicherung mit Stufe 1 am Freitag?', richtig: 'Alles, was sich seit Sonntag geändert hat.', falsch: ['Alles, was sich seit Mittwoch geändert hat.', 'Wieder alle Dateien.'], erklaerung: 'Stufe n sichert seit der letzten Sicherung mit kleinerer Stufe. Das war die Stufe 0 vom Sonntag.' },
+  { frage: 'Welche Zeile in /etc/smartd.conf lässt smartd alle gefundenen Platten überwachen?', richtig: 'DEVICESCAN -a -m root', falsch: ['ALL -a -m root', '/dev/* -a -m root'], erklaerung: 'Zeilen nach DEVICESCAN werden ignoriert. Für einzelne Platten kommentiert man es aus.' },
+  { frage: 'Warum steht bei XFS-Dateisystemen in der fstab als letztes Feld 0?', richtig: 'fsck.xfs prüft absichtlich nichts. XFS stellt sich beim Einhängen über sein Log selbst wieder her.', falsch: ['XFS darf nur von root geprüft werden.', 'Weil XFS keinen Superblock hat.'], erklaerung: 'Für echte Prüfungen gibt es xfs_repair, ausgehängt.' },
+]} />

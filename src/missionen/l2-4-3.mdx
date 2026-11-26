@@ -1,0 +1,143 @@
+---
+id: l2-4-3
+checks:
+  - id: k1
+  - id: zuordnung
+  - id: k2
+  - id: luecke
+  - id: superblock
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "Anlegen"
+    v: "mkfs.ext4 -L name /dev/sdb1 · mke2fs -t ext4 · mke2fs -n zeigt nur an (auch die Sicherungsblöcke)"
+  - t: "Prüfen"
+    v: "fsck /dev/sdb1 → fsck.ext4 = e2fsck · nur ausgehängt · -n nichts ändern · -f erzwingen · -y alles ja · -b 32768 Sicherungs-Superblock"
+  - t: "Ansehen"
+    v: "dumpe2fs -h (nur Superblock) · dumpe2fs (mit Gruppen) · dumpe2fs -o superblock=32768 -o blocksize=4096 · tune2fs -l"
+  - t: "Ändern"
+    v: "tune2fs -L name · -c 20 (Einhängungen) · -i 1m (Zeit) · -m 1 (reserviert %) · -j (ext2 → ext3) · -O feature"
+  - t: "debugfs"
+    v: "debugfs /dev/sdb1 (interaktiv, nur lesen) · -w schreiben · -R \"stat /datei\" · ls -l · stat · cat · dump DATEI ZIEL · lsdel · quit"
+karten:
+  - f: "Was enthält der Superblock eines ext-Dateisystems?"
+    a: ["grunddaten wie größe, blockgröße, inodes, zustand und features", "die eckdaten des dateisystems"]
+  - f: "Wo findest du die Sicherungskopien des Superblocks, ohne etwas zu verändern?"
+    a: ["mke2fs -n", "dumpe2fs", "mke2fs -n /dev/sdb1"]
+  - f: "Wie prüfst du ein ext4-Dateisystem mit dem Sicherungs-Superblock bei Block 32768?"
+    a: ["e2fsck -b 32768 /dev/sdb1", "e2fsck -b 32768"]
+  - f: "Welche Option von dumpe2fs zeigt nur den Superblock?"
+    a: ["-h"]
+  - f: "Wie setzt du mit tune2fs den reservierten Anteil auf 1 Prozent?"
+    a: ["tune2fs -m 1 /dev/sdb1", "tune2fs -m 1"]
+  - f: "Mit welchem Werkzeug untersuchst du Inodes eines ext-Dateisystems interaktiv?"
+    a: ["debugfs"]
+  - f: "Wie macht tune2fs aus ext2 ein ext3?"
+    a: ["tune2fs -j", "mit -j wird ein journal angelegt"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Zuordnung from '../components/Zuordnung.astro';
+import Lueckentext from '../components/Lueckentext.astro';
+
+Nach einem Stromausfall lässt sich die Partition mit den Messdaten auf werkstatt nicht mehr einhängen. mount meldet einen beschädigten Superblock. Neu formatieren würde alle Messreihen löschen. **Deine Mission: Lerne die Werkzeuge für ext2, ext3 und ext4 kennen, rette das Dateisystem mit einer Sicherungskopie des Superblocks und schau dir danach mit dumpe2fs, tune2fs und debugfs an, was drinsteckt.** Lernziel 203.2.
+
+## Der Superblock und seine Kopien
+
+<Karte nr={1} titel="Aufbau eines ext-Dateisystems">
+Ein ext-Dateisystem ist in **Blockgruppen** aufgeteilt, bei 4-KiB-Blöcken je 32768 Blöcke (128 MiB). Ganz vorn liegt der **Superblock** mit den Eckdaten: Größe, Blockgröße, Anzahl der Inodes, Zustand (clean oder nicht), Zähler für Einhängungen, Features wie has_journal oder extent. Ohne ihn erkennt der Kernel das Dateisystem nicht mehr.
+
+Deshalb gibt es **Sicherungskopien** in einigen weiteren Gruppen: bei 4-KiB-Blöcken an den Blöcken 32768, 98304, 163840, 229376, 294912, 819200 und so weiter. Wo sie genau liegen, zeigen:
+
+- `mke2fs -n /dev/sdb1`: tut so, als würde es formatieren, schreibt aber **nichts** und nennt die Sicherungsblöcke. Das stimmt nur, wenn du dieselben Optionen nimmst wie beim ursprünglichen Anlegen.
+- `dumpe2fs /dev/sdb1`: listet alle Gruppen samt „Reserve-Superblock bei …“. Ist der primäre Superblock kaputt, liest `dumpe2fs -o superblock=32768 -o blocksize=4096 /dev/sdb1` eine Kopie.
+
+Repariert wird mit **e2fsck -b 32768 /dev/sdb1**. e2fsck liest dann die Kopie, prüft alles und schreibt am Ende einen neuen primären Superblock. Bei 1-KiB-Blöcken (kleine Dateisysteme) liegt die erste Kopie bei 8193. Deshalb nennt e2fsck in seiner Fehlermeldung beide Zahlen.
+
+`fsck /dev/sdb1` ist übrigens nur ein Verteiler: Es schaut nach dem Typ und ruft `fsck.ext4` auf, und das ist e2fsck. Geprüft wird nur, was **nicht** eingehängt ist.
+</Karte>
+
+<Merke>Kopien des Superblocks liegen in einigen Blockgruppen (32768, 98304, …). Finden mit mke2fs -n oder dumpe2fs, reparieren mit e2fsck -b 32768.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: Sicherungen finden" fragen={[
+  { frage: 'Warum ist mke2fs -n auf einer Partition mit wichtigen Daten ungefährlich?', richtig: 'Mit -n zeigt mke2fs nur an, was es täte, und schreibt nichts.', falsch: ['Weil mke2fs nie über bestehende Dateisysteme schreibt.', 'Weil -n nur die Inode-Tabelle neu schreibt.'], erklaerung: 'Ohne -n würde mke2fs das Dateisystem neu anlegen. Vertippen kostet hier alle Daten.' },
+]} />
+
+## Ansehen und ändern
+
+<Karte nr={2} titel="dumpe2fs, tune2fs und debugfs">
+**dumpe2fs** zeigt alles, was im Superblock und in den Gruppendeskriptoren steht. Mit `-h` nur den Superblock. `tune2fs -l` zeigt fast dasselbe.
+
+**tune2fs** ändert Einstellungen, auch bei eingehängtem Dateisystem:
+
+| Option | Wirkung |
+|---|---|
+| `-L name` | Label setzen |
+| `-c 20` / `-i 1m` | nach 20 Einhängungen oder einem Monat beim Start prüfen |
+| `-m 1` | nur 1 % für root reservieren (Standard 5 %) |
+| `-j` | Journal anlegen, aus ext2 wird ext3 |
+| `-O ^has_journal` | Feature abschalten (nur ausgehängt) |
+| `-U random` | neue UUID |
+
+**debugfs** öffnet ein ext-Dateisystem auf unterster Ebene, standardmäßig nur lesend (`-w` zum Schreiben). Interaktiv mit `debugfs /dev/sdb1`, einzelne Befehle mit `-R`:
+
+- `stat /datei`: Inode-Nummer, Größe, Zeiten, belegte Blöcke
+- `ls -l /`, `cat /datei`, `dump /datei /tmp/kopie`: lesen und herauskopieren, auch wenn das Dateisystem nicht eingehängt ist
+- `lsdel`, `undel`: gelöschte Inodes finden und zurückholen. Das klappt praktisch nur bei ext2. ext3 und ext4 räumen die Blockzuordnung gelöschter Dateien auf.
+</Karte>
+
+<Zuordnung id="zuordnung" titel="Zuordnung: Welches Werkzeug?" aufgabe="Ordne jeder Aufgabe das Werkzeug zu." paare={[
+  { links: 'Sicherungs-Superblöcke zeigen, ohne zu schreiben', rechts: 'mke2fs -n' },
+  { links: 'Mit einem Sicherungs-Superblock reparieren', rechts: 'e2fsck -b' },
+  { links: 'Nur den Superblock anzeigen', rechts: 'dumpe2fs -h' },
+  { links: 'Reservierten Anteil ändern', rechts: 'tune2fs -m' },
+  { links: 'Inode einer Datei untersuchen', rechts: 'debugfs -R "stat /datei"' },
+]} />
+
+<Quiz id="k2" titel="Kurzcheck: debugfs" fragen={[
+  { frage: 'Was passiert, wenn du debugfs ohne -w startest?', richtig: 'Das Dateisystem wird nur zum Lesen geöffnet. Ändernde Befehle schlagen fehl.', falsch: ['debugfs hängt das Dateisystem dabei nur lesbar ein.', 'debugfs verweigert den Start bei eingehängten Dateisystemen.'], erklaerung: 'Lesend darf debugfs auch eingehängte Dateisysteme öffnen. Schreiben solltest du nur ausgehängt.' },
+]} />
+
+<Lueckentext id="luecke" titel="Lückentext: Rettung mit der Sicherungskopie" aufgabe="Ergänze die Befehle: Sicherungsblöcke anzeigen, ohne zu schreiben, dann mit der ersten Kopie reparieren und den Superblock ansehen."
+  code={`$ sudo mke2fs ___ /dev/sdb1
+Superblock-Sicherungskopien gespeichert in den Blöcken:
+        32768, 98304, 163840, 229376, …
+$ sudo e2fsck ___ 32768 /dev/sdb1
+$ sudo dumpe2fs ___ /dev/sdb1`}
+  luecken={[
+    { loesungen: ['-n'] },
+    { loesungen: ['-b'] },
+    { loesungen: ['-h'] },
+  ]} />
+
+<Terminal id="superblock" titel="Terminal: Die Messdaten nach dem Stromausfall" welt={{ neuePlatte: 'formatiert', dsys: { superblock: true }, dateien: { '/mnt/daten': '/' } }} aufgaben={[
+  { text: 'Versuch, /dev/sdb1 nach /mnt/daten einzuhängen.', befehl: '^sudo mount (-t ext4 )?/dev/sdb1 /mnt/daten/?$', auchFehler: true },
+  { text: 'Lass e2fsck das Dateisystem prüfen.', befehl: '^sudo (e2fsck|fsck|fsck\\.ext4)( -\\w+)* /dev/sdb1$', auchFehler: true, frage: 'Welche Blocknummer schlägt e2fsck für Dateisysteme mit 4-KiB-Blöcken vor?', antwort: ['32768'] },
+  { text: 'Lass dir zeigen, wo die Sicherungskopien liegen, ohne etwas zu schreiben.', befehl: '^sudo (mke2fs|mkfs\\.ext4|mkfs -t ext4)( -t ext4)? -n /dev/sdb1$|^sudo dumpe2fs -o superblock=\\d+', frage: 'An welchem Block liegt die dritte Kopie?', antwort: ['163840'] },
+  { text: 'Repariere das Dateisystem mit der ersten Sicherungskopie.', zustand: 'superblock:/dev/sdb1=heil' },
+  { text: 'Häng es nach /mnt/daten ein.', zustand: 'eingehaengt:/dev/sdb1=/mnt/daten' },
+  { text: 'Lass dir nur den Superblock zeigen.', befehl: '^sudo (dumpe2fs -h /dev/sdb1|tune2fs -l /dev/sdb1)$', frage: 'Wie viele Blöcke sind für root reserviert? (Reserved block count)', antwort: ['655360'] },
+  { text: 'Für ein reines Datenlaufwerk sind 5 % Reserve zu viel. Setz sie auf 1 % und lass nach 30 Einhängungen beim Start prüfen.', zustand: 'reserviert:/dev/sdb1=1 && maxmount:/dev/sdb1=30' },
+  { text: 'Schau dir mit debugfs den Inode von /messung-2026.csv an.', befehl: '^sudo debugfs (-R ["\']?stat /?messung-2026\\.csv["\']? /dev/sdb1|/dev/sdb1)$', frage: 'Welche Inode-Nummer hat die Datei?', antwort: ['14'] },
+]} />
+
+<Labor id="labor" titel="Labor: Ein ext4 auf srv1 untersuchen"
+  aufgabe="Schau dir auf srv1 das Dateisystem der Wurzel an. Nichts davon verändert etwas. Füge die Ausgabe ein."
+  befehl={"ROOTDEV=$(findmnt -no SOURCE /)\nsudo dumpe2fs -h $ROOTDEV 2>/dev/null | grep -Ei 'state|mount count|reserved block count|features'\nsudo dumpe2fs $ROOTDEV 2>/dev/null | grep -m3 -i 'superblock'\nsudo debugfs -R 'stat /etc/hostname' $ROOTDEV 2>/dev/null | head -3"}
+  muster={["(?:Filesystem state|Zustand)", "(?:superblock|Superblock)", "Inode:"]}
+  erfolg="Die Zeilen mit Superblock zeigen, wo die Kopien auf srv1 liegen. Notier dir die erste, falls du sie je brauchst." />
+
+<Hinweis titel="Prüfungstipp">
+203.2 nennt mkfs, mkswap, fsck, tune2fs, dumpe2fs und debugfs ausdrücklich. Ein Klassiker ist die Frage, wie man mit einem Sicherungs-Superblock prüft (e2fsck -b) und wo man dessen Nummer findet. Im Entwurf 5.0 fallen die ext-Werkzeuge aus Prüfung 201 heraus.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'e2fsck meldet „Ungültige magische Zahl im Superblock“. Welcher Befehl ist der nächste sinnvolle Schritt?', richtig: 'e2fsck -b 32768 /dev/sdb1', falsch: ['mkfs.ext4 /dev/sdb1', 'tune2fs -O ^has_journal /dev/sdb1'], erklaerung: 'mkfs würde ein neues, leeres Dateisystem anlegen. tune2fs braucht selbst einen lesbaren Superblock.' },
+  { frage: 'Welche Aussage über fsck stimmt?', richtig: 'fsck ruft je nach Typ fsck.ext4, fsck.xfs oder ein anderes Programm auf.', falsch: ['fsck prüft alle Dateisysteme selbst, ohne Hilfsprogramme.', 'fsck darf jedes eingehängte Dateisystem reparieren.'], erklaerung: 'fsck.ext4 ist e2fsck. Für XFS ist fsck.xfs nur eine Attrappe, geprüft wird mit xfs_repair.' },
+  { frage: 'Ein Benutzer hat auf einem ext4-Dateisystem eine Datei gelöscht. Was ist realistisch?', richtig: 'debugfs lsdel findet bei ext4 kaum etwas, weil die Blockzuordnung gelöscht wird. Hilfe kommt aus der Sicherung.', falsch: ['debugfs undel stellt sie zuverlässig wieder her.', 'e2fsck -f legt sie in lost+found ab.'], erklaerung: 'lost+found nimmt Dateien auf, deren Verzeichniseintrag verloren ging, nicht gelöschte Dateien.' },
+]} />

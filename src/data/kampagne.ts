@@ -261,7 +261,21 @@ const LPIC2: Akt[] = [
       m('l2-3-probe', 'Probe 3', 'Probeprüfung Topic 202', 'Topic 202 gemischt mit Start, Runleveln, Bootloader und fstab aus LPIC-1.', 'Topic 202 und Wiederholung aus LPIC-1', 'Prüfungssimulation', { probe: true, ziele: ['202.1', '202.2', '202.3', '101.2', '101.3', '102.2', '104.3'], bereit: true }),
     ],
   },
-  geplanterAkt('l2', 4, 'Dateisysteme', '203', 'Dateisysteme betreiben, warten und einstellen.', 'lpic2'),
+  {
+    nr: 4, titel: 'Dateisysteme', teil: 'l2-4', teilName: 'Topic 203',
+    ziel: 'Dateisysteme sicher einhängen, Swap steuern, ext, Btrfs und XFS warten, Platten mit SMART überwachen, bei Bedarf automatisch einhängen und Daten verschlüsseln. 9 von 60 Fragen in Prüfung 201.',
+    missionen: [
+      m('l2-4-1', '4.1', 'Einhängen im Detail', 'Soll und Ist der Einhängungen vergleichen, per UUID einhängen und eine Mount-Unit schreiben.', '/etc/fstab, /proc/mounts, /etc/mtab, blkid, UUID, mount -a, remount, sync, systemd-escape, .mount-Units', 'Terminal-Simulator, Lückentext, Zuordnung, Quiz', { ziele: ['203.1'], bereit: true }),
+      m('l2-4-2', '4.2', 'Swap', 'Swap auf einer Partition und in einer Datei einrichten und mit Prioritäten steuern.', 'mkswap, swapon, swapoff, -p, pri=, /proc/swaps, swapon --show, fallocate, chmod 600', 'Terminal-Simulator, Reihenfolge, Lückentext, Quiz', { ziele: ['203.1', '203.2'], bereit: true }),
+      m('l2-4-3', '4.3', 'Werkzeuge für ext', 'Ein ext4 mit einer Sicherungskopie des Superblocks retten und untersuchen.', 'Superblock, Blockgruppen, mke2fs -n, e2fsck -b, dumpe2fs, tune2fs, debugfs, fsck', 'Terminal-Simulator, Lückentext, Zuordnung, Quiz', { ziele: ['203.2'], bereit: true }),
+      m('l2-4-4', '4.4', 'Btrfs und ZFS', 'Mit Subvolumes und Snapshots arbeiten und ext4 in Btrfs umwandeln.', 'Copy-on-Write, btrfs subvolume, snapshot -r, filesystem show/df, btrfs-convert, ext2_saved, zpool, zfs', 'Terminal-Simulator, Lückentext, Zuordnung, Quiz', { ziele: ['203.2'], bereit: true }),
+      m('l2-4-5', '4.5', 'XFS und SMART', 'Eine sterbende Platte erkennen, überwachen lassen und ihr XFS-Archiv sichern.', 'xfs_info, xfs_repair -n, xfs_check, xfsdump, xfsrestore, smartctl, smartd, smartd.conf', 'Terminal-Simulator, Lückentext, Zuordnung, Quiz', { ziele: ['203.2'], bereit: true }),
+      m('l2-4-6', '4.6', 'AutoFS', 'Freigaben und Platten erst beim Zugriff einhängen, mit AutoFS und mit systemd.', 'auto.master, auto.master.d, indirekte und direkte Maps, * und &, --timeout, automount -m, x-systemd.automount, .automount', 'Terminal-Simulator, Lückentext, Zuordnung, Quiz', { ziele: ['203.3'], bereit: true }),
+      m('l2-4-7', '4.7', 'CDs und Verschlüsselung', 'ISO- und UDF-Abbilder bauen und eine LUKS-Partition für den Start einrichten.', 'ISO 9660, Rock Ridge, Joliet, El Torito, HFS, genisoimage, mount -o loop, UDF, mkudffs, dm-crypt, LUKS, cryptsetup, crypttab', 'Terminal-Simulator, Lückentext, Zuordnung, Quiz', { ziele: ['203.3'], bereit: true }),
+      m('l2-4-boss', 'Boss 4', 'Der Lagerrechner nach dem Stromausfall', 'Swap, Superblock und AutoFS reparieren, die sterbende Platte finden und ihr Archiv sichern.', 'Alles aus Topic 203', 'Terminal-Simulator', { boss: true, ziele: ['203.1', '203.2', '203.3'], bereit: true }),
+      m('l2-4-probe', 'Probe 4', 'Probeprüfung Topic 203', 'Topic 203 gemischt mit Plattenaufteilung, Dateisystemen und fstab aus LPIC-1.', 'Topic 203 und Wiederholung aus LPIC-1', 'Prüfungssimulation', { probe: true, ziele: ['203.1', '203.2', '203.3', '102.1', '104.1', '104.2', '104.3'], bereit: true }),
+    ],
+  },
   geplanterAkt('l2', 5, 'Speicher für Fortgeschrittene', '204', 'RAID, Gerätezugriff und LVM.', 'lpic2'),
   geplanterAkt('l2', 6, 'Netzwerkkonfiguration', '205', 'Netzwerke einrichten und Fehler finden.', 'lpic2'),
   geplanterAkt('l2', 7, 'Systemwartung', '206', 'Aus dem Quellcode bauen, sichern und Nutzer informieren.', 'lpic2', [

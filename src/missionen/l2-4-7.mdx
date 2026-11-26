@@ -1,0 +1,165 @@
+---
+id: l2-4-7
+checks:
+  - id: k1
+  - id: zuordnung
+  - id: k2
+  - id: luecke
+  - id: iso
+  - id: tresor
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "ISO 9660"
+    v: "genisoimage (mkisofs) -o bild.iso -R -J -V LABEL ordner · -R Rock Ridge (Unix-Namen, Rechte) · -J Joliet (lange Namen für Windows) · -b boot.img = El Torito"
+  - t: "Einhängen"
+    v: "mount -o loop bild.iso /mnt/iso (immer nur lesbar) · isoinfo -d -i bild.iso zeigt Erweiterungen"
+  - t: "UDF"
+    v: "für DVD, Blu-ray und große Dateien · mkudffs (udftools) · mount -t udf · beschreibbar"
+  - t: "LUKS"
+    v: "cryptsetup luksFormat /dev/sdb1 · open /dev/sdb1 tresor → /dev/mapper/tresor · mkfs, mount · close tresor · luksDump · luksAddKey"
+  - t: "Beim Start"
+    v: "/etc/crypttab: tresor UUID=… none luks · /etc/fstab: /dev/mapper/tresor /srv/tresor ext4 defaults 0 2"
+karten:
+  - f: "Welche ISO-9660-Erweiterung speichert Unix-Rechte und lange Namen?"
+    a: ["rock ridge"]
+  - f: "Welche Erweiterung macht lange Dateinamen für Windows lesbar?"
+    a: ["joliet"]
+  - f: "Wofür steht El Torito?"
+    a: ["startfähige cds", "den bootkatalog auf cds und dvds"]
+  - f: "Mit welcher Option hängst du eine ISO-Datei ein?"
+    a: ["-o loop", "mount -o loop"]
+  - f: "Welches Dateisystem nimmt man für DVDs und Blu-rays mit großen Dateien?"
+    a: ["udf"]
+  - f: "Unter welchem Pfad erscheint ein mit cryptsetup open geöffnetes Gerät namens tresor?"
+    a: ["/dev/mapper/tresor"]
+  - f: "In welcher Datei stehen verschlüsselte Geräte, die beim Start geöffnet werden sollen?"
+    a: ["/etc/crypttab"]
+  - f: "Was ist HFS?"
+    a: ["das dateisystem älterer macs von apple", "ein dateisystem von apple"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Zuordnung from '../components/Zuordnung.astro';
+import Lueckentext from '../components/Lueckentext.astro';
+
+Zwei Aufträge aus dem Büro: Das Handbuch der Messbox soll als Abbild verteilt werden, das unter Linux und Windows die richtigen Dateinamen zeigt. Und die Verträge und Zugangsdaten des Labors sollen auf eine eigene, verschlüsselte Partition, die beim Start nach dem Passwort fragt. **Deine Mission: Bau ISO-9660- und UDF-Abbilder, häng sie per Loop ein und richte eine LUKS-Partition samt crypttab ein.** Lernziel 203.3 (CDs und Verschlüsselung).
+
+## Abbilder für CD, DVD und Verteilung
+
+<Karte nr={1} titel="ISO 9660, seine Erweiterungen und UDF">
+**ISO 9660** ist das Dateisystem von CDs, auch heute noch von Installations-ISOs. Pur ist es sehr eingeschränkt: Dateinamen nach 8.3 in Großbuchstaben mit Versionsnummer (`LIESMICH.TXT;1`), keine Rechte, keine Links. Darum gibt es Erweiterungen:
+
+| Erweiterung | Bringt | Option bei genisoimage |
+|---|---|---|
+| **Rock Ridge** | Unix: lange Namen, Rechte, Besitzer, Links | `-R` (oder `-r` mit vernünftigen Standardrechten) |
+| **Joliet** | Windows: lange Namen in Unicode | `-J` |
+| **El Torito** | Startfähigkeit: ein Boot-Abbild im Katalog | `-b isolinux/isolinux.bin -c boot.cat …` |
+| **HFS** | Apple: altes Mac-Dateisystem für Hybrid-CDs | `-hfs` |
+
+Gebaut wird mit **genisoimage**, unter Debian auch als `mkisofs` aufrufbar (aus Paket genisoimage; xorriso aus Mission 3.6 kann es ebenso):
+
+```
+genisoimage -o handbuch.iso -R -J -V HANDBUCH ~/handbuch
+sudo mount -o loop handbuch.iso /mnt/iso
+isoinfo -d -i handbuch.iso
+```
+
+Eine ISO-Datei hängst du über ein **Loop-Gerät** ein, das eine Datei wie eine Platte aussehen lässt. ISO 9660 ist immer nur lesbar.
+
+**UDF** (Universal Disk Format) ist das Dateisystem von DVDs und Blu-rays. Es kennt große Dateien und lässt sich auch beschreiben. Angelegt wird es mit `mkudffs` aus dem Paket udftools, eingehängt mit `mount -t udf`.
+</Karte>
+
+<Merke>-R = Rock Ridge (Unix), -J = Joliet (Windows), -b = El Torito (startfähig). ISO per mount -o loop, immer nur lesbar. UDF für DVDs, beschreibbar.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: Erweiterungen" fragen={[
+  { frage: 'Ein ISO zeigt unter Linux Namen wie KAPITEL0.TXT;1 statt kapitel-01-einrichtung.txt. Was fehlte beim Bau?', richtig: 'Rock Ridge (-R)', falsch: ['El Torito (-b)', 'UDF (-udf)'], erklaerung: 'Ohne Rock Ridge oder Joliet gelten die Regeln von ISO 9660 Stufe 1.' },
+]} />
+
+## Verschlüsselte Partitionen
+
+<Karte nr={2} titel="dm-crypt und LUKS">
+**dm-crypt** ist die Verschlüsselung im Kernel: Ein Gerät unter /dev/mapper/ zeigt entschlüsselt, was auf der Partition verschlüsselt liegt. **LUKS** (Linux Unified Key Setup) ist das Format davor: Ein Kopf auf der Partition enthält den eigentlichen Schlüssel, verschlüsselt mit einer oder mehreren Passphrasen in eigenen **Schlüsselfächern**. So kannst du Passphrasen hinzufügen oder ändern, ohne alles neu zu verschlüsseln.
+
+```
+cryptsetup luksFormat /dev/sdb1          # löscht alles, fragt nach YES und Passphrase
+cryptsetup open /dev/sdb1 tresor         # → /dev/mapper/tresor
+mkfs.ext4 /dev/mapper/tresor
+mount /dev/mapper/tresor /srv/tresor
+umount /srv/tresor
+cryptsetup close tresor
+```
+
+`cryptsetup luksDump /dev/sdb1` zeigt Kopf und belegte Fächer, `luksAddKey` fügt eine Passphrase hinzu (etwa für den Notfall), `status tresor` zeigt ein geöffnetes Gerät.
+
+Beim Start öffnet systemd Geräte aus **/etc/crypttab** und fragt nach der Passphrase:
+
+```
+# Name    Gerät                                       Schlüsseldatei  Optionen
+tresor    UUID=8e9f0a1b-2c3d-4e5f-9a6b-7c8d9e0f1a2b   none            luks
+```
+
+Die UUID ist die des LUKS-Kopfs (`blkid /dev/sdb1` zeigt TYPE="crypto_LUKS"). In die fstab kommt dann `/dev/mapper/tresor`.
+</Karte>
+
+<Zuordnung id="zuordnung" titel="Zuordnung: Was gehört wohin?" aufgabe="Ordne zu." paare={[
+  { links: 'cryptsetup luksFormat', rechts: 'LUKS-Kopf schreiben, alle Daten gehen verloren' },
+  { links: 'cryptsetup open /dev/sdb1 tresor', rechts: '/dev/mapper/tresor erscheint' },
+  { links: '/etc/crypttab', rechts: 'welche Geräte beim Start geöffnet werden' },
+  { links: 'genisoimage -J', rechts: 'lange Dateinamen für Windows' },
+  { links: 'mkudffs', rechts: 'Dateisystem für DVDs und Blu-rays' },
+]} />
+
+<Quiz id="k2" titel="Kurzcheck: LUKS" fragen={[
+  { frage: 'mount /dev/sdb1 /srv/tresor meldet „unbekannter Dateisystemtyp crypto_LUKS“. Was ist zu tun?', richtig: 'Zuerst cryptsetup open /dev/sdb1 tresor, dann /dev/mapper/tresor einhängen.', falsch: ['mount -t ext4 /dev/sdb1 /srv/tresor', 'mkfs.ext4 /dev/sdb1'], erklaerung: 'Auf sdb1 liegen nur verschlüsselte Daten. mkfs würde sie zerstören.' },
+]} />
+
+<Lueckentext id="luecke" titel="Lückentext: Tresor beim Start" aufgabe="Ergänze /etc/crypttab und /etc/fstab, damit der Tresor beim Start geöffnet und eingehängt wird."
+  code={`# /etc/crypttab
+tresor   ___=8e9f0a1b-2c3d-4e5f-9a6b-7c8d9e0f1a2b   none   ___
+
+# /etc/fstab
+/dev/___/tresor   /srv/tresor   ext4   defaults   0   2`}
+  luecken={[
+    { loesungen: ['UUID'] },
+    { loesungen: ['luks'] },
+    { loesungen: ['mapper'] },
+  ]} />
+
+<Terminal id="iso" titel="Terminal: Das Handbuch als Abbild" welt={{ dsys: { iso: true }, dateien: { '/mnt/iso': '/', '/mnt/udf': '/' } }} aufgaben={[
+  { text: 'Installier genisoimage und udftools.', zustand: 'paket:genisoimage=an && paket:udftools=an' },
+  { text: 'Bau aus ~/handbuch ein schlichtes ISO kurz.iso ohne Erweiterungen und häng es nach /mnt/iso.', zustand: 'isobild:/home/lena/kurz.iso && loop:/mnt/iso', frage: 'Wie heißt LIESMICH.txt im Abbild?', antwort: ['LIESMICH.TXT;1'] },
+  { text: 'Häng es wieder aus und bau handbuch.iso mit Rock Ridge, Joliet und dem Label HANDBUCH.', zustand: 'isobild:/home/lena/handbuch.iso=rrjoliet && datei:/home/lena/handbuch.iso~"label":"HANDBUCH"' },
+  { text: 'Lass dir zeigen, welche Erweiterungen im Abbild stecken.', befehl: '^isoinfo -d -i (~/|/home/lena/)?handbuch\\.iso$', frage: 'Welche Erweiterung für Windows meldet isoinfo? (ein Wort)', antwort: ['Joliet'] },
+  { text: 'Leg eine 100-MiB-Datei dvd.img an, mach daraus ein UDF mit dem Label Messdaten und häng es beschreibbar nach /mnt/udf.', zustand: 'udfbild:/home/lena/dvd.img && loop:/mnt/udf' },
+]} />
+
+<Terminal id="tresor" titel="Terminal: Der verschlüsselte Tresor" welt={{ neuePlatte: 'formatiert', dsys: {}, dateien: { '/srv/tresor': '/' } }} aufgaben={[
+  { text: 'Installier cryptsetup. Verschlüssele dann /dev/sdb1 mit LUKS (die Messdaten darauf sind gesichert und dürfen weg).', zustand: 'luks:/dev/sdb1' },
+  { text: 'Öffne das Gerät unter dem Namen tresor, leg darauf ein ext4 an und häng es nach /srv/tresor.', zustand: 'mapper:tresor=/srv/tresor' },
+  { text: 'Lass dir den Zustand des geöffneten Geräts zeigen.', befehl: '^sudo cryptsetup status tresor$', frage: 'Welcher Typ steht dort?', antwort: ['LUKS2'] },
+  { text: 'Leg für den Notfall eine zweite Passphrase an.', zustand: 'luks:/dev/sdb1=2schluessel' },
+  { text: 'Sorge dafür, dass der Tresor beim Start geöffnet (crypttab, per UUID) und eingehängt (fstab) wird.', zustand: 'datei:/etc/crypttab~^tresor\\s+UUID="?[0-9a-f-]{36}"?\\s+none\\s+luks && datei:/etc/fstab~^/dev/mapper/tresor\\s+/srv/tresor\\s+ext4' },
+  { text: 'Häng den Tresor aus und schließ ihn.', zustand: 'mapper:tresor=zu' },
+]} />
+
+<Labor id="labor" titel="Labor: LUKS in einer Datei"
+  aufgabe="Probier LUKS auf srv1 in einer Datei aus, ohne eine Partition anzufassen. Füge die Ausgabe ein."
+  befehl={"sudo apt install -y cryptsetup\ntruncate -s 64M /tmp/tresor.img\nsudo cryptsetup luksFormat /tmp/tresor.img\nsudo cryptsetup open /tmp/tresor.img test\nsudo mkfs.ext4 -q /dev/mapper/test\nsudo cryptsetup status test\nsudo cryptsetup close test && rm /tmp/tresor.img"}
+  muster={["/dev/mapper/test is active", "type:\\s+LUKS2", "cipher:\\s+aes-xts"]}
+  erfolg="cryptsetup hat für die Datei selbst ein Loop-Gerät angelegt. Dasselbe passiert mit einer echten Partition, nur ohne Loop." />
+
+<Hinweis titel="Prüfungstipp">
+203.3 nennt mkisofs und cryptsetup ausdrücklich, dazu Kenntnis von UDF, ISO 9660, HFS, Joliet, Rock Ridge und El Torito sowie Grundwissen zu dm-crypt und LUKS. Im Entwurf 5.0 wird LUKS mit /etc/crypttab ausführlicher (202.1), die CD-Formate fallen weg.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Welche Option von mkisofs macht ein Abbild startfähig?', richtig: '-b mit dem Pfad des Boot-Abbilds (El Torito)', falsch: ['-J', '-R'], erklaerung: 'Dazu gehören meist -c für den Bootkatalog und -no-emul-boot.' },
+  { frage: 'Du hast die Passphrase eines LUKS-Geräts vergessen, aber per luksAddKey einen zweiten Schlüssel angelegt. Was gilt?', richtig: 'Mit der zweiten Passphrase lässt es sich öffnen. Beide schützen denselben Schlüssel.', falsch: ['Ohne die erste Passphrase sind die Daten verloren.', 'Der zweite Schlüssel öffnet nur die Hälfte der Daten.'], erklaerung: 'Jede Passphrase in einem Schlüsselfach entschlüsselt denselben Hauptschlüssel.' },
+  { frage: 'Welche Spalte von /etc/crypttab enthält den Namen unter /dev/mapper/?', richtig: 'Die erste.', falsch: ['Die zweite.', 'Die letzte.'], erklaerung: 'Name, Gerät, Schlüsseldatei (none = Passphrase fragen), Optionen.' },
+]} />

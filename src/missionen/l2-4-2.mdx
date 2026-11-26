@@ -1,0 +1,138 @@
+---
+id: l2-4-2
+checks:
+  - id: k1
+  - id: reihe
+  - id: k2
+  - id: luecke
+  - id: swap
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "Swap-Partition"
+    v: "Typ 8200 (GPT) oder 82 (MBR) · mkswap /dev/sdb2 · swapon /dev/sdb2 · in fstab: UUID=… none swap sw 0 0"
+  - t: "Swap-Datei"
+    v: "fallocate -l 2G /swapfile (oder dd if=/dev/zero …) · chmod 600 · mkswap /swapfile · swapon /swapfile · fstab: /swapfile none swap sw 0 0"
+  - t: "Anzeigen"
+    v: "swapon --show · swapon -s · cat /proc/swaps · free -h"
+  - t: "Priorität"
+    v: "swapon -p 10 · in fstab pri=10 · höhere Zahl zuerst · gleiche Zahl = abwechselnd (wie RAID 0) · ohne Angabe negativ (-2, -3 …)"
+  - t: "Alles"
+    v: "swapon -a (alles aus fstab) · swapoff -a (alles aus)"
+karten:
+  - f: "Welche zwei Befehle machen aus einer Datei aktiven Auslagerungsspeicher?"
+    a: ["mkswap und swapon", "mkswap /swapfile; swapon /swapfile"]
+  - f: "Welche Rechte sollte eine Swap-Datei haben?"
+    a: ["600", "0600", "rw-------"]
+  - f: "Welche Swap-Bereiche benutzt der Kernel zuerst?"
+    a: ["die mit der höchsten priorität", "höchste priorität"]
+  - f: "Was passiert bei zwei Swap-Bereichen mit gleicher Priorität?"
+    a: ["sie werden abwechselnd benutzt", "der kernel verteilt die seiten gleichmäßig auf beide"]
+  - f: "In welcher Datei zeigt der Kernel alle aktiven Swap-Bereiche?"
+    a: ["/proc/swaps"]
+  - f: "Wie setzt du in der fstab die Priorität 10 für einen Swap-Bereich?"
+    a: ["pri=10", "mit der option pri=10"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Reihenfolge from '../components/Reihenfolge.astro';
+import Lueckentext from '../components/Lueckentext.astro';
+
+werkstatt rechnet nachts große Messreihen aus, und dabei wird der Speicher knapp. Neu kaufen ist erst nächstes Jahr drin. Bis dahin soll mehr Auslagerungsspeicher helfen: die Swap-Partition auf der neuen SSD und zusätzlich eine Swap-Datei auf der schnellen NVMe, die bevorzugt benutzt wird. **Deine Mission: Richte Swap auf einer Partition und in einer Datei ein, steuere mit Prioritäten, welcher Bereich zuerst dran ist, und mach alles dauerhaft.** Lernziel 203.1 (Swap) und 203.2 (mkswap).
+
+## Partition oder Datei
+
+<Karte nr={1} titel="Zwei Wege zum Auslagerungsspeicher">
+Swap ist Platz auf der Platte, in den der Kernel selten benutzte Speicherseiten auslagert. Das hält Programme am Leben, wenn der Arbeitsspeicher knapp wird, ist aber viel langsamer als RAM.
+
+**Swap-Partition:** eine Partition vom Typ „Linux swap“ (GPT 8200, MBR 82). `mkswap /dev/sdb2` schreibt die Swap-Signatur samt UUID, `swapon /dev/sdb2` schaltet sie ein.
+
+**Swap-Datei:** eine ganz normale Datei, die du jederzeit anlegen, vergrößern oder löschen kannst, ohne zu partitionieren.
+
+```
+fallocate -l 2G /swapfile          # oder: dd if=/dev/zero of=/swapfile bs=1M count=2048
+chmod 600 /swapfile                 # sonst kann jeder ausgelagerten Speicher lesen
+mkswap /swapfile
+swapon /swapfile
+```
+
+Die Rechte sind wichtig: Im Auslagerungsspeicher können Passwörter und Schlüssel landen. mkswap und swapon warnen deshalb bei allem außer 0600. Auf Btrfs braucht eine Swap-Datei Sonderbehandlung, auf ext4 und XFS geht es so.
+
+Was aktiv ist, zeigen `swapon --show`, `swapon -s` und `/proc/swaps`. `free -h` zeigt nur die Summe.
+</Karte>
+
+<Merke>Partition: mkswap, swapon. Datei: fallocate, chmod 600, mkswap, swapon. Aktiv ist, was in /proc/swaps steht.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: Swap-Datei" fragen={[
+  { frage: 'swapon /swapfile meldet „unsichere Zugriffsrechte 0644“. Was ist das Problem?', richtig: 'Jeder Benutzer könnte ausgelagerte Speicherinhalte lesen. chmod 600 /swapfile behebt das.', falsch: ['Die Datei ist zu klein für Swap.', 'Swap-Dateien müssen root:swap gehören.'], erklaerung: 'Im Auslagerungsspeicher können Passwörter und Schlüssel landen.' },
+]} />
+
+<Reihenfolge id="reihe" titel="Reihenfolge: Eine Swap-Datei dauerhaft einrichten" aufgabe="Bring die Schritte in die richtige Reihenfolge." schritte={[
+  'fallocate -l 2G /swapfile',
+  'chmod 600 /swapfile',
+  'mkswap /swapfile',
+  'swapon /swapfile',
+  'Zeile „/swapfile none swap sw 0 0“ in /etc/fstab',
+]} />
+
+## Prioritäten
+
+<Karte nr={2} titel="Wer zuerst dran ist">
+Hat ein Rechner mehrere Swap-Bereiche, entscheidet die **Priorität** (-1 bis 32767): Der Kernel füllt zuerst den Bereich mit der höchsten Zahl. Haben mehrere dieselbe Priorität, verteilt er die Seiten abwechselnd auf alle, ähnlich wie RAID 0. Ohne Angabe vergibt der Kernel negative Werte, -2, -3 und so weiter in der Reihenfolge des Einschaltens.
+
+Setzen kannst du sie beim Einschalten mit `swapon -p 10 /swapfile` oder dauerhaft in der fstab:
+
+```
+/swapfile                                  none  swap  sw,pri=10  0  0
+UUID=e4d3c2b1-a090-4f8e-9d7c-6b5a4f3e2d1c  none  swap  sw,pri=5   0  0
+```
+
+`swapon -a` schaltet alle Swap-Zeilen der fstab ein, `swapoff -a` alle Bereiche aus. swapoff muss vorher alles zurück in den Arbeitsspeicher holen, was dort ausgelagert ist. Auf einem Rechner unter Speichernot kann das dauern oder scheitern.
+</Karte>
+
+<Quiz id="k2" titel="Kurzcheck: Prioritäten" fragen={[
+  { frage: '/dev/sdb2 hat Priorität 5, /swapfile Priorität 10, /dev/nvme0n1p3 Priorität -2. Welcher Bereich füllt sich zuerst?', richtig: '/swapfile', falsch: ['/dev/nvme0n1p3', 'Alle drei abwechselnd.'], erklaerung: 'Die höchste Zahl kommt zuerst. Abwechselnd nur bei gleicher Priorität.' },
+]} />
+
+<Lueckentext id="luecke" titel="Lückentext: Swap in der fstab" aufgabe="Ergänze die beiden Zeilen. Die Datei soll Priorität 10 bekommen."
+  code={`/swapfile                                  ___  swap  sw,___=10  0  0
+UUID=e4d3c2b1-a090-4f8e-9d7c-6b5a4f3e2d1c  none  ___  sw         0  0
+
+$ sudo swapon ___     # alle Zeilen einschalten`}
+  luecken={[
+    { loesungen: ['none', 'swap'] },
+    { loesungen: ['pri'] },
+    { loesungen: ['swap'] },
+    { loesungen: ['-a', '--all'] },
+  ]} />
+
+<Terminal id="swap" titel="Terminal: Mehr Auslagerungsspeicher für werkstatt" welt={{ neuePlatte: 'formatiert', dsys: {} }} aufgaben={[
+  { text: 'Lass dir die aktiven Swap-Bereiche zeigen.', befehl: '^(swapon( --show| -s)?|cat /proc/swaps)$', frage: 'Welche Priorität hat /dev/nvme0n1p3?', antwort: ['-2'] },
+  { text: 'Leg auf der NVMe eine Swap-Datei /swapfile mit 2 GiB an, mit den richtigen Rechten, und mach Swap daraus.', zustand: 'swapdatei:/swapfile=bereit && modus:/swapfile=600' },
+  { text: 'Schalte sie mit Priorität 10 ein.', zustand: 'swapprio:/swapfile=10' },
+  { text: 'Schalte auch die Swap-Partition /dev/sdb2 auf der neuen SSD ein.', zustand: 'swapan:/dev/sdb2' },
+  { text: 'Lies, was der Kernel über die Swap-Bereiche weiß.', befehl: '^(cat|less) /proc/swaps$', frage: 'Welchen Typ nennt er für /swapfile?', antwort: ['file'] },
+  { text: 'Mach beides dauerhaft: /swapfile mit Priorität 10, /dev/sdb2 per UUID.', zustand: 'datei:/etc/fstab~^/swapfile\\s+(none|swap)\\s+swap\\s+\\S*pri=10 && datei:/etc/fstab~^UUID="?e4d3c2b1-a090-4f8e-9d7c-6b5a4f3e2d1c"?\\s+(none|swap)\\s+swap' },
+  { text: 'Prüfe die fstab wie beim Start: alles aus, dann alles aus der fstab wieder ein.', befehl: 'swapoff -a', zustand: 'swapan:/dev/sdb2 && swapdatei:/swapfile=an && swapprio:/swapfile=10 && swapan:/dev/nvme0n1p3 && historie~swapon -a' },
+]} />
+
+<Labor id="labor" titel="Labor: Swap auf srv1"
+  aufgabe="Leg auf srv1 eine kleine Swap-Datei an, schalte sie mit hoher Priorität ein und wieder aus. Füge die Ausgabe ein."
+  befehl={"sudo fallocate -l 256M /swaptest\nsudo chmod 600 /swaptest\nsudo mkswap /swaptest\nsudo swapon -p 50 /swaptest\nswapon --show\nsudo swapoff /swaptest && sudo rm /swaptest"}
+  muster={["UUID=", "/swaptest\\s+file", "\\s50\\s*$"]}
+  erfolg="Die Datei war sofort als Swap aktiv, ohne Partition und ohne Neustart. Weil sie nicht in der fstab steht, wäre sie nach dem nächsten Start nicht mehr eingeschaltet." />
+
+<Hinweis titel="Prüfungstipp">
+Gefragt wird nach der Reihenfolge der Befehle für eine Swap-Datei, nach Prioritäten und nach den Anzeigen swapon -s und /proc/swaps. Im Entwurf 5.0 taucht Swap in Prüfung 201 nur noch als Begriff unter Ressourcenverwaltung auf.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Zwei Swap-Partitionen auf zwei verschiedenen SSDs haben beide pri=5. Was ist die Folge?', richtig: 'Der Kernel verteilt ausgelagerte Seiten abwechselnd auf beide, das kann schneller sein.', falsch: ['Nur die zuerst eingeschaltete wird benutzt.', 'swapon verweigert die zweite.'], erklaerung: 'Gleiche Priorität bedeutet Verteilung wie bei RAID 0.' },
+  { frage: 'Welcher Befehl zeigt aktive Swap-Bereiche mit Größe und Priorität?', richtig: 'swapon --show', falsch: ['mkswap -l', 'free --swap'], erklaerung: 'Ebenso swapon -s und cat /proc/swaps. free zeigt nur die Summe.' },
+  { frage: 'Warum kann swapoff -a auf einem stark belasteten Rechner lange dauern oder scheitern?', richtig: 'Alle ausgelagerten Seiten müssen zurück in den Arbeitsspeicher, und dort ist kaum Platz.', falsch: ['swapoff muss die Swap-Bereiche erst mit Nullen überschreiben.', 'swapoff wartet auf den nächsten Lauf von fsck.'], erklaerung: 'Im schlimmsten Fall beendet der OOM-Killer Prozesse.' },
+]} />

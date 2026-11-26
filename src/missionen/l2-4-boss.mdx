@@ -1,0 +1,32 @@
+---
+id: l2-4-boss
+checks:
+  - id: lager
+spick:
+  - t: "Swap"
+    v: "swapon --show · chmod 600 · fstab: /swapfile none swap sw 0 0 · swapon -a"
+  - t: "Superblock"
+    v: "e2fsck meldet ungültige magische Zahl · mke2fs -n zeigt Kopien · e2fsck -b 32768"
+  - t: "AutoFS"
+    v: "/etc/auto.master.d/*.autofs · Map: SCHLÜSSEL -fstype=TYP :GERÄT · blkid zeigt den Typ · systemctl reload autofs · systemctl status autofs"
+  - t: "SMART und Sicherung"
+    v: "smartctl -H -A · xfsdump -l 0 -L … -M … -f DATEI QUELLE · /etc/smartd.conf · systemctl restart smartd"
+---
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+
+Montag, 9 Uhr, im Lager des Labors. Nach dem Stromausfall am Wochenende läuft der Lagerrechner wieder, aber nichts geht so recht: Die Messdaten unter /mnt/labor/daten sind leer, das Archiv unter /mnt/labor/archiv auch, und der Rechner ist so langsam wie nie, weil ihm der zusätzliche Auslagerungsspeicher fehlt. Ein Kollege hat außerdem im Journal etwas von Lesefehlern gesehen. **Dein Bosskampf: Bring Swap, Messdaten und Archiv zurück, finde heraus, welche Platte stirbt, und sichere das Archiv, bevor es zu spät ist.** Alles aus Topic 203.
+
+<Hinweis titel="Vorgehen">
+Die Aufgaben nennen nur das Ziel. Fang mit dem Überblick an: Was ist aktiv, was ist eingehängt, was meldet systemctl status autofs? Das Ziel für die Sicherung, /backup, liegt auf der NVMe und ist heil.
+</Hinweis>
+
+<Terminal id="lager" titel="Bosskampf: Der Lagerrechner nach dem Stromausfall" welt={{ host: 'lager', neuePlatte: 'formatiert', dsys: { superblock: true, smart: 'warnung', autofs: true, autofsKaputt: true, swapDatei: 'rechte' }, dateien: { '/backup': '/' } }} aufgaben={[
+  { text: 'Verschaff dir einen Überblick über den Auslagerungsspeicher.', befehl: '^(swapon( --show| -s)?|cat /proc/swaps|free( -h)?)$', frage: 'Wie viele Swap-Bereiche sind gerade aktiv?', antwort: ['1', 'einer', 'eins'] },
+  { text: 'Bring die Swap-Datei /swapfile dauerhaft und sicher zum Laufen. Ein Kollege hat sie schon in der fstab eingetragen.', zustand: 'swapdatei:/swapfile=an && modus:/swapfile=600 && datei:/etc/fstab~^/swapfile\\s+(none|swap)\\s+swap && nicht:datei:/etc/fstab~^/swapfil\\s' },
+  { text: 'Mach die Messdaten unter /mnt/labor/daten wieder zugänglich, ohne Daten zu verlieren.', zustand: 'superblock:/dev/sdb1=heil && automount:/mnt/labor/daten=eingehaengt' },
+  { text: 'Mach auch das Archiv unter /mnt/labor/archiv wieder zugänglich.', zustand: 'automount:/mnt/labor/archiv=eingehaengt' },
+  { text: 'Finde heraus, welche Platte die Lesefehler verursacht.', befehl: 'smartctl (-a|-A|-x|-H|--all|--attributes|-l selftest)', auchFehler: true, frage: 'Welches Gerät ist es? (/dev/…)', antwort: ['/dev/sdb', 'sdb'] },
+  { text: 'Sichere das gesamte Archiv mit xfsdump nach /backup/archiv-0.dump.', zustand: 'xfsdump:/backup/archiv-0.dump' },
+  { text: 'Sorge dafür, dass smartd die sterbende Platte gezielt überwacht und root per Mail warnt.', zustand: 'smartd~^/dev/sdb\\s.*-m\\s+root && nicht:smartd~^DEVICESCAN' },
+]} />

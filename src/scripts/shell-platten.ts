@@ -13,18 +13,20 @@ export interface PlattenHelfer {
   kinder: (w: Welt, dir: string) => string[];
 }
 
-export type FsArt = 'ext2' | 'ext3' | 'ext4' | 'xfs' | 'vfat' | 'exfat' | 'btrfs' | 'swap';
+export type FsArt = 'ext2' | 'ext3' | 'ext4' | 'xfs' | 'vfat' | 'exfat' | 'btrfs' | 'swap' | 'crypto_LUKS' | 'udf' | 'iso9660';
 export interface Dateisystem {
   art: FsArt; uuid: string; label?: string; erstellt: number;
   einhaengungen: number; maxEinhaengungen: number; intervall: number; reserviert: number;
   dateien: Record<string, string | null>; metas: Record<string, Meta>; wurzel: Meta;
   basis: number;               // belegte Bytes, die nicht aus simulierten Dateien stammen
   kaputt?: boolean; gesehen?: number;
+  superKaputt?: boolean;        // primärer Superblock zerstört, Sicherungskopien heil (Topic 203)
+  zusatz?: Record<string, unknown>; // Daten der Werkzeuge aus Topic 203 (btrfs, LUKS)
 }
 export interface Partition { nr: number; start: number; ende: number; typ: string; partuuid: string; boot?: boolean; fs?: Dateisystem; }
 export interface Platte { name: string; sektoren: number; modell: string; rm: boolean; maj: number; label: 'gpt' | 'dos' | null; id: string; partitionen: Partition[]; tabelle?: Partition[]; }
-export interface Einhaengung { quelle: string; ziel: string; art: string; optionen: string; virtuell?: boolean; verdeckt?: { fs: Record<string, string | null>; meta: Record<string, Meta> }; }
-export interface PlattenStand { platten: Platte[]; mounts: Einhaengung[]; swaps: string[]; }
+export interface Einhaengung { quelle: string; ziel: string; art: string; optionen: string; virtuell?: boolean; extra?: string; seit?: number; verdeckt?: { fs: Record<string, string | null>; meta: Record<string, Meta> }; }
+export interface PlattenStand { platten: Platte[]; mounts: Einhaengung[]; swaps: string[]; mapper?: Record<string, Partition>; }
 
 const GIB = 1073741824;
 /** fstab beim Start der Welt, damit mount Änderungen erkennt */
@@ -37,7 +39,7 @@ function neueUuid(art: FsArt) {
   return `${hex(n, 8)}-${hex(n + 2, 4)}-4${hex(n + 3, 3)}-a${hex(n + 4, 3)}-${hex(n + 5, 12)}`;
 }
 const WURZEL: Meta = { mode: 0o755, owner: 'root', group: 'root', mtime: 0 };
-function neuesFs(art: FsArt, uhr: number, label?: string, uuid?: string): Dateisystem {
+export function neuesFs(art: FsArt, uhr: number, label?: string, uuid?: string): Dateisystem {
   const ext = art.startsWith('ext');
   return {
     art, uuid: uuid ?? neueUuid(art), label, erstellt: uhr, einhaengungen: 0, maxEinhaengungen: -1, intervall: 0, reserviert: ext ? 5 : 0,
@@ -87,19 +89,21 @@ export function startPlatten(o: { neuePlatte?: boolean | 'leer' | 'partitioniert
 }
 
 // ---------- Hilfen ----------
-const teilName = (pl: Platte, nr: number) => pl.name + (/\d$/.test(pl.name) ? 'p' : '') + nr;
-function finden(w: Welt, dev: string): { pl: Platte; p?: Partition } | null {
+export const teilName = (pl: Platte, nr: number) => pl.name + (/\d$/.test(pl.name) ? 'p' : '') + nr;
+export function finden(w: Welt, dev: string): { pl: Platte; p?: Partition } | null {
   const s = w.platten!; const n = dev.replace(/^\/dev\//, '');
+  if (n.startsWith('mapper/') && s.mapper?.[n.slice(7)]) { const p = s.mapper[n.slice(7)]; return { pl: { name: n, sektoren: p.ende + 1, modell: '', rm: false, maj: 254, label: null, id: '', partitionen: [p] }, p }; }
   for (const pl of s.platten) { if (pl.name === n) return { pl }; for (const p of pl.partitionen) if (teilName(pl, p.nr) === n) return { pl, p }; }
   return null;
 }
-function nachKennung(w: Welt, spez: string): string | null {
+export function nachKennung(w: Welt, spez: string): string | null {
   const by = spez.match(/^\/dev\/disk\/by-(uuid|label|partuuid)\/(.+)$/); if (by) spez = `${by[1].toUpperCase()}=${by[2]}`;
   const m = spez.match(/^(UUID|LABEL|PARTUUID)=["']?([^"']+)["']?$/);
   if (!m) return spez.startsWith('/dev/') ? spez : null;
   for (const pl of w.platten!.platten) for (const p of pl.partitionen) {
     if ((m[1] === 'UUID' && p.fs?.uuid.toLowerCase() === m[2].toLowerCase()) || (m[1] === 'LABEL' && p.fs?.label === m[2]) || (m[1] === 'PARTUUID' && p.partuuid === m[2])) return '/dev/' + teilName(pl, p.nr);
   }
+  for (const [n, p] of Object.entries(w.platten!.mapper ?? {})) if ((m[1] === 'UUID' && p.fs?.uuid.toLowerCase() === m[2].toLowerCase()) || (m[1] === 'LABEL' && p.fs?.label === m[2])) return '/dev/mapper/' + n;
   return null;
 }
 /** Größe wie lsblk und fdisk: 512M, 28,6G, 476,9G */
@@ -116,7 +120,7 @@ function dfGroesse(bytes: number): string {
   while (v >= 1024 && i < e.length - 1) { v /= 1024; i++; }
   return v < 10 ? (Math.ceil(v * 10) / 10).toFixed(1).replace('.', ',') + e[i] : Math.ceil(v) + e[i];
 }
-const fsBytes = (p: Partition) => (p.ende - p.start + 1) * 512;
+export const fsBytes = (p: Partition) => (p.ende - p.start + 1) * 512;
 function belegt(w: Welt, p: Partition, ziel?: string): number {
   const fs = p.fs!; let b = fs.basis < 1 ? Math.round(fs.basis * fsBytes(p)) : fs.basis;
   const quelle = ziel && !w.platten!.mounts.find((m) => m.ziel === ziel)?.virtuell ? Object.entries(w.fs).filter(([k]) => k.startsWith(ziel === '/' ? '/' : ziel + '/')).map(([, v]) => v) : Object.values(fs.dateien);
@@ -165,16 +169,31 @@ export function plattenBefehle(h: PlattenHelfer): Record<string, Befehl> {
   };
 
   // ----- blkid -----
-  b.blkid = (w, a, _i, root) => {
+  b.blkid = (w, a, i, root) => {
+    // -s TAG und -o value: nur den Wert ausgeben, etwa blkid -s UUID -o value /dev/sdb1
+    const si = a.indexOf('-s'); const oi = a.indexOf('-o');
+    if (si >= 0 || oi >= 0) {
+      const tag = si >= 0 ? a[si + 1] : undefined; const form = oi >= 0 ? a[oi + 1] : 'full';
+      const rest = a.filter((_, j) => j !== si && j !== si + 1 && j !== oi && j !== oi + 1);
+      const r = b.blkid(w, rest, i, root); if (r.code) return r;
+      const zeilen = r.out.split('\n').map((z) => { const dev = z.slice(0, z.indexOf(':')); const felder = [...z.matchAll(/(\w+)="([^"]*)"/g)].filter((m) => !tag || m[1] === tag); return { dev, felder }; });
+      if (form === 'value') return ok(zeilen.flatMap((z) => z.felder.map((m) => m[2])).join('\n'));
+      if (form === 'export') return ok(zeilen.map((z) => [`DEVNAME=${z.dev}`, ...z.felder.map((m) => `${m[1]}=${m[2]}`)].join('\n')).join('\n\n'));
+      return ok(zeilen.map((z) => `${z.dev}: ${z.felder.map((m) => `${m[1]}="${m[2]}"`).join(' ')}`).join('\n'));
+    }
     const out: string[] = [];
     for (const pl of w.platten!.platten) for (const p of pl.partitionen) {
       const dev = '/dev/' + teilName(pl, p.nr);
       if (a.length && !a.filter((x) => !x.startsWith('-')).includes(dev)) continue;
       const fs = p.fs; const teile: string[] = [];
-      if (fs) { if (fs.label) teile.push(`LABEL="${fs.label}"`); teile.push(`UUID="${fs.uuid}"`); if (fs.art !== 'swap' && fs.art !== 'vfat' && fs.art !== 'exfat') teile.push('BLOCK_SIZE="4096"'); if (fs.art === 'vfat') teile.push('BLOCK_SIZE="512"'); teile.push(`TYPE="${fs.art}"`); }
+      if (fs) { if (fs.label) teile.push(`LABEL="${fs.label}"`); teile.push(`UUID="${fs.uuid}"`); if (fs.art !== 'swap' && fs.art !== 'vfat' && fs.art !== 'exfat' && fs.art !== 'crypto_LUKS') teile.push('BLOCK_SIZE="4096"'); if (fs.art === 'vfat') teile.push('BLOCK_SIZE="512"'); teile.push(`TYPE="${fs.art}"`); }
       if (pl.label === 'gpt' && p.typ.startsWith('EFI')) teile.push('PARTLABEL="EFI System Partition"');
       teile.push(`PARTUUID="${p.partuuid}"`);
       out.push(`${dev}: ${teile.join(' ')}`);
+    }
+    for (const [n, p] of Object.entries(w.platten!.mapper ?? {})) {
+      const dev = '/dev/mapper/' + n; if (a.length && !a.filter((x) => !x.startsWith('-')).includes(dev)) continue;
+      if (p.fs) out.push(`${dev}: ${p.fs.label ? `LABEL="${p.fs.label}" ` : ''}UUID="${p.fs.uuid}" ${p.fs.art !== 'swap' ? 'BLOCK_SIZE="4096" ' : ''}TYPE="${p.fs.art}"`);
     }
     void root;
     return out.length ? ok(out.join('\n')) : { out: '', code: 2 };
@@ -471,7 +490,8 @@ export function plattenBefehle(h: PlattenHelfer): Record<string, Befehl> {
     const art = artWunsch && artWunsch !== 'auto' ? artWunsch : fs?.art;
     if (!t.p || !fs || fs.art === 'swap' || (artWunsch && artWunsch !== 'auto' && artWunsch !== fs.art && !(fs.art === 'ext3' && artWunsch === 'ext4'))) return `mount: ${zp}: Falscher Dateisystemtyp, ungültige Optionen, der Superblock von ${dev} ist beschädigt, fehlende Kodierungsseite oder ein anderer Fehler.\n       dmesg(1) könnte nach einem fehlgeschlagenen mount-Systemaufruf\n       weitere Informationen liefern.`;
     if (s.mounts.find((m) => m.quelle === dev)) return `mount: ${zp}: ${dev} ist bereits auf ${s.mounts.find((m) => m.quelle === dev)!.ziel} eingehängt.`;
-    if (fs.kaputt) return `mount: ${zp}: Falscher Dateisystemtyp, ungültige Optionen, der Superblock von ${dev} ist beschädigt, fehlende Kodierungsseite oder ein anderer Fehler.\n       dmesg(1) könnte nach einem fehlgeschlagenen mount-Systemaufruf\n       weitere Informationen liefern.`;
+    if (fs.art === 'crypto_LUKS') return `mount: ${zp}: unbekannter Dateisystemtyp »crypto_LUKS«.\n       (Ein verschlüsseltes Gerät öffnest du zuerst mit cryptsetup open und hängst dann /dev/mapper/NAME ein.)`;
+    if (fs.kaputt || fs.superKaputt) return `mount: ${zp}: Falscher Dateisystemtyp, ungültige Optionen, der Superblock von ${dev} ist beschädigt, fehlende Kodierungsseite oder ein anderer Fehler.\n       dmesg(1) könnte nach einem fehlgeschlagenen mount-Systemaufruf\n       weitere Informationen liefern.`;
     // Was vorher im Einhängepunkt lag, ist jetzt verdeckt
     const verdeckt = { fs: {} as Record<string, string | null>, meta: {} as Record<string, Meta> };
     for (const k of Object.keys(w.fs).filter((k) => k === zp || k.startsWith(zp + '/'))) { verdeckt.fs[k] = w.fs[k]; verdeckt.meta[k] = { ...meta(w, k) }; if (k !== zp) delete w.fs[k]; }
@@ -595,7 +615,7 @@ export function plattenBefehle(h: PlattenHelfer): Record<string, Befehl> {
       return ok(`tune2fs 1.47.0 (5-Feb-2023)\nFilesystem volume name:   ${fs.label ?? '<none>'}\nLast mounted on:          <not available>\nFilesystem UUID:          ${fs.uuid}\nFilesystem magic number:  0xEF53\nFilesystem revision #:    1 (dynamic)\nFilesystem features:      ${fs.art === 'ext4' ? 'has_journal ext_attr resize_inode dir_index filetype extent 64bit flex_bg sparse_super large_file huge_file dir_nlink extra_isize metadata_csum' : fs.art === 'ext3' ? 'has_journal ext_attr resize_inode dir_index filetype sparse_super large_file' : 'ext_attr resize_inode dir_index filetype sparse_super large_file'}\nFilesystem state:         ${fs.kaputt ? 'not clean' : 'clean'}\nErrors behavior:          Continue\nFilesystem OS type:       Linux\nInode count:              ${Math.round(fsBytes(t.p) / 16384)}\nBlock count:              ${bl}\nReserved block count:     ${Math.round(bl * fs.reserviert / 100)}\nBlock size:               4096\nMount count:              ${fs.einhaengungen}\nMaximum mount count:      ${fs.maxEinhaengungen}\nCheck interval:           ${fs.intervall} (${fs.intervall ? Math.round(fs.intervall / 86400) + ' days' : '<none>'})\nReserved blocks uid:      0 (user root)\nReserved blocks gid:      0 (group root)\nInode size:\t          256\n${fs.art !== 'ext2' ? 'Journal inode:            8\n' : ''}(gekürzt)`);
     }
     if (wert('-L') !== undefined) fs.label = wert('-L');
-    if (wert('-c') !== undefined) { fs.maxEinhaengungen = Number(wert('-c')); out.push(`Die maximale Anzahl von Einhängungen wird auf ${fs.maxEinhaengungen} gesezt`); }
+    if (wert('-c') !== undefined) { fs.maxEinhaengungen = Number(wert('-c')); out.push(`Die maximale Anzahl von Einhängungen wird auf ${fs.maxEinhaengungen} gesetzt`); }
     if (wert('-i') !== undefined) { const m = wert('-i')!.match(/^(\d+)([dwm]?)$/); const s = m ? Number(m[1]) * ({ d: 86400, w: 604800, m: 2592000, '': 86400 } as Record<string, number>)[m[2]] : 0; fs.intervall = s; out.push(`Der Abstand zwischen den Prüfläufen wird auf ${s} Sekunden gesetzt`); }
     if (wert('-m') !== undefined) { fs.reserviert = Number(wert('-m')); out.push(`Der prozentuelle Anteil reservierter Blöcke wird auf ${fs.reserviert}% (${Math.round(fsBytes(t.p) / 4096 * fs.reserviert / 100)} Blöcke) gesetzt`); }
     if (a.includes('-j') && fs.art === 'ext2') { fs.art = 'ext3'; out.push('Das Journal-Inode wird erzeugt: erledigt'); }

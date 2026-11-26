@@ -1,0 +1,133 @@
+---
+id: l2-4-4
+checks:
+  - id: k1
+  - id: zuordnung
+  - id: k2
+  - id: luecke
+  - id: btrfs
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "Überblick"
+    v: "btrfs filesystem show · btrfs filesystem df /mnt · btrfs filesystem usage /mnt · Paket btrfs-progs"
+  - t: "Subvolumes"
+    v: "btrfs subvolume create /mnt/@name · list /mnt · show /mnt/@name · delete /mnt/@name · einhängen: mount -o subvol=@name"
+  - t: "Snapshots"
+    v: "btrfs subvolume snapshot /mnt/@daten /mnt/@daten-alt · -r = nur lesbar · copy-on-write: kostet anfangs keinen Platz"
+  - t: "Umwandeln"
+    v: "btrfs-convert /dev/sdb1 (ext2/3/4, ausgehängt) · altes Dateisystem bleibt in ext2_saved · btrfs-convert -r = zurück"
+  - t: "ZFS"
+    v: "Pool aus vdevs: zpool create · Dateisysteme im Pool: zfs create, zfs snapshot · Lizenz CDDL, nicht im Linux-Kernel"
+karten:
+  - f: "Was ist ein Btrfs-Subvolume?"
+    a: ["ein eigener dateibaum im dateisystem, der sich einzeln einhängen und sichern lässt", "ein unabhängiger teilbaum"]
+  - f: "Mit welchem Befehl legst du einen nur lesbaren Snapshot an?"
+    a: ["btrfs subvolume snapshot -r", "btrfs subvolume snapshot -r quelle ziel"]
+  - f: "Warum kostet ein frischer Snapshot fast keinen Platz?"
+    a: ["copy-on-write: er teilt sich alle blöcke mit dem original", "wegen copy-on-write"]
+  - f: "Welches Werkzeug wandelt ext4 in Btrfs um?"
+    a: ["btrfs-convert"]
+  - f: "Wo liegt nach btrfs-convert das alte Dateisystem?"
+    a: ["im subvolume ext2_saved", "ext2_saved"]
+  - f: "Wie hängst du nur das Subvolume @home ein?"
+    a: ["mount -o subvol=@home", "mit der option subvol=@home"]
+  - f: "Woraus besteht ein ZFS-Pool?"
+    a: ["aus vdevs", "aus virtuellen geräten (vdevs)"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Zuordnung from '../components/Zuordnung.astro';
+import Lueckentext from '../components/Lueckentext.astro';
+
+Das Messteam hat auf einer vierten Partition der neuen SSD ein Btrfs-Dateisystem mit den laufenden Projekten. Vor jedem Update der Auswertungssoftware soll es einen Stand geben, zu dem man in Sekunden zurückkann. Und die alten Messdaten auf ext4 sollen auch auf Btrfs umziehen, ohne sie hin und her zu kopieren. **Deine Mission: Arbeite mit Subvolumes und Snapshots, hol eine gelöschte Datei aus einem Snapshot zurück und wandle ein ext4 in Btrfs um.** Lernziel 203.2 (Btrfs und ZFS).
+
+## Btrfs: ein Dateisystem mit Bäumen darin
+
+<Karte nr={1} titel="Copy-on-Write, Subvolumes und Snapshots">
+Btrfs schreibt geänderte Daten nie an dieselbe Stelle, sondern immer in neue Blöcke (**Copy-on-Write**). Darauf baut alles Weitere auf:
+
+- Ein **Subvolume** ist ein eigener Dateibaum im Dateisystem. Es sieht aus wie ein Verzeichnis, lässt sich aber einzeln einhängen (`mount -o subvol=@home /dev/sdb4 /home`), sichern und mit einem Snapshot festhalten. Viele Distributionen legen `@` für / und `@home` für /home an.
+- Ein **Snapshot** ist ein Subvolume, das zu Beginn alle Blöcke mit seinem Original teilt. Er kostet deshalb anfangs fast keinen Platz und entsteht in einer Sekunde. Erst was sich danach ändert, belegt neuen Platz. Mit `-r` ist er nur lesbar, so kann ihn niemand versehentlich verändern.
+
+```
+btrfs subvolume create   /srv/projekte/@archiv
+btrfs subvolume list     /srv/projekte
+btrfs subvolume snapshot -r /srv/projekte/@daten /srv/projekte/@daten-vor-update
+btrfs subvolume delete   /srv/projekte/@archiv
+```
+
+Den Überblick geben `btrfs filesystem show` (welche Geräte), `btrfs filesystem df` und `usage` (wie viel für Daten und Metadaten belegt ist). `df -h` liegt bei Btrfs oft daneben, weil Metadaten doppelt gespeichert werden. Prüfen kann Btrfs sich selbst im laufenden Betrieb mit `btrfs scrub start /mnt`. Die Werkzeuge stecken im Paket **btrfs-progs**.
+
+Ein Snapshot ersetzt keine Sicherung: Er liegt auf derselben Platte. Stirbt sie, sind beide weg.
+</Karte>
+
+<Merke>Subvolume = eigener Baum, einzeln einhängbar. Snapshot = Subvolume, das anfangs alle Blöcke teilt, -r für nur lesbar. Kein Ersatz für eine Sicherung auf einer anderen Platte.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: Snapshots" fragen={[
+  { frage: 'Du legst von einem Subvolume mit 200 GiB Daten einen Snapshot an. Wie viel Platz belegt er direkt danach?', richtig: 'Fast keinen, er teilt sich alle Blöcke mit dem Original.', falsch: ['200 GiB, die Daten werden kopiert.', '100 GiB, Btrfs speichert Snapshots komprimiert.'], erklaerung: 'Platz kosten erst Blöcke, die sich nach dem Snapshot im Original oder im Snapshot ändern.' },
+]} />
+
+## Umwandeln und ZFS
+
+<Karte nr={2} titel="btrfs-convert und ein Blick auf ZFS">
+**btrfs-convert** wandelt ein ausgehängtes ext2-, ext3- oder ext4-Dateisystem an Ort und Stelle in Btrfs um. Die Dateien bleiben, wo sie sind. Die Metadaten des alten Dateisystems hebt es als Abbild im Subvolume **ext2_saved** auf. Solange das existiert, geht es mit `btrfs-convert -r /dev/sdb1` zurück. Gefällt das Ergebnis, löscht man ext2_saved und gewinnt den Platz zurück. Vorher gilt wie immer: Sicherung machen.
+
+**ZFS** verfolgt dieselben Ideen (Copy-on-Write, Snapshots, Prüfsummen), ist aber anders gebaut. Mehrere Platten bilden **vdevs** (einzeln, Spiegel, raidz), vdevs bilden einen **Pool** (`zpool create tank mirror /dev/sdb /dev/sdc`), und im Pool legst du Dateisysteme an (`zfs create tank/projekte`, `zfs snapshot tank/projekte@heute`). ZFS steht unter der Lizenz CDDL und ist deshalb nicht im Linux-Kernel enthalten. Debian liefert es als Modul über DKMS (Paket zfs-dkms in contrib). Für Lernziel 203.2 reicht es, das zu kennen. Im Entwurf 5.0 bekommt ZFS ein eigenes Lernziel (202.4, Grundlagen) und Btrfs verschwindet.
+</Karte>
+
+<Zuordnung id="zuordnung" titel="Zuordnung: Btrfs oder ZFS?" aufgabe="Ordne jeden Befehl dem Werkzeug und der Wirkung zu." paare={[
+  { links: 'btrfs subvolume snapshot -r', rechts: 'nur lesbarer Snapshot in Btrfs' },
+  { links: 'btrfs-convert', rechts: 'ext4 an Ort und Stelle zu Btrfs machen' },
+  { links: 'btrfs filesystem df', rechts: 'Belegung nach Daten und Metadaten' },
+  { links: 'zpool create', rechts: 'aus Platten einen ZFS-Pool bilden' },
+  { links: 'zfs snapshot', rechts: 'Snapshot eines ZFS-Dateisystems' },
+]} />
+
+<Quiz id="k2" titel="Kurzcheck: btrfs-convert" fragen={[
+  { frage: 'Wie machst du eine Umwandlung mit btrfs-convert rückgängig?', richtig: 'btrfs-convert -r /dev/sdb1, solange ext2_saved noch existiert.', falsch: ['mkfs.ext4 /dev/sdb1 stellt das alte Dateisystem wieder her.', 'Gar nicht, die Umwandlung ist endgültig.'], erklaerung: 'Nach dem Löschen von ext2_saved geht es nicht mehr zurück.' },
+]} />
+
+<Lueckentext id="luecke" titel="Lückentext: Stand vor dem Update" aufgabe="Ergänze die Befehle: Subvolumes zeigen, einen nur lesbaren Snapshot anlegen und später daraus eine Datei zurückholen."
+  code={`$ sudo btrfs subvolume ___ /srv/projekte
+$ sudo btrfs subvolume ___ ___ /srv/projekte/@daten /srv/projekte/@daten-vor-update
+$ sudo cp /srv/projekte/___/auswertung.ods /srv/projekte/@daten/`}
+  luecken={[
+    { loesungen: ['list'] },
+    { loesungen: ['snapshot'] },
+    { loesungen: ['-r'] },
+    { loesungen: ['@daten-vor-update'] },
+  ]} />
+
+<Terminal id="btrfs" titel="Terminal: Projekte auf Btrfs" welt={{ neuePlatte: 'formatiert', dsys: { btrfs: true }, dateien: { '/srv/projekte': '/' } }} aufgaben={[
+  { text: 'Installier die Btrfs-Werkzeuge und lass dir alle Btrfs-Dateisysteme zeigen.', befehl: '^(sudo )?btrfs (filesystem|fi) show', frage: 'Welches Label hat das Dateisystem auf /dev/sdb4?', antwort: ['projekte'] },
+  { text: 'Häng /dev/sdb4 nach /srv/projekte ein.', zustand: 'eingehaengt:/dev/sdb4=/srv/projekte' },
+  { text: 'Lass dir die Subvolumes zeigen.', befehl: '^(sudo )?btrfs (subvolume|sub|su) list /srv/projekte/?$', frage: 'Welche ID hat @home?', antwort: ['257'] },
+  { text: 'Leg ein neues Subvolume @archiv an.', zustand: 'subvol:/srv/projekte/@archiv' },
+  { text: 'Vor dem Update: Halte @daten in einem nur lesbaren Snapshot @daten-vor-update fest.', zustand: 'snapshot:/srv/projekte/@daten-vor-update=ro' },
+  { text: 'Das Update hat auswertung.ods in @daten gelöscht. Lösch sie dort selbst und hol sie aus dem Snapshot zurück.', zustand: 'historie~rm .*auswertung\\.ods && da:/srv/projekte/@daten/auswertung.ods' },
+  { text: 'Schau, wie viel Platz Daten und Metadaten belegen.', befehl: '^(sudo )?btrfs (filesystem|fi) (df|usage) /srv/projekte/?$', frage: 'Wie oft speichert dieses Btrfs die Metadaten? (Profil hinter Metadata, Komma)', antwort: ['DUP', 'zweimal', '2'] },
+  { text: 'Wandle die Messdaten auf /dev/sdb1 (ext4) an Ort und Stelle in Btrfs um.', zustand: 'btrfs:/dev/sdb1' },
+  { text: 'Häng /dev/sdb1 nach /mnt und lass dir dort die Subvolumes zeigen.', befehl: '^(sudo )?btrfs (subvolume|sub|su) list /mnt/?$', frage: 'Wie heißt das Subvolume mit dem alten Dateisystem?', antwort: ['ext2_saved'] },
+]} />
+
+<Labor id="labor" titel="Labor: Btrfs in einer Datei"
+  aufgabe="Ohne freie Partition geht Btrfs auch in einer Datei. Probier Subvolume und Snapshot auf srv1 aus und räum danach auf. Füge die Ausgabe ein."
+  befehl={"sudo apt install -y btrfs-progs\ntruncate -s 1G /tmp/btrfs.img && sudo mkfs.btrfs -q /tmp/btrfs.img\nsudo mkdir -p /mnt/bt && sudo mount -o loop /tmp/btrfs.img /mnt/bt\nsudo btrfs subvolume create /mnt/bt/@daten\necho hallo | sudo tee /mnt/bt/@daten/a.txt\nsudo btrfs subvolume snapshot -r /mnt/bt/@daten /mnt/bt/@daten-snap\nsudo btrfs subvolume list /mnt/bt\nsudo umount /mnt/bt && rm /tmp/btrfs.img"}
+  muster={["Create subvolume", "readonly snapshot", "ID \\d+ gen \\d+ top level 5 path @daten-snap"]}
+  erfolg="Die beiden Subvolumes tauchen in der Liste auf, der Snapshot mit eigener ID. Gekostet hat er praktisch nichts." />
+
+<Hinweis titel="Prüfungstipp">
+203.2 verlangt Grundbefehle für Subvolumes und Snapshots, btrfs-convert und Kenntnis von ZFS. Typisch sind Fragen nach dem Befehl für einen nur lesbaren Snapshot und danach, warum ein Snapshot keine Sicherung ist.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Warum ist ein Btrfs-Snapshot keine vollwertige Sicherung?', richtig: 'Er liegt auf derselben Platte. Fällt sie aus, sind Original und Snapshot verloren.', falsch: ['Er enthält nur die geänderten Dateien.', 'Er verschwindet beim nächsten Neustart.'], erklaerung: 'Gegen versehentliches Löschen hilft er. Gegen den Ausfall der Platte nur eine Kopie woanders.' },
+  { frage: 'Welche Bedingung muss erfüllt sein, bevor du btrfs-convert auf /dev/sdb1 startest?', richtig: '/dev/sdb1 ist ausgehängt und enthält ext2, ext3 oder ext4.', falsch: ['/dev/sdb1 ist nur lesbar eingehängt.', '/dev/sdb1 ist leer.'], erklaerung: 'btrfs-convert arbeitet an Ort und Stelle und braucht das Dateisystem für sich allein.' },
+  { frage: 'Welcher Befehl zeigt, welche Geräte zu einem Btrfs-Dateisystem gehören?', richtig: 'btrfs filesystem show', falsch: ['btrfs subvolume list', 'btrfs scrub status'], erklaerung: 'Ein Btrfs kann sich über mehrere Geräte erstrecken. show listet sie mit Größe und Belegung.' },
+]} />

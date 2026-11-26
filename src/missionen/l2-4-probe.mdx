@@ -1,0 +1,21 @@
+---
+id: l2-4-probe
+abzeichen: "Topic 203 bestanden"
+checks:
+  - id: probe
+---
+import Probe from '../components/Probe.astro';
+import Karte from '../components/Karte.astro';
+import Hinweis from '../components/Hinweis.astro';
+
+Topic 203 bringt in Prüfung 201 ungefähr **9 von 60 Fragen**, die meisten davon zu 203.1. **Deine Mission: Bestehe die Probe mit mindestens 80 %.**
+
+<Karte nr={1} titel="Was diese Probe mischt">
+Neben Topic 203 kommen Fragen aus LPIC-1, auf denen der Stoff aufbaut: Plattenaufteilung und Swap (102.1), Partitionen und Dateisysteme anlegen (104.1), Dateisysteme prüfen (104.2) und Einhängen mit der fstab (104.3). Wer mkfs, fsck und die Felder der fstab aus LPIC-1 nicht mehr sicher kann, verliert hier Punkte.
+</Karte>
+
+<Hinweis titel="Zum Tempo">
+20 Fragen in 30 Minuten. Gemischt nach den Gewichten der Lernziele: etwa neun aus Topic 203, der Rest aus LPIC-1. Falsch beantwortete Fragen landen morgen in deiner Wiederholung.
+</Hinweis>
+
+<Probe id="probe" titel="Probeprüfung: Topic 203 mit Wiederholung aus LPIC-1" ziele={['203.1', '203.2', '203.3', '102.1', '104.1', '104.2', '104.3']} anzahl={20} />

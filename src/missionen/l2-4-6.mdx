@@ -1,0 +1,158 @@
+---
+id: l2-4-6
+checks:
+  - id: k1
+  - id: zuordnung
+  - id: k2
+  - id: luecke
+  - id: autofs
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "auto.master"
+    v: "EINHÄNGEPUNKT  MAP  [Optionen] · /mnt/labor /etc/auto.labor --timeout=60 · /- = direkte Map · +dir:/etc/auto.master.d (*.autofs)"
+  - t: "Map-Zeile"
+    v: "SCHLÜSSEL  -OPTIONEN  ORT · daten -fstype=ext4,rw :/dev/sdb1 · projekte -fstype=nfs4 srv1:/srv/projekte · * srv1:/home/& (Platzhalter)"
+  - t: "Dienst"
+    v: "apt install autofs · systemctl reload autofs nach Änderungen · automount -m zeigt geladene Maps · ls des Mountpunkts zeigt erst nach Zugriff etwas"
+  - t: "systemd"
+    v: "fstab: noauto,x-systemd.automount,x-systemd.idle-timeout=60 · eigene Unit NAME.automount mit [Automount] Where= plus NAME.mount"
+karten:
+  - f: "In welcher Datei stehen bei AutoFS die Einhängepunkte und ihre Maps?"
+    a: ["/etc/auto.master"]
+  - f: "Wie sieht eine Map-Zeile für /dev/sdb1 mit ext4 aus?"
+    a: ["daten -fstype=ext4 :/dev/sdb1", "schlüssel -fstype=ext4 :/dev/sdb1"]
+  - f: "Was bedeutet /- in auto.master?"
+    a: ["eine direkte map mit vollständigen pfaden", "direkte map"]
+  - f: "Wofür steht & in einer Map-Zeile mit *?"
+    a: ["für den schlüssel, also den namen, auf den zugegriffen wurde", "den schlüssel"]
+  - f: "Mit welcher Option hängt AutoFS nach 60 Sekunden ohne Zugriff wieder aus?"
+    a: ["--timeout=60", "--timeout 60"]
+  - f: "Wie lässt du systemd ein Dateisystem aus der fstab erst beim ersten Zugriff einhängen?"
+    a: ["x-systemd.automount", "mit der option x-systemd.automount"]
+  - f: "Wie liest AutoFS geänderte Maps ein?"
+    a: ["systemctl reload autofs"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Zuordnung from '../components/Zuordnung.astro';
+import Lueckentext from '../components/Lueckentext.astro';
+
+Die Messrechner im Labor sollen die Projektfreigabe von srv1 und die Messdaten-SSD nur dann einhängen, wenn jemand sie wirklich braucht. Ist srv1 gerade nicht erreichbar, soll der Rechner trotzdem normal starten. Und jeder Mitarbeiter soll sein Home-Verzeichnis von srv1 unter demselben Pfad finden, ohne dass für jeden eine eigene Zeile nötig ist. **Deine Mission: Richte AutoFS mit einer indirekten Map und einer Platzhalter-Map ein und lass systemd ein Dateisystem bei Bedarf einhängen.** Lernziel 203.3 (AutoFS).
+
+## AutoFS
+
+<Karte nr={1} titel="Einhängen beim ersten Zugriff">
+**AutoFS** (Paket autofs, Dienst autofs, Programm automount) hängt Dateisysteme erst ein, wenn jemand auf den Pfad zugreift, und nach einer Weile ohne Zugriff wieder aus. Das hilft bei Netzfreigaben, die nicht immer da sind, und bei vielen Home-Verzeichnissen.
+
+Die Konfiguration hat zwei Ebenen. **/etc/auto.master** (oder Dateien `*.autofs` in /etc/auto.master.d/) nennt pro Zeile einen Einhängepunkt und eine **Map**:
+
+```
+/mnt/labor   /etc/auto.labor   --timeout=60
+/home/netz   /etc/auto.home
+/-           /etc/auto.direkt
+```
+
+Jede **Map** hat Zeilen aus Schlüssel, Optionen und Ort:
+
+```
+# /etc/auto.labor (indirekte Map)
+daten      -fstype=ext4,rw     :/dev/sdb1
+projekte   -fstype=nfs4,rw     srv1:/srv/projekte
+```
+
+Bei einer **indirekten Map** ist der Schlüssel ein Name unter dem Einhängepunkt: Ein Zugriff auf `/mnt/labor/projekte` hängt srv1:/srv/projekte genau dort ein. Lokale Geräte stehen mit vorangestelltem Doppelpunkt. `ls /mnt/labor` zeigt vorher nichts, die Unterverzeichnisse entstehen erst beim Zugriff.
+
+Eine **direkte Map** (`/-` in auto.master) enthält vollständige Pfade als Schlüssel, etwa `/srv/backup -fstype=ext4 :/dev/sdb1`.
+
+Mit dem Platzhalter `*` und `&` reicht eine Zeile für alle: `* -fstype=nfs4 srv1:/home/&` hängt bei Zugriff auf `/home/netz/max` die Freigabe srv1:/home/max ein.
+
+Nach Änderungen: `systemctl reload autofs`. `automount -m` zeigt, welche Maps der Dienst geladen hat.
+</Karte>
+
+<Merke>auto.master: Einhängepunkt + Map. Map: Schlüssel + -Optionen + Ort, lokale Geräte mit :. * und & für alle Namen. Nach Änderungen reload.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: Maps" fragen={[
+  { frage: 'auto.master enthält „/mnt/labor /etc/auto.labor“, auto.labor die Zeile „daten -fstype=ext4 :/dev/sdb1“. Wann wird /dev/sdb1 eingehängt und wohin?', richtig: 'Beim ersten Zugriff auf /mnt/labor/daten, genau dorthin.', falsch: ['Beim Start des Dienstes nach /mnt/labor.', 'Beim Start des Dienstes nach /mnt/labor/daten.'], erklaerung: 'Indirekte Map: Einhängepunkt aus auto.master plus Schlüssel aus der Map, und zwar erst bei Bedarf.' },
+]} />
+
+## Automount mit systemd
+
+<Karte nr={2} titel="x-systemd.automount und .automount-Units">
+systemd kann dasselbe ohne AutoFS. In der fstab genügen zwei Optionen:
+
+```
+LABEL=archiv  /srv/archiv  xfs  noauto,x-systemd.automount,x-systemd.idle-timeout=120  0  0
+```
+
+Nach `systemctl daemon-reload` legt systemd auf /srv/archiv einen Platzhalter vom Typ autofs (in /proc/mounts als `systemd-1 /srv/archiv autofs`). Beim ersten Zugriff startet es die passende Mount-Unit. Ohne `noauto` würde systemd beim Start trotzdem einhängen.
+
+Ohne fstab geht es mit zwei Units: `mnt-daten.mount` wie gehabt und `mnt-daten.automount` mit
+
+```ini
+[Automount]
+Where=/mnt/daten
+TimeoutIdleSec=300
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Eingeschaltet wird nur die .automount-Unit (`systemctl enable --now mnt-daten.automount`). Sie startet die .mount-Unit beim ersten Zugriff.
+</Karte>
+
+<Zuordnung id="zuordnung" titel="Zuordnung: Wo steht was?" aufgabe="Ordne jeder Zeile die Datei zu, in die sie gehört." paare={[
+  { links: '/mnt/labor  /etc/auto.labor  --timeout=60', rechts: '/etc/auto.master' },
+  { links: 'projekte  -fstype=nfs4  srv1:/srv/projekte', rechts: '/etc/auto.labor' },
+  { links: '*  -fstype=nfs4  srv1:/home/&', rechts: '/etc/auto.home' },
+  { links: 'LABEL=archiv /srv/archiv xfs noauto,x-systemd.automount 0 0', rechts: '/etc/fstab' },
+  { links: 'Where=/mnt/daten', rechts: 'mnt-daten.automount' },
+]} />
+
+<Quiz id="k2" titel="Kurzcheck: systemd" fragen={[
+  { frage: 'Du hast x-systemd.automount ergänzt, aber nach daemon-reload wird /srv/archiv trotzdem beim Start eingehängt. Was fehlt?', richtig: 'noauto', falsch: ['nofail', 'x-systemd.device-timeout=0'], erklaerung: 'Ohne noauto gehört die Mount-Unit zu local-fs.target und wird beim Start eingehängt.' },
+]} />
+
+<Lueckentext id="luecke" titel="Lückentext: Homes vom Server" aufgabe="Ergänze auto.master und die Map so, dass ein Zugriff auf /home/netz/NAME die Freigabe srv1:/home/NAME einhängt."
+  code={`# /etc/auto.master.d/home.autofs
+/home/netz   /etc/auto.home   --___=300
+
+# /etc/auto.home
+___   -fstype=nfs4,rw   srv1:/home/___`}
+  luecken={[
+    { loesungen: ['timeout'] },
+    { loesungen: ['*'] },
+    { loesungen: ['&'] },
+  ]} />
+
+<Terminal id="autofs" titel="Terminal: AutoFS auf einem Messrechner" welt={{ neuePlatte: 'formatiert', dsys: {} }} aufgaben={[
+  { text: 'Installier AutoFS.', zustand: 'paket:autofs=an' },
+  { text: 'Lies /etc/auto.master.', befehl: '^(cat|less|grep .*) /etc/auto\\.master$', frage: 'Aus welchem Verzeichnis liest AutoFS zusätzliche Einträge? (Zeile mit +dir:)', antwort: ['/etc/auto.master.d', '/etc/auto.master.d/'] },
+  { text: 'Leg /etc/auto.master.d/labor.autofs an: Einhängepunkt /mnt/labor, Map /etc/auto.labor, Zeitlimit 60 Sekunden.', zustand: 'datei:/etc/auto.master.d/labor.autofs~^/mnt/labor\\s+(file:)?/etc/auto\\.labor\\s+.*--timeout[= ]60' },
+  { text: 'Schreib /etc/auto.labor: daten für /dev/sdb1 (ext4) und projekte für srv1:/srv/projekte (nfs4).', zustand: 'datei:/etc/auto.labor~^daten\\s+-\\S*fstype=ext4\\S*\\s+:/dev/sdb1 && datei:/etc/auto.labor~^projekte\\s+-\\S*fstype=nfs4?\\S*\\s+srv1:/srv/projekte' },
+  { text: 'Lass AutoFS die neuen Maps einlesen.', zustand: 'autofs:map=/mnt/labor/daten && autofs:map=/mnt/labor/projekte' },
+  { text: 'Greif auf die Projektfreigabe zu.', zustand: 'nfs:/mnt/labor/projekte', frage: 'Welche Datei liegt dort direkt im Verzeichnis?', antwort: ['LIESMICH.txt'] },
+  { text: 'Richte /home/netz mit einer Platzhalter-Map /etc/auto.home ein, sodass /home/netz/NAME die Freigabe srv1:/home/NAME einhängt. Probier es mit max.', zustand: 'automount:/home/netz/max=eingehaengt' },
+  { text: 'Lass systemd das Archiv (LABEL=archiv, XFS) unter /srv/archiv erst beim ersten Zugriff einhängen, über die fstab. Greif danach darauf zu.', zustand: 'datei:/etc/fstab~^LABEL=archiv\\s+/srv/archiv\\s+xfs\\s+\\S*x-systemd\\.automount && datei:/etc/fstab~^LABEL=archiv\\s+/srv/archiv\\s+xfs\\s+\\S*noauto && automount:/srv/archiv=eingehaengt' },
+]} />
+
+<Labor id="labor" titel="Labor: AutoFS mit der Freigabe von srv1"
+  aufgabe="Wenn srv1 in deinem Labor schon NFS freigibt (Kampagne 2, Akt 10 kommt noch), nimm eine Freigabe von dort. Sonst reicht /etc/auto.misc mit einem lokalen Gerät oder einem ISO. Füge die Ausgabe ein."
+  befehl={"sudo apt install -y autofs\necho '/mnt/auto /etc/auto.test --timeout=30' | sudo tee /etc/auto.master.d/test.autofs\necho 'tmp -fstype=tmpfs,size=10m :tmpfs' | sudo tee /etc/auto.test\nsudo systemctl reload autofs\nls /mnt/auto; ls /mnt/auto/tmp; grep /mnt/auto /proc/mounts"}
+  muster={["/mnt/auto\\s+autofs", "/mnt/auto/tmp\\s+tmpfs"]}
+  erfolg="Vor dem Zugriff war /mnt/auto leer, danach hing tmpfs unter /mnt/auto/tmp. Nach 30 Sekunden ohne Zugriff verschwindet es wieder." />
+
+<Hinweis titel="Prüfungstipp">
+203.3 nennt /etc/auto.master, /etc/auto.[dir] und das Verständnis von Automount-Units. Gefragt wird nach dem Aufbau von Master- und Map-Zeilen, nach direkten und indirekten Maps und nach den Optionen in der fstab. Im Entwurf 5.0 gibt es AutoFS in Prüfung 201 nicht mehr.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Welche auto.master-Zeile bindet eine direkte Map ein?', richtig: '/-  /etc/auto.direkt', falsch: ['/direkt  /etc/auto.direkt', '*  /etc/auto.direkt'], erklaerung: 'In der direkten Map stehen dann vollständige Pfade als Schlüssel.' },
+  { frage: 'Nach dem Anlegen von /etc/auto.labor bleibt /mnt/labor/daten leer. Der Dienst lief schon vorher. Was hast du vermutlich vergessen?', richtig: 'systemctl reload autofs', falsch: ['mount -a', 'systemctl daemon-reload'], erklaerung: 'automount liest Master und Maps beim Start oder Neuladen. daemon-reload betrifft die Units von systemd.' },
+  { frage: 'Was zeigt ls /mnt/labor, bevor jemand auf einen Schlüssel zugegriffen hat?', richtig: 'Nichts, die Unterverzeichnisse entstehen erst beim Zugriff.', falsch: ['Alle Schlüssel der Map als leere Verzeichnisse.', 'Eine Fehlermeldung, weil nichts eingehängt ist.'], erklaerung: 'Mit der Option browse in auto.master würden die Schlüssel als leere Verzeichnisse erscheinen.' },
+]} />
