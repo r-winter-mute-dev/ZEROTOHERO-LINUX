@@ -103,3 +103,17 @@ Fragen stehen in `src/data/fragen.ts`, jede mit Lernziel, Typ (`einfach`, `mehrf
 ## Ein neuer Akt
 
 In `src/data/kampagne.ts` erzeugt `geplanterAkt()` aus den Lernzielen automatisch eine Mission pro Lernziel. Wird ein Akt ausgeschrieben, ersetzt eine Liste von Hand die Automatik. Dabei dürfen Lernziele auf mehrere Missionen aufgeteilt werden. Jede Mission bekommt `ziele: ['101.1']`, damit die Lernziel-Karte stimmt.
+
+## Labore
+
+Ein Labor läuft immer in **echten virtuellen Maschinen**, nie in Containern (Docker, Podman, LXC) und nicht in WSL. Container teilen sich den Kernel des Rechners, auf dem sie laufen: SELinux, AppArmor, auditd, Kernel-Parameter außerhalb von `net.*`, Module, Platten, Bootloader und Teile von nftables verhalten sich darin nicht wie auf einem echten System oder fehlen ganz. Für LPIC-3 ist das zwingend, für LPIC-2 die Regel.
+
+Jeder Akt nennt am Anfang, welche Maschinen sein Labor gleichzeitig braucht und wie viel Arbeitsspeicher das mindestens kostet (etwa „3 VMs mit je 1 GB, zusammen 3 GB“). Startkonfigurationen werden als cloud-init für Images auf x86_64 und arm64 geliefert, betreibbar mit QEMU/libvirt, UTM oder anderen Hypervisoren. VirtualBox auf Apple-Silicon-Macs startet keine x86_64-Gäste, darum darf kein Labor nur auf x86-Images oder nur auf Vagrant mit VirtualBox beruhen.
+
+Prüfskripte für ein Labor sagen in erster Linie, **was fehlt** („getenforce meldet Permissive, erwartet Enforcing“). Der Code am Ende schaltet nur den Fortschritt frei und ist an Mission und einen Zufallswert der Seite gebunden. Er ist kein Schutz gegen Schummeln: Die Seite ist statisch, das Verfahren steht offen im Skript. Prüfskripte lesen nur, ändern nichts am System und bauen keine Netzverbindungen auf.
+
+## Der Simulator gegen echte Systeme
+
+Was der Simulator annimmt oder ablehnt, soll sich mit einem echten Debian und einem echten AlmaLinux decken. Vergleichstests führen dieselben Befehle und Konfigurationen dort aus und vergleichen vor allem Rückgabecode und die Entscheidung (etwa `sshd -t`, `nft -c`, `visudo -c`, `named-checkconf`), nicht den vollen Wortlaut. Für alles, was nicht vom Kernel abhängt, genügen Container. Platten, RAID, LVM, Module und Zugriffskontrolle brauchen eine VM. Hinweise des Simulators in Klammern („(Im Simulator: …)“) sind von diesem Vergleich ausgenommen.
+
+In LPIC-3-Missionen laufen die englischen Fachbegriffe immer mit, denn die Prüfung 303 gibt es nur auf Englisch und Japanisch.
