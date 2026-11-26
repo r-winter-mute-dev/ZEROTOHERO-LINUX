@@ -1,0 +1,295 @@
+{
+ "name": "visudo -c: sudoers prüfen",
+ "version": "visudo -V",
+ "pakete": {
+  "debian": [
+   "sudo"
+  ],
+  "alma": [
+   "sudo"
+  ]
+ },
+ "vorbereitung": [],
+ "faelle": [
+  {
+   "name": "Gültige Grundregel",
+   "dateien": {
+    "/tmp/lth-sudoers": {
+     "inhalt": "root ALL=(ALL:ALL) ALL\n",
+     "modus": "440"
+    }
+   },
+   "befehl": "visudo -c -f /tmp/lth-sudoers"
+  },
+  {
+   "name": "Gruppe mit Prozent",
+   "dateien": {
+    "/tmp/lth-sudoers": {
+     "inhalt": "root ALL=(ALL:ALL) ALL\n%sudo ALL=(ALL:ALL) ALL\n",
+     "modus": "440"
+    }
+   },
+   "befehl": "visudo -c -f /tmp/lth-sudoers"
+  },
+  {
+   "name": "NOPASSWD für einen Befehl",
+   "dateien": {
+    "/tmp/lth-sudoers": {
+     "inhalt": "root ALL=(ALL:ALL) ALL\nlena ALL=(root) NOPASSWD: /usr/bin/systemctl restart nginx\n",
+     "modus": "440"
+    }
+   },
+   "befehl": "visudo -c -f /tmp/lth-sudoers"
+  },
+  {
+   "name": "Tippfehler NOPASWD",
+   "dateien": {
+    "/tmp/lth-sudoers": {
+     "inhalt": "root ALL=(ALL:ALL) ALL\nlena ALL=(root) NOPASWD: /usr/bin/systemctl\n",
+     "modus": "440"
+    }
+   },
+   "befehl": "visudo -c -f /tmp/lth-sudoers"
+  },
+  {
+   "name": "Befehl ohne vollen Pfad",
+   "dateien": {
+    "/tmp/lth-sudoers": {
+     "inhalt": "root ALL=(ALL:ALL) ALL\nlena ALL=(root) systemctl\n",
+     "modus": "440"
+    }
+   },
+   "befehl": "visudo -c -f /tmp/lth-sudoers"
+  },
+  {
+   "name": "Gleichheitszeichen fehlt",
+   "dateien": {
+    "/tmp/lth-sudoers": {
+     "inhalt": "root ALL=(ALL:ALL) ALL\nlena ALL (ALL) ALL\n",
+     "modus": "440"
+    }
+   },
+   "befehl": "visudo -c -f /tmp/lth-sudoers"
+  },
+  {
+   "name": "Mehrere Befehle mit Ausnahme",
+   "dateien": {
+    "/tmp/lth-sudoers": {
+     "inhalt": "root ALL=(ALL:ALL) ALL\nlena ALL=(ALL) /usr/bin/apt, !/usr/bin/su\n",
+     "modus": "440"
+    }
+   },
+   "befehl": "visudo -c -f /tmp/lth-sudoers"
+  },
+  {
+   "name": "Komma am Ende",
+   "dateien": {
+    "/tmp/lth-sudoers": {
+     "inhalt": "root ALL=(ALL:ALL) ALL\nlena ALL=(root) /usr/bin/apt,\n",
+     "modus": "440"
+    }
+   },
+   "befehl": "visudo -c -f /tmp/lth-sudoers"
+  },
+  {
+   "name": "Cmnd_Alias groß",
+   "dateien": {
+    "/tmp/lth-sudoers": {
+     "inhalt": "root ALL=(ALL:ALL) ALL\nCmnd_Alias NETZ = /usr/sbin/ip, /usr/sbin/nft\nlena ALL=(root) NETZ\n",
+     "modus": "440"
+    }
+   },
+   "befehl": "visudo -c -f /tmp/lth-sudoers"
+  },
+  {
+   "name": "Cmnd_Alias klein",
+   "dateien": {
+    "/tmp/lth-sudoers": {
+     "inhalt": "root ALL=(ALL:ALL) ALL\nCmnd_Alias netz = /usr/sbin/ip\n",
+     "modus": "440"
+    }
+   },
+   "befehl": "visudo -c -f /tmp/lth-sudoers"
+  },
+  {
+   "name": "User_Alias",
+   "dateien": {
+    "/tmp/lth-sudoers": {
+     "inhalt": "root ALL=(ALL:ALL) ALL\nUser_Alias ADMINS = lena, tom\nADMINS ALL=(ALL) ALL\n",
+     "modus": "440"
+    }
+   },
+   "befehl": "visudo -c -f /tmp/lth-sudoers"
+  },
+  {
+   "name": "Unbenutzter Alias",
+   "dateien": {
+    "/tmp/lth-sudoers": {
+     "inhalt": "root ALL=(ALL:ALL) ALL\nCmnd_Alias NETZ = /usr/sbin/ip\n",
+     "modus": "440"
+    }
+   },
+   "befehl": "visudo -c -f /tmp/lth-sudoers"
+  },
+  {
+   "name": "Alias benutzt, aber nicht definiert",
+   "dateien": {
+    "/tmp/lth-sudoers": {
+     "inhalt": "root ALL=(ALL:ALL) ALL\nlena ALL=(root) NETZ\n",
+     "modus": "440"
+    }
+   },
+   "befehl": "visudo -c -f /tmp/lth-sudoers"
+  },
+  {
+   "name": "Defaults bekannt",
+   "dateien": {
+    "/tmp/lth-sudoers": {
+     "inhalt": "Defaults env_reset\nDefaults timestamp_timeout=5\nroot ALL=(ALL:ALL) ALL\n",
+     "modus": "440"
+    }
+   },
+   "befehl": "visudo -c -f /tmp/lth-sudoers"
+  },
+  {
+   "name": "Defaults unbekannt",
+   "dateien": {
+    "/tmp/lth-sudoers": {
+     "inhalt": "Defaults env_rset\nroot ALL=(ALL:ALL) ALL\n",
+     "modus": "440"
+    }
+   },
+   "befehl": "visudo -c -f /tmp/lth-sudoers"
+  },
+  {
+   "name": "Defaults für einen Benutzer",
+   "dateien": {
+    "/tmp/lth-sudoers": {
+     "inhalt": "Defaults:lena !lecture\nroot ALL=(ALL:ALL) ALL\n",
+     "modus": "440"
+    }
+   },
+   "befehl": "visudo -c -f /tmp/lth-sudoers"
+  },
+  {
+   "name": "Zeilenfortsetzung",
+   "dateien": {
+    "/tmp/lth-sudoers": {
+     "inhalt": "root ALL=(ALL:ALL) ALL\nlena ALL=(root) /usr/bin/apt, \\\n    /usr/bin/systemctl\n",
+     "modus": "440"
+    }
+   },
+   "befehl": "visudo -c -f /tmp/lth-sudoers"
+  },
+  {
+   "name": "Runas mit Gruppe",
+   "dateien": {
+    "/tmp/lth-sudoers": {
+     "inhalt": "root ALL=(ALL:ALL) ALL\nlena ALL=(www-data:www-data) /usr/bin/php\n",
+     "modus": "440"
+    }
+   },
+   "befehl": "visudo -c -f /tmp/lth-sudoers"
+  },
+  {
+   "name": "Klammer nicht geschlossen",
+   "dateien": {
+    "/tmp/lth-sudoers": {
+     "inhalt": "root ALL=(ALL:ALL) ALL\nlena ALL=(root /usr/bin/apt\n",
+     "modus": "440"
+    }
+   },
+   "befehl": "visudo -c -f /tmp/lth-sudoers"
+  },
+  {
+   "name": "Befehl mit Argumenten und Stern",
+   "dateien": {
+    "/tmp/lth-sudoers": {
+     "inhalt": "root ALL=(ALL:ALL) ALL\nlena ALL=(root) /usr/bin/systemctl restart *\n",
+     "modus": "440"
+    }
+   },
+   "befehl": "visudo -c -f /tmp/lth-sudoers"
+  },
+  {
+   "name": "Rechte 0644",
+   "dateien": {
+    "/tmp/lth-sudoers": {
+     "inhalt": "root ALL=(ALL:ALL) ALL\n",
+     "modus": "644"
+    }
+   },
+   "befehl": "visudo -c -f /tmp/lth-sudoers"
+  },
+  {
+   "name": "Rechte 0400",
+   "dateien": {
+    "/tmp/lth-sudoers": {
+     "inhalt": "root ALL=(ALL:ALL) ALL\n",
+     "modus": "400"
+    }
+   },
+   "befehl": "visudo -c -f /tmp/lth-sudoers"
+  },
+  {
+   "name": "Rechte 0640",
+   "dateien": {
+    "/tmp/lth-sudoers": {
+     "inhalt": "root ALL=(ALL:ALL) ALL\n",
+     "modus": "640"
+    }
+   },
+   "befehl": "visudo -c -f /tmp/lth-sudoers"
+  },
+  {
+   "name": "Leere Datei",
+   "dateien": {
+    "/tmp/lth-sudoers": {
+     "inhalt": "",
+     "modus": "440"
+    }
+   },
+   "befehl": "visudo -c -f /tmp/lth-sudoers"
+  },
+  {
+   "name": "Nur Kommentar",
+   "dateien": {
+    "/tmp/lth-sudoers": {
+     "inhalt": "# nichts\n",
+     "modus": "440"
+    }
+   },
+   "befehl": "visudo -c -f /tmp/lth-sudoers"
+  },
+  {
+   "name": "includedir mit Raute",
+   "dateien": {
+    "/tmp/lth-sudoers": {
+     "inhalt": "root ALL=(ALL:ALL) ALL\n#includedir /etc/sudoers.d\n",
+     "modus": "440"
+    }
+   },
+   "befehl": "visudo -c -f /tmp/lth-sudoers"
+  },
+  {
+   "name": "Host-Feld mit Name",
+   "dateien": {
+    "/tmp/lth-sudoers": {
+     "inhalt": "root ALL=(ALL:ALL) ALL\nlena werkstatt=(root) /usr/bin/apt\n",
+     "modus": "440"
+    }
+   },
+   "befehl": "visudo -c -f /tmp/lth-sudoers"
+  },
+  {
+   "name": "Benutzer mit Punkt",
+   "dateien": {
+    "/tmp/lth-sudoers": {
+     "inhalt": "root ALL=(ALL:ALL) ALL\nanna.berg ALL=(ALL) ALL\n",
+     "modus": "440"
+    }
+   },
+   "befehl": "visudo -c -f /tmp/lth-sudoers"
+  }
+ ]
+}

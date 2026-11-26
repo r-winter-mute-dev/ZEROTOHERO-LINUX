@@ -274,19 +274,38 @@ function sudoersDateien(w: Welt): [string, string][] {
   return out;
 }
 const SUDO_WORT = /^(Defaults|Host_Alias|User_Alias|Cmnd_Alias|Runas_Alias)\b/;
+// Häufige Defaults-Namen aus sudoers(5); unbekannte lehnt visudo ab
+const SUDO_DEFAULTS = new Set(['env_reset', 'mail_badpass', 'secure_path', 'use_pty', 'timestamp_timeout', 'lecture', 'lecture_file', 'passwd_tries', 'passwd_timeout', 'insults', 'requiretty', 'env_keep', 'env_delete', 'env_check', 'editor', 'env_editor', 'logfile', 'log_input', 'log_output', 'iolog_dir', 'iolog_file', 'badpass_message', 'passprompt', 'rootpw', 'targetpw', 'runaspw', 'umask', 'umask_override', 'visiblepw', 'always_set_home', 'set_home', 'mailto', 'mailerpath', 'mailerflags', 'mail_always', 'mail_no_user', 'mail_no_host', 'mail_no_perms', 'mailsub', 'syslog', 'syslog_goodpri', 'syslog_badpri', 'pwfeedback', 'noexec', 'timestamp_type', 'timestampdir', 'fqdn', 'ignore_dot', 'path_info', 'sudoers_locale', 'exempt_group', 'listpw', 'verifypw', 'root_sudo', 'shell_noargs', 'closefrom', 'log_host', 'log_year', 'loglinelen', 'authenticate', 'stay_setuid', 'preserve_groups', 'setenv', 'runas_default', 'match_group_by_gid', 'log_allowed', 'log_denied', 'logfile', 'secure_path', 'tty_tickets', 'use_netgroups', 'admin_flag', 'askpass', 'env_file', 'restricted_env_file', 'group_plugin', 'sudoedit_checkdir', 'sudoedit_follow', 'passwd_timeout', 'intercept', 'log_subcmds', 'log_server_verify', 'ignore_unknown_defaults', 'always_query_group_plugin', 'requiretty', 'netgroup_tuple', 'case_insensitive_user', 'case_insensitive_group', 'runcwd', 'runchroot', 'apparmor_profile', 'selinux', 'role', 'type', 'mail_all_cmnds', 'mail_badpass']);
+/** Unbekannter Defaults-Eintrag in einer Zeile, sonst null */
+function sudoDefaultsUnbekannt(z: string): string | null {
+  const m = z.match(/^Defaults(?:[:@>!]\S+)?\s+(.*)$/); if (!m) return null;
+  for (const e of m[1].split(/\s*,\s*(?=(?:[^"]*"[^"]*")*[^"]*$)/)) { const n = e.trim().replace(/^!+/, '').split(/\s*[+-]?=/)[0].trim(); if (n && !SUDO_DEFAULTS.has(n)) return n; }
+  return null;
+}
 function sudoZeileFehler(z: string): boolean {
   if (SUDO_WORT.test(z)) return !/^Defaults([:@>!]\S+)?\s+\S/.test(z) && !/^(Host|User|Cmnd|Runas)_Alias\s+[A-Z][A-Z0-9_]*\s*=\s*\S/.test(z);
   const m = z.match(/^(%?[\w.-]+|ALL|[A-Z][A-Z0-9_]*)(\s*,\s*%?[\w.-]+)*\s+([\w.-]+|ALL)\s*=\s*(\([^)]*\)\s*)?((NOPASSWD|PASSWD|NOEXEC|SETENV)\s*:\s*)*(.+)$/);
   if (!m) return true;
   return !m[7].split(/\s*,\s*/).every((c) => c === 'ALL' || /^!?\/\S+(\s+\S+)*$/.test(c) || /^[A-Z][A-Z0-9_]*$/.test(c));
 }
-export function sudoersPruefen(w: Welt): string | null {
-  for (const [p, t] of sudoersDateien(w)) {
+export function sudoersPruefen(w: Welt, nur?: string): string | null {
+  return sudoersBefund(w, nur)?.ort ?? null;
+}
+/** Erster Fehler in den sudoers-Dateien: Ort DATEI:ZEILE und die Meldung wie visudo. */
+export function sudoersBefund(w: Welt, nur?: string): { ort: string; meldung: string } | null {
+  const liste: [string, string][] = nur ? [[nur, w.fs[nur] ?? '']] : sudoersDateien(w);
+  if (nur && /^[@#]includedir \/etc\/sudoers\.d$/m.test(liste[0][1])) liste.push(...sudoersDateien(w).slice(1));
+  for (const [p, t] of liste) {
     const zeilen = t.split('\n');
     for (let i = 0; i < zeilen.length; i++) {
       let z = zeilen[i].trim(); if (!z || z.startsWith('#') || z.startsWith('@include')) continue;
+      const n = i + 1;
       while (z.endsWith('\\') && i + 1 < zeilen.length) z = z.slice(0, -1) + ' ' + zeilen[++i].trim();
-      if (sudoZeileFehler(z)) return `${p}:${i + 1}`;
+      const d = sudoDefaultsUnbekannt(z);
+      if (d) return { ort: `${p}:${n}`, meldung: `${p}:${n}:${(zeilen[n - 1].indexOf(d) + 1) || 1}: unknown defaults entry "${d}"` };
+      if (!SUDO_WORT.test(z) && /^[^\s=]+\s+[^\s=]+\s*=\s*(\([^)]*\)\s*)?((NOPASSWD|PASSWD|NOEXEC|SETENV)\s*:\s*)*[^/!A-Z\s(]/.test(z) && !/=\s*(\([^)]*\)\s*)?((NOPASSWD|PASSWD|NOEXEC|SETENV)\s*:\s*)*(ALL|[A-Z][A-Z0-9_]*)\b/.test(z) && !/=\s*(\([^)]*\)\s*)?[A-Z]+\s*:/.test(z))
+        return { ort: `${p}:${n}`, meldung: `${p}:${n}:1: expected a fully-qualified path name` };
+      if (sudoZeileFehler(z)) return { ort: `${p}:${n}`, meldung: `${p}:${n}:1: syntax error` };
     }
   }
   return null;
@@ -319,7 +338,7 @@ export function sudoErlaubt(w: Welt, user: string, befehl: string, pfad: string)
 
 // ---------- sshd ----------
 
-const SSHD_OPTIONEN = ['port', 'addressfamily', 'listenaddress', 'hostkey', 'logingracetime', 'permitrootlogin', 'strictmodes', 'maxauthtries', 'maxsessions', 'pubkeyauthentication', 'authorizedkeysfile', 'passwordauthentication', 'permitemptypasswords', 'kbdinteractiveauthentication', 'challengeresponseauthentication', 'usepam', 'allowagentforwarding', 'allowtcpforwarding', 'gatewayports', 'x11forwarding', 'x11displayoffset', 'x11uselocalhost', 'printmotd', 'printlastlog', 'tcpkeepalive', 'acceptenv', 'subsystem', 'allowusers', 'denyusers', 'allowgroups', 'denygroups', 'banner', 'clientaliveinterval', 'clientalivecountmax', 'usedns', 'loglevel', 'syslogfacility', 'include', 'match', 'protocol', 'maxstartups', 'permittunnel', 'chrootdirectory', 'ciphers', 'macs', 'kexalgorithms', 'hostbasedauthentication', 'ignorerhosts', 'permituserenvironment', 'compression', 'forcecommand'];
+const SSHD_OPTIONEN = ['port', 'addressfamily', 'listenaddress', 'hostkey', 'logingracetime', 'permitrootlogin', 'strictmodes', 'maxauthtries', 'maxsessions', 'pubkeyauthentication', 'authorizedkeysfile', 'passwordauthentication', 'permitemptypasswords', 'kbdinteractiveauthentication', 'challengeresponseauthentication', 'usepam', 'allowagentforwarding', 'allowtcpforwarding', 'gatewayports', 'x11forwarding', 'x11displayoffset', 'x11uselocalhost', 'printmotd', 'printlastlog', 'tcpkeepalive', 'acceptenv', 'subsystem', 'allowusers', 'denyusers', 'allowgroups', 'denygroups', 'banner', 'clientaliveinterval', 'clientalivecountmax', 'usedns', 'loglevel', 'syslogfacility', 'include', 'match', 'protocol', 'maxstartups', 'permittunnel', 'chrootdirectory', 'ciphers', 'macs', 'kexalgorithms', 'hostbasedauthentication', 'ignorerhosts', 'permituserenvironment', 'compression', 'forcecommand', 'authenticationmethods', 'permittty', 'permituserrc', 'permitopen', 'permitlisten', 'setenv', 'rekeylimit', 'ipqos', 'kerberosauthentication', 'gssapiauthentication', 'gssapicleanupcredentials', 'trustedusercakeys', 'revokedkeys', 'pubkeyacceptedalgorithms', 'hostkeyalgorithms', 'hostcertificate', 'authorizedkeyscommand', 'authorizedkeyscommanduser', 'authorizedprincipalsfile', 'streamlocalbindunlink', 'allowstreamlocalforwarding', 'disableforwarding', 'exposeauthinfo', 'pidfile', 'versionaddendum', 'debianbanner', 'casignaturealgorithms', 'channeltimeout', 'unusedconnectiontimeout', 'persourcepenalties'];
 function sshdDateien(w: Welt): [string, string][] {
   const haupt = w.fs['/etc/ssh/sshd_config'] ?? '';
   const inc = /^\s*Include\s+\/etc\/ssh\/sshd_config\.d\/\*\.conf/m.test(haupt) ? Object.keys(w.fs).filter((p) => /^\/etc\/ssh\/sshd_config\.d\/[^/]+\.conf$/.test(p)).sort() : [];
@@ -327,13 +346,46 @@ function sshdDateien(w: Welt): [string, string][] {
   return [...inc.map((p) => [p, w.fs[p] ?? ''] as [string, string]), ['/etc/ssh/sshd_config', haupt]];
 }
 function sshdText(w: Welt) { return sshdDateien(w).map((x) => x[1]).join('\n'); }
-function sshdPruefen(w: Welt): string | null {
-  for (const [p, t] of sshdDateien(w)) {
-    const z = t.split('\n');
-    for (let i = 0; i < z.length; i++) { const k = z[i].replace(/#.*/, '').trim().split(/\s+/)[0]; if (k && !SSHD_OPTIONEN.includes(k.toLowerCase())) return `${p}: line ${i + 1}: Bad configuration option: ${k}\n${p}: terminating, 1 bad configuration options`; }
+// Werte prüfen wie sshd (servconf.c): Ja/Nein-Optionen, Zahlen, Zeiten, Ports, LogLevel, Chiffren, Match-Blöcke
+const SSHD_JANEIN = ['pubkeyauthentication', 'passwordauthentication', 'permitemptypasswords', 'kbdinteractiveauthentication', 'challengeresponseauthentication', 'usepam', 'x11forwarding', 'x11uselocalhost', 'printmotd', 'printlastlog', 'tcpkeepalive', 'strictmodes', 'hostbasedauthentication', 'ignorerhosts', 'compression', 'permituserenvironment', 'usedns', 'gssapiauthentication', 'kerberosauthentication', 'permittty', 'permituserrc', 'exposeauthinfo', 'disableforwarding'];
+const SSHD_JANEIN_MEHR: Record<string, string[]> = { permitrootlogin: ['yes', 'no', 'prohibit-password', 'without-password', 'forced-commands-only'], allowtcpforwarding: ['yes', 'no', 'all', 'local', 'remote'], allowagentforwarding: ['yes', 'no'], gatewayports: ['yes', 'no', 'clientspecified'], permittunnel: ['yes', 'no', 'point-to-point', 'ethernet'], compression: ['yes', 'no', 'delayed'], addressfamily: ['any', 'inet', 'inet6'], permituserenvironment: ['yes', 'no'] };
+const SSHD_ZAHL = ['maxauthtries', 'maxsessions', 'clientalivecountmax', 'x11displayoffset'];
+const SSHD_ZEIT = ['logingracetime', 'clientaliveinterval'];
+const SSHD_LOGLEVEL = ['quiet', 'fatal', 'error', 'info', 'verbose', 'debug', 'debug1', 'debug2', 'debug3'];
+const SSHD_CIPHERS = ['3des-cbc', 'aes128-cbc', 'aes192-cbc', 'aes256-cbc', 'aes128-ctr', 'aes192-ctr', 'aes256-ctr', 'aes128-gcm@openssh.com', 'aes256-gcm@openssh.com', 'chacha20-poly1305@openssh.com'];
+const SSHD_VERALTET = ['useprivilegeseparation', 'rsaauthentication', 'rhostsrsaauthentication', 'useLogin'.toLowerCase(), 'keyregenerationinterval', 'serverkeybits'];
+const SSHD_IN_MATCH = ['acceptenv', 'allowagentforwarding', 'allowgroups', 'allowstreamlocalforwarding', 'allowtcpforwarding', 'allowusers', 'authenticationmethods', 'authorizedkeyscommand', 'authorizedkeyscommanduser', 'authorizedkeysfile', 'authorizedprincipalscommand', 'authorizedprincipalscommanduser', 'authorizedprincipalsfile', 'banner', 'casignaturealgorithms', 'channeltimeout', 'chrootdirectory', 'clientalivecountmax', 'clientaliveinterval', 'denygroups', 'denyusers', 'disableforwarding', 'exposeauthinfo', 'forcecommand', 'gatewayports', 'gssapiauthentication', 'hostbasedacceptedalgorithms', 'hostbasedauthentication', 'hostbasedusesnamefrompacketonly', 'ignorerhosts', 'include', 'ipqos', 'kbdinteractiveauthentication', 'challengeresponseauthentication', 'kerberosauthentication', 'loglevel', 'maxauthtries', 'maxsessions', 'passwordauthentication', 'permitemptypasswords', 'permitlisten', 'permitopen', 'permitrootlogin', 'permittty', 'permittunnel', 'permituserrc', 'pubkeyacceptedalgorithms', 'pubkeyauthentication', 'pubkeyauthoptions', 'rekeylimit', 'revokedkeys', 'rdomain', 'setenv', 'streamlocalbindmask', 'streamlocalbindunlink', 'trustedusercakeys', 'unusedconnectiontimeout', 'x11displayoffset', 'x11forwarding', 'x11uselocalhost', 'match'];
+const ipv4Gut = (a: string) => { const t = a.split('.'); return t.length === 4 && t.every((x) => /^\d{1,3}$/.test(x) && Number(x) <= 255); };
+/** Prüft sshd-Konfigurationsdateien. Fehler im Wortlaut von sshd, Warnungen (veraltete Optionen) gesondert. */
+function sshdPruefenDateien(dateien: [string, string][]): { fehler: string | null; warnungen: string[] } {
+  const warnungen: string[] = []; const falsch: string[] = [];
+  for (const [p, t] of dateien) {
+    const z = t.split('\n'); let imMatch = false;
+    for (let i = 0; i < z.length; i++) {
+      const roh = z[i].replace(/#.*/, '').trim(); if (!roh) continue;
+      const m = roh.match(/^(\S+?)(?:\s*=\s*|\s+)(.*)$/) ?? [roh, roh, ''];
+      const kw = m[1]; const k = kw.toLowerCase(); const wert = (m[2] ?? '').trim(); const w1 = wert.split(/\s+/)[0] ?? '';
+      const pz = `${p} line ${i + 1}`;
+      if (SSHD_VERALTET.includes(k)) { warnungen.push(`${pz}: Deprecated option ${kw}`); continue; }
+      if (!SSHD_OPTIONEN.includes(k)) { falsch.push(`${p}: line ${i + 1}: Bad configuration option: ${kw}`); continue; }
+      if (!wert) { falsch.push(`${pz}: no argument after keyword "${kw}"`); continue; }
+      if (k === 'match') { imMatch = !/^all$/i.test(w1); continue; }
+      if (imMatch && !SSHD_IN_MATCH.includes(k)) return { fehler: `${pz}: Directive '${kw}' is not allowed within a Match block`, warnungen };
+      const v = w1.toLowerCase();
+      if (SSHD_JANEIN_MEHR[k] && !SSHD_JANEIN_MEHR[k].includes(v)) return { fehler: `${pz}: unsupported option "${w1}".`, warnungen };
+      if (!SSHD_JANEIN_MEHR[k] && SSHD_JANEIN.includes(k) && v !== 'yes' && v !== 'no') return { fehler: `${pz}: unsupported option "${w1}".`, warnungen };
+      if (k === 'port' && !(/^\d+$/.test(w1) && Number(w1) >= 1 && Number(w1) <= 65535)) return { fehler: `${pz}: Badly formatted port number.`, warnungen };
+      if (SSHD_ZAHL.includes(k) && !/^\d+$/.test(w1)) return { fehler: `${pz}: ${kw} integer value invalid.`, warnungen };
+      if (SSHD_ZEIT.includes(k) && !/^(\d+[sSmMhHdDwW]?)+$/.test(w1)) return { fehler: `${pz}: invalid time value.`, warnungen };
+      if (k === 'loglevel' && !SSHD_LOGLEVEL.includes(v)) return { fehler: `${pz}: unsupported log level '${w1}'`, warnungen };
+      if (k === 'ciphers' && !w1.replace(/^[+^-]/, '').split(',').every((c) => SSHD_CIPHERS.includes(c.toLowerCase()))) return { fehler: `${pz}: Bad SSH2 cipher spec '${w1}'.`, warnungen };
+      if (k === 'listenaddress') { const h = w1.replace(/^\[(.*)\](:\d+)?$/, '$1').replace(/^([\d.]+):\d+$/, '$1'); if (/^[\d.]+$/.test(h) && !ipv4Gut(h)) return { fehler: `bad addr or host: ${h} (Name or service not known)`, warnungen }; }
+    }
+    if (falsch.length) return { fehler: `${falsch.join('\n')}\n${p}: terminating, ${falsch.length} bad configuration options`, warnungen };
   }
-  return null;
+  return { fehler: null, warnungen };
 }
+function sshdPruefen(w: Welt): string | null { return sshdPruefenDateien(sshdDateien(w)).fehler; }
 /** Wirksamer Wert einer sshd-Option: Der erste Eintrag gewinnt. */
 function sshdWert(text: string, opt: string): string {
   const STD: Record<string, string> = { port: '22', permitrootlogin: 'without-password', passwordauthentication: 'yes', pubkeyauthentication: 'yes', x11forwarding: 'no', permitemptypasswords: 'no', maxauthtries: '6', allowtcpforwarding: 'yes', usepam: 'no' };
@@ -675,9 +727,11 @@ export function sicherBefehle(alt: Record<string, (w: Welt, a: string[], stdin: 
     if (!(root || w.root)) return fehler('visudo: /etc/sudoers: Keine Berechtigung\nvisudo: /etc/sudoers wird nicht verändert');
     const fi = a.indexOf('-f'); const datei = fi >= 0 ? K.pfad(w, a[fi + 1]) : '/etc/sudoers';
     if (a.includes('-c')) {
-      const f = sudoersPruefen(w);
-      if (f) { const [d, n] = f.split(':'); return fehler(`${d}:${n}:${n === '1' ? 1 : 30}: Syntaxfehler\n>>> ${d}: Syntaxfehler in der Nähe von Zeile ${n} <<<\nAnalysefehler in ${d} in der Nähe von Zeile ${n}`); }
-      return ok(sudoersDateien(w).map(([p]) => `${p}: Analyse OK`).join('\n'));
+      if (fi >= 0 && typeof w.fs[datei] !== 'string') return fehler(`visudo: ${datei}: Datei oder Verzeichnis nicht gefunden`);
+      const f = sudoersBefund(w, fi >= 0 ? datei : undefined);
+      if (f) { const [d, n] = f.ort.split(':'); return fehler(`${f.meldung}\n>>> ${d}: Syntaxfehler in der Nähe von Zeile ${n} <<<\nAnalysefehler in ${d} in der Nähe von Zeile ${n}`); }
+      const geprueft = fi >= 0 ? [datei, ...(/^[@#]includedir \/etc\/sudoers\.d$/m.test(w.fs[datei] ?? '') ? sudoersDateien(w).slice(1).map(([p]) => p) : [])] : sudoersDateien(w).map(([p]) => p);
+      return ok(geprueft.map((p) => `${p}: Analyse OK`).join('\n'));
     }
     const tmp = datei + '.tmp';
     w.fs[tmp] = w.fs[datei] ?? '';
@@ -865,8 +919,11 @@ export function sicherBefehle(alt: Record<string, (w: Welt, a: string[], stdin: 
   };
   b.sshd = (w, a, _i, root) => {
     if (!(root || w.root)) return fehler('sshd: no hostkeys available -- exiting.\n(sshd -t braucht Root-Rechte, um die Host-Schlüssel zu lesen.)');
-    const f = sshdPruefen(w);
-    if (a.includes('-t')) return f ? fehler(f, 255) : ok();
+    const fi = a.indexOf('-f'); const eigene = fi >= 0 ? K.pfad(w, a[fi + 1] ?? '') : null;
+    if (eigene !== null && typeof w.fs[eigene] !== 'string') return fehler(`${eigene}: No such file or directory`, 255);
+    const pr = sshdPruefenDateien(eigene !== null ? [[eigene, w.fs[eigene] as string]] : sshdDateien(w));
+    const f = pr.fehler;
+    if (a.includes('-t')) return f ? fehler([...pr.warnungen, f].join('\n'), 255) : { out: '', err: pr.warnungen.join('\n') || undefined, code: 0 };
     if (a.includes('-T')) { if (f) return fehler(f, 255); const t = sshdText(w); return ok(['port', 'permitrootlogin', 'pubkeyauthentication', 'passwordauthentication', 'permitemptypasswords', 'x11forwarding', 'allowtcpforwarding', 'maxauthtries', 'usepam'].map((k) => `${k} ${sshdWert(t, k)}`).join('\n')); }
     return fehler('(sshd startest du mit systemctl start ssh. Zum Prüfen der Konfiguration: sshd -t, für die wirksamen Werte: sshd -T)');
   };

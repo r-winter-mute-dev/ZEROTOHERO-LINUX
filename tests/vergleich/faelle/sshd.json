@@ -1,0 +1,333 @@
+{
+ "name": "sshd -t: Konfiguration prüfen",
+ "version": "sshd -V",
+ "pakete": {
+  "debian": [
+   "openssh-server"
+  ],
+  "alma": [
+   "openssh-server"
+  ]
+ },
+ "vorbereitung": [
+  "ssh-keygen -A",
+  "mkdir -p /run/sshd"
+ ],
+ "faelle": [
+  {
+   "name": "Gültige Grundkonfiguration",
+   "dateien": {
+    "/tmp/lth-sshd.conf": {
+     "inhalt": "Port 22\nPermitRootLogin no\nPasswordAuthentication no\nPubkeyAuthentication yes\n"
+    }
+   },
+   "befehl": "sshd -t -f /tmp/lth-sshd.conf"
+  },
+  {
+   "name": "Leere Datei",
+   "dateien": {
+    "/tmp/lth-sshd.conf": {
+     "inhalt": ""
+    }
+   },
+   "befehl": "sshd -t -f /tmp/lth-sshd.conf"
+  },
+  {
+   "name": "Nur Kommentare",
+   "dateien": {
+    "/tmp/lth-sshd.conf": {
+     "inhalt": "# Nur ein Kommentar\n\n   # eingerückt\n"
+    }
+   },
+   "befehl": "sshd -t -f /tmp/lth-sshd.conf"
+  },
+  {
+   "name": "Schlüsselwort klein geschrieben",
+   "dateien": {
+    "/tmp/lth-sshd.conf": {
+     "inhalt": "permitrootlogin no\n"
+    }
+   },
+   "befehl": "sshd -t -f /tmp/lth-sshd.conf"
+  },
+  {
+   "name": "Unbekannte Option (Tippfehler)",
+   "dateien": {
+    "/tmp/lth-sshd.conf": {
+     "inhalt": "PermitRootLogn no\n"
+    }
+   },
+   "befehl": "sshd -t -f /tmp/lth-sshd.conf"
+  },
+  {
+   "name": "Unbekannter Wert für PermitRootLogin",
+   "dateien": {
+    "/tmp/lth-sshd.conf": {
+     "inhalt": "PermitRootLogin maybe\n"
+    }
+   },
+   "befehl": "sshd -t -f /tmp/lth-sshd.conf"
+  },
+  {
+   "name": "prohibit-password",
+   "dateien": {
+    "/tmp/lth-sshd.conf": {
+     "inhalt": "PermitRootLogin prohibit-password\n"
+    }
+   },
+   "befehl": "sshd -t -f /tmp/lth-sshd.conf"
+  },
+  {
+   "name": "without-password (alter Name)",
+   "dateien": {
+    "/tmp/lth-sshd.conf": {
+     "inhalt": "PermitRootLogin without-password\n"
+    }
+   },
+   "befehl": "sshd -t -f /tmp/lth-sshd.conf"
+  },
+  {
+   "name": "Deutsches ja statt yes",
+   "dateien": {
+    "/tmp/lth-sshd.conf": {
+     "inhalt": "PasswordAuthentication ja\n"
+    }
+   },
+   "befehl": "sshd -t -f /tmp/lth-sshd.conf"
+  },
+  {
+   "name": "Port ist keine Zahl",
+   "dateien": {
+    "/tmp/lth-sshd.conf": {
+     "inhalt": "Port ssh2\n"
+    }
+   },
+   "befehl": "sshd -t -f /tmp/lth-sshd.conf"
+  },
+  {
+   "name": "Port zu groß",
+   "dateien": {
+    "/tmp/lth-sshd.conf": {
+     "inhalt": "Port 70000\n"
+    }
+   },
+   "befehl": "sshd -t -f /tmp/lth-sshd.conf"
+  },
+  {
+   "name": "Zwei Ports",
+   "dateien": {
+    "/tmp/lth-sshd.conf": {
+     "inhalt": "Port 22\nPort 2222\n"
+    }
+   },
+   "befehl": "sshd -t -f /tmp/lth-sshd.conf"
+  },
+  {
+   "name": "MaxAuthTries ist keine Zahl",
+   "dateien": {
+    "/tmp/lth-sshd.conf": {
+     "inhalt": "MaxAuthTries drei\n"
+    }
+   },
+   "befehl": "sshd -t -f /tmp/lth-sshd.conf"
+  },
+  {
+   "name": "Option ohne Wert",
+   "dateien": {
+    "/tmp/lth-sshd.conf": {
+     "inhalt": "PermitRootLogin\n"
+    }
+   },
+   "befehl": "sshd -t -f /tmp/lth-sshd.conf"
+  },
+  {
+   "name": "Wert mit Gleichheitszeichen",
+   "dateien": {
+    "/tmp/lth-sshd.conf": {
+     "inhalt": "PermitRootLogin=no\n"
+    }
+   },
+   "befehl": "sshd -t -f /tmp/lth-sshd.conf"
+  },
+  {
+   "name": "Match-Block mit erlaubter Option",
+   "dateien": {
+    "/tmp/lth-sshd.conf": {
+     "inhalt": "PasswordAuthentication no\nMatch User lena\n    PasswordAuthentication yes\n"
+    }
+   },
+   "befehl": "sshd -t -f /tmp/lth-sshd.conf"
+  },
+  {
+   "name": "Port in einem Match-Block",
+   "dateien": {
+    "/tmp/lth-sshd.conf": {
+     "inhalt": "Match User lena\n    Port 2222\n"
+    }
+   },
+   "befehl": "sshd -t -f /tmp/lth-sshd.conf"
+  },
+  {
+   "name": "Match ohne Kriterium",
+   "dateien": {
+    "/tmp/lth-sshd.conf": {
+     "inhalt": "Match\n    PasswordAuthentication yes\n"
+    }
+   },
+   "befehl": "sshd -t -f /tmp/lth-sshd.conf"
+  },
+  {
+   "name": "AllowUsers mit Adresse",
+   "dateien": {
+    "/tmp/lth-sshd.conf": {
+     "inhalt": "AllowUsers lena@192.168.1.0/24 root@10.0.0.1\n"
+    }
+   },
+   "befehl": "sshd -t -f /tmp/lth-sshd.conf"
+  },
+  {
+   "name": "Veraltete Option Protocol",
+   "dateien": {
+    "/tmp/lth-sshd.conf": {
+     "inhalt": "Protocol 2\n"
+    }
+   },
+   "befehl": "sshd -t -f /tmp/lth-sshd.conf"
+  },
+  {
+   "name": "Veraltete Option UsePrivilegeSeparation",
+   "dateien": {
+    "/tmp/lth-sshd.conf": {
+     "inhalt": "UsePrivilegeSeparation sandbox\n"
+    }
+   },
+   "befehl": "sshd -t -f /tmp/lth-sshd.conf"
+  },
+  {
+   "name": "ChallengeResponseAuthentication (alter Name)",
+   "dateien": {
+    "/tmp/lth-sshd.conf": {
+     "inhalt": "ChallengeResponseAuthentication no\n"
+    }
+   },
+   "befehl": "sshd -t -f /tmp/lth-sshd.conf"
+  },
+  {
+   "name": "KbdInteractiveAuthentication",
+   "dateien": {
+    "/tmp/lth-sshd.conf": {
+     "inhalt": "KbdInteractiveAuthentication no\n"
+    }
+   },
+   "befehl": "sshd -t -f /tmp/lth-sshd.conf"
+  },
+  {
+   "name": "ClientAliveInterval mit Einheit",
+   "dateien": {
+    "/tmp/lth-sshd.conf": {
+     "inhalt": "ClientAliveInterval 5m\n"
+    }
+   },
+   "befehl": "sshd -t -f /tmp/lth-sshd.conf"
+  },
+  {
+   "name": "LoginGraceTime ist kein Zeitwert",
+   "dateien": {
+    "/tmp/lth-sshd.conf": {
+     "inhalt": "LoginGraceTime bald\n"
+    }
+   },
+   "befehl": "sshd -t -f /tmp/lth-sshd.conf"
+  },
+  {
+   "name": "Unbekannter Chiffre",
+   "dateien": {
+    "/tmp/lth-sshd.conf": {
+     "inhalt": "Ciphers aes256-gcm@openssh.com,rot13\n"
+    }
+   },
+   "befehl": "sshd -t -f /tmp/lth-sshd.conf"
+  },
+  {
+   "name": "Gültige Chiffren",
+   "dateien": {
+    "/tmp/lth-sshd.conf": {
+     "inhalt": "Ciphers aes256-gcm@openssh.com,chacha20-poly1305@openssh.com\n"
+    }
+   },
+   "befehl": "sshd -t -f /tmp/lth-sshd.conf"
+  },
+  {
+   "name": "X11Forwarding",
+   "dateien": {
+    "/tmp/lth-sshd.conf": {
+     "inhalt": "X11Forwarding no\n"
+    }
+   },
+   "befehl": "sshd -t -f /tmp/lth-sshd.conf"
+  },
+  {
+   "name": "Subsystem sftp",
+   "dateien": {
+    "/tmp/lth-sshd.conf": {
+     "inhalt": "Subsystem sftp internal-sftp\n"
+    }
+   },
+   "befehl": "sshd -t -f /tmp/lth-sshd.conf"
+  },
+  {
+   "name": "ListenAddress mit Port",
+   "dateien": {
+    "/tmp/lth-sshd.conf": {
+     "inhalt": "ListenAddress 0.0.0.0:2222\n"
+    }
+   },
+   "befehl": "sshd -t -f /tmp/lth-sshd.conf"
+  },
+  {
+   "name": "ListenAddress kaputt",
+   "dateien": {
+    "/tmp/lth-sshd.conf": {
+     "inhalt": "ListenAddress 999.1.1.1\n"
+    }
+   },
+   "befehl": "sshd -t -f /tmp/lth-sshd.conf"
+  },
+  {
+   "name": "UsePAM",
+   "dateien": {
+    "/tmp/lth-sshd.conf": {
+     "inhalt": "UsePAM yes\n"
+    }
+   },
+   "befehl": "sshd -t -f /tmp/lth-sshd.conf"
+  },
+  {
+   "name": "PermitEmptyPasswords no",
+   "dateien": {
+    "/tmp/lth-sshd.conf": {
+     "inhalt": "PermitEmptyPasswords no\n"
+    }
+   },
+   "befehl": "sshd -t -f /tmp/lth-sshd.conf"
+  },
+  {
+   "name": "LogLevel unbekannt",
+   "dateien": {
+    "/tmp/lth-sshd.conf": {
+     "inhalt": "LogLevel LAUT\n"
+    }
+   },
+   "befehl": "sshd -t -f /tmp/lth-sshd.conf"
+  },
+  {
+   "name": "Banner",
+   "dateien": {
+    "/tmp/lth-sshd.conf": {
+     "inhalt": "Banner /etc/issue.net\n"
+    }
+   },
+   "befehl": "sshd -t -f /tmp/lth-sshd.conf"
+  }
+ ]
+}

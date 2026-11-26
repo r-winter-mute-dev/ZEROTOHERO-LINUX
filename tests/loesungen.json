@@ -1,0 +1,3225 @@
+{
+ "l2-2-1/quellen": {
+  "befehle": [
+   "uname -r",
+   "file /boot/vmlinuz-$(uname -r)",
+   "grep CONFIG_KERNEL_ /boot/config-$(uname -r)",
+   "sudo tar xJf ~/downloads/linux-6.18.64.tar.xz -C /usr/src",
+   "sudo ln -s linux-6.18.64 /usr/src/linux",
+   "sudo chown -R lena: /usr/src/linux-6.18.64",
+   "cd /usr/src/linux",
+   "ls Documentation",
+   "sudo apt install -y patch",
+   "xz -dc ~/downloads/patch-6.18.64-65.xz | patch -p1 --dry-run",
+   "xz -dc ~/downloads/patch-6.18.64-65.xz | patch -p1",
+   "head -5 Makefile"
+  ],
+  "antworten": [
+   "6.1.0-27-amd64",
+   "bzImage",
+   "xz",
+   "65"
+  ]
+ },
+ "l2-2-2/bauen": {
+  "befehle": [
+   "sudo apt install -y build-essential bc bison flex libelf-dev libssl-dev libncurses-dev",
+   "cp /boot/config-$(uname -r) .config",
+   "make oldconfig",
+   "",
+   "",
+   "scripts/config --set-str LOCALVERSION \"-lab\"",
+   "make kernelrelease",
+   "make menuconfig",
+   "KERNEL_ZSTD=y",
+   "IKCONFIG=y",
+   "IKCONFIG_PROC=y",
+   "q",
+   "y",
+   "make -j$(nproc)",
+   "scripts/config --disable SYSTEM_TRUSTED_KEYS",
+   "make -j$(nproc)",
+   "file arch/x86/boot/bzImage"
+  ],
+  "antworten": [
+   "6.18.65-lab",
+   "debian/certs/debian-uefi-certs.pem",
+   "6.18.65-lab"
+  ]
+ },
+ "l2-2-3/installieren": {
+  "befehle": [
+   "sudo make modules_install",
+   "sudo make install",
+   "ls /boot",
+   "lsinitramfs /boot/initrd.img-6.18.65-lab | grep nvme",
+   "grep menuentry /boot/grub/grub.cfg",
+   "#neustart",
+   "uname -r"
+  ],
+  "antworten": [
+   "initrd.img-6.18.65-lab",
+   "6.18.65-lab"
+  ]
+ },
+ "l2-2-3/falsch": {
+  "befehle": [
+   "#neustart",
+   "#neustart",
+   "ls /lib/modules",
+   "sudo make modules_install",
+   "sudo update-initramfs -u -k 6.18.65-lab",
+   "#neustart"
+  ],
+  "antworten": [
+   "ja"
+  ]
+ },
+ "l2-2-3/alma": {
+  "befehle": [
+   "ls /boot",
+   "sudo dracut -f",
+   "lsinitrd | head -12"
+  ],
+  "antworten": [
+   "initramfs-5.14.0-427.13.1.el9_4.x86_64.img",
+   "057"
+  ]
+ },
+ "l2-2-4/handarbeit": {
+  "befehle": [
+   "lsusb -t",
+   "sudo apt install -y build-essential linux-headers-$(uname -r)",
+   "cp -r /usr/src/labsensor-1.2 ~/",
+   "cd ~/labsensor-1.2",
+   "make",
+   "modinfo ./labsensor.ko",
+   "sudo insmod ./labsensor.ko",
+   "sudo dmesg | tail -4",
+   "cat /proc/sys/kernel/tainted",
+   "sudo rmmod labsensor",
+   "sudo modprobe labsensor",
+   "sudo mkdir -p /lib/modules/$(uname -r)/extra",
+   "sudo cp labsensor.ko /lib/modules/$(uname -r)/extra/",
+   "sudo depmod -a",
+   "sudo modprobe labsensor"
+  ],
+  "antworten": [
+   "keiner",
+   "6.1.0-27-amd64",
+   "12288"
+  ]
+ },
+ "l2-2-4/dkms": {
+  "befehle": [
+   "cat /usr/src/labsensor-1.2/dkms.conf",
+   "sudo apt install -y dkms linux-headers-$(uname -r)",
+   "sudo dkms add labsensor/1.2",
+   "sudo dkms install labsensor/1.2",
+   "dkms status",
+   "sudo modprobe labsensor",
+   "ls -l /dev/labsensor0"
+  ],
+  "antworten": [
+   "ja",
+   "installed",
+   "root"
+  ]
+ },
+ "l2-2-5/laufzeit": {
+  "befehle": [
+   "lsmod | grep snd",
+   "sudo rmmod snd",
+   "modinfo -p iwlwifi",
+   "cat /sys/module/iwlwifi/parameters/power_save",
+   "echo \"options iwlwifi power_save=1\" | sudo tee /etc/modprobe.d/iwlwifi-strom.conf",
+   "sudo modprobe -r iwlwifi",
+   "sudo modprobe iwlwifi",
+   "echo \"alias messbox labsensor\" | sudo tee /etc/modprobe.d/messbox.conf",
+   "sudo modprobe -r labsensor",
+   "sudo modprobe messbox",
+   "modprobe -c | grep messbox"
+  ],
+  "antworten": [
+   "nein",
+   "power_save",
+   "N"
+  ]
+ },
+ "l2-2-5/tippfehler": {
+  "befehle": [
+   "sudo dmesg | grep e1000e",
+   "cat /etc/modprobe.d/e1000e.conf",
+   "modinfo -p e1000e",
+   "sudo sed -i s/Throttel/Throttle/ /etc/modprobe.d/e1000e.conf",
+   "sudo modprobe -r e1000e",
+   "sudo modprobe e1000e",
+   "sudo dmesg | tail -3"
+  ],
+  "antworten": [
+   "InterruptThrottelRate",
+   "InterruptThrottleRate",
+   "3000"
+  ]
+ },
+ "l2-2-6/sysctl": {
+  "befehle": [
+   "cat /proc/sys/net/ipv4/ip_forward",
+   "sudo sysctl -w net.ipv4.ip_forward=1",
+   "echo 10 | sudo tee /proc/sys/vm/swappiness",
+   "sysctl -a | grep pid_max",
+   "printf \"net.ipv4.ip_forward = 1\\nvm.swappiness = 10\\n\" | sudo tee /etc/sysctl.d/90-messpc.conf",
+   "sudo sysctl --system",
+   "#neustart",
+   "cat /proc/cmdline"
+  ],
+  "antworten": [
+   "0",
+   "4194304",
+   "/etc/sysctl.conf",
+   "ja"
+  ]
+ },
+ "l2-2-6/hardware": {
+  "befehle": [
+   "lspci -k",
+   "lsusb -t",
+   "sudo apt install -y procinfo lshw",
+   "lsdev",
+   "sudo lshw -short",
+   "ls /lib/modules"
+  ],
+  "antworten": [
+   "e1000e",
+   "uvcvideo",
+   "125",
+   "Messbox LS-2"
+  ]
+ },
+ "l2-2-7/regel": {
+  "befehle": [
+   "ls -l /dev/labsensor0",
+   "udevadm info -a -n /dev/labsensor0",
+   "echo 'SUBSYSTEM==\"labsensor\", ATTRS{idVendor}==\"1209\", ATTRS{idProduct}==\"0001\", GROUP=\"messteam\", MODE=\"0660\", SYMLINK+=\"messbox\"' | sudo tee /etc/udev/rules.d/99-messbox.rules",
+   "sudo udevadm control --reload",
+   "sudo udevadm trigger",
+   "ls -l /dev/messbox",
+   "udevadm monitor",
+   "#strg-c"
+  ],
+  "antworten": [
+   "root",
+   "LS2-26-0042",
+   "labsensor0",
+   "remove"
+  ]
+ },
+ "l2-2-7/fehler": {
+  "befehle": [
+   "cat /etc/udev/rules.d/70-messbox.rules",
+   "sudo udevadm test /sys/class/labsensor/labsensor0",
+   "sudo sed -i \"s/^KERNEL=\\\"/KERNEL==\\\"/; s/ATTR{serial}/ATTRS{serial}/\" /etc/udev/rules.d/70-messbox.rules",
+   "sudo udevadm control --reload",
+   "sudo udevadm trigger"
+  ],
+  "antworten": [
+   "2"
+  ]
+ },
+ "l2-2-boss/update": {
+  "befehle": [
+   "dkms status",
+   "sudo make modules_install",
+   "sudo make install",
+   "echo \"net.ipv4.ip_forward = 1\" | sudo tee /etc/sysctl.d/90-messpc.conf",
+   "sudo sed -i \"s/^KERNEL=\\\"/KERNEL==\\\"/; s/ATTR{serial}/ATTRS{serial}/\" /etc/udev/rules.d/70-messbox.rules",
+   "sudo udevadm control --reload",
+   "sudo udevadm trigger",
+   "#neustart",
+   "cat /proc/sys/kernel/tainted"
+  ],
+  "antworten": [
+   "1",
+   "12288"
+  ]
+ },
+ "l2-1-1/last": {
+  "befehle": [
+   "uptime",
+   "nproc",
+   "top -b -n 1",
+   "ps -eo pid,ni,pcpu,cmd --sort=-pcpu | head -5",
+   "pstree -p",
+   "sudo renice -n 19 -p 4120",
+   "sudo apt install -y htop",
+   "htop"
+  ],
+  "antworten": [
+   "3,60",
+   "4",
+   "97",
+   "4120",
+   "systemd"
+  ]
+ },
+ "l2-1-2/speicher": {
+  "befehle": [
+   "free -h",
+   "swapon --show",
+   "vmstat 1 5",
+   "ps aux --sort=-rss | head -3",
+   "systemctl status messd",
+   "sudo systemctl restart messd",
+   "vmstat 1 5"
+  ],
+  "antworten": [
+   "386Mi",
+   "/dev/sda3",
+   "ja",
+   "messd",
+   "Sat"
+  ]
+ },
+ "l2-1-3/platte": {
+  "befehle": [
+   "uptime",
+   "vmstat 1 5",
+   "ps -eo stat,pid,cmd | grep '^D'",
+   "sudo apt install -y sysstat iotop",
+   "iostat -x 1 2",
+   "sudo iotop -o -b -n 1",
+   "pstree -pa",
+   "sudo systemctl stop sicherung"
+  ],
+  "antworten": [
+   "3",
+   "99",
+   "rsync",
+   "/usr/local/sbin/sicherung"
+  ]
+ },
+ "l2-1-4/server": {
+  "befehle": [
+   "ethtool enp0s8",
+   "sudo apt install -y sysstat iftop iptraf-ng",
+   "sar -n DEV 1 3",
+   "sudo iftop -t -n -i enp0s8",
+   "sudo ss -tnp",
+   "sudo iptraf-ng -i enp0s8",
+   "pstree -p"
+  ],
+  "antworten": [
+   "1000Mb/s",
+   "94",
+   "192.168.50.30",
+   "ssh"
+  ]
+ },
+ "l2-1-4/router": {
+  "befehle": [
+   "sudo apt install -y sysstat iftop",
+   "sar -n DEV 1 3",
+   "sudo iftop -t -n -i enp0s8"
+  ],
+  "antworten": [
+   "enp0s3",
+   "192.168.50.20"
+  ]
+ },
+ "l2-1-5/sammeln": {
+  "befehle": [
+   "sudo apt install -y sysstat",
+   "sar",
+   "grep ENABLED /etc/default/sysstat",
+   "sudo sed -i \"s/^ENABLED=.*/ENABLED=\\\"true\\\"/\" /etc/default/sysstat",
+   "sudo systemctl enable --now sysstat",
+   "sar",
+   "sar 1 5"
+  ],
+  "antworten": [
+   "\"false\""
+  ]
+ },
+ "l2-1-5/verlauf": {
+  "befehle": [
+   "ls /var/log/sysstat",
+   "sar -r",
+   "sar -r -f /var/log/sysstat/sa20",
+   "sar -S",
+   "sadf -d /var/log/sysstat/sa23 -- -r"
+  ],
+  "antworten": [
+   "94,50",
+   "43"
+  ]
+ },
+ "l2-1-boss/montag": {
+  "befehle": [
+   "uptime",
+   "vmstat 1 5",
+   "ps aux --sort=-rss | head -3",
+   "sudo apt install -y sysstat iotop",
+   "sudo iotop -o -b -n 1",
+   "sudo systemctl stop sicherung",
+   "sudo systemctl restart messd",
+   "sudo sed -i \"s/^ENABLED=.*/ENABLED=\\\"true\\\"/\" /etc/default/sysstat",
+   "sudo systemctl enable --now sysstat",
+   "cat /var/log/kapazitaet/srv-daten.csv"
+  ],
+  "antworten": [
+   "5,10",
+   "nein",
+   "2870",
+   "13"
+  ]
+ },
+ "l1-10-1/suid": {
+  "befehle": [
+   "sudo find / -perm -4000 -type f 2>/dev/null",
+   "ls -l /home/max/.cache/bash",
+   "sudo chmod u-s /home/max/.cache/bash /usr/local/bin/messd-helper",
+   "sudo find /home /usr/local -perm /6000 -type f"
+  ],
+  "antworten": [
+   "/home/max/.cache/bash",
+   "root"
+  ]
+ },
+ "l1-10-1/konten": {
+  "befehle": [
+   "sudo passwd -S max",
+   "sudo passwd -l max",
+   "sudo chage -E 2026-12-31 max",
+   "sudo chage -l max"
+  ],
+  "antworten": [
+   "Dez 31, 2026"
+  ]
+ },
+ "l1-10-1/ports": {
+  "befehle": [
+   "sudo ss -tulpn",
+   "sudo lsof -i :111",
+   "sudo apt install -y nmap",
+   "nmap 192.168.1.23",
+   "sudo fuser -vm /mnt/usb",
+   "sudo fuser -km /mnt/usb"
+  ],
+  "antworten": [
+   "xinetd",
+   "rpcbind",
+   "22, 23, 111",
+   "max"
+  ]
+ },
+ "l1-10-2/anmeldungen": {
+  "befehle": [
+   "w",
+   "last max",
+   "sudo lastb"
+  ],
+  "antworten": [
+   "make -j8",
+   "192.168.1.17",
+   "203.0.113.66"
+  ]
+ },
+ "l1-10-2/grenzen": {
+  "befehle": [
+   "ulimit -a",
+   "ulimit -Hn",
+   "ulimit -u 500",
+   "echo \"@messteam   hard   nproc   200\" | sudo tee -a /etc/security/limits.conf",
+   "echo \"max   -   maxlogins   2\" | sudo tee -a /etc/security/limits.conf"
+  ],
+  "antworten": [
+   "1024"
+  ]
+ },
+ "l1-10-2/sudo": {
+  "befehle": [
+   "sudo -l",
+   "sudo groupadd messteam",
+   "sudo usermod -aG messteam max",
+   "sudo visudo -f /etc/sudoers.d/messteam",
+   "#vi:i",
+   "#vi:%messteam ALL=(root) NOPASSWD: /usr/bin/systemctl restart messd",
+   "#vi:Escape",
+   "#vi::wq",
+   "#vi:Enter",
+   "sudo visudo -c",
+   "sudo -l -U max"
+  ],
+  "antworten": [
+   "(ALL:ALL) ALL"
+  ]
+ },
+ "l1-10-2/ausgesperrt": {
+  "befehle": [
+   "visudo -c",
+   "cat /etc/sudoers.d/messteam",
+   "sed -i 's/NOPASSWD /NOPASSWD: /' /etc/sudoers.d/messteam",
+   "visudo -c"
+  ],
+  "antworten": [
+   "2"
+  ]
+ },
+ "l1-10-3/dienste": {
+  "befehle": [
+   "systemctl list-sockets",
+   "sudo systemctl stop rpcbind",
+   "sudo systemctl disable --now rpcbind.socket rpcbind.service",
+   "systemctl is-enabled rpcbind.socket"
+  ],
+  "antworten": [
+   "rpcbind.socket"
+  ]
+ },
+ "l1-10-3/xinetd": {
+  "befehle": [
+   "ls /etc/xinetd.d",
+   "cat /etc/xinetd.d/telnet",
+   "sudo sed -i 's/disable.*= no/disable = yes/' /etc/xinetd.d/telnet",
+   "sudo systemctl restart xinetd",
+   "ss -tuln"
+  ],
+  "antworten": [
+   "telnet, tftp",
+   "/usr/sbin/in.telnetd"
+  ]
+ },
+ "l1-10-3/wrapper": {
+  "befehle": [
+   "echo \"ALL: ALL\" | sudo tee -a /etc/hosts.deny",
+   "echo \"in.tftpd: 192.168.1.\" | sudo tee -a /etc/hosts.allow",
+   "tcpdmatch in.tftpd 192.168.1.40",
+   "tcpdmatch in.tftpd 10.20.0.5"
+  ],
+  "antworten": [
+   "granted",
+   "denied"
+  ]
+ },
+ "l1-10-3/nologin": {
+  "befehle": [
+   "echo \"Wartung bis 12 Uhr\" | sudo tee /etc/nologin",
+   "ssh localhost",
+   "yes",
+   "geheim",
+   "sudo rm /etc/nologin"
+  ],
+  "antworten": []
+ },
+ "l1-10-4/erstkontakt": {
+  "befehle": [
+   "ssh labor2 hostname",
+   "yes",
+   "Labor2026",
+   "cat ~/.ssh/known_hosts",
+   "ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub"
+  ],
+  "antworten": [
+   "|1|"
+  ]
+ },
+ "l1-10-4/schluessel": {
+  "befehle": [
+   "ssh-keygen -t ed25519",
+   "",
+   "Messwert-42",
+   "Messwert-42",
+   "ls -l ~/.ssh",
+   "ssh-copy-id labor2",
+   "yes",
+   "Labor2026",
+   "ssh labor2 whoami",
+   "Messwert-42",
+   "chmod 644 ~/.ssh/id_ed25519",
+   "ssh labor2 whoami",
+   "Labor2026",
+   "chmod 600 ~/.ssh/id_ed25519"
+  ],
+  "antworten": [
+   "600"
+  ]
+ },
+ "l1-10-4/agent": {
+  "befehle": [
+   "ssh-add",
+   "eval $(ssh-agent)",
+   "ssh-add",
+   "Messwert-42",
+   "ssh-add -l",
+   "ssh labor2 uptime"
+  ],
+  "antworten": []
+ },
+ "l1-10-4/hostkey": {
+  "befehle": [
+   "ssh labor2 hostname",
+   "ssh-keygen -R labor2",
+   "ssh labor2 hostname",
+   "yes",
+   "Labor2026"
+  ],
+  "antworten": []
+ },
+ "l1-10-4/tunnel": {
+  "befehle": [
+   "nc -zv labor2 80",
+   "ssh -f -N -L 8080:localhost:80 labor2",
+   "yes",
+   "Labor2026",
+   "nc -zv localhost 8080",
+   "ssh -X labor2 xclock",
+   "Labor2026"
+  ],
+  "antworten": []
+ },
+ "l1-10-4/server": {
+  "befehle": [
+   "sudo sshd -T",
+   "echo \"PermitRootLogin no\" | sudo tee /etc/ssh/sshd_config.d/haerten.conf",
+   "echo \"PasswordAuthentication no\" | sudo tee -a /etc/ssh/sshd_config.d/haerten.conf",
+   "sudo sshd -t",
+   "sudo systemctl restart ssh"
+  ],
+  "antworten": [
+   "without-password"
+  ]
+ },
+ "l1-10-5/schluessel": {
+  "befehle": [
+   "gpg -k",
+   "gpg --gen-key",
+   "Lena Berger",
+   "lena@lab.example.org",
+   "F",
+   "Messwert-42",
+   "Messwert-42",
+   "gpg -K",
+   "ls ~/.gnupg"
+  ],
+  "antworten": [
+   "openpgp-revocs.d"
+  ]
+ },
+ "l1-10-5/austausch": {
+  "befehle": [
+   "gpg --quick-gen-key \"Lena Berger <lena@lab.example.org>\"",
+   "Messwert-42",
+   "Messwert-42",
+   "gpg --import max.asc",
+   "gpg --fingerprint max",
+   "gpg --sign-key max",
+   "j",
+   "gpg --export -a lena > lena.asc"
+  ],
+  "antworten": [
+   "1B8D"
+  ]
+ },
+ "l1-10-5/verschluesseln": {
+  "befehle": [
+   "gpg --quick-gen-key \"Lena Berger <lena@lab.example.org>\"",
+   "Messwert-42",
+   "Messwert-42",
+   "gpg --import max.asc",
+   "gpg -e -r max zugang.txt",
+   "j",
+   "gpg -d zugang.txt.gpg",
+   "gpg -e -a -r lena zugang.txt",
+   "gpgconf --kill gpg-agent",
+   "gpg -d zugang.txt.asc",
+   "Messwert-42"
+  ],
+  "antworten": []
+ },
+ "l1-10-5/signieren": {
+  "befehle": [
+   "gpg --import max.asc",
+   "gpg --verify messwerte.csv.sig messwerte.csv",
+   "gpg --verify kalibrierung.csv.sig",
+   "gpg --quick-gen-key \"Lena Berger <lena@lab.example.org>\"",
+   "Messwert-42",
+   "Messwert-42",
+   "gpg --clearsign messwerte.csv",
+   "gpg --verify messwerte.csv.asc"
+  ],
+  "antworten": [
+   "ja",
+   "FALSCHE"
+  ]
+ },
+ "l1-10-5/widerruf": {
+  "befehle": [
+   "gpg --quick-gen-key \"Lena Berger <lena@lab.example.org>\"",
+   "Messwert-42",
+   "Messwert-42",
+   "gpg --gen-revoke -o widerruf.asc lena",
+   "j",
+   "1",
+   "",
+   "j",
+   "gpg --import widerruf.asc",
+   "gpg -k"
+  ],
+  "antworten": []
+ },
+ "l1-10-boss/abnahme": {
+  "befehle": [
+   "sudo chmod u-s /home/max/.cache/bash /usr/local/bin/messd-helper",
+   "sudo sed -i 's/disable.*= no/disable = yes/' /etc/xinetd.d/telnet",
+   "sudo systemctl restart xinetd",
+   "sudo systemctl disable --now rpcbind.socket rpcbind.service",
+   "echo \"ALL: ALL\" | sudo tee -a /etc/hosts.deny",
+   "echo \"in.tftpd: 192.168.1.\" | sudo tee -a /etc/hosts.allow",
+   "echo \"max ALL=(root) NOPASSWD: /usr/bin/systemctl restart messd\" | sudo tee /etc/sudoers.d/max",
+   "sudo visudo -c",
+   "echo \"PermitRootLogin no\" | sudo tee /etc/ssh/sshd_config.d/haerten.conf",
+   "sudo sshd -t",
+   "sudo systemctl restart ssh",
+   "ssh-keygen -t ed25519 -N Messwert-42 -f ~/.ssh/id_ed25519",
+   "ssh-copy-id labor2",
+   "yes",
+   "Labor2026",
+   "gpg --import max.asc",
+   "gpg --verify messwerte.csv.sig messwerte.csv",
+   "echo \"messwerte.csv: korrekt\" > pruefbericht.txt",
+   "gpg --quick-gen-key \"Lena Berger <lena@lab.example.org>\"",
+   "Messwert-42",
+   "Messwert-42",
+   "gpg -b pruefbericht.txt",
+   "gpg -e -r max pruefbericht.txt",
+   "j"
+  ],
+  "antworten": []
+ },
+ "l1-9-1/adressen": {
+  "befehle": [
+   "ip -br a",
+   "ip r",
+   "hostname -I"
+  ],
+  "antworten": [
+   "192.168.1.23/24",
+   "192.168.1.0/24",
+   "2001:db8:1::23"
+  ]
+ },
+ "l1-9-2/ports": {
+  "befehle": [
+   "grep syslog /etc/services",
+   "grep -E \"465|636\" /etc/services",
+   "nc -zv mail.example.org 25",
+   "nc -zv mail.example.org 143",
+   "ss -tuln"
+  ],
+  "antworten": [
+   "udp",
+   "Connection refused",
+   "127.0.0.1"
+  ]
+ },
+ "l1-9-3/name": {
+  "befehle": [
+   "hostnamectl",
+   "sudo hostnamectl set-hostname werkstatt1",
+   "echo \"192.168.1.60  mess1\" | sudo tee -a /etc/hosts",
+   "getent hosts mess1",
+   "cat /etc/resolv.conf"
+  ],
+  "antworten": [
+   "Debian GNU/Linux 12 (bookworm)",
+   "NetworkManager"
+  ]
+ },
+ "l1-9-3/nm": {
+  "befehle": [
+   "nmcli device",
+   "nmcli con mod \"Kabelgebundene Verbindung 1\" ipv4.method manual ipv4.addresses 192.168.1.50/24 ipv4.gateway 192.168.1.1 ipv4.dns 192.168.1.1",
+   "nmcli con up \"Kabelgebundene Verbindung 1\"",
+   "nmcli dev wifi list",
+   "nmcli dev wifi connect Labor-WLAN password Werkstatt2026",
+   "ip -br a"
+  ],
+  "antworten": [
+   "Kabelgebundene Verbindung 1",
+   "Labor-WLAN",
+   "192.168.2.31/24"
+  ]
+ },
+ "l1-9-3/ifupdown": {
+  "befehle": [
+   "cat /etc/network/interfaces",
+   "nmcli dev disconnect enp0s31f6",
+   "sudo tee -a /etc/network/interfaces <<'EOF'",
+   "iface enp0s31f6 inet static",
+   "    address 192.168.1.60/24",
+   "    gateway 192.168.1.1",
+   "EOF",
+   "sudo ifup enp0s31f6"
+  ],
+  "antworten": [
+   "lo"
+  ]
+ },
+ "l1-9-4/adresse": {
+  "befehle": [
+   "ip link",
+   "sudo ip addr add 10.20.30.10/26 dev enp0s31f6",
+   "ip -4 a show dev enp0s31f6",
+   "ip r",
+   "sudo ip addr del 10.20.30.10/26 dev enp0s31f6"
+  ],
+  "antworten": [
+   "3c:7c:3f:1a:2b:4d",
+   "10.20.30.0/26"
+  ]
+ },
+ "l1-9-4/routen": {
+  "befehle": [
+   "ip route get 10.20.0.5",
+   "ping -c 4 10.20.0.5",
+   "sudo ip route add 10.20.0.0/16 via 192.168.1.254",
+   "ping -c 4 logserver.example.org"
+  ],
+  "antworten": [
+   "192.168.1.1"
+  ]
+ },
+ "l1-9-4/alt": {
+  "befehle": [
+   "route -n",
+   "netstat -rn",
+   "ifconfig enp0s31f6"
+  ],
+  "antworten": [
+   "255.255.255.0",
+   "192.168.1.255"
+  ]
+ },
+ "l1-9-5/dienste": {
+  "befehle": [
+   "tracepath www.example.org",
+   "traceroute logserver.example.org",
+   "nc -zv laser.lan 631",
+   "sudo ss -tulpn",
+   "ss -tn",
+   "ping6 -c 4 www.example.org"
+  ],
+  "antworten": [
+   "4",
+   "192.168.1.1",
+   "master",
+   "192.168.1.17"
+  ]
+ },
+ "l1-9-5/fall": {
+  "befehle": [
+   "ping -c 4 www.example.org",
+   "ip link",
+   "nmcli con up \"Kabelgebundene Verbindung 1\"",
+   "ping -c 4 www.example.org"
+  ],
+  "antworten": [
+   "DOWN"
+  ]
+ },
+ "l1-9-6/abfragen": {
+  "befehle": [
+   "host www.example.org",
+   "host -t MX example.org",
+   "dig web.example.org",
+   "dig @203.0.113.53 +short www.example.org",
+   "dig -x 203.0.113.25 +short",
+   "host labor2"
+  ],
+  "antworten": [
+   "2001:db8:80::80",
+   "CNAME",
+   "mail.example.org.",
+   "192.168.1.24"
+  ]
+ },
+ "l1-9-6/reihenfolge": {
+  "befehle": [
+   "ping -c 1 www.example.org",
+   "dig +short www.example.org",
+   "grep hosts /etc/nsswitch.conf",
+   "sudo sed -i '/192.168.1.99/d' /etc/hosts",
+   "getent hosts www.example.org",
+   "resolvectl status"
+  ],
+  "antworten": [
+   "192.168.1.99",
+   "203.0.113.80",
+   "files"
+  ]
+ },
+ "l1-9-boss/umzug": {
+  "befehle": [
+   "ip a",
+   "nmcli con mod \"Kabelgebundene Verbindung 1\" ipv4.method manual ipv4.addresses 192.168.1.23/24 ipv4.gateway 192.168.1.1 ipv4.dns 192.168.1.1",
+   "nmcli con up \"Kabelgebundene Verbindung 1\"",
+   "ping -c 4 www.example.org",
+   "sudo ip route add 10.20.0.0/16 via 192.168.1.254",
+   "nc -zv logserver.example.org 514",
+   "echo \"10.20.0.5  logserver.example.org  log\" | sudo tee -a /etc/hosts",
+   "dig +short example.org MX"
+  ],
+  "antworten": [
+   "/28",
+   "10 mail.example.org."
+  ]
+ },
+ "l1-8-1/uhren": {
+  "befehle": [
+   "date",
+   "date -u",
+   "sudo hwclock",
+   "timedatectl",
+   "cat /etc/adjtime",
+   "sudo timedatectl set-time \"2026-11-23 08:41:00\"",
+   "sudo date -s 08:41",
+   "sudo hwclock --systohc"
+  ],
+  "antworten": [
+   "no",
+   "UTC",
+   "automatic time synchronization is enabled"
+  ]
+ },
+ "l1-8-2/ntp": {
+  "befehle": [
+   "grep pool /etc/chrony/chrony.conf",
+   "chronyc sources",
+   "chronyc tracking",
+   "sudo ntpdate pool.ntp.org",
+   "ntpdate -q pool.ntp.org",
+   "sudo chronyc makestep",
+   "timedatectl"
+  ],
+  "antworten": [
+   "2.debian.pool.ntp.org",
+   "time1.example-ntp.de",
+   "420",
+   "yes"
+  ]
+ },
+ "l1-8-3/regeln": {
+  "befehle": [
+   "grep -v -E '^(#|$)' /etc/rsyslog.conf",
+   "logger -p local0.warning -t messd \"Sensor 3 zu heiß\"",
+   "sudo grep messd /var/log/syslog",
+   "echo \"local0.*   /var/log/messd.log\" | sudo tee /etc/rsyslog.d/messd.conf",
+   "sudo rsyslogd -N1",
+   "sudo systemctl restart rsyslog",
+   "logger -p local0.info -t messd \"Test nach Neustart\"",
+   "echo \"*.* @@logserver.example.org:514\" | sudo tee -a /etc/rsyslog.d/messd.conf",
+   "sudo systemctl restart rsyslog",
+   "logger -t messd \"An den Logserver\""
+  ],
+  "antworten": [
+   "/var/log/auth.log"
+  ]
+ },
+ "l1-8-4/journal": {
+  "befehle": [
+   "journalctl -b -1",
+   "ls /var/log/journal",
+   "sudo sed -i 's/^#Storage=auto/Storage=persistent/' /etc/systemd/journald.conf",
+   "sudo systemctl restart systemd-journald",
+   "journalctl --disk-usage",
+   "echo \"Sicherung fertig\" | systemd-cat -t sicherung",
+   "journalctl -t sicherung",
+   "sudo journalctl -D /mnt/labor2/var/log/journal"
+  ],
+  "antworten": [
+   "messd.service"
+  ]
+ },
+ "l1-8-4/rotieren": {
+  "befehle": [
+   "cat /etc/logrotate.conf",
+   "sudo tee /etc/logrotate.d/messd <<'EOF'",
+   "/var/log/messd.log {",
+   "    daily",
+   "    rotate 7",
+   "    compress",
+   "    delaycompress",
+   "    missingok",
+   "    notifempty",
+   "    create 640 root adm",
+   "}",
+   "EOF",
+   "sudo logrotate -d /etc/logrotate.d/messd",
+   "sudo logrotate -f /etc/logrotate.d/messd",
+   "echo \"neue Zeile\" | sudo tee -a /var/log/messd.log",
+   "sudo logrotate -f /etc/logrotate.d/messd",
+   "sudo ls -l /var/log/messd*"
+  ],
+  "antworten": [
+   "weekly",
+   ".2.gz"
+  ]
+ },
+ "l1-8-5/weiterleiten": {
+  "befehle": [
+   "echo \"Hallo root\" | mail -s \"Test 1\" root",
+   "cat /etc/aliases",
+   "echo \"root: lena\" | sudo tee -a /etc/aliases",
+   "echo \"Hallo\" | mail -s \"Test 2\" root",
+   "mail",
+   "sudo newaliases",
+   "echo \"Hallo\" | mail -s \"Test 3\" root",
+   "echo '\\lena, lena@labor2.example.org' > ~/.forward",
+   "echo \"Hallo\" | mail -s \"Test 4\" root",
+   "mailq"
+  ],
+  "antworten": [
+   "root",
+   "nein",
+   "connection refused"
+  ]
+ },
+ "l1-8-6/drucken": {
+  "befehle": [
+   "lpstat -t",
+   "lpq",
+   "lp -d laser messbericht-13.pdf",
+   "sudo lprm 12",
+   "sudo cupsenable laser"
+  ],
+  "antworten": [
+   "Papierstau in Fach 2",
+   "3"
+  ]
+ },
+ "l1-8-6/verwalten": {
+  "befehle": [
+   "sudo lpinfo -v",
+   "sudo lpadmin -p labor -E -v ipp://192.168.1.41/ipp/print -m everywhere",
+   "lpoptions -d labor",
+   "lpr /etc/hostname",
+   "sudo cupsreject labor",
+   "lpstat -a",
+   "sudo cupsaccept labor",
+   "grep Listen /etc/cups/cupsd.conf"
+  ],
+  "antworten": [
+   "631"
+  ]
+ },
+ "l1-8-boss/montag": {
+  "befehle": [
+   "chronyc tracking",
+   "sudo chronyc makestep",
+   "sudo hwclock --systohc",
+   "sudo sed -i 's/^#Storage=auto/Storage=persistent/' /etc/systemd/journald.conf",
+   "sudo systemctl restart systemd-journald",
+   "echo \"local0.err   /var/log/messd-fehler.log\" | sudo tee /etc/rsyslog.d/messd.conf",
+   "sudo systemctl restart rsyslog",
+   "logger -p local0.crit -t messd \"Sensor 3 ausgefallen\"",
+   "printf '/var/log/messd-fehler.log {\\n  weekly\\n  rotate 8\\n  compress\\n}\\n' | sudo tee /etc/logrotate.d/messd",
+   "echo \"root: lena\" | sudo tee -a /etc/aliases",
+   "sudo newaliases",
+   "echo \"Test\" | mail -s Test root",
+   "sudo cupsenable laser"
+  ],
+  "antworten": []
+ },
+ "l1-7-1/dateien": {
+  "befehle": [
+   "getent passwd lena",
+   "cat /etc/shadow",
+   "sudo grep max /etc/shadow",
+   "grep -c nologin /etc/passwd",
+   "grep UID_MIN /etc/login.defs"
+  ],
+  "antworten": [
+   "/bin/bash",
+   "$y$",
+   "15"
+  ]
+ },
+ "l1-7-1/anlegen": {
+  "befehle": [
+   "sudo useradd -m -s /bin/bash -c \"Jonas Berg\" -G users,plugdev jonas",
+   "sudo ls -a /home/jonas",
+   "sudo passwd jonas",
+   "geheim",
+   "geheim",
+   "sudo usermod -aG sudo jonas",
+   "sudo useradd -r -s /usr/sbin/nologin messd",
+   "su - messd",
+   "sudo passwd -l jonas",
+   "sudo passwd -S jonas",
+   "sudo useradd -m praktikant",
+   "sudo userdel -r praktikant"
+  ],
+  "antworten": [
+   ".profile",
+   "This account is currently not available.",
+   "L"
+  ]
+ },
+ "l1-7-2/gruppen": {
+  "befehle": [
+   "sudo groupadd -g 1500 messteam",
+   "sudo gpasswd -a lena messteam",
+   "sudo gpasswd -a max messteam",
+   "getent group messteam",
+   "sudo chgrp messteam /srv/messdaten",
+   "sudo gpasswd -d max messteam",
+   "sudo groupmod -n messung messteam",
+   "ls -ld /srv/messdaten"
+  ],
+  "antworten": [
+   "weil die datei nur die gid speichert"
+  ]
+ },
+ "l1-7-2/alterung": {
+  "befehle": [
+   "sudo useradd -m -s /bin/bash jonas",
+   "sudo chage -l jonas",
+   "sudo chage -M 90 -W 14 jonas",
+   "sudo chage -E 2027-03-31 jonas",
+   "sudo chage -d 0 jonas",
+   "sudo chage -l jonas",
+   "chage -l lena"
+  ],
+  "antworten": [
+   "nie",
+   "Passwort muss geändert werden"
+  ]
+ },
+ "l1-7-3/eigene": {
+  "befehle": [
+   "crontab -l",
+   "crontab -e",
+   "#vi:G",
+   "#vi:o",
+   "#vi:30 2 * * * /home/lena/bin/sicherung",
+   "#vi:Escape",
+   "#vi::wq",
+   "#vi:Enter",
+   "crontab -l",
+   "crontab -e",
+   "#vi:G",
+   "#vi:o",
+   "#vi:*/15 8-17 * * 1-5 /home/lena/bin/messen >> /home/lena/messen.log 2>&1",
+   "#vi:Escape",
+   "#vi::wq",
+   "#vi:Enter",
+   "echo \"60 * * * * x\" | crontab -"
+  ],
+  "antworten": [
+   "1",
+   "minute"
+  ]
+ },
+ "l1-7-3/system": {
+  "befehle": [
+   "cat /etc/crontab",
+   "run-parts --test /etc/cron.daily",
+   "echo \"0 3 * * * root /usr/local/bin/waechter\" | sudo tee /etc/cron.d/waechter",
+   "echo max | sudo tee /etc/cron.deny",
+   "echo root | sudo tee /etc/cron.allow",
+   "crontab -l",
+   "echo lena | sudo tee -a /etc/cron.allow"
+  ],
+  "antworten": [
+   "06:25",
+   "punkt im namen",
+   "nein"
+  ]
+ },
+ "l1-7-4/einmal": {
+  "befehle": [
+   "echo \"/home/lena/bin/auswertung\" | at 16:30",
+   "at teatime",
+   "echo Feierabend | wall",
+   "#strg-d",
+   "atq",
+   "at -c 1",
+   "atrm 1"
+  ],
+  "antworten": [
+   "2",
+   "/home/lena"
+  ]
+ },
+ "l1-7-4/timer": {
+  "befehle": [
+   "systemctl list-timers",
+   "cat /usr/lib/systemd/system/logrotate.timer",
+   "sudo tee /etc/systemd/system/sicherung.timer <<'EOF'",
+   "[Unit]",
+   "Description=Sicherung jede Nacht",
+   "",
+   "[Timer]",
+   "OnCalendar=*-*-* 02:00:00",
+   "Persistent=true",
+   "",
+   "[Install]",
+   "WantedBy=timers.target",
+   "EOF",
+   "sudo systemctl daemon-reload",
+   "sudo systemctl enable --now sicherung.timer",
+   "systemctl list-timers",
+   "sudo systemd-run --on-active=30m /usr/local/bin/sicherung"
+  ],
+  "antworten": [
+   "logrotate.timer",
+   "daily",
+   "02:00"
+  ]
+ },
+ "l1-7-5/sprache": {
+  "befehle": [
+   "locale",
+   "locale -a",
+   "LANG=C date",
+   "file protokoll-alt.txt",
+   "iconv -f ISO-8859-1 -t UTF-8 protokoll-alt.txt > protokoll.txt",
+   "sudo localectl set-locale LANG=en_US.UTF-8",
+   "localectl status"
+  ],
+  "antworten": [
+   "de_DE.UTF-8",
+   "en_US.utf8",
+   "ISO-8859 text"
+  ]
+ },
+ "l1-7-5/zeit": {
+  "befehle": [
+   "timedatectl",
+   "ls -l /etc/localtime",
+   "TZ=Asia/Tokyo date",
+   "tzselect",
+   "7",
+   "4",
+   "1",
+   "sudo timedatectl set-timezone Europe/Lisbon",
+   "cat /etc/timezone"
+  ],
+  "antworten": [
+   "Europe/Berlin",
+   "JST",
+   "Europe/Lisbon"
+  ]
+ },
+ "l1-7-boss/ankunft": {
+  "befehle": [
+   "sudo groupadd messteam",
+   "sudo useradd -m -s /bin/bash -c \"Ana Sousa\" -G messteam -e 2027-06-30 ana",
+   "sudo passwd ana",
+   "Start123",
+   "Start123",
+   "sudo chage -d 0 ana",
+   "echo 'export TZ=\"Europe/Lisbon\"' | sudo tee -a /home/ana/.profile",
+   "echo \"0 6 * * 1-5 /usr/local/bin/waechter\" > ana.cron",
+   "sudo crontab -u ana ana.cron",
+   "echo 'echo Willkommen | mail -s Willkommen ana' | at 08:00 tomorrow",
+   "sudo iconv -f ISO-8859-1 -t UTF-8 -o /home/ana/kalibrierung.txt /srv/messdaten/kalibrierung.txt",
+   "sudo chown ana:ana /home/ana/kalibrierung.txt"
+  ],
+  "antworten": []
+ },
+ "l1-6-1/aufbau": {
+  "befehle": [
+   "echo $XDG_SESSION_TYPE",
+   "echo $DISPLAY",
+   "xdpyinfo | grep dimensions",
+   "xclock &",
+   "DISPLAY= xclock",
+   "X -version"
+  ],
+  "antworten": [
+   "wayland",
+   ":0",
+   "1920x1080",
+   "Error: Can't open display:"
+  ]
+ },
+ "l1-6-1/konfig": {
+  "befehle": [
+   "ls /etc/X11/xorg.conf",
+   "ls /etc/X11/xorg.conf.d",
+   "cat /etc/X11/xorg.conf.d/00-keyboard.conf",
+   "grep -E '\\((EE|WW)\\)' /var/log/Xorg.0.log",
+   "cat ~/.xsession-errors",
+   "sudo X -configure",
+   "sudo grep Driver /root/xorg.conf.new"
+  ],
+  "antworten": [
+   "nodeadkys",
+   "(WW)",
+   "xclock",
+   "modesetting"
+  ]
+ },
+ "l1-6-2/zugriff": {
+  "befehle": [
+   "xhost",
+   "xhost +labor2",
+   "xhost +",
+   "xhost -",
+   "xhost -labor2",
+   "xauth list",
+   "echo $XAUTHORITY",
+   "grep X11Forwarding /etc/ssh/sshd_config"
+  ],
+  "antworten": [
+   "ja",
+   "MIT-MAGIC-COOKIE-1",
+   "/home/lena/.Xauthority",
+   "yes"
+  ]
+ },
+ "l1-6-3/desktop": {
+  "befehle": [
+   "cat /etc/X11/default-display-manager",
+   "ls /usr/share/xsessions /usr/share/wayland-sessions",
+   "echo $XDG_CURRENT_DESKTOP",
+   "grep Wayland /etc/gdm3/daemon.conf"
+  ],
+  "antworten": [
+   "/usr/sbin/gdm3",
+   "gnome-xorg.desktop",
+   "GNOME",
+   "WaylandEnable=false"
+  ]
+ },
+ "l1-6-4/tastatur": {
+  "befehle": [
+   "gsettings list-recursively org.gnome.desktop.a11y.keyboard",
+   "gsettings set org.gnome.desktop.a11y.keyboard stickykeys-enable true",
+   "gsettings set org.gnome.desktop.a11y.keyboard bouncekeys-enable true",
+   "gsettings set org.gnome.desktop.a11y.keyboard bouncekeys-delay 500",
+   "gsettings set org.gnome.desktop.peripherals.keyboard delay 900",
+   "gsettings get org.gnome.desktop.a11y.keyboard stickykeys-enable"
+  ],
+  "antworten": [
+   "300"
+  ]
+ },
+ "l1-6-4/sehen": {
+  "befehle": [
+   "gsettings set org.gnome.desktop.a11y.interface high-contrast true",
+   "gsettings set org.gnome.desktop.interface text-scaling-factor 1.25",
+   "gsettings list-keys org.gnome.desktop.a11y.applications",
+   "gsettings set org.gnome.desktop.a11y.applications screen-magnifier-enabled true",
+   "gsettings reset org.gnome.desktop.a11y.interface high-contrast"
+  ],
+  "antworten": [
+   "screen-reader-enabled"
+  ]
+ },
+ "l1-6-boss/arbeitsplatz": {
+  "befehle": [
+   "grep -E '\\((EE|WW)\\)' /var/log/Xorg.0.log",
+   "sudo sed -i 's/nodeadkys/nodeadkeys/' /etc/X11/xorg.conf.d/00-keyboard.conf",
+   "sed -i '/^xhost +$/d' ~/.xprofile",
+   "xhost -",
+   "mkdir -p ~/bin",
+   "cat > ~/bin/jonas-hilfen <<'EOF'",
+   "#!/bin/bash",
+   "gsettings set org.gnome.desktop.a11y.keyboard stickykeys-enable true",
+   "gsettings set org.gnome.desktop.a11y.keyboard bouncekeys-enable true",
+   "gsettings set org.gnome.desktop.a11y.keyboard mousekeys-enable true",
+   "gsettings set org.gnome.desktop.interface text-scaling-factor 1.25",
+   "EOF",
+   "chmod 755 ~/bin/jonas-hilfen",
+   "~/bin/jonas-hilfen",
+   "gsettings reset org.gnome.desktop.a11y.keyboard stickykeys-enable",
+   "~/bin/jonas-hilfen"
+  ],
+  "antworten": []
+ },
+ "l1-5-1/vererben": {
+  "befehle": [
+   "PROJEKT=messung",
+   "bash",
+   "echo \"$PROJEKT $SHLVL\"",
+   "exit",
+   "export PROJEKT",
+   "bash",
+   "PROJEKT=anders",
+   "exit",
+   "echo $PROJEKT",
+   "env | grep PROJEKT",
+   "unset PROJEKT"
+  ],
+  "antworten": [
+   "nein",
+   "messung"
+  ]
+ },
+ "l1-5-1/pfad": {
+  "befehle": [
+   "echo $PATH",
+   "messen",
+   "PATH=\"$HOME/bin:$PATH\"",
+   "messen",
+   "EINHEIT=mV messen",
+   "echo $EINHEIT",
+   "env -i bash -c 'echo $HOME'"
+  ],
+  "antworten": [
+   "nein",
+   "V",
+   "nein"
+  ]
+ },
+ "l1-5-2/start": {
+  "befehle": [
+   "echo 'echo \"bashrc gelesen\"' >> ~/.bashrc",
+   "echo 'echo \"profile gelesen\"' >> ~/.profile",
+   "bash",
+   "exit",
+   "bash -l",
+   "echo $PATH",
+   "logout",
+   "echo 'echo \"bash_profile gelesen\"' > ~/.bash_profile",
+   "bash -l",
+   "logout",
+   "rm ~/.bash_profile",
+   "source ~/.bashrc"
+  ],
+  "antworten": [
+   "1",
+   "bashrc gelesen",
+   "nein",
+   "nein"
+  ]
+ },
+ "l1-5-2/skel": {
+  "befehle": [
+   "ls -a /etc/skel",
+   "echo 'echo \"bashrc gelesen\"' >> ~/.bashrc",
+   "diff /etc/skel/.bashrc ~/.bashrc",
+   "echo \"export LABOR=werkstatt\" | sudo tee /etc/profile.d/labor.sh",
+   "bash -l",
+   "echo $LABOR",
+   "logout"
+  ],
+  "antworten": [
+   "3",
+   "echo \"bashrc gelesen\""
+  ]
+ },
+ "l1-5-3/aliase": {
+  "befehle": [
+   "alias",
+   "alias ll='ls -l'",
+   "ll",
+   "alias reihe='cd ~/messung/reihe-07'",
+   "reihe",
+   "type ll ls",
+   "\\ls",
+   "unalias reihe"
+  ],
+  "antworten": [
+   "ls",
+   "alias"
+  ]
+ },
+ "l1-5-3/funktionen": {
+  "befehle": [
+   "mkcd() { mkdir -p \"$1\" && cd \"$1\"; }",
+   "mkcd messung/reihe-08",
+   "cd",
+   "type mkcd",
+   "declare -f mkcd >> ~/.bashrc",
+   "unset -f mkcd",
+   "bash",
+   "type mkcd",
+   "exit"
+  ],
+  "antworten": [
+   "eine funktion"
+  ]
+ },
+ "l1-5-4/erstes": {
+  "befehle": [
+   "cat > bin/gruss <<'EOF'",
+   "#!/bin/bash",
+   "echo \"Hallo $1\"",
+   "EOF",
+   "./bin/gruss Welt",
+   "bash bin/gruss Welt",
+   "chmod 755 bin/gruss",
+   "PATH=\"$HOME/bin:$PATH\"",
+   "gruss Welt",
+   "echo $?",
+   "./alt.sh",
+   "sed -i 's|/bin/bsh|/bin/bash|' alt.sh",
+   "./alt.sh",
+   "sudo cp bin/gruss /usr/local/bin/"
+  ],
+  "antworten": [
+   "0",
+   "/bin/bsh"
+  ]
+ },
+ "l1-5-4/parameter": {
+  "befehle": [
+   "bin/args a \"b c\" d",
+   "cat bin/pruefe",
+   "bin/pruefe /etc/hostname",
+   "bin/pruefe /gibtsnicht",
+   "echo $?",
+   "gibtsnicht",
+   "echo $?",
+   "bin/pruefe /gibtsnicht || echo fehlt",
+   "cat bin/heute",
+   "bin/heute"
+  ],
+  "antworten": [
+   "3",
+   "2",
+   "127",
+   "exec ersetzt die shell"
+  ]
+ },
+ "l1-5-5/tests": {
+  "befehle": [
+   "[ -f /etc/hostname ]; echo $?",
+   "[ -r /etc/shadow ]; echo $?",
+   "name=\"\"",
+   "[ $name = lena ]",
+   "echo $?",
+   "[ \"$name\" = lena ]; echo $?",
+   "[ 10 > 9 ]",
+   "ls",
+   "rm 9",
+   "[ 10 -gt 9 ]",
+   "grep -q lena /etc/passwd && echo vorhanden || echo fehlt"
+  ],
+  "antworten": [
+   "1",
+   "2",
+   "1",
+   "9"
+  ]
+ },
+ "l1-5-5/verzweigen": {
+  "befehle": [
+   "if [ -w /etc/passwd ]; then echo schreibbar; else echo \"nur lesen\"; fi",
+   "[ -d sicherung ] || mkdir sicherung",
+   "cat bin/dienst",
+   "bin/dienst status",
+   "bin/dienst neustart",
+   "echo $?",
+   "sed -i 's/start|stop)/start|stop|neustart)/' bin/dienst",
+   "bin/dienst neustart"
+  ],
+  "antworten": [
+   "1"
+  ]
+ },
+ "l1-5-6/schleifen": {
+  "befehle": [
+   "for f in messung/*.csv; do echo \"$f $(wc -l < \"$f\")\"; done",
+   "seq 10 10 50",
+   "summe=0; for i in $(seq 1 100); do summe=$((summe + i)); done",
+   "i=1; while [ $i -le 3 ]; do echo $i; i=$((i+1)); done",
+   "for f in messung/*.csv; do [ -s \"$f\" ] || rm \"$f\"; done"
+  ],
+  "antworten": [
+   "di.csv"
+  ]
+ },
+ "l1-5-6/eingaben": {
+  "befehle": [
+   "while IFS=: read -r user x uid rest; do [ \"$uid\" -ge 1000 ] && echo \"$user\"; done < /etc/passwd",
+   "bin/anmeldung",
+   "reihe-09",
+   "3",
+   "n=0; cut -d: -f1 /etc/passwd | while read u; do n=$((n+1)); done; echo $n",
+   "n=0; while read u; do n=$((n+1)); done < /etc/passwd"
+  ],
+  "antworten": [
+   "3",
+   "0"
+  ]
+ },
+ "l1-5-boss/reparieren": {
+  "befehle": [
+   "cat -n bin/waechter",
+   "bash -x bin/waechter 5",
+   "rm 90 5",
+   "chmod 755 bin/waechter",
+   "sed -i -e 's|^#!/bin/bsh|#!/bin/bash|' -e 's/\\[ $belegt > $grenze \\]/[ \"$belegt\" -gt \"$grenze\" ]/' -e 's/exit 0/exit 1/' bin/waechter",
+   "bin/waechter 5",
+   "bin/waechter 95"
+  ],
+  "antworten": []
+ },
+ "l1-5-boss/rundgang": {
+  "befehle": [
+   "cat >> bin/rundgang <<'EOF'",
+   "if [ \"$1\" = -h ]; then echo \"Aufruf: $0\" >&2; exit 2; fi",
+   "for d in /home/*; do",
+   "  echo \"$d gehört $(stat -c %U \"$d\")\"",
+   "done",
+   "EOF",
+   "bin/rundgang",
+   "bin/rundgang -h; echo $?"
+  ],
+  "antworten": []
+ },
+ "l1-5-boss/einbauen": {
+  "befehle": [
+   "sudo cp bin/waechter /usr/local/bin/waechter",
+   "echo 'export WAECHTER_GRENZE=80' | sudo tee /etc/profile.d/waechter.sh",
+   "bash -l",
+   "waechter \"$WAECHTER_GRENZE\"",
+   "platz() { waechter \"$WAECHTER_GRENZE\"; echo \"Rückgabe: $?\"; }",
+   "platz",
+   "logout"
+  ],
+  "antworten": []
+ },
+ "l1-2-1/ansehen": {
+  "befehle": [
+   "lsblk",
+   "sudo fdisk -l",
+   "df -h",
+   "swapon --show",
+   "cat /etc/fstab"
+  ],
+  "antworten": [
+   "nvme0n1p3",
+   "512M",
+   "9",
+   "vfat"
+  ]
+ },
+ "l1-2-2/umstellen": {
+  "befehle": [
+   "cat /etc/default/grub",
+   "sudo sed -i 's/^GRUB_TIMEOUT=5/GRUB_TIMEOUT=10/' /etc/default/grub",
+   "sudo sed -i 's/quiet//' /etc/default/grub",
+   "sudo update-grub",
+   "grep menuentry /boot/grub/grub.cfg",
+   "sudo grub-install"
+  ],
+  "antworten": [
+   "5",
+   "6.1.0-26-amd64"
+  ]
+ },
+ "l1-2-3/anschauen": {
+  "befehle": [
+   "ldd /usr/bin/ls",
+   "/opt/messsoft/bin/messprog",
+   "ldd /opt/messsoft/bin/messprog",
+   "ls /opt/messsoft/lib"
+  ],
+  "antworten": [
+   "libc.so.6",
+   "libmess.so.1"
+  ]
+ },
+ "l1-2-3/reparieren": {
+  "befehle": [
+   "LD_LIBRARY_PATH=/opt/messsoft/lib /opt/messsoft/bin/messprog",
+   "ldconfig",
+   "echo /opt/messsoft/lib | sudo tee /etc/ld.so.conf.d/messsoft.conf",
+   "sudo ldconfig",
+   "ldconfig -p | grep mess",
+   "/opt/messsoft/bin/messprog"
+  ],
+  "antworten": [
+   "23,4 °C"
+  ]
+ },
+ "l1-2-4/abfragen": {
+  "befehle": [
+   "dpkg -l \"pci*\"",
+   "dpkg -L pciutils",
+   "dpkg -S /usr/sbin/sshd",
+   "dpkg -s openssh-server",
+   "dpkg -V openssh-server"
+  ],
+  "antworten": [
+   "1:3.9.0-4",
+   "/usr/bin/lspci",
+   "openssh-server",
+   "openssh-client",
+   "/etc/ssh/sshd_config"
+  ]
+ },
+ "l1-2-4/datei": {
+  "befehle": [
+   "dpkg -I ~/downloads/messsoft_1.2-1_amd64.deb",
+   "dpkg -c ~/downloads/messsoft_1.2-1_amd64.deb",
+   "sudo dpkg -i ~/downloads/messsoft_1.2-1_amd64.deb",
+   "dpkg -l messsoft",
+   "sudo apt-get -f install"
+  ],
+  "antworten": [
+   "libmess1",
+   "iU"
+  ]
+ },
+ "l1-2-4/entfernen": {
+  "befehle": [
+   "sudo dpkg -r openssh-client",
+   "sudo dpkg -r nano",
+   "dpkg -l nano",
+   "sudo dpkg -P nano",
+   "sudo dpkg-reconfigure tzdata"
+  ],
+  "antworten": [
+   "openssh-server",
+   "rc"
+  ]
+ },
+ "l1-2-5/suchen": {
+  "befehle": [
+   "cat /etc/apt/sources.list",
+   "apt-cache search process",
+   "apt-cache depends htop",
+   "apt-cache policy htop"
+  ],
+  "antworten": [
+   "bookworm",
+   "htop",
+   "libncursesw6"
+  ]
+ },
+ "l1-2-5/installieren": {
+  "befehle": [
+   "sudo apt-get update",
+   "sudo apt-get install htop",
+   "y",
+   "apt-file search /usr/bin/tree",
+   "sudo apt-get install apt-file",
+   "sudo apt-file update",
+   "apt-file search /usr/bin/tree",
+   "sudo apt-get remove -y htop",
+   "sudo apt-get autoremove"
+  ],
+  "antworten": [
+   "tree"
+  ]
+ },
+ "l1-2-6/abfragen": {
+  "befehle": [
+   "rpm -qa",
+   "rpm -qf /usr/bin/rpm",
+   "rpm -qi bash",
+   "rpm -qc openssh-server",
+   "rpm -V openssh-server"
+  ],
+  "antworten": [
+   "rpm",
+   "5.1.8",
+   "/etc/ssh/sshd_config"
+  ]
+ },
+ "l1-2-6/datei": {
+  "befehle": [
+   "rpm -qpi ~/downloads/messsoft-1.2-1.el9.x86_64.rpm",
+   "rpm -qpR ~/downloads/messsoft-1.2-1.el9.x86_64.rpm",
+   "rpm -K ~/downloads/messsoft-1.2-1.el9.x86_64.rpm",
+   "sudo rpm -ivh ~/downloads/messsoft-1.2-1.el9.x86_64.rpm",
+   "cd /tmp",
+   "rpm2cpio ~/downloads/messsoft-1.2-1.el9.x86_64.rpm | cpio -idmv",
+   "ls usr/bin",
+   "sudo rpm -e pciutils"
+  ],
+  "antworten": [
+   "(none)",
+   "libmess.so.1",
+   "messsoft"
+  ]
+ },
+ "l1-2-7/dnf": {
+  "befehle": [
+   "cat /etc/yum.repos.d/almalinux-baseos.repo",
+   "dnf repolist",
+   "sudo dnf install htop",
+   "sudo dnf install -y epel-release",
+   "sudo dnf install htop",
+   "y",
+   "dnf provides /usr/bin/tree",
+   "sudo dnf install -y ./downloads/messsoft-1.2-1.el9.x86_64.rpm"
+  ],
+  "antworten": [
+   "1",
+   "tree"
+  ]
+ },
+ "l1-2-7/zypper": {
+  "befehle": [
+   "zypper lr",
+   "sudo zypper ref",
+   "zypper se htop",
+   "sudo zypper in htop",
+   "y",
+   "zypper wp /usr/bin/tree"
+  ],
+  "antworten": [
+   "tree"
+  ]
+ },
+ "l1-2-8/vorlage": {
+  "befehle": [
+   "systemd-detect-virt",
+   "cat /etc/machine-id",
+   "ls /etc/ssh",
+   "sudo rm /etc/ssh/ssh_host_*",
+   "sudo truncate -s 0 /etc/machine-id",
+   "sudo hostnamectl set-hostname web01",
+   "sudo ssh-keygen -A",
+   "#neustart"
+  ],
+  "antworten": [
+   "kvm"
+  ]
+ },
+ "l1-0-3/term": {
+  "befehle": [
+   "pwd",
+   "ls /etc",
+   "cat /etc/os-release",
+   "uname -r",
+   "cd /proc",
+   "man lspci",
+   "whoami",
+   "sudo whoami"
+  ],
+  "antworten": [
+   "12",
+   "6.1.0-27-amd64",
+   "root"
+  ]
+ },
+ "l1-1-1/pci": {
+  "befehle": [
+   "lspci",
+   "lspci -k",
+   "lspci -nn",
+   "lspci -k -s 00:1f.3"
+  ],
+  "antworten": [
+   "iwlwifi",
+   "144d:a808",
+   "snd_hda_intel"
+  ]
+ },
+ "l1-1-1/usb": {
+  "befehle": [
+   "lsusb",
+   "lsusb -t",
+   "lsusb -d 046d:0825"
+  ],
+  "antworten": [
+   "0781",
+   "uvcvideo"
+  ]
+ },
+ "l1-1-1/res": {
+  "befehle": [
+   "cat /proc/interrupts",
+   "cat /proc/ioports",
+   "cat /proc/dma"
+  ],
+  "antworten": [
+   "125",
+   "ahci"
+  ]
+ },
+ "l1-1-2/erkunden": {
+  "befehle": [
+   "cat /proc/cpuinfo",
+   "ls /sys/class/net",
+   "cat /sys/class/net/enp0s31f6/address",
+   "cat /sys/class/block/sda/removable",
+   "cat /proc/partitions"
+  ],
+  "antworten": [
+   "i5-8500",
+   "3c:7c:3f:1a:2b:4d",
+   "1"
+  ]
+ },
+ "l1-1-3/anschauen": {
+  "befehle": [
+   "lsmod",
+   "lsmod | grep snd",
+   "modinfo iwlwifi",
+   "modinfo -p snd_hda_intel"
+  ],
+  "antworten": [
+   "snd",
+   "cfg80211"
+  ]
+ },
+ "l1-1-3/laden": {
+  "befehle": [
+   "modprobe -r pcspkr",
+   "sudo modprobe -r pcspkr",
+   "lsmod",
+   "sudo rmmod usbcore",
+   "sudo modprobe -v floppy",
+   "modinfo -F filename pcspkr",
+   "sudo insmod /lib/modules/6.1.0-27-amd64/kernel/drivers/input/misc/pcspkr.ko"
+  ],
+  "antworten": [
+   "xhci_hcd"
+  ]
+ },
+ "l1-1-3/sperren": {
+  "befehle": [
+   "sudo echo \"blacklist pcspkr\" > /etc/modprobe.d/pcspkr.conf",
+   "echo \"blacklist pcspkr\" | sudo tee /etc/modprobe.d/pcspkr.conf",
+   "#neustart",
+   "lsmod",
+   "sudo modprobe pcspkr"
+  ],
+  "antworten": [
+   "ja"
+  ]
+ },
+ "l1-1-5/logs": {
+  "befehle": [
+   "cat /proc/cmdline",
+   "dmesg",
+   "sudo dmesg",
+   "sudo dmesg -l err,warn",
+   "journalctl --list-boots",
+   "journalctl -b -p err",
+   "journalctl -b -1"
+  ],
+  "antworten": [
+   "quiet",
+   "sda1",
+   "smartd",
+   "poweroff.target"
+  ]
+ },
+ "l1-1-6/targets": {
+  "befehle": [
+   "systemctl get-default",
+   "runlevel",
+   "grep AllowIsolate /usr/lib/systemd/system/rescue.target",
+   "sudo systemctl isolate rescue.target",
+   "runlevel",
+   "sudo systemctl set-default multi-user.target",
+   "ls -l /etc/systemd/system/default.target",
+   "sudo systemctl default"
+  ],
+  "antworten": [
+   "graphical.target",
+   "AllowIsolate=yes",
+   "5 1"
+  ]
+ },
+ "l1-1-7/planen": {
+  "befehle": [
+   "who",
+   "sudo shutdown -r +15 \"Kernel-Update, bitte speichern\"",
+   "shutdown --show",
+   "sudo shutdown -c",
+   "wall \"Neustart auf heute Abend verschoben\""
+  ],
+  "antworten": [
+   "max"
+  ]
+ },
+ "l1-1-7/prozesse": {
+  "befehle": [
+   "ps aux",
+   "kill 2210",
+   "ps",
+   "kill -9 2210"
+  ],
+  "antworten": [
+   "2210",
+   "ja"
+  ]
+ },
+ "l1-3-1/variablen": {
+  "befehle": [
+   "echo $HOME",
+   "ZIEL=werkstatt",
+   "bash -c 'echo \"Ziel: $ZIEL\"'",
+   "export ZIEL",
+   "env | grep ZIEL",
+   "echo $?",
+   "unset ZIEL"
+  ],
+  "antworten": [
+   "/home/lena",
+   "nein"
+  ]
+ },
+ "l1-3-1/zitate": {
+  "befehle": [
+   "echo \"Ich bin $USER\"",
+   "echo 'Ich bin $USER'",
+   "touch \"mein bericht.txt\"",
+   "ls mein bericht.txt",
+   "ls \"mein bericht.txt\"",
+   "mkdir projekt && cd projekt"
+  ],
+  "antworten": [
+   "Ich bin $USER",
+   "2"
+  ]
+ },
+ "l1-3-2/pfad": {
+  "befehle": [
+   "echo $PATH",
+   "fdisk -l",
+   "ls /usr/sbin/fdisk",
+   "sudo fdisk -l",
+   "type ls",
+   "which ls",
+   "cd werkzeuge",
+   "hallo.sh",
+   "./hallo.sh",
+   "export PATH=$PATH:~/werkzeuge",
+   "cd",
+   "hallo.sh"
+  ],
+  "antworten": [
+   "nein",
+   "alias",
+   "/usr/bin/ls"
+  ]
+ },
+ "l1-3-2/verlauf": {
+  "befehle": [
+   "history",
+   "cat ~/.bash_history",
+   "echo Werkstatt",
+   "!!",
+   "!3",
+   "!cat",
+   " echo geheim",
+   "history"
+  ],
+  "antworten": [
+   "sudo dmesg | tail",
+   "nein"
+  ]
+ },
+ "l1-3-2/handbuch": {
+  "befehle": [
+   "man ls",
+   "whatis passwd",
+   "man 5 passwd",
+   "man -k compress",
+   "uname -r",
+   "uname -m"
+  ],
+  "antworten": [
+   "1 und 5",
+   "6.1.0-27-amd64",
+   "x86_64"
+  ]
+ },
+ "l1-3-3/lesen": {
+  "befehle": [
+   "head -n 5 logs/zugriff.log",
+   "tail -n 3 logs/zugriff.log",
+   "nl kunden.csv",
+   "wc -l logs/zugriff.log"
+  ],
+  "antworten": [
+   "07:35:05",
+   "28"
+  ]
+ },
+ "l1-3-3/zaehlen": {
+  "befehle": [
+   "cut -d' ' -f1 logs/zugriff.log",
+   "cut -d' ' -f1 logs/zugriff.log | sort | uniq -c | sort -rn",
+   "cut -d' ' -f9 logs/zugriff.log | sort | uniq -c",
+   "sort -t, -k4 -n kunden.csv",
+   "cut -d, -f3 kunden.csv | sort | uniq -c",
+   "paste orte.txt vorwahl.txt"
+  ],
+  "antworten": [
+   "192.168.1.23",
+   "8",
+   "Druckerei Letter",
+   "3",
+   "0661"
+  ]
+ },
+ "l1-3-4/zeichen": {
+  "befehle": [
+   "od -c windows.txt",
+   "tr -d '\\r' < windows.txt > unix.txt",
+   "tr a-z A-Z < unix.txt",
+   "split -l 100 messwerte.csv teil_",
+   "cat teil_* > zusammen.csv"
+  ],
+  "antworten": [
+   "\\r",
+   "3"
+  ]
+ },
+ "l1-3-4/pruefen": {
+  "befehle": [
+   "cd downloads",
+   "sha256sum debian-12.iso",
+   "sha256sum -c SHA256SUMS",
+   "cd",
+   "zcat logs/messung.log.2.gz",
+   "bzcat logs/messung.log.3.bz2",
+   "xzcat logs/messung.log.4.xz",
+   "xzcat logs/messung.log.4.xz | grep -c FEHLER",
+   "sed 's/http:/https:/' server.conf",
+   "sed -i 's/http:/https:/' server.conf",
+   "sed '/^#/d' server.conf"
+  ],
+  "antworten": [
+   "29d9",
+   "treiber.tar",
+   "2"
+  ]
+ },
+ "l1-3-5/muster": {
+  "befehle": [
+   "ls -a fotos",
+   "ls fotos/IMG_000?.jpg | wc -l",
+   "ls fotos/IMG_001[0-2].jpg",
+   "ls fotos/[!I]*",
+   "file fotos/rechnung.pdf fotos/IMG_0001.jpg"
+  ],
+  "antworten": [
+   ".thumbnails",
+   "9",
+   "ASCII text"
+  ]
+ },
+ "l1-3-5/ordnen": {
+  "befehle": [
+   "mkdir -p archiv/2026/november",
+   "cp fotos/IMG_000[1-5].jpg archiv/2026/november/",
+   "mv fotos/urlaub_2025.png fotos/urlaub-2025.png",
+   "rm fotos/*.tmp",
+   "rmdir archiv",
+   "rmdir alt",
+   "cp -r fotos fotos-sicherung",
+   "touch -t 202601011200 notizen.txt"
+  ],
+  "antworten": []
+ },
+ "l1-3-6/suchen": {
+  "befehle": [
+   "find projekt -name \"*.bak\"",
+   "find projekt -type d",
+   "find projekt -type f -mtime +30",
+   "find projekt -size +1M",
+   "find projekt -empty",
+   "find projekt -name \"*.bak\" -delete"
+  ],
+  "antworten": [
+   "2",
+   "4",
+   "messung-2025.csv"
+  ]
+ },
+ "l1-3-6/sichern": {
+  "befehle": [
+   "tar czf sicherung.tar.gz projekt",
+   "tar tzf sicherung.tar.gz",
+   "mkdir test",
+   "tar xzf sicherung.tar.gz -C test",
+   "gzip bericht.txt",
+   "gunzip bericht.txt.gz",
+   "xz -k bericht.txt",
+   "find projekt -name \"*.c\" | cpio -o > quellen.cpio",
+   "dd if=/dev/zero of=leer.img bs=1M count=10"
+  ],
+  "antworten": [
+   "nein"
+  ]
+ },
+ "l1-3-7/umleiten": {
+  "befehle": [
+   "ls notizen.txt gibtsnicht > ausgabe.txt",
+   "ls notizen.txt gibtsnicht 2> fehler.txt",
+   "ls notizen.txt gibtsnicht > alles.txt 2>&1",
+   "ls notizen.txt gibtsnicht 2>&1 > nur.txt",
+   "echo \"Zeile 2\" >> protokoll.txt",
+   "find / -name sshd_config 2>/dev/null",
+   "wc -l < /etc/passwd"
+  ],
+  "antworten": [
+   "die fehlermeldung",
+   "bildschirm",
+   "der dateiname"
+  ]
+ },
+ "l1-3-7/verketten": {
+  "befehle": [
+   "ls /etc | tee etc-liste.txt | wc -l",
+   "sudo echo \"Wartung heute 18 Uhr\" > /etc/motd",
+   "echo \"Wartung heute 18 Uhr\" | sudo tee /etc/motd",
+   "find projekt -name \"*.tmp\" | xargs rm",
+   "echo \"Heute ist $(date +%F)\"",
+   "touch bericht-$(date +%F).txt"
+  ],
+  "antworten": []
+ },
+ "l1-3-8/beobachten": {
+  "befehle": [
+   "ps",
+   "ps aux",
+   "ps -ef",
+   "top -b -n 1",
+   "ps -u max",
+   "uptime",
+   "free -h",
+   "pgrep messd"
+  ],
+  "antworten": [
+   "1",
+   "messd",
+   "0,40",
+   "3571"
+  ]
+ },
+ "l1-3-8/beenden": {
+  "befehle": [
+   "kill -l",
+   "kill 3571",
+   "ps -p 3571",
+   "kill -9 3571",
+   "kill 3602",
+   "killall python3",
+   "watch -n 5 uptime",
+   "#strg-c"
+  ],
+  "antworten": [
+   "ja",
+   "3602"
+  ]
+ },
+ "l1-3-9/jobs": {
+  "befehle": [
+   "sleep 300 &",
+   "jobs -l",
+   "./render.sh",
+   "#strg-z",
+   "bg",
+   "fg %1",
+   "#strg-c",
+   "kill %2"
+  ],
+  "antworten": []
+ },
+ "l1-3-9/sitzung": {
+  "befehle": [
+   "nohup ./render.sh &",
+   "cat nohup.out",
+   "screen -ls",
+   "screen -r",
+   "tmux ls",
+   "tmux attach -t build"
+  ],
+  "antworten": [
+   "Rendere Video ...",
+   "backup"
+  ]
+ },
+ "l1-3-10/nice": {
+  "befehle": [
+   "nice",
+   "nice -n 10 ./render.sh &",
+   "ps -o pid,ni,cmd",
+   "ps -l",
+   "top -b -n 1",
+   "nice -n -10 sleep 100"
+  ],
+  "antworten": [
+   "0",
+   "90",
+   "30"
+  ]
+ },
+ "l1-3-10/renice": {
+  "befehle": [
+   "./render.sh &",
+   "pgrep -l render",
+   "renice -n 15 -p 4012",
+   "renice -n 5 -p 4012",
+   "sudo renice -n -5 -p 2210",
+   "ps -eo pid,ni,cmd"
+  ],
+  "antworten": []
+ },
+ "l1-3-11/grep": {
+  "befehle": [
+   "grep -c Kassel daten.txt",
+   "grep -cw Kassel daten.txt",
+   "grep -v '^#' daten.txt",
+   "grep -i letter daten.txt",
+   "grep -vE ', [0-9]{5},' daten.txt",
+   "grep -v ', [0-9]\\{5\\},' daten.txt",
+   "grep -oE '[[:alnum:].-]+@[[:alnum:].-]+' daten.txt",
+   "grep -F -c '.de' daten.txt"
+  ],
+  "antworten": [
+   "3",
+   "2",
+   "Fahrrad Speiche",
+   "bohne@cafe"
+  ]
+ },
+ "l1-3-11/sed": {
+  "befehle": [
+   "sed -E 's/(0[0-9]{3}) ([0-9]+)/\\1-\\2/' daten.txt",
+   "sed -n '/Fulda/p' daten.txt",
+   "sed -i '/^#/d' daten.txt"
+  ],
+  "antworten": []
+ },
+ "l1-3-12/erste": {
+  "befehle": [
+   "vi notiz.txt",
+   "#vi:G",
+   "#vi:o",
+   "#vi:Kabelbinder",
+   "#vi:Escape",
+   "#vi::wq",
+   "#vi:Enter",
+   "cat notiz.txt"
+  ],
+  "antworten": []
+ },
+ "l1-3-12/bearbeiten": {
+  "befehle": [
+   "vi notiz.txt",
+   "#vi:/ALT",
+   "#vi:Enter",
+   "#vi:dd",
+   "#vi:gg",
+   "#vi:j",
+   "#vi:yy",
+   "#vi:p",
+   "#vi:gg",
+   "#vi:cwBestellung",
+   "#vi:Escape",
+   "#vi::w",
+   "#vi:Enter",
+   "#vi:dd",
+   "#vi:u",
+   "#vi:ZZ"
+  ],
+  "antworten": []
+ },
+ "l1-3-12/system": {
+  "befehle": [
+   "vi /etc/hosts",
+   "#vi::w",
+   "#vi:Enter",
+   "#vi::q!",
+   "#vi:Enter",
+   "sudo vi /etc/hosts",
+   "#vi:G",
+   "#vi:o",
+   "#vi:192.168.1.50 drucker",
+   "#vi:Escape",
+   "#vi::wq",
+   "#vi:Enter",
+   "vi idee.txt",
+   "#vi:i",
+   "#vi:Neue Idee",
+   "#vi:Escape",
+   "#vi:ZZ",
+   "export EDITOR=vi"
+  ],
+  "antworten": []
+ },
+ "l1-3-boss/spuren": {
+  "befehle": [
+   "cd fall",
+   "grep -c \"Failed password\" auth.log",
+   "grep \"Failed password\" auth.log | grep -oE \"from [0-9.]+\" | sort | uniq -c | sort -rn",
+   "grep -oE \"Invalid user [a-z]+\" auth.log | sort -u | wc -l",
+   "grep Accepted auth.log",
+   "zcat auth.log.2.gz | grep 203.0.113.77"
+  ],
+  "antworten": [
+   "14",
+   "203.0.113.77",
+   "5",
+   "wartung",
+   "Nov 21"
+  ]
+ },
+ "l1-3-boss/eingreifen": {
+  "befehle": [
+   "top -b -n 1",
+   "find /tmp -user wartung",
+   "cat /tmp/.x/config.json",
+   "sudo kill -9 3188"
+  ],
+  "antworten": [
+   "kworkerd",
+   "/tmp/.x",
+   "mining"
+  ]
+ },
+ "l1-3-boss/bericht": {
+  "befehle": [
+   "cd fall",
+   "grep 203.0.113.77 auth.log > beweise.txt",
+   "zcat auth.log.2.gz | grep 203.0.113.77 >> beweise.txt",
+   "tar czf beweise.tar.gz beweise.txt /tmp/.x",
+   "sha256sum beweise.tar.gz > beweise.sha256",
+   "vi bericht.txt",
+   "#vi:i",
+   "#vi:Angreifer 203.0.113.77 kam über das Konto wartung.",
+   "#vi:Escape",
+   "#vi::wq",
+   "#vi:Enter"
+  ],
+  "antworten": []
+ },
+ "l1-4-1/ansehen": {
+  "befehle": [
+   "lsblk",
+   "sudo fdisk -l /dev/sdb",
+   "sudo fdisk -l /dev/nvme0n1"
+  ],
+  "antworten": [
+   "sdb",
+   "nein",
+   "gpt"
+  ]
+ },
+ "l1-4-1/fdisk": {
+  "befehle": [
+   "sudo fdisk /dev/sdb",
+   "g",
+   "n",
+   "",
+   "",
+   "+50G",
+   "n",
+   "",
+   "",
+   "+4G",
+   "t",
+   "2",
+   "swap",
+   "n",
+   "",
+   "",
+   "+100G",
+   "p",
+   "w",
+   "lsblk",
+   "sudo parted /dev/sdb print"
+  ],
+  "antworten": [
+   "gpt"
+  ]
+ },
+ "l1-4-2/formatieren": {
+  "befehle": [
+   "lsblk -f /dev/sdb",
+   "sudo mkfs.ext4 -L daten /dev/sdb1",
+   "sudo mkswap /dev/sdb2",
+   "sudo swapon /dev/sdb2",
+   "swapon --show",
+   "sudo mkfs.xfs -L archiv /dev/sdb3",
+   "sudo mkfs.ext4 /dev/sdb3",
+   "n",
+   "sudo blkid"
+  ],
+  "antworten": [
+   "swap"
+  ]
+ },
+ "l1-4-3/hand": {
+  "befehle": [
+   "sudo mkdir /mnt/daten",
+   "mount /dev/sdb1 /mnt/daten",
+   "sudo mount /dev/sdb1 /mnt/daten",
+   "ls -la /mnt/daten",
+   "df -h /mnt/daten",
+   "cd /mnt/daten",
+   "sudo umount /mnt/daten",
+   "cd",
+   "sudo umount /mnt/daten"
+  ],
+  "antworten": [
+   "lost+found",
+   "das Ziel wird gerade benutzt"
+  ]
+ },
+ "l1-4-3/fstab": {
+  "befehle": [
+   "sudo blkid /dev/sdb1",
+   "echo \"UUID=b7e1c2d3-4f5a-4b6c-9d7e-8f9a0b1c2d3e /mnt/daten ext4 defaults 0 2\" | sudo tee -a /etc/fstab",
+   "sudo mount -a",
+   "sudo systemctl daemon-reload",
+   "echo \"LABEL=archiv /mnt/archiv xfs defaults,noauto 0 0\" | sudo tee -a /etc/fstab",
+   "sudo mount /mnt/archiv",
+   "sudo mount -o remount,ro /mnt/archiv"
+  ],
+  "antworten": [
+   "b7e1c2d3"
+  ]
+ },
+ "l1-4-3/unit": {
+  "befehle": [
+   "systemd-escape -p --suffix=mount /mnt/archiv",
+   "printf \"[Unit]\\nDescription=Archiv\\n\\n[Mount]\\nWhat=/dev/disk/by-uuid/5a6b7c8d-9e0f-4a1b-8c2d-3e4f5a6b7c8d\\nWhere=/mnt/archiv\\nType=xfs\\nOptions=defaults\\n\\n[Install]\\nWantedBy=multi-user.target\\n\" | sudo tee /etc/systemd/system/mnt-archiv.mount",
+   "sudo systemctl daemon-reload",
+   "sudo systemctl start mnt-archiv.mount",
+   "systemctl status mnt-archiv.mount",
+   "sudo systemctl enable mnt-archiv.mount"
+  ],
+  "antworten": [
+   "mnt-archiv.mount"
+  ]
+ },
+ "l1-4-4/platz": {
+  "befehle": [
+   "df -hT",
+   "df -i",
+   "du -sh ~",
+   "du -h --max-depth=1 ~ | sort -h"
+  ],
+  "antworten": [
+   "vfat",
+   "videos"
+  ]
+ },
+ "l1-4-4/reparieren": {
+  "befehle": [
+   "sudo mount /dev/sdb1 /mnt/daten",
+   "sudo e2fsck -n /dev/sdb1",
+   "sudo e2fsck -y /dev/sdb1",
+   "sudo mount /dev/sdb1 /mnt/daten",
+   "ls /mnt/daten",
+   "sudo e2fsck /dev/sdb1",
+   "sudo tune2fs -l /dev/sdb1",
+   "sudo tune2fs -c 30 -m 1 /dev/sdb1",
+   "sudo xfs_repair -n /dev/sdb3",
+   "sudo fsck /dev/sdb3"
+  ],
+  "antworten": [
+   "5",
+   "-1"
+  ]
+ },
+ "l1-4-5/lesen": {
+  "befehle": [
+   "ls -l projekt",
+   "projekt/start.sh",
+   "ls -ld projekt",
+   "ls -l /etc/shadow"
+  ],
+  "antworten": [
+   "644",
+   "d",
+   "shadow"
+  ]
+ },
+ "l1-4-5/setzen": {
+  "befehle": [
+   "chmod 600 projekt/kalkulation.ods",
+   "chmod u+x projekt/start.sh",
+   "projekt/start.sh",
+   "chmod g+w,o-r projekt/notizen.txt",
+   "chmod -R g+rX projekt/bilder",
+   "umask -S",
+   "umask 027",
+   "touch neu.txt",
+   "mkdir neuordner"
+  ],
+  "antworten": [
+   "0022"
+  ]
+ },
+ "l1-4-6/besitz": {
+  "befehle": [
+   "id",
+   "chown max bericht.txt",
+   "sudo chown max:users bericht.txt",
+   "chgrp users plan.txt",
+   "chgrp max plan.txt"
+  ],
+  "antworten": [
+   "ja",
+   "nein"
+  ]
+ },
+ "l1-4-6/team": {
+  "befehle": [
+   "sudo mkdir /srv/team",
+   "sudo chgrp users /srv/team",
+   "sudo chmod 2770 /srv/team",
+   "touch /srv/team/liste.txt",
+   "sudo chmod +t /srv/team",
+   "ls -ld /tmp /usr/bin/passwd",
+   "find / -perm -4000 2>/dev/null"
+  ],
+  "antworten": [
+   "1777",
+   "sudo"
+  ]
+ },
+ "l1-4-7/links": {
+  "befehle": [
+   "cd messung",
+   "ln -s config-v2.conf aktuell.conf",
+   "ln config-v2.conf sicherung.conf",
+   "ls -li",
+   "echo einheit=C >> sicherung.conf",
+   "cat config-v2.conf",
+   "rm config-v2.conf",
+   "cat aktuell.conf",
+   "cat sicherung.conf",
+   "ln -sf config-v3.conf aktuell.conf",
+   "readlink -f aktuell.conf"
+  ],
+  "antworten": [
+   "2",
+   "sicherung.conf"
+  ]
+ },
+ "l1-4-7/grenzen": {
+  "befehle": [
+   "ln /usr/share/doc docs",
+   "ln -s /usr/share/doc docs",
+   "sudo mount /dev/sdb1 /mnt/daten",
+   "sudo chown lena: /mnt/daten",
+   "ln ~/handbuch.txt /mnt/daten/handbuch.txt",
+   "ln -s /home/lena/handbuch.txt /mnt/daten/handbuch.txt"
+  ],
+  "antworten": [
+   "Ungültiger Link über Gerätegrenzen hinweg"
+  ]
+ },
+ "l1-4-8/suchen": {
+  "befehle": [
+   "locate sshd_config",
+   "touch ~/messprotokoll.txt",
+   "locate messprotokoll",
+   "sudo updatedb",
+   "locate messprotokoll",
+   "locate notiz-tmp",
+   "cat /etc/updatedb.conf",
+   "find / -name notiz-tmp.txt 2>/dev/null",
+   "whereis ls",
+   "which ls",
+   "type ls"
+  ],
+  "antworten": [
+   "/etc/ssh",
+   "/tmp",
+   "alias"
+  ]
+ },
+ "l1-4-boss/einrichten": {
+  "befehle": [
+   "sudo fdisk /dev/sdb",
+   "g",
+   "n",
+   "",
+   "",
+   "+100G",
+   "w",
+   "sudo mkfs.ext4 -L team /dev/sdb1",
+   "sudo tune2fs -m 1 /dev/sdb1",
+   "sudo mkdir /srv/team",
+   "echo \"LABEL=team /srv/team ext4 defaults 0 2\" | sudo tee -a /etc/fstab",
+   "sudo mount -a",
+   "sudo systemctl daemon-reload"
+  ],
+  "antworten": []
+ },
+ "l1-4-boss/freigeben": {
+  "befehle": [
+   "sudo mount /dev/sdb1 /srv/team",
+   "sudo chgrp users /srv/team",
+   "sudo chmod 3770 /srv/team",
+   "touch /srv/team/willkommen.txt",
+   "ln -s /srv/team ~/team",
+   "cd ~/team",
+   "sudo updatedb",
+   "locate willkommen"
+  ],
+  "antworten": [
+   "/srv/team/willkommen.txt"
+  ]
+ },
+ "l2-3-1/altserver": {
+  "befehle": [
+   "runlevel",
+   "cat /etc/inittab",
+   "ls /etc/rc2.d",
+   "sudo update-rc.d messd defaults",
+   "sudo service messd start",
+   "sudo update-rc.d messd disable 3",
+   "sudo telinit 3",
+   "echo \"mw:2345:respawn:/usr/sbin/messd --vordergrund\" | sudo tee -a /etc/inittab",
+   "sudo telinit q"
+  ],
+  "antworten": [
+   "2",
+   "respawn",
+   "rsyslog"
+  ]
+ },
+ "l2-3-1/alma": {
+  "befehle": [
+   "cat /etc/rc.d/init.d/messd",
+   "sudo chkconfig --add messd",
+   "chkconfig --list messd",
+   "sudo chkconfig --level 35 messd off",
+   "systemctl status messd"
+  ],
+  "antworten": [
+   "90",
+   "nein",
+   "generated"
+  ]
+ },
+ "l2-3-2/anpassen": {
+  "befehle": [
+   "systemctl cat messd",
+   "sudo mkdir -p /etc/systemd/system/messd.service.d",
+   "printf \"[Service]\\nRestart=always\\n\" | sudo tee /etc/systemd/system/messd.service.d/neustart.conf",
+   "sudo systemctl daemon-reload",
+   "systemctl show -p Restart messd",
+   "systemd-delta",
+   "sudo systemctl mask bluetooth",
+   "ls /run/systemd/generator",
+   "sudo systemctl enable --now messd"
+  ],
+  "antworten": [
+   "/usr/lib/systemd/system",
+   "always",
+   "EXTENDED",
+   "-.mount"
+  ]
+ },
+ "l2-3-2/kollege": {
+  "befehle": [
+   "systemctl status messd",
+   "systemctl cat messd",
+   "sudo rm /etc/systemd/system/messd.service.d/kollege.conf",
+   "sudo systemctl daemon-reload",
+   "sudo systemctl restart messd"
+  ],
+  "antworten": [
+   "217/USER",
+   "messdienst"
+  ]
+ },
+ "l2-3-3/firmware": {
+  "befehle": [
+   "ls /sys/firmware/efi",
+   "lsblk",
+   "sudo efibootmgr -v",
+   "ls /boot/efi/EFI/debian",
+   "sudo efibootmgr -c -d /dev/nvme0n1 -p 1 -L \"debian ohne shim\" -l \"\\EFI\\debian\\grubx64.efi\"",
+   "sudo efibootmgr -o 0000,0003,0002,0001",
+   "sudo efibootmgr -n 0002",
+   "ls /boot"
+  ],
+  "antworten": [
+   "ja",
+   "/dev/nvme0n1p1",
+   "shimx64.efi",
+   "grubx64.efi",
+   "6.1.0-27-amd64"
+  ]
+ },
+ "l2-3-4/vergessen": {
+  "befehle": [
+   "#neustart",
+   "e",
+   "linux /boot/vmlinuz-6.1.0-27-amd64 root=UUID=3f1c0d6e-8a2b-4c51-9a0e-2d7b1e5c9f40 ro init=/bin/bash",
+   "boot",
+   "mount -o remount,rw /",
+   "passwd",
+   "neu123",
+   "neu123",
+   "exec /sbin/init",
+   "#neustart",
+   "e",
+   "linux /boot/vmlinuz-6.1.0-27-amd64 root=UUID=3f1c0d6e-8a2b-4c51-9a0e-2d7b1e5c9f40 ro systemd.unit=rescue.target",
+   "boot",
+   "neu123",
+   "systemctl default"
+  ],
+  "antworten": []
+ },
+ "l2-3-4/grubshell": {
+  "befehle": [
+   "#neustart",
+   "ls",
+   "ls (hd0,gpt2)/boot",
+   "set root=(hd0,gpt2)",
+   "linux /boot/vmlinuz-6.1.0-27-amd64 root=/dev/nvme0n1p2 ro",
+   "initrd /boot/initrd.img-6.1.0-27-amd64",
+   "boot",
+   "sudo update-grub"
+  ],
+  "antworten": [
+   "(hd0,gpt2)"
+  ]
+ },
+ "l2-3-5/notfall": {
+  "befehle": [
+   "#neustart",
+   "Messpc2026",
+   "journalctl -xb",
+   "mount -o remount,rw /",
+   "sed -i \"s|defaults  0  2|defaults,nofail  0  2|\" /etc/fstab",
+   "systemctl daemon-reload",
+   "systemctl default",
+   "#neustart"
+  ],
+  "antworten": [
+   "/mnt/sicherung"
+  ]
+ },
+ "l2-3-5/live": {
+  "befehle": [
+   "sudo efibootmgr",
+   "sudo fsck -f /dev/nvme0n1p2",
+   "sudo mount /dev/nvme0n1p2 /mnt",
+   "sudo mount /dev/nvme0n1p1 /mnt/boot/efi",
+   "for d in dev proc sys; do sudo mount --bind /$d /mnt/$d; done",
+   "sudo chroot /mnt",
+   "grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=debian",
+   "update-grub",
+   "exit",
+   "#neustart"
+  ],
+  "antworten": [
+   "nein"
+  ]
+ },
+ "l2-3-6/pxe": {
+  "befehle": [
+   "sudo apt install -y tftpd-hpa pxelinux syslinux-common shim-signed grub-efi-amd64-signed tftp-hpa xorriso isolinux",
+   "cat /etc/default/tftpd-hpa",
+   "sudo cp /usr/lib/PXELINUX/pxelinux.0 /usr/lib/syslinux/modules/bios/ldlinux.c32 /srv/tftp/",
+   "sudo mkdir -p /srv/tftp/pxelinux.cfg /srv/tftp/uefi /srv/tftp/alma",
+   "sudo cp /srv/iso/images/pxeboot/vmlinuz /srv/iso/images/pxeboot/initrd.img /srv/tftp/alma/",
+   "printf \"DEFAULT install\\nTIMEOUT 50\\nLABEL install\\n  KERNEL alma/vmlinuz\\n  APPEND initrd=alma/initrd.img inst.repo=http://192.168.50.10/alma\\n\" | sudo tee /srv/tftp/pxelinux.cfg/default",
+   "sudo cp /usr/lib/shim/shimx64.efi.signed /srv/tftp/uefi/shim.efi",
+   "sudo cp /usr/lib/grub/x86_64-efi-signed/grubnetx64.efi.signed /srv/tftp/uefi/grubx64.efi",
+   "sudo sed -i \"s|  # filename fehlt noch|  if option arch = 00:07 { filename \\\"uefi/shim.efi\\\"; } else { filename \\\"pxelinux.0\\\"; }|\" /etc/dhcp/dhcpd.conf",
+   "tftp localhost -c get pxelinux.0",
+   "xorriso -as mkisofs -isohybrid-mbr /usr/lib/ISOLINUX/isohdpfx.bin -b isolinux/isolinux.bin -c isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table -eltorito-alt-boot -e images/efiboot.img -no-emul-boot -isohybrid-gpt-basdat -o /tmp/alma-labor.iso /srv/iso"
+  ],
+  "antworten": [
+   "/srv/tftp"
+  ]
+ },
+ "l2-3-boss/rettung": {
+  "befehle": [
+   "#neustart",
+   "ls (hd0,gpt2)/boot/grub",
+   "set root=(hd0,gpt2)",
+   "linux /boot/vmlinuz-6.1.0-27-amd64 root=/dev/nvme0n1p2 ro",
+   "initrd /boot/initrd.img-6.1.0-27-amd64",
+   "boot",
+   "Messpc2026",
+   "journalctl -xb",
+   "sed -i \"s|defaults  0  2|defaults,nofail  0  2|\" /etc/fstab",
+   "systemctl daemon-reload",
+   "systemctl default",
+   "systemctl status messd",
+   "sudo systemctl revert messd",
+   "sudo systemctl restart messd",
+   "sudo update-grub",
+   "#neustart"
+  ],
+  "antworten": [
+   "/boot/grub/grub.cfg",
+   "/mnt/sicherung"
+  ]
+ },
+ "l2-4-1/einhaengen": {
+  "befehle": [
+   "ls -l /etc/mtab",
+   "cat /proc/mounts",
+   "sudo blkid /dev/sdb3",
+   "sudo mkdir /srv/archiv /srv/daten",
+   "echo \"UUID=5a6b7c8d-9e0f-4a1b-8c2d-3e4f5a6b7c8d  /srv/archiv  xfs  defaults,noatime  0  0\" | sudo tee -a /etc/fstab",
+   "sudo mount -a",
+   "sudo systemctl daemon-reload",
+   "sudo mount -o remount,ro /srv/archiv",
+   "sync",
+   "sudo umount /srv/archiv",
+   "printf \"[Unit]\\nDescription=Messdaten\\n\\n[Mount]\\nWhat=/dev/disk/by-uuid/b7e1c2d3-4f5a-4b6c-9d7e-8f9a0b1c2d3e\\nWhere=/srv/daten\\nType=ext4\\nOptions=defaults\\n\\n[Install]\\nWantedBy=multi-user.target\\n\" | sudo tee /etc/systemd/system/srv-daten.mount",
+   "sudo systemctl daemon-reload",
+   "sudo systemctl enable --now srv-daten.mount"
+  ],
+  "antworten": [
+   "../proc/self/mounts",
+   "ext4",
+   "5a6b7c8d"
+  ]
+ },
+ "l2-4-2/swap": {
+  "befehle": [
+   "swapon --show",
+   "sudo fallocate -l 2G /swapfile",
+   "sudo chmod 600 /swapfile",
+   "sudo mkswap /swapfile",
+   "sudo swapon -p 10 /swapfile",
+   "sudo swapon /dev/sdb2",
+   "cat /proc/swaps",
+   "echo \"/swapfile none swap sw,pri=10 0 0\" | sudo tee -a /etc/fstab",
+   "echo \"UUID=e4d3c2b1-a090-4f8e-9d7c-6b5a4f3e2d1c none swap sw 0 0\" | sudo tee -a /etc/fstab",
+   "sudo swapoff -a",
+   "sudo swapon -a"
+  ],
+  "antworten": [
+   "-2",
+   "file"
+  ]
+ },
+ "l2-4-3/superblock": {
+  "befehle": [
+   "sudo mount /dev/sdb1 /mnt/daten",
+   "sudo e2fsck /dev/sdb1",
+   "sudo mke2fs -n /dev/sdb1",
+   "sudo e2fsck -b 32768 /dev/sdb1",
+   "sudo mount /dev/sdb1 /mnt/daten",
+   "sudo dumpe2fs -h /dev/sdb1",
+   "sudo tune2fs -m 1 -c 30 /dev/sdb1",
+   "sudo debugfs -R \"stat /messung-2026.csv\" /dev/sdb1"
+  ],
+  "antworten": [
+   "32768",
+   "163840",
+   "655360",
+   "14"
+  ]
+ },
+ "l2-4-4/btrfs": {
+  "befehle": [
+   "sudo apt install -y btrfs-progs",
+   "sudo btrfs filesystem show",
+   "sudo mount /dev/sdb4 /srv/projekte",
+   "sudo btrfs subvolume list /srv/projekte",
+   "sudo btrfs subvolume create /srv/projekte/@archiv",
+   "sudo btrfs subvolume snapshot -r /srv/projekte/@daten /srv/projekte/@daten-vor-update",
+   "sudo rm /srv/projekte/@daten/auswertung.ods",
+   "sudo cp /srv/projekte/@daten-vor-update/auswertung.ods /srv/projekte/@daten/",
+   "sudo btrfs filesystem df /srv/projekte",
+   "sudo btrfs-convert /dev/sdb1",
+   "sudo mount /dev/sdb1 /mnt",
+   "sudo btrfs subvolume list /mnt"
+  ],
+  "antworten": [
+   "projekte",
+   "257",
+   "DUP",
+   "ext2_saved"
+  ]
+ },
+ "l2-4-5/smart": {
+  "befehle": [
+   "sudo smartctl -H /dev/sdb",
+   "sudo smartctl -A /dev/sdb",
+   "sudo smartctl -t short /dev/sdb",
+   "sudo smartctl -l selftest /dev/sdb",
+   "sudo sed -i \"s/^DEVICESCAN/#DEVICESCAN/\" /etc/smartd.conf",
+   "echo \"/dev/sdb -a -o on -S on -s (S/../.././02|L/../../6/03) -m root\" | sudo tee -a /etc/smartd.conf",
+   "sudo systemctl restart smartd",
+   "sudo mount /dev/sdb3 /srv/archiv",
+   "xfs_info /srv/archiv",
+   "sudo apt install -y xfsdump",
+   "sudo xfsdump -l 0 -L voll -M platte -f /backup/archiv-0.dump /srv/archiv",
+   "sudo mkdir /tmp/probe",
+   "sudo xfsrestore -f /backup/archiv-0.dump /tmp/probe",
+   "sudo umount /srv/archiv",
+   "sudo xfs_repair -n /dev/sdb3"
+  ],
+  "antworten": [
+   "PASSED",
+   "312",
+   "read failure",
+   "4"
+  ]
+ },
+ "l2-4-6/autofs": {
+  "befehle": [
+   "sudo apt install -y autofs",
+   "cat /etc/auto.master",
+   "echo \"/mnt/labor  /etc/auto.labor  --timeout=60\" | sudo tee /etc/auto.master.d/labor.autofs",
+   "printf \"daten     -fstype=ext4,rw   :/dev/sdb1\\nprojekte  -fstype=nfs4,rw   srv1:/srv/projekte\\n\" | sudo tee /etc/auto.labor",
+   "sudo systemctl reload autofs",
+   "ls /mnt/labor/projekte",
+   "echo \"/home/netz  /etc/auto.home\" | sudo tee /etc/auto.master.d/home.autofs",
+   "echo \"*  -fstype=nfs4,rw  srv1:/home/&\" | sudo tee /etc/auto.home",
+   "sudo systemctl reload autofs",
+   "ls /home/netz/max",
+   "echo \"LABEL=archiv /srv/archiv xfs noauto,x-systemd.automount 0 0\" | sudo tee -a /etc/fstab",
+   "sudo mkdir -p /srv/archiv",
+   "sudo systemctl daemon-reload",
+   "ls /srv/archiv"
+  ],
+  "antworten": [
+   "/etc/auto.master.d",
+   "LIESMICH.txt"
+  ]
+ },
+ "l2-4-7/iso": {
+  "befehle": [
+   "sudo apt install -y genisoimage udftools",
+   "genisoimage -o kurz.iso handbuch",
+   "sudo mount -o loop kurz.iso /mnt/iso",
+   "ls /mnt/iso",
+   "sudo umount /mnt/iso",
+   "genisoimage -R -J -V HANDBUCH -o handbuch.iso handbuch",
+   "isoinfo -d -i handbuch.iso",
+   "fallocate -l 100M dvd.img",
+   "mkudffs -l Messdaten dvd.img",
+   "sudo mount -o loop dvd.img /mnt/udf"
+  ],
+  "antworten": [
+   "LIESMICH.TXT;1",
+   "Joliet"
+  ]
+ },
+ "l2-4-7/tresor": {
+  "befehle": [
+   "sudo apt install -y cryptsetup",
+   "sudo cryptsetup luksFormat /dev/sdb1",
+   "YES",
+   "Geheim-2026",
+   "Geheim-2026",
+   "sudo cryptsetup open /dev/sdb1 tresor",
+   "Geheim-2026",
+   "sudo mkfs.ext4 /dev/mapper/tresor",
+   "sudo mount /dev/mapper/tresor /srv/tresor",
+   "sudo cryptsetup status tresor",
+   "sudo cryptsetup luksAddKey /dev/sdb1",
+   "Geheim-2026",
+   "Notfall-2026",
+   "Notfall-2026",
+   "echo \"tresor UUID=$(sudo blkid -s UUID -o value /dev/sdb1) none luks\" | sudo tee -a /etc/crypttab",
+   "echo \"/dev/mapper/tresor /srv/tresor ext4 defaults 0 2\" | sudo tee -a /etc/fstab",
+   "sudo umount /srv/tresor",
+   "sudo cryptsetup close tresor"
+  ],
+  "antworten": [
+   "LUKS2"
+  ]
+ },
+ "l2-4-boss/lager": {
+  "befehle": [
+   "swapon --show",
+   "systemctl status autofs",
+   "ls /mnt/labor/daten",
+   "sudo chmod 600 /swapfile",
+   "sudo sed -i \"s|^/swapfil |/swapfile |\" /etc/fstab",
+   "sudo swapon -a",
+   "sudo e2fsck -b 32768 /dev/sdb1",
+   "ls /mnt/labor/daten",
+   "sudo sed -i \"s/fstype=ext4,ro/fstype=xfs,ro/\" /etc/auto.labor",
+   "sudo systemctl reload autofs",
+   "ls /mnt/labor/archiv",
+   "sudo smartctl -a /dev/sdb",
+   "sudo apt install -y xfsdump",
+   "sudo xfsdump -l 0 -L voll -M platte -f /backup/archiv-0.dump /mnt/labor/archiv",
+   "sudo sed -i \"s/^DEVICESCAN/#DEVICESCAN/\" /etc/smartd.conf",
+   "echo \"/dev/sdb -a -m root\" | sudo tee -a /etc/smartd.conf",
+   "sudo systemctl restart smartd"
+  ],
+  "antworten": [
+   "1",
+   "/dev/sdb"
+  ]
+ },
+ "l2-5-1/spiegel": {
+  "befehle": [
+   "sudo fdisk -l /dev/sdc",
+   "sudo sfdisk --part-type /dev/sdc 1 fd",
+   "sudo sfdisk --part-type /dev/sdd 1 fd",
+   "sudo mdadm --create /dev/md0 --level=1 --raid-devices=2 /dev/sdc1 /dev/sdd1",
+   "y",
+   "cat /proc/mdstat",
+   "sudo mkfs.ext4 -L spiegel /dev/md0",
+   "sudo mkdir -p /srv/spiegel",
+   "sudo mount /dev/md0 /srv/spiegel",
+   "sudo mdadm --detail --scan | sudo tee -a /etc/mdadm/mdadm.conf",
+   "sudo update-initramfs -u",
+   "sudo mdadm --examine /dev/sdc1"
+  ],
+  "antworten": [
+   "83",
+   "resync",
+   "1.2"
+  ]
+ },
+ "l2-5-2/tausch": {
+  "befehle": [
+   "cat /proc/mdstat",
+   "sudo mdadm --monitor --scan --oneshot",
+   "sudo mdadm /dev/md0 --remove /dev/sdd1",
+   "sudo sfdisk -d /dev/sdc | sudo sfdisk /dev/sde",
+   "sudo mdadm /dev/md0 --add /dev/sde1",
+   "sudo sysctl -w dev.raid.speed_limit_min=60000",
+   "cat /proc/mdstat",
+   "cat /proc/mdstat",
+   "cat /proc/mdstat",
+   "cat /proc/mdstat",
+   "cat /proc/mdstat",
+   "cat /proc/mdstat",
+   "sudo mdadm --zero-superblock /dev/sdd1"
+  ],
+  "antworten": [
+   "/dev/sdd1",
+   "DegradedArray"
+  ]
+ },
+ "l2-5-3/geraete": {
+  "befehle": [
+   "lsblk -D",
+   "sudo hdparm -I /dev/sdc",
+   "sudo hdparm -W0 /dev/sdc",
+   "echo bfq | sudo tee /sys/block/sdc/queue/scheduler",
+   "sudo apt install -y nvme-cli",
+   "sudo nvme smart-log /dev/nvme0",
+   "sudo fstrim -av",
+   "systemctl status fstrim.timer"
+  ],
+  "antworten": [
+   "sdc",
+   "5400",
+   "2",
+   "fstrim.timer"
+  ]
+ },
+ "l2-5-4/lvm": {
+  "befehle": [
+   "sudo sfdisk --part-type /dev/sdc 1 8e",
+   "sudo sfdisk --part-type /dev/sdd 1 8e",
+   "sudo pvcreate /dev/sdc1 /dev/sdd1",
+   "sudo vgcreate daten /dev/sdc1 /dev/sdd1",
+   "sudo vgdisplay daten",
+   "sudo lvcreate -L 200G -n messungen daten",
+   "sudo mkfs.ext4 /dev/daten/messungen",
+   "sudo mkdir /srv/messungen",
+   "sudo mount /dev/daten/messungen /srv/messungen",
+   "echo \"/dev/daten/messungen /srv/messungen ext4 defaults 0 2\" | sudo tee -a /etc/fstab",
+   "ls -l /dev/mapper"
+  ],
+  "antworten": [
+   "4 MiB",
+   "dm-0"
+  ]
+ },
+ "l2-5-5/groesse": {
+  "befehle": [
+   "sudo vgs",
+   "sudo lvextend -L +100G daten/messungen",
+   "sudo resize2fs /dev/daten/messungen",
+   "sudo lvextend -r -L 400G daten/archiv",
+   "sudo vgextend daten /dev/sde",
+   "sudo lvcreate -L 10G -n tmp daten",
+   "sudo lvrename daten tmp weg",
+   "sudo lvremove -y daten/weg",
+   "sudo umount /srv/messungen",
+   "sudo lvreduce -r -L 250G daten/messungen",
+   "sudo mount /srv/messungen",
+   "df -h /srv/messungen"
+  ],
+  "antworten": [
+   "1,33t",
+   "250G"
+  ]
+ },
+ "l2-5-6/snapshot": {
+  "befehle": [
+   "sudo lvcreate -s -L 5G -n vor-update daten/messungen",
+   "sudo lvs",
+   "sudo rm /srv/messungen/2026/messreihe-a.csv",
+   "sudo mkdir /mnt/vor-update",
+   "sudo mount -o ro /dev/daten/vor-update /mnt/vor-update",
+   "ls /mnt/vor-update/2026",
+   "sudo umount /mnt/vor-update",
+   "sudo lvconvert --merge daten/vor-update",
+   "sudo umount /srv/messungen",
+   "sudo lvchange -an daten/messungen",
+   "sudo lvchange -ay daten/messungen",
+   "sudo mount /srv/messungen",
+   "sudo sed -i \"s/snapshot_autoextend_threshold = 100/snapshot_autoextend_threshold = 70/\" /etc/lvm/lvm.conf",
+   "sudo pvmove /dev/sdc1",
+   "sudo vgreduce daten /dev/sdc1",
+   "sudo umount /srv/messungen /srv/archiv",
+   "sudo vgchange -an daten",
+   "sudo vgchange -ay daten",
+   "sudo mount -a"
+  ],
+  "antworten": [
+   "s"
+  ]
+ },
+ "l2-5-7/san": {
+  "befehle": [
+   "sudo apt install -y open-iscsi",
+   "sudo cat /etc/iscsi/initiatorname.iscsi",
+   "sudo iscsiadm -m discovery -t sendtargets -p 192.168.50.10",
+   "sudo iscsiadm -m node -o update -n node.session.auth.authmethod -v CHAP",
+   "sudo iscsiadm -m node -o update -n node.session.auth.username -v werkstatt",
+   "sudo iscsiadm -m node -o update -n node.session.auth.password -v Speicher-2026",
+   "sudo iscsiadm -m node -o update -n node.startup -v automatic",
+   "sudo iscsiadm -m node --login",
+   "ls -l /dev/disk/by-id",
+   "sudo /lib/udev/scsi_id -g -u -d /dev/sdc",
+   "sudo pvcreate /dev/sdc",
+   "sudo vgcreate san /dev/sdc",
+   "sudo lvcreate -l 100%FREE -n daten san",
+   "sudo mkfs.ext4 /dev/san/daten",
+   "sudo mkdir /srv/san",
+   "echo \"/dev/san/daten /srv/san ext4 defaults,_netdev 0 2\" | sudo tee -a /etc/fstab",
+   "sudo mount /srv/san"
+  ],
+  "antworten": [
+   "iqn.1993-08.org.debian:01:3c7c3f1a2b4d",
+   "iqn.2026-11.lan.labor:speicher",
+   "/dev/sdc",
+   "3"
+  ]
+ },
+ "l2-5-boss/archiv": {
+  "befehle": [
+   "cat /proc/mdstat",
+   "sudo mdadm /dev/md0 --remove /dev/sdd1",
+   "sudo sfdisk -d /dev/sdc | sudo sfdisk /dev/sdf",
+   "sudo mdadm /dev/md0 --add /dev/sdf1",
+   "sudo sysctl -w dev.raid.speed_limit_min=100000",
+   "sudo pvcreate /dev/sdg",
+   "sudo vgextend daten /dev/sdg",
+   "sudo lvextend -r -L +300G daten/messungen",
+   "sudo lvcreate -s -L 10G -n vor-update daten/messungen",
+   "sudo sed -i \"s/^MAILADDR root/MAILADDR admin@labor.lan/\" /etc/mdadm/mdadm.conf",
+   "cat /proc/mdstat",
+   "cat /proc/mdstat",
+   "cat /proc/mdstat"
+  ],
+  "antworten": [
+   "/dev/sdd1"
+  ]
+ }
+}

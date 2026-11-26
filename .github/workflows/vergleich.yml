@@ -1,0 +1,64 @@
+name: Simulator gegen echte Systeme
+
+# Führt die Fälle aus tests/vergleich/faelle auf echtem Debian und AlmaLinux aus (in Containern,
+# nur für Programme, die nicht vom Kernel abhängen) und vergleicht die Rückgabecodes mit dem Simulator.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  vergleich:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - system: debian-12
+            simulator: debian
+            image: debian:bookworm
+            installieren: apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq openssh-server sudo python3 >/dev/null
+          - system: alma-9
+            simulator: alma
+            image: almalinux:9
+            installieren: dnf install -y -q openssh-server sudo python3 >/dev/null
+    steps:
+      - name: Code holen
+        uses: actions/checkout@v7
+
+      - name: Node einrichten
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Abhängigkeiten installieren
+        run: npm ci
+
+      - name: Fälle auf ${{ matrix.system }} ausführen
+        run: |
+          docker run --rm -v "$PWD:/w" -w /w ${{ matrix.image }} bash -c \
+            "${{ matrix.installieren }} && python3 tests/vergleich/echt.py ${{ matrix.system }} /w/echt.json"
+
+      - name: Fälle im Simulator ausführen
+        run: node tests/vergleich/simulator.mjs ${{ matrix.simulator }} sim.json
+
+      - name: Vergleichen
+        run: node tests/vergleich/vergleiche.mjs echt.json sim.json --markdown "$GITHUB_STEP_SUMMARY"
+
+  fragen:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Fragen für Probeprüfungen prüfen
+        run: node tests/fragen.mjs
