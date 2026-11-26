@@ -1,0 +1,147 @@
+---
+id: l2-5-5
+checks:
+  - id: k1
+  - id: zuordnung
+  - id: k2
+  - id: luecke
+  - id: groesse
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "Vergrößern"
+    v: "lvextend -L +100G -r daten/messungen · oder lvextend, dann resize2fs /dev/daten/messungen (ext) bzw. xfs_growfs /srv/archiv (XFS) · geht eingehängt"
+  - t: "Verkleinern"
+    v: "nur ext, nur ausgehängt: umount · lvreduce -r -L 250G daten/messungen · von Hand: e2fsck -f, resize2fs GERÄT 250G, lvreduce -L 250G · XFS: nie"
+  - t: "Umbenennen"
+    v: "lvrename daten alt neu · vgrename alt neu · danach fstab anpassen"
+  - t: "VG erweitern"
+    v: "pvcreate /dev/sde · vgextend daten /dev/sde · vgs zeigt neuen VFree"
+  - t: "Entfernen"
+    v: "lvremove daten/tmp · vgremove daten · pvremove /dev/sde"
+karten:
+  - f: "Welche Option von lvextend vergrößert das Dateisystem gleich mit?"
+    a: ["-r", "--resizefs"]
+  - f: "Womit vergrößerst du ein XFS nach lvextend?"
+    a: ["xfs_growfs", "xfs_growfs EINHÄNGEPUNKT"]
+  - f: "Kann man ein XFS verkleinern?"
+    a: ["nein"]
+  - f: "Was muss vor resize2fs zum Verkleinern laufen?"
+    a: ["e2fsck -f", "fsck"]
+  - f: "Wie nimmst du /dev/sde in die VG daten auf?"
+    a: ["vgextend daten /dev/sde", "pvcreate /dev/sde und vgextend daten /dev/sde"]
+  - f: "Was passiert bei lvreduce ohne -r, wenn das Dateisystem größer bleibt?"
+    a: ["das dateisystem wird beschädigt", "daten gehen verloren"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Zuordnung from '../components/Zuordnung.astro';
+import Lueckentext from '../components/Lueckentext.astro';
+
+Ein halbes Jahr später. Die Messreihen brauchen mehr Platz, das Archiv auch, und irgendwer hat zu Testzwecken ein Volume angelegt und vergessen. Der Server darf nicht neu starten, die Messungen laufen. **Deine Mission: Vergrößere zwei Volumes im laufenden Betrieb, eins mit ext4 und eins mit XFS, erweitere den Pool um eine Platte, räum auf und schrumpf das zu groß geratene Volume sicher wieder.** Lernziel 204.3.
+
+## Wachsen
+
+<Karte nr={1} titel="Erst das Volume, dann das Dateisystem">
+Ein LV zu vergrößern heißt nur, ihm mehr Extents zu geben. Das Dateisystem darauf weiß davon nichts und muss in einem zweiten Schritt wachsen:
+
+```
+sudo lvextend -L +100G daten/messungen     # 100 GiB dazu (ohne + wäre es die Zielgröße)
+sudo resize2fs /dev/daten/messungen         # ext2/3/4 füllt das Gerät aus
+sudo lvextend -l +100%FREE daten/archiv     # allen freien Platz dazu
+sudo xfs_growfs /srv/archiv                 # XFS erwartet den Einhängepunkt
+```
+
+Beides geht **eingehängt** und im laufenden Betrieb. Einfacher ist **-r** (--resizefs): lvextend ruft dann selbst fsadm auf, das je nach Dateisystem resize2fs oder xfs_growfs startet.
+
+```
+sudo lvextend -r -L +100G daten/messungen
+```
+
+Vergisst man den zweiten Schritt, zeigt lvs die neue Größe, df aber noch die alte. Das ist kein Fehler, nur ein unvollständiger Auftrag.
+
+Reicht der Platz in der VG nicht, kommt eine Platte dazu: `pvcreate /dev/sde` und `vgextend daten /dev/sde`. Ein PV darf auch eine ganze Platte ohne Partitionstabelle sein.
+</Karte>
+
+<Quiz id="k1" titel="Kurzcheck: Wachsen" fragen={[
+  { frage: 'Nach lvextend -L +50G daten/web zeigt lvs 150 GiB, df aber 100 GiB. Was fehlt?', richtig: 'Das Dateisystem muss noch wachsen, etwa mit resize2fs oder xfs_growfs.', falsch: ['Ein Neustart, damit der Kernel die neue Größe sieht.', 'vgchange -ay, damit die neuen Extents aktiv werden.'], erklaerung: 'Mit lvextend -r wären beide Schritte in einem erledigt.' },
+  { frage: 'Was bedeutet lvextend -L 300G daten/archiv (ohne Plus)?', richtig: 'Das LV wird auf 300 GiB gebracht.', falsch: ['Das LV wächst um 300 GiB.', 'Das LV bekommt 300 zusätzliche Extents.'], erklaerung: '+300G hieße „um 300 GiB“. Extents gibt man mit -l an.' },
+]} />
+
+## Schrumpfen und umbenennen
+
+<Karte nr={2} titel="Erst das Dateisystem, dann das Volume">
+Verkleinern ist gefährlich, denn die Reihenfolge dreht sich um: Zuerst muss das **Dateisystem** kleiner werden, dann das **LV**. Wer das LV zuerst kürzt, schneidet dem Dateisystem das Ende ab.
+
+- **XFS** lässt sich gar nicht verkleinern. Nur sichern, neu anlegen, zurückspielen.
+- **ext4** schrumpft nur **ausgehängt**, und resize2fs verlangt vorher ein `e2fsck -f`.
+
+```
+sudo umount /srv/messungen
+sudo lvreduce -r -L 250G daten/messungen     # fsadm: e2fsck, resize2fs, dann lvreduce
+sudo mount /srv/messungen
+```
+
+Von Hand wären es `e2fsck -f /dev/daten/messungen`, `resize2fs /dev/daten/messungen 250G` und `lvreduce -L 250G daten/messungen`. Ohne -r warnt lvreduce mit „THIS MAY DESTROY YOUR DATA“ und fragt nach. Ein Ja an dieser Stelle hat schon viele Wochenenden gekostet.
+
+Umbenennen ist harmlos: `lvrename daten alt neu` und `vgrename alt neu`. Danach müssen fstab und, falls die Wurzel betroffen ist, Bootloader und initramfs den neuen Namen kennen. Entfernen geht mit `lvremove daten/tmp`, das bei aktiven Volumes nachfragt und eingehängte ablehnt.
+</Karte>
+
+<Merke>Wachsen: LV zuerst, dann Dateisystem, eingehängt erlaubt. Schrumpfen: Dateisystem zuerst, nur ext, nur ausgehängt. -r erledigt beides in der richtigen Reihenfolge.</Merke>
+
+<Zuordnung id="zuordnung" titel="Zuordnung: Welcher Befehl?" aufgabe="Ordne jeder Aufgabe den passenden Befehl zu." paare={[
+  { links: 'XFS auf die Größe des LV bringen', rechts: 'xfs_growfs /srv/archiv' },
+  { links: 'ext4 auf die Größe des LV bringen', rechts: 'resize2fs /dev/daten/messungen' },
+  { links: 'LV samt Dateisystem vergrößern', rechts: 'lvextend -r -L +50G daten/messungen' },
+  { links: 'Neue Platte in den Pool aufnehmen', rechts: 'vgextend daten /dev/sde' },
+  { links: 'LV umbenennen', rechts: 'lvrename daten alt neu' },
+]} />
+
+<Quiz id="k2" titel="Kurzcheck: Schrumpfen" fragen={[
+  { frage: 'Ein eingehängtes ext4 soll von 300 auf 250 GiB schrumpfen. Was geht?', richtig: 'Aushängen, dann lvreduce -r -L 250G', falsch: ['lvreduce -L 250G, dann resize2fs im eingehängten Zustand', 'resize2fs im eingehängten Zustand, dann lvreduce'], erklaerung: 'resize2fs kann ext4 nur ausgehängt verkleinern, und das Dateisystem muss vor dem LV schrumpfen.' },
+]} />
+
+<Lueckentext id="luecke" titel="Lückentext: Wachsen und schrumpfen" aufgabe="Ergänze die Befehle."
+  code={`$ sudo lvextend -L ___100G daten/messungen
+$ sudo ___ /dev/daten/messungen        # ext4 nachziehen
+$ sudo lvextend -l +100%FREE daten/archiv
+$ sudo ___ /srv/archiv                 # XFS nachziehen
+$ sudo umount /srv/messungen
+$ sudo lvreduce ___ -L 250G daten/messungen`}
+  luecken={[
+    { loesungen: ['+'] },
+    { loesungen: ['resize2fs'] },
+    { loesungen: ['xfs_growfs'] },
+    { loesungen: ['-r', '--resizefs'] },
+  ]} />
+
+<Terminal id="groesse" titel="Terminal: Mehr Platz im laufenden Betrieb" welt={{ speicher: { lvm: 'fertig' } }} aufgaben={[
+  { text: 'Verschaff dir einen Überblick über den Pool.', befehl: '^(vgs|vgdisplay|lvm vgs)', frage: 'Wie viel ist in der VG daten noch frei? (wie vgs es anzeigt)', antwort: ['1,33t', '1.33t', '1,33 t', '1,33 TiB', '1,33TiB'] },
+  { text: 'Gib den Messreihen 100 GiB mehr, Volume und Dateisystem.', zustand: 'lv:daten/messungen>=300g && lvfs:daten/messungen=voll' },
+  { text: 'Bring das Archiv (XFS) auf 400 GiB, Volume und Dateisystem.', zustand: 'lv:daten/archiv>=400g && lvfs:daten/archiv=voll' },
+  { text: 'Nimm die leere Platte /dev/sde in den Pool auf.', zustand: 'vg:daten=3pvs' },
+  { text: 'Jemand hat ein Test-Volume vergessen. Leg zum Üben selbst eins an: tmp mit 10 GiB. Benenne es in weg um und lösch es dann.', zustand: 'historie~lvrename && lv:daten/weg=weg && lv:daten/tmp=weg && historie~lvcreate' },
+  { text: 'Die Messreihen haben sich doch beruhigt. Schrumpf das Volume samt Dateisystem sicher auf 250 GiB und häng es wieder ein.', zustand: 'lv:daten/messungen<=250g && lvfs:daten/messungen=heil && einh:/srv/messungen && lvfs:daten/messungen~messreihe-a' },
+  { text: 'Prüfe, ob das Dateisystem die richtige Größe hat.', befehl: '^df( -h)?( /srv/messungen)?$', frage: 'Wie groß ist es laut df -h? (mit Einheit wie df)', antwort: ['250G', '250 G', '250'] },
+]} />
+
+<Labor id="labor" titel="Labor: Wachsen auf srv1"
+  aufgabe="Bau auf srv1 ein kleines LV mit ext4, häng es ein, vergrößere es im laufenden Betrieb mit -r und räum auf. Füge die Ausgabe ein."
+  befehl={"truncate -s 400M /tmp/p0.img; L0=$(sudo losetup -f --show /tmp/p0.img)\nsudo vgcreate uebung $L0 && sudo lvcreate -L 100M -n w uebung\nsudo mkfs.ext4 -q /dev/uebung/w && sudo mkdir -p /mnt/w && sudo mount /dev/uebung/w /mnt/w\ndf -h /mnt/w\nsudo lvextend -r -L +200M uebung/w\ndf -h /mnt/w\nsudo umount /mnt/w; sudo vgremove -y uebung; sudo pvremove $L0; sudo losetup -d $L0; rm /tmp/p0.img"}
+  muster={["successfully resized", "resize2fs", "/mnt/w"]}
+  erfolg="Das Dateisystem ist eingehängt um das Dreifache gewachsen, ohne dass ein Prozess davon etwas gemerkt hat. In der Ausgabe von lvextend siehst du, wie fsadm resize2fs selbst aufgerufen hat." />
+
+<Hinweis titel="Prüfungstipp">
+Klassische Fallen: Plus oder kein Plus bei -L, die Reihenfolge beim Schrumpfen, XFS lässt sich nicht verkleinern, xfs_growfs nimmt den Einhängepunkt. Das Lernziel nennt Vergrößern, Umbenennen, Anlegen und Entfernen ausdrücklich.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'lvreduce -r -L 100G daten/archiv auf einem XFS meldet „Xfs filesystem shrinking is unsupported“. Was nun?', richtig: 'Sichern, LV neu anlegen oder verkleinern, neues XFS anlegen und zurückspielen', falsch: ['Aushängen und denselben Befehl wiederholen', 'Erst xfs_repair, dann den Befehl wiederholen'], erklaerung: 'XFS kennt nur Wachsen. xfsdump und xfsrestore helfen beim Umzug.' },
+  { frage: 'Nach vgrename daten messdaten startet das System nicht mehr sauber, /srv/messungen fehlt. Wahrscheinliche Ursache?', richtig: 'Die fstab nennt noch /dev/daten/messungen.', falsch: ['vgrename hat die Extents neu verteilt.', 'Das LV ist nach vgrename inaktiv, bis man es neu anlegt.'], erklaerung: 'Neue Namen: /dev/messdaten/messungen und /dev/mapper/messdaten-messungen.' },
+  { frage: 'Welcher Befehl vergrößert ein LV um den gesamten freien Platz der VG und das ext4 darauf?', richtig: 'lvextend -r -l +100%FREE daten/messungen', falsch: ['lvextend -r -L 100%FREE daten/messungen', 'lvresize -l 100%VG daten/messungen'], erklaerung: 'Prozentangaben gehen mit -l. 100%VG wäre die ganze VG als Zielgröße, was mit anderen LVs nicht passt.' },
+]} />

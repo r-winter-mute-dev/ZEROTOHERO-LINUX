@@ -4,6 +4,7 @@
 // Der Rechner ist erfunden ("werkstatt"), die Ausgaben sind an echte Systeme angelehnt und gekürzt.
 
 import { paketBefehle, programmStarten, neustartPakete, startStand, zustandPakete, paketeSetzen, paketHinzu, grubSchreiben, type PaketStand } from './shell-pakete';
+import { spKern, speicherStarten, speicherBefehle, speicherVorZeile, speicherNachApt, zustandSpeicher, type SpeicherOptionen } from './shell-speicher';
 import { fsKern, dsysStarten, dsysBefehle, dsysVorZeile, dsysNachApt, zustandDsys, type DsysOptionen } from './shell-fs';
 import { startNachApt, initExec, startBefehle, startKern, startStarten, startVorKernel, startNachKernel, startProgramm, chrootVerlassen, zustandStart, startAktiv, type StartOptionen } from './shell-start';
 import { kernBefehle, kernBefehleRef, kernGrub, kernKern, kernNachApt, kernNeustart, kernProgramm, kernStarten, zustandKern, MODUL_ORT, type KernOptionen } from './shell-kernel';
@@ -279,7 +280,7 @@ function modulPfad(name: string) {
   return `${ordner[name] ?? 'kernel/drivers/misc'}/${name.replace(/_/g, name === 'usb_storage' ? '-' : '_')}.ko`;
 }
 
-export interface WeltOptionen { dsys?: DsysOptionen; start?: StartOptionen; kern?: KernOptionen; last?: LastOptionen; sicherheit?: SicherOptionen; netz?: NetzOptionen; dienste?: DienstOptionen; grafik?: 'x11' | 'wayland'; defaultTarget?: string; target?: string; ohne?: string[]; dateien?: Record<string, string>; prozesse?: Prozess[]; root?: boolean; distro?: 'debian' | 'alma' | 'suse'; virt?: string; host?: string; aptVeraltet?: boolean; geaendert?: string[]; pathStandard?: boolean; cwd?: string; rechte?: Record<string, string>; zeiten?: Record<string, number>; aliase?: Record<string, string>; extraProzesse?: Prozess[]; neuePlatte?: boolean | 'leer' | 'partitioniert' | 'formatiert'; kaputt?: string[]; }
+export interface WeltOptionen { speicher?: SpeicherOptionen; dsys?: DsysOptionen; start?: StartOptionen; kern?: KernOptionen; last?: LastOptionen; sicherheit?: SicherOptionen; netz?: NetzOptionen; dienste?: DienstOptionen; grafik?: 'x11' | 'wayland'; defaultTarget?: string; target?: string; ohne?: string[]; dateien?: Record<string, string>; prozesse?: Prozess[]; root?: boolean; distro?: 'debian' | 'alma' | 'suse'; virt?: string; host?: string; aptVeraltet?: boolean; geaendert?: string[]; pathStandard?: boolean; cwd?: string; rechte?: Record<string, string>; zeiten?: Record<string, number>; aliase?: Record<string, string>; extraProzesse?: Prozess[]; neuePlatte?: boolean | 'leer' | 'partitioniert' | 'formatiert'; kaputt?: string[]; }
 
 export function neueWelt(o: WeltOptionen = {}): Welt {
   const verfuegbar = Object.fromEntries(MODULE.map((x) => [x.name, x]));
@@ -327,6 +328,7 @@ export function neueWelt(o: WeltOptionen = {}): Welt {
   if (o.kern) kernStarten(w, o.kern);
   if (o.start) startStarten(w, o.start);
   if (o.dsys) dsysStarten(w, o.dsys);
+  if (o.speicher) speicherStarten(w, o.speicher);
   locateDbAnlegen(w);
   for (const d of o.kaputt ?? []) plattenKaputt(w, d);
   if (o.neuePlatte) { w.fs['/dev/sdb'] = ''; for (const p of w.platten.platten.find((x) => x.name === 'sdb')!.partitionen) w.fs['/dev/sdb' + p.nr] = ''; }
@@ -1069,7 +1071,7 @@ function wildcards(w: Welt, muster: string): string[] {
 // ---------- Befehlssuche über PATH ----------
 
 // Wo die Programme auf Debian 12 liegen (merged /usr: /bin -> usr/bin, /sbin -> usr/sbin)
-const SBIN = new Set(['mkfs', 'mkfs.ext2', 'mkfs.ext3', 'mkfs.ext4', 'mkfs.xfs', 'mkfs.vfat', 'mkfs.fat', 'mkfs.exfat', 'mkfs.btrfs', 'mke2fs', 'mkswap', 'swapoff', 'blkid', 'e2fsck', 'fsck.ext2', 'fsck.ext3', 'fsck.ext4', 'tune2fs', 'e2label', 'xfs_repair', 'xfs_fsr', 'xfs_db', 'xfs_admin', 'parted', 'gdisk', 'updatedb', 'chroot', 'fdisk', 'modprobe', 'insmod', 'rmmod', 'lsmod', 'modinfo', 'depmod', 'shutdown', 'reboot', 'poweroff', 'halt', 'telinit', 'init', 'runlevel', 'ldconfig', 'update-grub', 'grub-install', 'grub-mkconfig', 'swapon', 'swapoff', 'dpkg-reconfigure', 'sshd', 'mkfs', 'fsck', 'blkid', 'parted', 'useradd', 'usermod', 'userdel', 'groupadd', 'groupmod', 'groupdel', 'hwclock', 'rsyslogd', 'logrotate', 'sendmail', 'postsuper', 'lpadmin', 'cupsenable', 'cupsdisable', 'cupsaccept', 'cupsreject', 'lpinfo', 'ifconfig', 'route', 'ifup', 'ifdown', 'visudo', 'tcpdmatch', 'service', 'ethtool', 'sshd', 'iotop', 'iftop', 'iptraf-ng', 'sysctl', 'update-initramfs', 'mkinitramfs', 'dkms', 'installkernel', 'update-rc.d', 'chkconfig', 'smartctl', 'smartd', 'xfsdump', 'xfsrestore', 'cryptsetup', 'automount', 'dumpe2fs', 'debugfs', 'xfs_info']);
+const SBIN = new Set(['mkfs', 'mkfs.ext2', 'mkfs.ext3', 'mkfs.ext4', 'mkfs.xfs', 'mkfs.vfat', 'mkfs.fat', 'mkfs.exfat', 'mkfs.btrfs', 'mke2fs', 'mkswap', 'swapoff', 'blkid', 'e2fsck', 'fsck.ext2', 'fsck.ext3', 'fsck.ext4', 'tune2fs', 'e2label', 'xfs_repair', 'xfs_fsr', 'xfs_db', 'xfs_admin', 'parted', 'gdisk', 'updatedb', 'chroot', 'fdisk', 'modprobe', 'insmod', 'rmmod', 'lsmod', 'modinfo', 'depmod', 'shutdown', 'reboot', 'poweroff', 'halt', 'telinit', 'init', 'runlevel', 'ldconfig', 'update-grub', 'grub-install', 'grub-mkconfig', 'swapon', 'swapoff', 'dpkg-reconfigure', 'sshd', 'mkfs', 'fsck', 'blkid', 'parted', 'useradd', 'usermod', 'userdel', 'groupadd', 'groupmod', 'groupdel', 'hwclock', 'rsyslogd', 'logrotate', 'sendmail', 'postsuper', 'lpadmin', 'cupsenable', 'cupsdisable', 'cupsaccept', 'cupsreject', 'lpinfo', 'ifconfig', 'route', 'ifup', 'ifdown', 'visudo', 'tcpdmatch', 'service', 'ethtool', 'sshd', 'iotop', 'iftop', 'iptraf-ng', 'sysctl', 'update-initramfs', 'mkinitramfs', 'dkms', 'installkernel', 'update-rc.d', 'chkconfig', 'smartctl', 'smartd', 'xfsdump', 'xfsrestore', 'cryptsetup', 'automount', 'dumpe2fs', 'debugfs', 'xfs_info', 'mdadm', 'pvcreate', 'pvs', 'pvdisplay', 'pvremove', 'pvmove', 'pvscan', 'pvresize', 'vgcreate', 'vgs', 'vgdisplay', 'vgextend', 'vgreduce', 'vgrename', 'vgremove', 'vgchange', 'vgscan', 'lvcreate', 'lvs', 'lvdisplay', 'lvextend', 'lvreduce', 'lvresize', 'lvrename', 'lvremove', 'lvconvert', 'lvchange', 'lvscan', 'lvm', 'hdparm', 'resize2fs', 'xfs_growfs', 'sfdisk', 'fstrim', 'iscsiadm', 'iscsid', 'nvme']);
 const ROOT_PATH = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin';
 const AUCH_EXTERN = new Set(['echo', 'pwd', 'kill', 'true', 'false', 'printf', 'test', '[']);   // gibt es auch als Programm in /usr/bin
 const EIGENER_ORT: Record<string, string> = { 'apt-file': '/usr/bin' };
@@ -1605,7 +1607,7 @@ export function ausfuehren(w: Welt, zeile: string): Lauf {
     w.verlauf.push({ zeile: '#dialog ' + zeile.trim(), code: 0, ausgabe: out });
     return { ausgabe: out.replace(/^\n+/, ''), code: 0 };
   }
-  dsysVorZeile(w, zeile);
+  dsysVorZeile(w, zeile); speicherVorZeile(w);
   let roh = zeile.replace(/\s+$/, '');
   // Unvollständige Eingabe (if ohne fi, offene Anführungszeichen): weiter mit dem Prompt „> “
   const sk = stand(w);
@@ -1827,8 +1829,8 @@ for (const n of ['apt', 'apt-get']) {
   befehle[n] = (w, a, i, r) => {
     const x = alt(w, a, i, r);
     // Mit Rückfrage [Y/n] wird erst nach der Antwort installiert
-    if (w.wartet) { const wt = w.wartet; const ak = wt.aktion; wt.aktion = () => { const y = ak(); startNachApt(w); dsysNachApt(w); const e = kernNachApt(w); return e ? { ...y, out: [y.out, e].filter(Boolean).join('\n') } : y; }; }
-    startNachApt(w); dsysNachApt(w);
+    if (w.wartet) { const wt = w.wartet; const ak = wt.aktion; wt.aktion = () => { const y = ak(); startNachApt(w); dsysNachApt(w); speicherNachApt(w); const e = kernNachApt(w); return e ? { ...y, out: [y.out, e].filter(Boolean).join('\n') } : y; }; }
+    startNachApt(w); dsysNachApt(w); speicherNachApt(w);
     const extra = kernNachApt(w); return extra ? { ...x, out: [x.out, extra].filter(Boolean).join('\n') } : x;
   };
 }
@@ -1843,6 +1845,8 @@ Object.assign(befehle, startBefehle({ ...befehle }));
 // Dateisysteme aus LPIC-2 Topic 203
 fsKern({ pfad, dialog: (w, prompt, weiter) => { w.dialog = { prompt, eingabe: (z) => { w.dialog = null; return weiter(z); } }; } });
 Object.assign(befehle, dsysBefehle({ ...befehle }, befehle));
+spKern({ pfad, dialog: (w, prompt, weiter) => { w.dialog = { prompt, eingabe: (z) => { w.dialog = null; return weiter(z); } }; } });
+Object.assign(befehle, speicherBefehle({ ...befehle }, befehle));
 { const altExit = EINGEBAUT.exit; EINGEBAUT.exit = (w, a, i, r) => chrootVerlassen(w) ?? altExit(w, a, i, r); }
 // /proc/modules wird aus dem Zustand der Module erzeugt
 befehle.cat = (w, a, i, r) => a.some((x) => pfad(w, x) === '/proc/modules') ? procCat(w, a, i, r) : textCat(w, a, i, r);
@@ -1959,6 +1963,7 @@ export function zustandStimmt(w: Welt, z: string): boolean {
     const zn = zustandNetz(w, s); if (zn !== undefined) return zn;
     const zst = zustandStart(w, s); if (zst !== undefined) return zst;
     const zds = zustandDsys(w, s); if (zds !== undefined) return zds;
+    const zsp = zustandSpeicher(w, s); if (zsp !== undefined) return zsp;
     const zs2 = zustandSicherheit(w, s); if (zs2 !== undefined) return zs2;
     const zl = zustandLast(w, s); if (zl !== undefined) return zl;
     const zk = zustandKern(w, s); if (zk !== undefined) return zk;

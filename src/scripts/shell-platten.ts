@@ -13,13 +13,14 @@ export interface PlattenHelfer {
   kinder: (w: Welt, dir: string) => string[];
 }
 
-export type FsArt = 'ext2' | 'ext3' | 'ext4' | 'xfs' | 'vfat' | 'exfat' | 'btrfs' | 'swap' | 'crypto_LUKS' | 'udf' | 'iso9660';
+export type FsArt = 'ext2' | 'ext3' | 'ext4' | 'xfs' | 'vfat' | 'exfat' | 'btrfs' | 'swap' | 'crypto_LUKS' | 'udf' | 'iso9660' | 'linux_raid_member' | 'LVM2_member';
 export interface Dateisystem {
   art: FsArt; uuid: string; label?: string; erstellt: number;
   einhaengungen: number; maxEinhaengungen: number; intervall: number; reserviert: number;
   dateien: Record<string, string | null>; metas: Record<string, Meta>; wurzel: Meta;
   basis: number;               // belegte Bytes, die nicht aus simulierten Dateien stammen
   kaputt?: boolean; gesehen?: number;
+  bytes?: number;               // Größe des Dateisystems, wenn kleiner als das Gerät (nach lvextend ohne resize2fs)
   superKaputt?: boolean;        // primärer Superblock zerstört, Sicherungskopien heil (Topic 203)
   zusatz?: Record<string, unknown>; // Daten der Werkzeuge aus Topic 203 (btrfs, LUKS)
 }
@@ -29,6 +30,8 @@ export interface Einhaengung { quelle: string; ziel: string; art: string; option
 export interface PlattenStand { platten: Platte[]; mounts: Einhaengung[]; swaps: string[]; mapper?: Record<string, Partition>; }
 
 const GIB = 1073741824;
+/** Virtuelle Blockgeräte aus anderen Modulen (RAID, LVM): finden und auflisten */
+export const VIRT: { finden?: (w: Welt, n: string) => Partition | undefined; liste?: (w: Welt) => { dev: string; p: Partition }[] } = {};
 /** fstab beim Start der Welt, damit mount Änderungen erkennt */
 export const START_FSTAB = new WeakMap<Welt, string | undefined>();
 const hex = (n: number, len: number) => Array.from({ length: len }, (_, i) => '0123456789abcdef'[(n * (i + 7) * 2654435761 >>> (i % 24)) % 16]).join('');
@@ -92,6 +95,7 @@ export function startPlatten(o: { neuePlatte?: boolean | 'leer' | 'partitioniert
 export const teilName = (pl: Platte, nr: number) => pl.name + (/\d$/.test(pl.name) ? 'p' : '') + nr;
 export function finden(w: Welt, dev: string): { pl: Platte; p?: Partition } | null {
   const s = w.platten!; const n = dev.replace(/^\/dev\//, '');
+  const vp = VIRT.finden?.(w, n); if (vp) return { pl: { name: n, sektoren: vp.ende + 1, modell: '', rm: false, maj: 9, label: null, id: '', partitionen: [vp] }, p: vp };
   if (n.startsWith('mapper/') && s.mapper?.[n.slice(7)]) { const p = s.mapper[n.slice(7)]; return { pl: { name: n, sektoren: p.ende + 1, modell: '', rm: false, maj: 254, label: null, id: '', partitionen: [p] }, p }; }
   for (const pl of s.platten) { if (pl.name === n) return { pl }; for (const p of pl.partitionen) if (teilName(pl, p.nr) === n) return { pl, p }; }
   return null;
@@ -103,6 +107,7 @@ export function nachKennung(w: Welt, spez: string): string | null {
   for (const pl of w.platten!.platten) for (const p of pl.partitionen) {
     if ((m[1] === 'UUID' && p.fs?.uuid.toLowerCase() === m[2].toLowerCase()) || (m[1] === 'LABEL' && p.fs?.label === m[2]) || (m[1] === 'PARTUUID' && p.partuuid === m[2])) return '/dev/' + teilName(pl, p.nr);
   }
+  for (const { dev, p } of VIRT.liste?.(w) ?? []) if ((m[1] === 'UUID' && p.fs?.uuid.toLowerCase() === m[2].toLowerCase()) || (m[1] === 'LABEL' && p.fs?.label === m[2])) return dev;
   for (const [n, p] of Object.entries(w.platten!.mapper ?? {})) if ((m[1] === 'UUID' && p.fs?.uuid.toLowerCase() === m[2].toLowerCase()) || (m[1] === 'LABEL' && p.fs?.label === m[2])) return '/dev/mapper/' + n;
   return null;
 }
@@ -186,10 +191,14 @@ export function plattenBefehle(h: PlattenHelfer): Record<string, Befehl> {
       const dev = '/dev/' + teilName(pl, p.nr);
       if (a.length && !a.filter((x) => !x.startsWith('-')).includes(dev)) continue;
       const fs = p.fs; const teile: string[] = [];
-      if (fs) { if (fs.label) teile.push(`LABEL="${fs.label}"`); teile.push(`UUID="${fs.uuid}"`); if (fs.art !== 'swap' && fs.art !== 'vfat' && fs.art !== 'exfat' && fs.art !== 'crypto_LUKS') teile.push('BLOCK_SIZE="4096"'); if (fs.art === 'vfat') teile.push('BLOCK_SIZE="512"'); teile.push(`TYPE="${fs.art}"`); }
+      if (fs) { if (fs.label) teile.push(`LABEL="${fs.label}"`); teile.push(`UUID="${fs.uuid}"`); if (!['swap', 'vfat', 'exfat', 'crypto_LUKS', 'linux_raid_member', 'LVM2_member'].includes(fs.art)) teile.push('BLOCK_SIZE="4096"'); if (fs.art === 'vfat') teile.push('BLOCK_SIZE="512"'); teile.push(`TYPE="${fs.art}"`); }
       if (pl.label === 'gpt' && p.typ.startsWith('EFI')) teile.push('PARTLABEL="EFI System Partition"');
       teile.push(`PARTUUID="${p.partuuid}"`);
       out.push(`${dev}: ${teile.join(' ')}`);
+    }
+    for (const { dev, p } of VIRT.liste?.(w) ?? []) {
+      if (a.length && !a.filter((x) => !x.startsWith('-')).includes(dev)) continue;
+      if (p.fs) out.push(`${dev}: ${p.fs.label ? `LABEL="${p.fs.label}" ` : ''}UUID="${p.fs.uuid}" ${!['swap', 'linux_raid_member', 'LVM2_member'].includes(p.fs.art) ? 'BLOCK_SIZE="4096" ' : ''}TYPE="${p.fs.art}"`);
     }
     for (const [n, p] of Object.entries(w.platten!.mapper ?? {})) {
       const dev = '/dev/mapper/' + n; if (a.length && !a.filter((x) => !x.startsWith('-')).includes(dev)) continue;
@@ -210,7 +219,7 @@ export function plattenBefehle(h: PlattenHelfer): Record<string, Befehl> {
       const zustaendig = (z: string) => w.platten!.mounts.filter((x) => z === x.ziel || z.startsWith(x.ziel === '/' ? '/' : x.ziel + '/')).sort((x, y) => y.ziel.length - x.ziel.length)[0];
       if (ziele.length && !ziele.some((z) => zustaendig(z) === m)) continue;
       const t = finden(w, m.quelle); if (!t?.p?.fs) continue;
-      const gesamt = fsBytes(t.p); const res = gesamt * t.p.fs.reserviert / 100; const bel = belegt(w, t.p, m.ziel);
+      const gesamt = t.p.fs.bytes ?? fsBytes(t.p); const res = gesamt * t.p.fs.reserviert / 100; const bel = belegt(w, t.p, m.ziel);
       const verf = Math.max(0, gesamt - res - bel);
       const proz = Math.ceil(bel / (bel + verf) * 100) + '%';
       let werte: string[];
@@ -490,6 +499,7 @@ export function plattenBefehle(h: PlattenHelfer): Record<string, Befehl> {
     const art = artWunsch && artWunsch !== 'auto' ? artWunsch : fs?.art;
     if (!t.p || !fs || fs.art === 'swap' || (artWunsch && artWunsch !== 'auto' && artWunsch !== fs.art && !(fs.art === 'ext3' && artWunsch === 'ext4'))) return `mount: ${zp}: Falscher Dateisystemtyp, ungültige Optionen, der Superblock von ${dev} ist beschädigt, fehlende Kodierungsseite oder ein anderer Fehler.\n       dmesg(1) könnte nach einem fehlgeschlagenen mount-Systemaufruf\n       weitere Informationen liefern.`;
     if (s.mounts.find((m) => m.quelle === dev)) return `mount: ${zp}: ${dev} ist bereits auf ${s.mounts.find((m) => m.quelle === dev)!.ziel} eingehängt.`;
+    if (fs.art === 'linux_raid_member' || fs.art === 'LVM2_member') return `mount: ${zp}: unbekannter Dateisystemtyp »${fs.art}«.\n       (${fs.art === 'LVM2_member' ? 'Ein physisches Volume hängt man nicht ein, sondern die logischen Volumes darauf: /dev/VG/LV.' : 'Ein RAID-Mitglied hängt man nicht ein, sondern das RAID: /dev/md0.'})`;
     if (fs.art === 'crypto_LUKS') return `mount: ${zp}: unbekannter Dateisystemtyp »crypto_LUKS«.\n       (Ein verschlüsseltes Gerät öffnest du zuerst mit cryptsetup open und hängst dann /dev/mapper/NAME ein.)`;
     if (fs.kaputt || fs.superKaputt) return `mount: ${zp}: Falscher Dateisystemtyp, ungültige Optionen, der Superblock von ${dev} ist beschädigt, fehlende Kodierungsseite oder ein anderer Fehler.\n       dmesg(1) könnte nach einem fehlgeschlagenen mount-Systemaufruf\n       weitere Informationen liefern.`;
     // Was vorher im Einhängepunkt lag, ist jetzt verdeckt

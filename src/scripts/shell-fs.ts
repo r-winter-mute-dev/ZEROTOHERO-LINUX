@@ -163,6 +163,7 @@ export function dsysStarten(w: Welt, o: DsysOptionen) {
     w.fs['/etc/fstab'] = (w.fs['/etc/fstab'] ?? '') + '# Zusätzlicher Auslagerungsspeicher (Kollege)\n/swapfil  none  swap  sw,pri=5  0  0\n';
     if (o.swapDatei === 'fehlt') delete w.fs['/swapfile'];
   }
+  (w as Welt & { fstabStand?: string }).fstabStand = w.fs['/etc/fstab'] ?? undefined;
   if (o.iso) {
     const h = '/home/lena/handbuch';
     datei(w, h + '/LIESMICH.txt', 'Handbuch der Messbox, Ausgabe 2026\n', 0o644, 'lena');

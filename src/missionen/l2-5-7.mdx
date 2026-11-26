@@ -1,0 +1,162 @@
+---
+id: l2-5-7
+checks:
+  - id: k1
+  - id: zuordnung
+  - id: k2
+  - id: luecke
+  - id: san
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "Begriffe"
+    v: "Initiator (Client) · Target (Server) · IQN iqn.JJJJ-MM.umgedrehte.domain:name · Portal IP:3260 · LUN = Nummer der Platte im Target · WWN/WWID = weltweit eindeutige Kennung"
+  - t: "Einrichten"
+    v: "apt install open-iscsi · /etc/iscsi/initiatorname.iscsi · /etc/iscsi/iscsid.conf · Knoten unter /etc/iscsi/nodes/"
+  - t: "iscsiadm"
+    v: "-m discovery -t sendtargets -p 192.168.50.10 · -m node --login · -m node -o update -n node.startup -v automatic · -m session -P 3 · --logout"
+  - t: "CHAP"
+    v: "node.session.auth.authmethod = CHAP · node.session.auth.username = … · node.session.auth.password = …"
+  - t: "Platte finden"
+    v: "lsscsi · /dev/disk/by-path/ip-…-iscsi-IQN-lun-0 · /dev/disk/by-id/wwn-0x… · /lib/udev/scsi_id -g -u -d /dev/sdc · fstab mit _netdev"
+karten:
+  - f: "Wie heißt bei iSCSI die Seite, die auf entfernte Platten zugreift?"
+    a: ["initiator", "der initiator"]
+  - f: "Auf welchem TCP-Port lauscht ein iSCSI-Target?"
+    a: ["3260"]
+  - f: "Wie findest du die Targets auf 192.168.50.10?"
+    a: ["iscsiadm -m discovery -t sendtargets -p 192.168.50.10", "iscsiadm -m discovery -t st -p 192.168.50.10"]
+  - f: "In welcher Datei stehen die Vorgaben für open-iscsi, etwa CHAP und node.startup?"
+    a: ["/etc/iscsi/iscsid.conf"]
+  - f: "Welche Einhängeoption sorgt dafür, dass systemd ein iSCSI-Dateisystem erst nach dem Netz einhängt?"
+    a: ["_netdev"]
+  - f: "Was ist eine LUN?"
+    a: ["logical unit number", "die nummer einer logischen einheit im target", "die nummer einer platte im target"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Zuordnung from '../components/Zuordnung.astro';
+import Lueckentext from '../components/Lueckentext.astro';
+
+Die Messreihen sollen nicht länger nur im Labor liegen. Im Serverraum steht seit letzter Woche ein Speichersystem, das Platten über das Netz anbietet: Portal 192.168.50.10, Zugang per CHAP mit Benutzer werkstatt und Passwort Speicher-2026. **Deine Mission: Verbinde werkstatt per iSCSI mit dem Speicher, sorg dafür, dass die Verbindung den Neustart übersteht, finde die neue Platte über ihre eindeutige Kennung und leg ein dauerhaft eingehängtes Volume darauf an.** Lernziel 204.2.
+
+## Platten über das Netz
+
+<Karte nr={1} titel="SAN, iSCSI, AoE, FCoE">
+Ein **SAN** (Storage Area Network) stellt Blockgeräte über ein Netz bereit. Der Rechner sieht eine ganz normale Platte, partitioniert sie, legt Dateisysteme oder LVM darauf an. Anders als bei NFS oder SMB gibt es kein gemeinsames Dateisystem: Eine iSCSI-Platte gehört in der Regel genau einem Rechner.
+
+- **Fibre Channel (FC):** eigenes Netz mit eigenen Switches und Karten (HBA). Schnell, teuer, im Rechenzentrum verbreitet.
+- **FCoE:** Fibre-Channel-Rahmen über Ethernet, spart das zweite Netz, braucht aber verlustfreies Ethernet (DCB).
+- **AoE** (ATA over Ethernet): sehr schlicht, direkt auf Ethernet-Ebene ohne IP, also nicht routbar. Treiber aoe, Werkzeuge aoetools, Geräte /dev/etherd/e0.1.
+- **iSCSI:** SCSI-Befehle in TCP/IP, Port **3260**. Läuft über jedes normale Netz und ist darum die häufigste Wahl.
+
+Bei iSCSI heißt der Client **Initiator**, der Server **Target**. Beide tragen einen **IQN** (iSCSI Qualified Name) wie `iqn.2026-11.lan.labor:speicher`: Jahr und Monat, in denen die Domain dem Betreiber gehörte, die Domain umgedreht, dann ein frei gewählter Name. Ein Target kann mehrere Platten anbieten, durchnummeriert als **LUN** (Logical Unit Number) 0, 1, 2.
+
+Damit eine Platte über alle Wege und Neustarts hinweg wiedererkannt wird, hat sie eine weltweit eindeutige Kennung, die **WWN** (World Wide Name, bei FC auch für Karten und Ports). Linux nennt die Kennung eines Geräts **WWID** und legt dafür Links unter /dev/disk/by-id/ an. Multipath (mehrere Wege zur selben LUN) erkennt die Wege an derselben WWID.
+</Karte>
+
+<Zuordnung id="zuordnung" titel="Zuordnung: Wer ist wer?" aufgabe="Ordne jedem Begriff die passende Beschreibung zu." paare={[
+  { links: 'Initiator', rechts: 'Rechner, der die entfernte Platte benutzt' },
+  { links: 'Target', rechts: 'Speichersystem, das Platten anbietet' },
+  { links: 'LUN', rechts: 'Nummer einer Platte innerhalb eines Targets' },
+  { links: 'WWID', rechts: 'Eindeutige Kennung, auf die /dev/disk/by-id zeigt' },
+  { links: 'AoE', rechts: 'Blockgeräte direkt über Ethernet, nicht routbar' },
+]} />
+
+## open-iscsi
+
+<Karte nr={2} titel="Finden, anmelden, behalten">
+Unter Linux ist **open-iscsi** der Initiator: der Dienst **iscsid** und das Werkzeug **iscsiadm**. Der eigene Name steht in /etc/iscsi/initiatorname.iscsi und wird bei der Installation erzeugt. Auf dem Target steht dieser Name in der Zugriffsliste.
+
+```
+sudo iscsiadm -m discovery -t sendtargets -p 192.168.50.10    # Welche Targets gibt es?
+sudo iscsiadm -m node                                         # gefundene Knoten
+sudo iscsiadm -m node -T iqn.2026-11.lan.labor:speicher -p 192.168.50.10 --login
+sudo iscsiadm -m session -P 3                                 # Sitzung mit angehängten Platten
+sudo iscsiadm -m node -T … --logout
+```
+
+Jeder gefundene Knoten bekommt eine Datei unter /etc/iscsi/nodes/. Ihre Werte stammen beim Discovery aus den Vorgaben in **/etc/iscsi/iscsid.conf**. Was danach geändert werden soll, ändert man am Knoten:
+
+```
+sudo iscsiadm -m node -o update -n node.session.auth.authmethod -v CHAP
+sudo iscsiadm -m node -o update -n node.session.auth.username -v werkstatt
+sudo iscsiadm -m node -o update -n node.session.auth.password -v Speicher-2026
+sudo iscsiadm -m node -o update -n node.startup -v automatic
+```
+
+**CHAP** ist das Anmeldeverfahren von iSCSI. **node.startup = automatic** bewirkt, dass der Dienst open-iscsi beim Start alle solchen Knoten anmeldet. Stehen diese Werte schon vor dem Discovery in iscsid.conf, erben neue Knoten sie gleich.
+</Karte>
+
+<Quiz id="k1" titel="Kurzcheck: open-iscsi" fragen={[
+  { frage: 'Du trägst CHAP erst nach dem Discovery in iscsid.conf ein. Das Login scheitert mit „authorization failure“. Warum?', richtig: 'Der Knoten wurde mit den alten Vorgaben angelegt. Die Werte müssen mit iscsiadm -o update an den Knoten.', falsch: ['iscsid.conf wird nur beim Neustart des Rechners gelesen.', 'CHAP funktioniert nur, wenn node.startup auf automatic steht.'], erklaerung: 'Alternativ den Knoten löschen und das Discovery wiederholen.' },
+  { frage: 'Welcher Wert sorgt dafür, dass ein Knoten nach dem Neustart automatisch angemeldet wird?', richtig: 'node.startup = automatic', falsch: ['node.session.auth.authmethod = auto', 'discovery.sendtargets.auto = yes'], erklaerung: 'Standard ist manual. Gesetzt wird es in iscsid.conf oder mit iscsiadm -o update.' },
+]} />
+
+## Die neue Platte
+
+<Karte nr={3} titel="Welche ist es, und wie bleibt sie es?">
+Nach dem Login meldet der Kernel eine neue SCSI-Platte, etwa /dev/sdc. Der Name hängt aber von der Reihenfolge ab, in der Geräte erscheinen. Stabil sind die Links von udev:
+
+```
+/dev/disk/by-path/ip-192.168.50.10:3260-iscsi-iqn.2026-11.lan.labor:speicher-lun-0 -> ../../sdc
+/dev/disk/by-id/wwn-0x6001405a1b2c3d4e5f60718293a4b5c6                           -> ../../sdc
+```
+
+by-path beschreibt den Weg (Portal, Target, LUN), by-id die Platte selbst. Die WWID liefert auch `/lib/udev/scsi_id -g -u -d /dev/sdc`, und `lsscsi` zeigt die Platte mit [Host:Kanal:Ziel:LUN], Hersteller und Modell. Für SCSI-Parameter ist hier **sdparm** zuständig, nicht hdparm.
+
+In der fstab braucht ein Dateisystem auf iSCSI die Option **_netdev**. Daran erkennt systemd, dass es erst nach dem Netz und nach iscsid eingehängt und vor dem Abschalten des Netzes ausgehängt werden muss. Am besten nimmt man dazu die UUID des Dateisystems oder den Namen eines LV.
+</Karte>
+
+<Merke>Initiator fragt, Target bietet an, Port 3260. discovery -t sendtargets, dann --login. CHAP und node.startup in iscsid.conf oder per -o update. Stabil per by-id (WWID) oder by-path. In der fstab _netdev.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: Platte finden" fragen={[
+  { frage: 'Welcher Link bleibt gleich, auch wenn dieselbe LUN über ein anderes Portal erreicht wird?', richtig: '/dev/disk/by-id/wwn-0x…', falsch: ['/dev/disk/by-path/ip-…-lun-0', '/dev/sdc'], erklaerung: 'by-path enthält das Portal, by-id die Kennung der Platte selbst.' },
+  { frage: 'Ohne _netdev in der fstab hängt der Start eines Rechners mit iSCSI-Platte. Warum?', richtig: 'systemd versucht das Einhängen, bevor Netz und iSCSI-Sitzung stehen.', falsch: ['Ohne _netdev darf ein Dateisystem nicht über TCP gelesen werden.', 'Weil iscsid ohne _netdev keine CHAP-Daten liest.'], erklaerung: '_netdev ordnet die Einhängung hinter network-online.target ein.' },
+]} />
+
+<Lueckentext id="luecke" titel="Lückentext: Anmelden am Target" aufgabe="Ergänze die Befehle."
+  code={`$ sudo iscsiadm -m ___ -t sendtargets -p 192.168.50.10
+$ sudo iscsiadm -m node -o update -n node.session.auth.authmethod -v ___
+$ sudo iscsiadm -m node -o update -n node.___ -v automatic
+$ sudo iscsiadm -m node ___
+$ sudo iscsiadm -m ___ -P 3`}
+  luecken={[
+    { loesungen: ['discovery'] },
+    { loesungen: ['CHAP', 'chap'] },
+    { loesungen: ['startup'] },
+    { loesungen: ['--login', '-l'] },
+    { loesungen: ['session'] },
+  ]} />
+
+<Terminal id="san" titel="Terminal: werkstatt am Speichersystem" welt={{ speicher: { platten: 0, iscsi: true } }} aufgaben={[
+  { text: 'Installiere den iSCSI-Initiator.', zustand: 'paket:open-iscsi=an' },
+  { text: 'Sieh nach, unter welchem Namen werkstatt sich beim Target meldet.', befehl: '(cat|less|grep .*) /etc/iscsi/initiatorname\\.iscsi', frage: 'Wie lautet der InitiatorName?', antwort: ['iqn.1993-08.org.debian:01:3c7c3f1a2b4d'] },
+  { text: 'Frag das Portal 192.168.50.10 nach seinen Targets.', zustand: 'iscsi:node', frage: 'Wie heißt das Target? (IQN)', antwort: ['iqn.2026-11.lan.labor:speicher'] },
+  { text: 'Hinterleg die CHAP-Zugangsdaten am Knoten und sorg dafür, dass er beim Start automatisch angemeldet wird.', zustand: 'iscsi:chap && iscsi:auto' },
+  { text: 'Melde dich am Target an.', zustand: 'iscsi:sitzung' },
+  { text: 'Finde die neue Platte über ihre stabilen Namen.', befehl: '^(ls -l.* /dev/disk/by-(path|id)|lsscsi|iscsiadm -m session -P ?3)', frage: 'Unter welchem Namen ist sie erschienen? (/dev/…)', antwort: ['/dev/sdc', 'sdc'] },
+  { text: 'Lies ihre WWID mit scsi_id.', befehl: 'scsi_id .*/dev/sdc', frage: 'Mit welcher Ziffer beginnt die WWID? (Die Ziffer steht für die Art der Kennung.)', antwort: ['3'] },
+  { text: 'Mach aus der Platte eine VG san mit einem LV daten über den ganzen Platz, leg ein ext4 darauf an und häng es unter /srv/san ein, dauerhaft und erst nach dem Netz.', zustand: 'vg:san && lvfs:san/daten=ext4 && einh:/srv/san && datei:/etc/fstab~/srv/san\\s+ext4\\s+\\S*_netdev' },
+]} />
+
+<Labor id="labor" titel="Labor: Ein iSCSI-Target auf srv1"
+  aufgabe="Wenn srv1 targetcli hat, bau dort ein Target aus einer Datei und melde dich von srv1 selbst daran an. Ohne targetcli lies wenigstens die Konfiguration des Initiators. Füge die Ausgabe ein."
+  befehl={"sudo apt install -y open-iscsi\nsudo cat /etc/iscsi/initiatorname.iscsi\ngrep -E '^(node\\.startup|#?node\\.session\\.auth\\.authmethod)' /etc/iscsi/iscsid.conf\nsystemctl status iscsid --no-pager | head -3"}
+  muster={["InitiatorName=iqn\\.", "node\\.startup"]}
+  erfolg="Jeder Initiator hat einen eigenen IQN, den das Target in seiner Zugriffsliste führt. Wer Rechner klont, muss initiatorname.iscsi neu erzeugen (iscsi-iname), sonst melden sich zwei Rechner unter demselben Namen an." />
+
+<Hinweis titel="Prüfungstipp">
+Das Lernziel 204.2 nennt iscsiadm, scsi_id, iscsid und iscsid.conf, dazu WWID, WWN und LUN. SAN, AoE und FCoE musst du nur einordnen können. Im Entwurf 5.0 gibt es dazu neue Formulierungen, die zum Zeitpunkt dieser Mission nicht verbindlich veröffentlicht waren.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Was unterscheidet AoE von iSCSI?', richtig: 'AoE arbeitet direkt auf Ethernet ohne IP und lässt sich nicht routen.', falsch: ['AoE überträgt Dateien statt Blöcke.', 'AoE braucht ein eigenes Glasfasernetz.'], erklaerung: 'iSCSI nutzt TCP/IP und funktioniert über Router hinweg.' },
+  { frage: 'Welcher Befehl zeigt die laufenden iSCSI-Sitzungen mit den angehängten Platten?', richtig: 'iscsiadm -m session -P 3', falsch: ['iscsiadm -m discovery -P 3', 'iscsid --list'], erklaerung: '-P setzt die Ausführlichkeit, 3 zeigt auch die SCSI-Geräte.' },
+  { frage: 'Was steht im IQN iqn.2026-11.lan.labor:speicher für „2026-11“?', richtig: 'Jahr und Monat, ab denen die Domain labor.lan dem Betreiber gehörte', falsch: ['Das Datum, an dem das Target angelegt wurde', 'Die Version des iSCSI-Protokolls'], erklaerung: 'Danach folgt die umgedrehte Domain und nach dem Doppelpunkt ein frei gewählter Name.' },
+]} />

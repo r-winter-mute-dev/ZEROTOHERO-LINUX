@@ -83,6 +83,11 @@ export const DEB: Paket[] = [
   D('syslinux', '3:6.04~git20190206.bf6db5b4+dfsg1-3', 'collection of bootloaders (DOS FAT and NTFS bootloader)', ['syslinux-common'], ['/usr/bin/syslinux'], [], 130),
   D('extlinux', '3:6.04~git20190206.bf6db5b4+dfsg1-3', 'collection of bootloaders (ext2/3/4 and btrfs bootloader)', ['syslinux-common'], ['/usr/bin/extlinux'], [], 140),
   D('isolinux', '3:6.04~git20190206.bf6db5b4+dfsg1-3', 'collection of bootloaders (ISO 9660 bootloader)', [], ['/usr/lib/ISOLINUX/isolinux.bin', '/usr/lib/ISOLINUX/isohdpfx.bin', '/usr/lib/ISOLINUX/isohdpfo.bin'], [], 160),
+  // Speicher (LPIC-2 Topic 204)
+  D('open-iscsi', '2.1.8-1', 'iSCSI initiator tools', ['libc6'], ['/usr/sbin/iscsiadm', '/usr/sbin/iscsid', '/etc/iscsi/iscsid.conf', '/etc/iscsi/initiatorname.iscsi'], ['/etc/iscsi/iscsid.conf', '/etc/iscsi/initiatorname.iscsi'], 1400),
+  D('nvme-cli', '2.4+really2.3-3', 'NVMe management command line interface', ['libc6'], ['/usr/sbin/nvme'], [], 1600),
+  D('sdparm', '1.12-1', 'Output and modify SCSI device parameters', ['libc6'], ['/usr/bin/sdparm'], [], 400),
+  D('lsscsi', '0.32-2', 'list all SCSI devices (or hosts) currently on system', ['libc6'], ['/usr/bin/lsscsi'], [], 80),
   // Dateisysteme und Geräte (LPIC-2 Topic 203)
   D('btrfs-progs', '6.2-1', 'Checksumming Copy on Write Filesystem utilities', ['libc6'], ['/usr/bin/btrfs', '/usr/bin/btrfs-convert', '/usr/bin/btrfsck'], [], 4500),
   D('xfsdump', '3.1.11-0.1', 'Administrative utilities for the XFS filesystem', ['libc6'], ['/usr/sbin/xfsdump', '/usr/sbin/xfsrestore', '/usr/sbin/xfsinvutil'], [], 900),

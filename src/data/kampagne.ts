@@ -276,7 +276,21 @@ const LPIC2: Akt[] = [
       m('l2-4-probe', 'Probe 4', 'Probeprüfung Topic 203', 'Topic 203 gemischt mit Plattenaufteilung, Dateisystemen und fstab aus LPIC-1.', 'Topic 203 und Wiederholung aus LPIC-1', 'Prüfungssimulation', { probe: true, ziele: ['203.1', '203.2', '203.3', '102.1', '104.1', '104.2', '104.3'], bereit: true }),
     ],
   },
-  geplanterAkt('l2', 5, 'Speicher für Fortgeschrittene', '204', 'RAID, Gerätezugriff und LVM.', 'lpic2'),
+  {
+    nr: 5, titel: 'Speicher für Fortgeschrittene', teil: 'l2-5', teilName: 'Topic 204',
+    ziel: 'Software-RAID bauen und reparieren, Platten, SSDs und NVMe richtig ansprechen, iSCSI-Speicher anbinden und LVM-Volumes anlegen, vergrößern, verkleinern und per Snapshot sichern. 8 von 60 Fragen in Prüfung 201.',
+    missionen: [
+      m('l2-5-1', '5.1', 'Ein Spiegel mit mdadm', 'RAID-Level unterscheiden, einen Spiegel bauen und für den Neustart in mdadm.conf eintragen.', 'RAID 0, 1, 4, 5, 6, 10, Partitionstyp fd, mdadm --create, /proc/mdstat, --detail, --examine, mdadm.conf, update-initramfs', 'Terminal-Simulator, Lückentext, Zuordnung, Quiz', { ziele: ['204.1'], bereit: true }),
+      m('l2-5-2', '5.2', 'Eine Platte stirbt', 'Ein degradiertes Array erkennen, die defekte Platte tauschen und den Wiederaufbau beschleunigen.', '(F), [U_], --fail, --remove, --add, sfdisk -d, speed_limit_min, Reserveplatten, --grow, --monitor, --zero-superblock', 'Terminal-Simulator, Reihenfolge, Lückentext, Quiz', { ziele: ['204.1'], bereit: true }),
+      m('l2-5-3', '5.3', 'Platten, SSDs und NVMe', 'Fähigkeiten auslesen, Schreibcache und I/O-Scheduler einstellen und SSDs trimmen.', 'IDE, DMA, SATA, AHCI, NVMe, hdparm, sdparm, nvme-cli, /sys/block/*/queue/scheduler, fstrim, discard, sysctl', 'Terminal-Simulator, Lückentext, Zuordnung, Quiz', { ziele: ['204.2'], bereit: true }),
+      m('l2-5-4', '5.4', 'LVM aufbauen', 'Aus zwei Platten eine Volume Group bauen, ein Volume anlegen und dauerhaft einhängen.', 'PV, VG, LV, Extents, Typ 8e, pvcreate, vgcreate, lvcreate -L/-l, pvs/vgs/lvs, /dev/mapper, lvm.conf, /etc/lvm/backup', 'Terminal-Simulator, Reihenfolge, Lückentext, Quiz', { ziele: ['204.3'], bereit: true }),
+      m('l2-5-5', '5.5', 'Volumes in der Größe ändern', 'Volumes mit ext4 und XFS im Betrieb vergrößern, sicher schrumpfen, umbenennen und den Pool erweitern.', 'lvextend -r, resize2fs, xfs_growfs, lvreduce, e2fsck -f, vgextend, lvrename, vgrename, lvremove', 'Terminal-Simulator, Lückentext, Zuordnung, Quiz', { ziele: ['204.3'], bereit: true }),
+      m('l2-5-6', '5.6', 'Snapshots und Aktivierung', 'Vor einem riskanten Lauf einfrieren, zurückrollen, eine Platte leer räumen und VGs aktivieren.', 'lvcreate -s, Copy-on-Write, Data%, lvconvert --merge, snapshot_autoextend, vgchange -ay/-an, lvchange, pvmove, vgreduce', 'Terminal-Simulator, Reihenfolge, Lückentext, Quiz', { ziele: ['204.3'], bereit: true }),
+      m('l2-5-7', '5.7', 'Speicher über das Netz', 'Per iSCSI mit CHAP an ein Speichersystem andocken und die Platte über ihre WWID finden.', 'SAN, FC, FCoE, AoE, iSCSI, Initiator, Target, IQN, LUN, WWN, WWID, open-iscsi, iscsiadm, iscsid.conf, scsi_id, _netdev', 'Terminal-Simulator, Lückentext, Zuordnung, Quiz', { ziele: ['204.2'], bereit: true }),
+      m('l2-5-boss', 'Boss 5', 'Der Archivrechner am Dienstagmorgen', 'Einen degradierten Spiegel reparieren, ein volles Volume im Betrieb vergrößern und vor dem Update einfrieren.', 'Alles aus Topic 204', 'Terminal-Simulator', { boss: true, ziele: ['204.1', '204.2', '204.3'], bereit: true }),
+      m('l2-5-probe', 'Probe 5', 'Probeprüfung Topic 204', 'Topic 204 gemischt mit Plattenaufteilung, Dateisystemen, fstab und Topic 203.', 'Topic 204 und Wiederholung', 'Prüfungssimulation', { probe: true, ziele: ['204.1', '204.2', '204.3', '102.1', '104.1', '104.3', '203.1'], bereit: true }),
+    ],
+  },
   geplanterAkt('l2', 6, 'Netzwerkkonfiguration', '205', 'Netzwerke einrichten und Fehler finden.', 'lpic2'),
   geplanterAkt('l2', 7, 'Systemwartung', '206', 'Aus dem Quellcode bauen, sichern und Nutzer informieren.', 'lpic2', [
     m('l2-7-probe', 'Probe 201', 'Generalprobe Prüfung 201', '60 Fragen, 90 Minuten, gewichtet wie die echte Prüfung 201-450.', 'Topics 200 bis 206', 'Prüfungssimulation', { probe: true }),

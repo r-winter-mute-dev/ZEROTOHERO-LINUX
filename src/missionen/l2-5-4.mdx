@@ -1,0 +1,160 @@
+---
+id: l2-5-4
+checks:
+  - id: k1
+  - id: reihe
+  - id: k2
+  - id: luecke
+  - id: lvm
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "Schichten"
+    v: "PV (Platte oder Partition, Typ 8e) → VG (Speicherpool aus Extents, Standard 4 MiB) → LV (wie eine Partition, frei vergrößerbar)"
+  - t: "Anlegen"
+    v: "pvcreate /dev/sdc1 /dev/sdd1 · vgcreate daten /dev/sdc1 /dev/sdd1 · lvcreate -L 200G -n messungen daten · lvcreate -l 100%FREE -n rest daten"
+  - t: "Anzeigen"
+    v: "pvs vgs lvs (kurz) · pvdisplay vgdisplay lvdisplay (lang) · pvscan vgscan lvscan · lsblk"
+  - t: "Gerätenamen"
+    v: "/dev/daten/messungen und /dev/mapper/daten-messungen zeigen beide auf /dev/dm-N · Bindestrich im Namen wird in mapper verdoppelt"
+  - t: "Konfiguration"
+    v: "/etc/lvm/lvm.conf · devices { filter = [ \"a|/dev/sd.*|\", \"r|.*|\" ] } · Sicherungen der Metadaten in /etc/lvm/backup und /etc/lvm/archive"
+karten:
+  - f: "Wie heißen die drei Schichten von LVM, von unten nach oben?"
+    a: ["pv, vg, lv", "physical volume, volume group, logical volume"]
+  - f: "Wie groß ist ein Extent in LVM standardmäßig?"
+    a: ["4 mib", "4 mb", "4m"]
+  - f: "Mit welchem Befehl machst du /dev/sdc1 zum Physical Volume?"
+    a: ["pvcreate /dev/sdc1"]
+  - f: "Wie heißt das LV messungen der VG daten unter /dev/mapper?"
+    a: ["/dev/mapper/daten-messungen", "daten-messungen"]
+  - f: "Wie legst du ein LV an, das den ganzen freien Platz der VG nutzt?"
+    a: ["lvcreate -l 100%FREE -n NAME VG", "lvcreate -l 100%free"]
+  - f: "Welcher MBR-Partitionstyp steht für Linux LVM?"
+    a: ["8e", "0x8e"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Reihenfolge from '../components/Reihenfolge.astro';
+import Lueckentext from '../components/Lueckentext.astro';
+
+Die Messreihen wachsen jedes Jahr um ein paar hundert Gigabyte, und niemand weiß genau, wie viel nächstes Jahr dazukommt. Feste Partitionen sind dafür die falsche Wahl: Wer zu klein schneidet, muss später umziehen. **Deine Mission: Bau aus zwei Platten einen LVM-Speicherpool, schneide daraus ein Volume für die Messreihen und häng es dauerhaft ein.** Lernziel 204.3.
+
+## Drei Schichten
+
+<Karte nr={1} titel="PV, VG, LV">
+Der **Logical Volume Manager** schiebt eine Schicht zwischen Platten und Dateisysteme:
+
+- **Physical Volume (PV):** eine Platte, Partition oder ein RAID wie /dev/md0, mit einem LVM-Label versehen. Partitionen dafür bekommen den Typ **8e** (MBR) bzw. „Linux LVM“ (GPT, gdisk 8E00).
+- **Volume Group (VG):** ein Pool aus einem oder mehreren PVs. LVM teilt ihn in gleich große **Extents** (Physical Extents, PE), Standard 4 MiB, beim Anlegen mit `vgcreate -s` änderbar.
+- **Logical Volume (LV):** eine Folge von Extents aus der VG, die sich wie eine Partition verhält. Die Extents dürfen über mehrere PVs verteilt sein.
+
+Der Gewinn: Ein LV lässt sich im Betrieb vergrößern, verkleinern, umbenennen, auf andere Platten verschieben und per Snapshot einfrieren. Eine VG kann jederzeit um weitere PVs wachsen.
+
+Technisch steckt der **Device Mapper** des Kernels dahinter. Jedes aktive LV ist ein Gerät /dev/dm-N. Dazu legt udev zwei Namen an: /dev/VG/LV und /dev/mapper/VG-LV. Enthält ein Name einen Bindestrich, wird er unter /dev/mapper verdoppelt: das LV vor-update in daten heißt dort daten-vor--update.
+</Karte>
+
+<Quiz id="k1" titel="Kurzcheck: Schichten" fragen={[
+  { frage: 'Kann ein LV größer sein als jedes einzelne PV der VG?', richtig: 'Ja, seine Extents dürfen auf mehreren PVs liegen.', falsch: ['Nein, ein LV liegt immer auf genau einem PV.', 'Nur wenn die VG mit -s 1G angelegt wurde.'], erklaerung: 'Das Standardverfahren füllt die PVs der Reihe nach (linear).' },
+  { frage: 'Was liegt hinter /dev/daten/messungen?', richtig: 'Ein symbolischer Link auf ein Device-Mapper-Gerät /dev/dm-N', falsch: ['Eine Partition auf der ersten Platte der VG', 'Eine Datei im Dateisystem der VG'], erklaerung: 'Auch /dev/mapper/daten-messungen zeigt auf dasselbe dm-Gerät.' },
+]} />
+
+## Anlegen
+
+<Karte nr={2} titel="pvcreate, vgcreate, lvcreate">
+```
+sudo pvcreate /dev/sdc1 /dev/sdd1
+sudo vgcreate daten /dev/sdc1 /dev/sdd1
+sudo lvcreate -L 200G -n messungen daten      # feste Größe
+sudo lvcreate -l 50%FREE -n archiv daten      # Anteil am freien Platz, auch %VG
+sudo lvcreate -l 1000 -n klein daten          # in Extents
+```
+
+`-L` nimmt Größen mit Einheit (k, m, g, t), `-l` Extents oder Prozent. Danach ist das LV ein leeres Blockgerät: `mkfs.ext4 /dev/daten/messungen`, einhängen, in die fstab.
+
+Was es gibt, zeigen drei Befehlspaare: **pvs, vgs, lvs** für eine Zeile je Objekt, **pvdisplay, vgdisplay, lvdisplay** ausführlich (PE Size, Total PE, Free PE, LV Status), **pvscan, vgscan, lvscan** suchen auf allen Geräten. Alle sind in Wahrheit das Programm `lvm`: `lvm vgs` tut dasselbe.
+
+In die fstab schreibst du /dev/daten/messungen oder /dev/mapper/daten-messungen. Beide Namen sind stabil, anders als /dev/dm-0, dessen Nummer sich ändern kann.
+
+Weg geht es in umgekehrter Reihenfolge: `lvremove`, `vgremove`, `pvremove`.
+</Karte>
+
+<Reihenfolge id="reihe" titel="Reihenfolge: Von der Platte zum Einhängepunkt" aufgabe="Bring die Schritte in die richtige Reihenfolge." schritte={[
+  'Partitionstyp 8e setzen',
+  'pvcreate /dev/sdc1 /dev/sdd1',
+  'vgcreate daten /dev/sdc1 /dev/sdd1',
+  'lvcreate -L 200G -n messungen daten',
+  'mkfs.ext4 /dev/daten/messungen',
+  'mount /dev/daten/messungen /srv/messungen',
+]} />
+
+## lvm.conf
+
+<Karte nr={3} titel="Wo LVM sucht und was es sich merkt">
+Die zentrale Datei ist **/etc/lvm/lvm.conf**. Für die Prüfung wichtig sind zwei Abschnitte:
+
+```
+devices {
+	filter = [ "a|^/dev/sd.*|", "a|^/dev/md.*|", "r|.*|" ]
+}
+activation {
+	snapshot_autoextend_threshold = 70
+	snapshot_autoextend_percent = 20
+}
+```
+
+Der **filter** ist eine Liste regulärer Ausdrücke, `a` nimmt Geräte an, `r` weist sie ab, der erste Treffer gilt. So verhindert man etwa, dass LVM die Mitglieder eines RAID oder die Platten einer virtuellen Maschine für eigene PVs hält. `lvmconfig` zeigt die wirksame Konfiguration.
+
+Bei jeder Änderung sichert LVM die Metadaten der VG als Text nach **/etc/lvm/backup/VG**, ältere Stände nach /etc/lvm/archive/. Mit `vgcfgrestore` lässt sich daraus eine versehentlich gelöschte Struktur wiederherstellen.
+</Karte>
+
+<Merke>pvcreate, vgcreate, lvcreate. pvs, vgs, lvs. Extents 4 MiB. /dev/VG/LV und /dev/mapper/VG-LV. Filter in /etc/lvm/lvm.conf.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: Anlegen" fragen={[
+  { frage: 'Welcher Befehl legt ein LV mit 30 GiB an?', richtig: 'lvcreate -L 30G -n web daten', falsch: ['lvcreate -l 30G -n web daten', 'lvcreate -s 30G -n web daten'], erklaerung: '-l erwartet Extents oder Prozent, -s legt einen Snapshot an.' },
+  { frage: 'Welche Zeile in lvm.conf sorgt dafür, dass LVM nur /dev/md-Geräte als PV betrachtet?', richtig: 'filter = [ "a|^/dev/md.*|", "r|.*|" ]', falsch: ['filter = [ "r|^/dev/md.*|", "a|.*|" ]', 'scan = [ "/dev/md" ] mit allow = md'], erklaerung: 'Der erste Treffer gilt. Die zweite Variante würde md gerade ausschließen.' },
+]} />
+
+<Lueckentext id="luecke" titel="Lückentext: Ein Volume für die Messreihen" aufgabe="Ergänze die Befehle."
+  code={`$ sudo ___ /dev/sdc1 /dev/sdd1
+$ sudo vgcreate ___ /dev/sdc1 /dev/sdd1
+$ sudo lvcreate ___ 200G -n messungen daten
+$ sudo mkfs.ext4 /dev/mapper/___`}
+  luecken={[
+    { loesungen: ['pvcreate'] },
+    { loesungen: ['daten'] },
+    { loesungen: ['-L', '--size'] },
+    { loesungen: ['daten-messungen'] },
+  ]} />
+
+<Terminal id="lvm" titel="Terminal: Ein Pool für die Messreihen" welt={{ speicher: { platten: 3, partitioniert: true } }} aufgaben={[
+  { text: 'Setz für /dev/sdc1 und /dev/sdd1 den Partitionstyp auf Linux LVM.', zustand: 'parttyp:/dev/sdc1~^8e$ && parttyp:/dev/sdd1~^8e$' },
+  { text: 'Mach beide Partitionen zu Physical Volumes.', zustand: 'pv:/dev/sdc1 && pv:/dev/sdd1' },
+  { text: 'Fass sie zur Volume Group daten zusammen.', zustand: 'vg:daten=2pvs' },
+  { text: 'Lass dir die VG ausführlich anzeigen.', befehl: '^(vgdisplay|lvm vgdisplay)( daten)?$', frage: 'Wie groß ist ein Extent? (PE Size)', antwort: ['4 MiB', '4,00 MiB', '4', '4MiB', '4m', '4 MB'] },
+  { text: 'Schneide ein LV messungen mit 200 GiB heraus.', zustand: 'lv:daten/messungen>=200g && lv:daten/messungen<=200g' },
+  { text: 'Leg darauf ein ext4 an und häng es unter /srv/messungen ein.', zustand: 'lvfs:daten/messungen=ext4 && einh:/srv/messungen' },
+  { text: 'Trag es in die fstab ein, mit einem stabilen Gerätenamen.', zustand: 'datei:/etc/fstab~^(/dev/daten/messungen|/dev/mapper/daten-messungen|UUID="?[0-9a-f-]+"?)\\s+/srv/messungen\\s+ext4' },
+  { text: 'Sieh nach, worauf die Gerätenamen zeigen.', befehl: '^ls -l.* /dev/(mapper|daten)', frage: 'Hinter welchem dm-Gerät steckt das LV? (dm-N)', antwort: ['dm-0', '/dev/dm-0'] },
+]} />
+
+<Labor id="labor" titel="Labor: LVM auf srv1"
+  aufgabe="Bau auf srv1 eine kleine VG aus zwei Loop-Geräten, ein LV über beide und räum wieder auf. Füge die Ausgabe ein."
+  befehl={"truncate -s 300M /tmp/p0.img /tmp/p1.img\nL0=$(sudo losetup -f --show /tmp/p0.img); L1=$(sudo losetup -f --show /tmp/p1.img)\nsudo vgcreate uebung $L0 $L1\nsudo lvcreate -L 400M -n gross uebung\nsudo pvs; sudo lvs uebung\nsudo vgremove -y uebung; sudo pvremove $L0 $L1\nsudo losetup -d $L0 $L1; rm /tmp/p?.img"}
+  muster={["Volume group \"uebung\" successfully created", "Logical volume \"gross\" created", "successfully removed"]}
+  erfolg="Das LV mit 400 MiB ist größer als jedes der beiden Loop-Geräte. pvs zeigt, dass LVM die Extents auf beide verteilt hat. vgcreate hat die Geräte nebenbei selbst zu PVs gemacht." />
+
+<Hinweis titel="Prüfungstipp">
+Merk dir die Befehlsfamilien pv*, vg*, lv*, die Optionen -L und -l von lvcreate, die beiden Gerätenamen und die Rolle von /etc/lvm/lvm.conf. Die Prüfung fragt gern, was ein Physical Extent ist.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'vgremove daten meldet „still contains 2 logical volume(s)“. Was ist zu tun?', richtig: 'Erst die LVs mit lvremove entfernen', falsch: ['Erst die PVs mit pvremove entfernen', 'vgchange -an daten genügt, dann geht vgremove'], erklaerung: 'Abgebaut wird in umgekehrter Reihenfolge: LV, VG, PV.' },
+  { frage: 'Warum gehört /dev/dm-0 nicht in die fstab?', richtig: 'Die Nummer hängt von der Reihenfolge der Aktivierung ab und kann sich ändern.', falsch: ['Weil dm-Geräte nur lesend eingehängt werden können.', 'Weil systemd dm-Geräte grundsätzlich ignoriert.'], erklaerung: '/dev/VG/LV und /dev/mapper/VG-LV bleiben gleich.' },
+  { frage: 'Wo legt LVM nach jeder Änderung eine Textkopie der Metadaten ab?', richtig: '/etc/lvm/backup/', falsch: ['/var/lib/lvm/', '/etc/lvm/lvm.conf'], erklaerung: 'Ältere Stände liegen in /etc/lvm/archive/, zurückspielen mit vgcfgrestore.' },
+]} />

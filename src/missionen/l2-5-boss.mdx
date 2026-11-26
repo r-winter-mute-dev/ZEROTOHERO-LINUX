@@ -1,0 +1,32 @@
+---
+id: l2-5-boss
+checks:
+  - id: archiv
+spick:
+  - t: "RAID"
+    v: "cat /proc/mdstat · mdadm --detail /dev/md0 · mdadm /dev/md0 --remove X · sfdisk -d GESUND | sfdisk NEU · mdadm /dev/md0 --add Y · sysctl -w dev.raid.speed_limit_min=50000"
+  - t: "mdadm.conf"
+    v: "/etc/mdadm/mdadm.conf · MAILADDR adresse · mdadm --monitor --scan --oneshot"
+  - t: "LVM wachsen"
+    v: "pvcreate · vgextend VG PV · lvextend -r -L +300G VG/LV · df -h"
+  - t: "Snapshot"
+    v: "lvcreate -s -L 10G -n NAME VG/LV · lvs"
+---
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+
+Dienstag, 7:40 Uhr, auf dem Archivrechner des Instituts. Zwei Meldungen liegen im Postfach von root: Der Spiegel unter /srv/spiegel läuft seit dem Wochenende auf einem Bein, und das Volume mit den Messreihen ist zu 100 % voll, seit Stunden schlagen Messungen fehl. Heute Abend soll außerdem das neue Auswerteprogramm laufen. Zwei leere Platten, /dev/sdf und /dev/sdg, stecken schon im Gehäuse. **Dein Bosskampf: Mach den Spiegel wieder vollständig, gib den Messreihen Platz, sichere den Stand vor dem Abend und sorg dafür, dass der nächste Ausfall nicht wieder tagelang unbemerkt bleibt.** Alles aus Topic 204.
+
+<Hinweis titel="Vorgehen">
+Die Aufgaben nennen nur das Ziel. Fang mit dem Überblick an: /proc/mdstat, lsblk, df -h, vgs. Welche Platte du wofür nimmst, entscheidest du. Der Rechner darf dabei nicht neu starten.
+</Hinweis>
+
+<Terminal id="archiv" titel="Bosskampf: Der Archivrechner am Dienstagmorgen" welt={{ host: 'archiv', speicher: { raid: 'kaputt', lvm: 'voll', platten: 5 } }} aufgaben={[
+  { text: 'Verschaff dir einen Überblick über den Spiegel.', befehl: '^(cat|less) /proc/mdstat$|mdadm (--detail|-D) /dev/md0', frage: 'Welches Mitglied ist ausgefallen? (/dev/…)', antwort: ['/dev/sdd1', 'sdd1'] },
+  { text: 'Mach den Spiegel wieder vollständig. Nimm dafür eine der beiden neuen Platten.', zustand: 'md:md0:/dev/sdd1=weg && md:md0:/dev/sd[fg]1=neu' },
+  { text: 'Der Wiederaufbau soll sich gegen die übrigen Zugriffe durchsetzen, mit mindestens 50000 KiB/s.', zustand: 'datei:/proc/sys/dev/raid/speed_limit_min~^([5-9]\\d{4}|\\d{6,})' },
+  { text: 'Gib den Messreihen mindestens 300 GiB mehr, mit der anderen neuen Platte. Die Messungen laufen, nichts darf ausgehängt werden.', zustand: 'vg:daten=2pvs && lvfs:daten/messungen>=1100g && lvfs:daten/messungen=voll && einh:/srv/messungen' },
+  { text: 'Friere den Stand der Messreihen vor dem Lauf heute Abend ein, mit 10 GiB Platz für Änderungen.', zustand: 'lvsnap:daten/vor-update=von:messungen' },
+  { text: 'Sorg dafür, dass Meldungen über ausgefallene Platten künftig an admin@labor.lan gehen statt an root.', zustand: 'raid:conf~^MAILADDR\\s+admin@labor\\.lan\\s*$ && nicht:raid:conf~^MAILADDR\\s+root' },
+  { text: 'Warte, bis der Spiegel wieder vollständig ist.', zustand: 'md:md0=sauber' },
+]} />

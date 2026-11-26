@@ -1,0 +1,181 @@
+---
+id: l2-5-1
+checks:
+  - id: k1
+  - id: zuordnung
+  - id: k2
+  - id: luecke
+  - id: spiegel
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "RAID-Level"
+    v: "0 Striping (kein Schutz) · 1 Spiegel · 4 feste Paritätsplatte · 5 verteilte Parität, ab 3 Platten · 6 doppelte Parität, ab 4 · 10 Spiegel plus Striping, ab 4"
+  - t: "Partitionstyp"
+    v: "MBR fd (Linux raid autodetect) · GPT FD00 bei gdisk, „Linux RAID“ · sfdisk --part-type /dev/sdc 1 fd"
+  - t: "Anlegen"
+    v: "mdadm --create /dev/md0 --level=1 --raid-devices=2 /dev/sdc1 /dev/sdd1 · Kurz: -C -l 1 -n 2"
+  - t: "Anzeigen"
+    v: "cat /proc/mdstat · mdadm --detail /dev/md0 · mdadm --examine /dev/sdc1"
+  - t: "Dauerhaft"
+    v: "mdadm --detail --scan >> /etc/mdadm/mdadm.conf (Red Hat: /etc/mdadm.conf) · update-initramfs -u bzw. dracut -f"
+karten:
+  - f: "Welches RAID-Level spiegelt die Daten auf zwei Platten?"
+    a: ["raid 1", "1", "raid1"]
+  - f: "Wie viele Platten braucht RAID 5 mindestens?"
+    a: ["3", "drei"]
+  - f: "Welcher MBR-Partitionstyp steht für Linux-RAID?"
+    a: ["fd", "0xfd"]
+  - f: "In welcher Datei zeigt der Kernel den Zustand aller Software-RAIDs?"
+    a: ["/proc/mdstat"]
+  - f: "Mit welchem Befehl erzeugst du die ARRAY-Zeilen für mdadm.conf?"
+    a: ["mdadm --detail --scan", "mdadm -D -s", "mdadm -Ds"]
+  - f: "Was bedeutet [U_] in /proc/mdstat?"
+    a: ["ein gerät des arrays fehlt", "das array ist degradiert", "eine platte ist ausgefallen"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Zuordnung from '../components/Zuordnung.astro';
+import Lueckentext from '../components/Lueckentext.astro';
+
+Im Labor sind drei neue 1-TB-Platten angekommen. Die Messreihen sollen künftig nicht mehr auf einer einzelnen Platte liegen, denn die letzte ist ohne Vorwarnung gestorben. **Deine Mission: Baue aus zwei Platten einen Software-Spiegel mit mdadm, leg ein Dateisystem darauf und sorge dafür, dass der Spiegel nach jedem Neustart wieder zusammengesetzt wird.** Lernziel 204.1.
+
+## RAID-Level
+
+<Karte nr={1} titel="Mehrere Platten, ein Gerät">
+RAID (Redundant Array of Independent Disks) fasst mehrere Platten zu einem Blockgerät zusammen. Unter Linux macht das der Kernel selbst, der md-Treiber (multiple devices). Das Ergebnis heißt /dev/md0, /dev/md1 und so weiter, verwaltet wird es mit **mdadm**.
+
+| Level | Prinzip | Mindestens | Nutzbar bei n Platten | Verkraftet |
+|---|---|---|---|---|
+| 0 | Striping: Blöcke abwechselnd verteilt | 2 | n | keinen Ausfall |
+| 1 | Spiegel: jede Platte hat alles | 2 | 1 | n−1 Ausfälle |
+| 4 | Striping, Parität auf einer festen Platte | 3 | n−1 | 1 |
+| 5 | Striping, Parität über alle verteilt | 3 | n−1 | 1 |
+| 6 | wie 5, zwei Paritätsblöcke | 4 | n−2 | 2 |
+| 10 | Spiegelpaare, darüber Striping | 4 | n/2 | 1 je Paar |
+
+RAID 0 ist schnell, aber kein Schutz: Fällt eine Platte aus, ist alles weg. RAID 4 wird kaum noch genutzt, weil die feste Paritätsplatte bei jedem Schreiben zum Engpass wird. RAID 5 verteilt die Parität deshalb reihum.
+
+Wichtig für jede Prüfung und jeden Betrieb: **RAID ist keine Sicherung.** Ein versehentlich gelöschtes Verzeichnis ist auf beiden Spiegelhälften sofort weg.
+</Karte>
+
+<Merke>0 schnell ohne Schutz, 1 Spiegel, 5 Parität ab drei Platten, 6 doppelte Parität ab vier, 10 Spiegel plus Striping ab vier. RAID ersetzt keine Sicherung.</Merke>
+
+<Quiz id="k1" titel="Kurzcheck: Level" fragen={[
+  { frage: 'Vier Platten zu je 1 TB als RAID 5. Wie viel Platz bleibt nutzbar?', richtig: '3 TB', falsch: ['2 TB', '4 TB'], erklaerung: 'Bei RAID 5 geht eine Platte für die Parität drauf: n−1. RAID 6 hätte 2 TB, RAID 10 ebenfalls 2 TB.' },
+  { frage: 'Welches Level übersteht zwei gleichzeitig ausgefallene Platten, egal welche?', richtig: 'RAID 6', falsch: ['RAID 5', 'RAID 10'], erklaerung: 'RAID 10 übersteht zwei Ausfälle nur, wenn sie nicht im selben Spiegelpaar liegen.' },
+]} />
+
+## Software, Hardware und Partitionen
+
+<Karte nr={2} titel="Wer rechnet, und wo steht das RAID">
+**Hardware-RAID:** Ein Controller mit eigenem Prozessor erledigt alles, Linux sieht nur eine einzige Platte. Gut für die Leistung, aber an den Controller gebunden. **Fake-RAID** auf vielen Mainboards ist in Wahrheit Software im Treiber. **Linux-Software-RAID** mit md läuft auf jeder Hardware und lässt sich auf einem anderen Rechner wieder zusammensetzen.
+
+mdadm schreibt an den Anfang jedes Mitglieds einen **Superblock** (Metadaten 1.2) mit der UUID des Arrays, dem Level und der Rolle der Platte. Daran erkennt mdadm die Mitglieder, egal unter welchem Namen die Platte gerade auftaucht.
+
+Die Mitglieder sind meist Partitionen mit dem Typ **fd** „Linux raid autodetect“ (MBR) oder „Linux RAID“ (GPT, bei gdisk FD00). Der Typ ist ein Hinweis für Menschen und Werkzeuge. Die alte Autoerkennung durch den Kernel beim Start funktionierte nur mit Metadaten 0.90, heute setzt mdadm im initramfs die Arrays zusammen.
+
+```
+sudo sfdisk --part-type /dev/sdc 1 fd      # Typ einer vorhandenen Partition ändern
+```
+
+`blkid` zeigt die Mitglieder als TYPE="linux_raid_member". Einhängen kannst du sie nicht direkt, nur das Array /dev/md0.
+</Karte>
+
+<Zuordnung id="zuordnung" titel="Zuordnung: Was ist was?" aufgabe="Ordne jedem Begriff die passende Beschreibung zu." paare={[
+  { links: 'fd', rechts: 'MBR-Partitionstyp für Linux-RAID' },
+  { links: '/proc/mdstat', rechts: 'Zustand aller Arrays aus Sicht des Kernels' },
+  { links: 'linux_raid_member', rechts: 'Was blkid auf einem Mitglied meldet' },
+  { links: 'mdadm.conf', rechts: 'Welche Arrays beim Start zusammengesetzt werden' },
+  { links: 'Superblock', rechts: 'Metadaten von md am Anfang jedes Mitglieds' },
+]} />
+
+## Anlegen und beobachten
+
+<Karte nr={3} titel="mdadm --create">
+```
+sudo mdadm --create /dev/md0 --level=1 --raid-devices=2 /dev/sdc1 /dev/sdd1
+sudo mdadm -C /dev/md0 -l 1 -n 2 /dev/sdc1 /dev/sdd1          # dasselbe kurz
+```
+
+Bei RAID 1 warnt mdadm, dass Metadaten 1.2 am Anfang stehen und manche Bootloader damit nicht umgehen können, und fragt nach. Das Array ist **sofort benutzbar**, auch während der Kernel im Hintergrund die beiden Hälften abgleicht (resync).
+
+```
+$ cat /proc/mdstat
+md0 : active raid1 sdd1[1] sdc1[0]
+      976630488 blocks super 1.2 [2/2] [UU]
+      [=>..................]  resync = 6.7% (65108699/976630488) finish=84.0min
+```
+
+`[2/2]` heißt zwei von zwei Geräten da, `[UU]` beide in Ordnung (Up). Ein Unterstrich wie in `[U_]` markiert ein fehlendes Gerät, das Array ist dann **degradiert**. Ausführlicher wird `mdadm --detail /dev/md0` (Zustand clean, degraded, resyncing), und `mdadm --examine /dev/sdc1` liest den Superblock eines einzelnen Mitglieds.
+
+Danach behandelst du /dev/md0 wie eine Partition: mkfs, mount, fstab.
+</Karte>
+
+<Quiz id="k2" titel="Kurzcheck: Anlegen" fragen={[
+  { frage: 'Direkt nach mdadm --create zeigt /proc/mdstat „resync = 3.1%“. Was gilt?', richtig: 'Das Array lässt sich schon benutzen, der Abgleich läuft im Hintergrund weiter.', falsch: ['Vor dem Ende des Abgleichs darf kein Dateisystem angelegt werden.', 'Der Abgleich startet erst nach mkfs.'], erklaerung: 'Neue Schreibzugriffe gehen sofort auf beide Hälften, der Rest wird nachgezogen.' },
+  { frage: 'Welche Option gibt bei mdadm --create die Zahl der aktiven Mitglieder an?', richtig: '--raid-devices (-n)', falsch: ['--level (-l)', '--spare-devices (-x)'], erklaerung: '-x zählt die Reserveplatten, die zusätzlich in der Liste stehen.' },
+]} />
+
+## Dauerhaft machen
+
+<Karte nr={4} titel="mdadm.conf und initramfs">
+Beim Start sucht mdadm Superblöcke und setzt Arrays zusammen (`mdadm --assemble --scan`). Damit das Array immer denselben Namen bekommt, gehört es in die Konfiguration:
+
+```
+sudo mdadm --detail --scan | sudo tee -a /etc/mdadm/mdadm.conf
+ARRAY /dev/md0 metadata=1.2 name=werkstatt:0 UUID=24824ce3:3d49450f:5ec5669b:12a16288
+```
+
+Debian und Ubuntu nutzen **/etc/mdadm/mdadm.conf**, Red Hat und SUSE **/etc/mdadm.conf**. Weitere Zeilen: `DEVICE partitions` (wo gesucht wird) und `MAILADDR root` (wohin `mdadm --monitor` Warnungen schickt).
+
+Weil das initramfs eine Kopie der Datei enthält, muss es neu gebaut werden: `update-initramfs -u` auf Debian, `dracut -f` auf Red Hat. Ohne diesen Schritt heißt das Array nach dem Neustart gern /dev/md127.
+
+In die fstab gehört am besten die UUID des **Dateisystems** auf md0, nicht die UUID des Arrays aus mdadm.conf.
+
+Gestoppt wird ein Array mit `mdadm --stop /dev/md0` (vorher aushängen), wieder zusammengesetzt mit `mdadm --assemble --scan`.
+</Karte>
+
+<Lueckentext id="luecke" titel="Lückentext: Einen Spiegel bauen" aufgabe="Ergänze die Befehle."
+  code={`$ sudo mdadm ___ /dev/md0 --level=___ --raid-devices=2 /dev/sdc1 /dev/sdd1
+$ cat /proc/___
+$ sudo mdadm --detail ___ | sudo tee -a /etc/mdadm/mdadm.conf
+$ sudo update-___ -u`}
+  luecken={[
+    { loesungen: ['--create', '-C'] },
+    { loesungen: ['1', 'raid1', 'mirror'] },
+    { loesungen: ['mdstat'] },
+    { loesungen: ['--scan', '-s'] },
+    { loesungen: ['initramfs'] },
+  ]} />
+
+<Terminal id="spiegel" titel="Terminal: Der Spiegel für die Messreihen" welt={{ speicher: { platten: 3, partitioniert: true } }} aufgaben={[
+  { text: 'Verschaff dir einen Überblick über die Platten.', befehl: '^(lsblk|fdisk -l|sfdisk -l|blkid)', frage: 'Welchen Partitionstyp haben die Partitionen auf sdc, sdd und sde gerade? (Kennung, zwei Zeichen)', antwort: ['83'] },
+  { text: 'Setz für /dev/sdc1 und /dev/sdd1 den Partitionstyp auf Linux-RAID.', zustand: 'parttyp:/dev/sdc1~^fd$ && parttyp:/dev/sdd1~^fd$' },
+  { text: 'Bau aus /dev/sdc1 und /dev/sdd1 den Spiegel /dev/md0.', zustand: 'md:md0=raid1' },
+  { text: 'Lies, was der Kernel über das neue Array weiß.', befehl: '^(cat|less) /proc/mdstat$', frage: 'Wie heißt der Vorgang, der gerade im Hintergrund läuft?', antwort: ['resync'] },
+  { text: 'Leg auf md0 ein ext4 mit dem Label spiegel an und häng es unter /srv/spiegel ein.', zustand: 'fs:/dev/md0=ext4 && fslabel:/dev/md0=spiegel && einh:/srv/spiegel' },
+  { text: 'Sorge dafür, dass das Array nach dem Neustart wieder als md0 zusammengesetzt wird.', zustand: 'raid:conf~^ARRAY\\s+/dev/md0 && historie~(update-initramfs|dracut)' },
+  { text: 'Lies den Superblock eines Mitglieds.', befehl: 'mdadm (--examine|-E) /dev/sd[cd]1', frage: 'Welche Metadaten-Version steht dort?', antwort: ['1.2'] },
+]} />
+
+<Labor id="labor" titel="Labor: Ein Spiegel aus Dateien auf srv1"
+  aufgabe="Auf srv1 gibt es keine freien Platten. Bau deshalb einen Spiegel aus zwei Loop-Geräten, sieh ihn dir an und räum wieder auf. Füge die Ausgabe ein."
+  befehl={"truncate -s 200M /tmp/r0.img /tmp/r1.img\nL0=$(sudo losetup -f --show /tmp/r0.img)\nL1=$(sudo losetup -f --show /tmp/r1.img)\nsudo mdadm --create /dev/md9 --run --level=1 --raid-devices=2 $L0 $L1\ncat /proc/mdstat\nsudo mdadm --stop /dev/md9\nsudo losetup -d $L0 $L1 && rm /tmp/r0.img /tmp/r1.img"}
+  muster={["md9 : active raid1", "\\[2/2\\]", "stopped /dev/md9"]}
+  erfolg="Der Kernel hat aus zwei Dateien einen echten Spiegel gebaut. --run hat die Rückfrage übersprungen. Für Übungen ist das ideal, im Betrieb gehören die Mitglieder auf verschiedene Platten." />
+
+<Hinweis titel="Prüfungstipp">
+Gefragt werden die Level mit Mindestzahl und nutzbarer Kapazität, der Partitionstyp fd, /proc/mdstat mit [UU] und [U_] und der Weg in die mdadm.conf. Im Entwurf 5.0 ist RAID weiterhin Teil von Prüfung 201, mit höherem Gewicht.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Nach einem Neustart heißt dein Array plötzlich /dev/md127. Was fehlt wahrscheinlich?', richtig: 'Die ARRAY-Zeile in mdadm.conf oder ein neu gebautes initramfs.', falsch: ['Der Partitionstyp fd auf den Mitgliedern.', 'Ein Eintrag für md0 in der fstab.'], erklaerung: 'Ohne Konfiguration vergibt mdadm freie Namen ab md127.' },
+  { frage: 'Was zeigt blkid auf einem Mitglied eines md-Arrays?', richtig: 'TYPE="linux_raid_member"', falsch: ['TYPE="ext4", wie auf dem Array', 'TYPE="md"'], erklaerung: 'Das Dateisystem sieht man nur auf /dev/md0.' },
+  { frage: 'Warum ersetzt ein RAID 1 keine Sicherung?', richtig: 'Löschen und Überschreiben landen sofort auf beiden Platten.', falsch: ['Weil RAID 1 nur Lesezugriffe spiegelt.', 'Weil ein Spiegel nach einem Neustart immer neu synchronisiert.'], erklaerung: 'RAID schützt vor dem Ausfall einer Platte, nicht vor Fehlern von Menschen oder Programmen.' },
+]} />

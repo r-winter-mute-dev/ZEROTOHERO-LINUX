@@ -1,0 +1,177 @@
+---
+id: l2-5-6
+checks:
+  - id: k1
+  - id: reihe
+  - id: k2
+  - id: luecke
+  - id: snapshot
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "Snapshot"
+    v: "lvcreate -s -L 5G -n vor-update daten/messungen · Größe = Platz für Änderungen (COW), nicht für alles · lvs: Origin, Data%"
+  - t: "Benutzen"
+    v: "mount -o ro /dev/daten/vor-update /mnt/vor-update · ist der COW-Bereich voll, wird der Snapshot ungültig (Attr I)"
+  - t: "Zurückrollen"
+    v: "lvconvert --merge daten/vor-update · Original eingehängt: Merge bei nächster Aktivierung (umount, lvchange -an, lvchange -ay)"
+  - t: "Aktivieren"
+    v: "vgchange -ay [VG] · vgchange -an VG · lvchange -ay VG/LV · ohne Aktivierung kein /dev/VG/LV"
+  - t: "Platten räumen"
+    v: "pvmove /dev/sdc1 · vgreduce daten /dev/sdc1 · pvremove /dev/sdc1"
+karten:
+  - f: "Mit welcher Option legt lvcreate einen Snapshot an?"
+    a: ["-s", "--snapshot"]
+  - f: "Was passiert, wenn der Copy-on-Write-Bereich eines Snapshots voll läuft?"
+    a: ["der snapshot wird ungültig", "er wird unbrauchbar"]
+  - f: "Mit welchem Befehl führst du einen Snapshot in sein Original zurück?"
+    a: ["lvconvert --merge", "lvconvert --merge VG/SNAPSHOT"]
+  - f: "Welcher Befehl aktiviert alle LVs der VG daten?"
+    a: ["vgchange -ay daten", "vgchange -a y daten"]
+  - f: "Wie räumst du alle belegten Extents von /dev/sdc1 auf die übrigen PVs?"
+    a: ["pvmove /dev/sdc1"]
+  - f: "Welche Einstellung in lvm.conf vergrößert Snapshots automatisch?"
+    a: ["snapshot_autoextend_threshold", "snapshot_autoextend_threshold und snapshot_autoextend_percent"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Reihenfolge from '../components/Reihenfolge.astro';
+import Lueckentext from '../components/Lueckentext.astro';
+
+Heute Nacht läuft ein neues Auswerteprogramm zum ersten Mal über die Messreihen. Niemand weiß, ob es sauber arbeitet, und eine Vollsicherung würde Stunden dauern. Außerdem soll die älteste Platte /dev/sdc raus. **Deine Mission: Friere die Messreihen vor dem Lauf per Snapshot ein, roll nach einem Unfall zurück, räum die alte Platte im laufenden Betrieb leer und übe das Aktivieren einer Volume Group.** Lernziel 204.3.
+
+## Snapshots
+
+<Karte nr={1} titel="Einfrieren mit Copy-on-Write">
+Ein LVM-Snapshot ist ein zweites LV, das den Zustand des Originals zum Zeitpunkt des Anlegens zeigt. Er kopiert dabei nichts: Erst wenn im Original ein Block **überschrieben** wird, rettet LVM vorher den alten Inhalt in den Snapshot (Copy-on-Write, COW).
+
+```
+sudo lvcreate -s -L 5G -n vor-update daten/messungen
+```
+
+Die Größe bei `-L` ist deshalb nicht die Größe des Originals, sondern der Platz für **Änderungen**. Wie voll er ist, zeigt `lvs` in der Spalte Data%. Läuft er auf 100 %, wird der Snapshot **ungültig** (Attr mit I) und ist verloren. Darum gibt es in /etc/lvm/lvm.conf:
+
+```
+activation {
+	snapshot_autoextend_threshold = 70     # ab 70 % belegt …
+	snapshot_autoextend_percent = 20       # … um 20 % vergrößern (100 schaltet das aus)
+}
+```
+
+Einen Snapshot kannst du wie jedes LV einhängen, am besten nur lesend: `mount -o ro /dev/daten/vor-update /mnt/vor-update`. Das ist auch der klassische Weg zu einer konsistenten Sicherung: Snapshot anlegen, davon sichern, Snapshot löschen. Snapshots bremsen Schreibzugriffe auf das Original, sie sind für Stunden oder Tage gedacht, nicht für Monate.
+
+Neben diesen klassischen Snapshots gibt es Thin Provisioning (`lvcreate --thin`), bei dem Snapshots aus einem gemeinsamen Pool wachsen. Das Lernziel verlangt nur die klassische Variante.
+</Karte>
+
+<Quiz id="k1" titel="Kurzcheck: Snapshot" fragen={[
+  { frage: 'Das Original hat 200 GiB, der Snapshot wurde mit -L 2G angelegt. Was ist richtig?', richtig: 'Er bleibt gültig, solange sich weniger als etwa 2 GiB im Original ändern.', falsch: ['lvcreate lehnt das ab, ein Snapshot muss so groß sein wie das Original.', 'Der Snapshot enthält nur die ersten 2 GiB des Originals.'], erklaerung: 'Gespeichert werden nur die alten Fassungen geänderter Blöcke.' },
+  { frage: 'lvs zeigt beim Snapshot „swi-I-s--“. Was bedeutet das I?', richtig: 'Der Snapshot ist ungültig, sein COW-Bereich ist übergelaufen.', falsch: ['Der Snapshot ist gerade inaktiv, vgchange -ay hilft.', 'Der Snapshot wird gerade zusammengeführt.'], erklaerung: 'Ein ungültiger Snapshot lässt sich nur noch löschen.' },
+]} />
+
+## Zurückrollen
+
+<Karte nr={2} titel="lvconvert --merge">
+Ist das Original kaputt, schreibt `lvconvert --merge` den Stand des Snapshots zurück ins Original. Der Snapshot verschwindet danach.
+
+```
+sudo lvconvert --merge daten/vor-update
+  Delaying merge since origin is open.
+  Merging of snapshot daten/vor-update will occur on next activation of daten/messungen.
+```
+
+Ist das Original eingehängt, verschiebt LVM das Zusammenführen auf die **nächste Aktivierung**. Bei der Wurzel ist das der nächste Neustart, bei einem Datenvolume reicht:
+
+```
+sudo umount /srv/messungen
+sudo lvchange -an daten/messungen
+sudo lvchange -ay daten/messungen      # jetzt läuft der Merge
+sudo mount /srv/messungen
+```
+
+Den Snapshot selbst darfst du dabei nicht eingehängt haben.
+</Karte>
+
+<Reihenfolge id="reihe" titel="Reihenfolge: Sicher updaten mit Snapshot" aufgabe="Ein Update ging schief. Bring die Schritte in die richtige Reihenfolge." schritte={[
+  'lvcreate -s -L 5G -n vor-update daten/messungen',
+  'Update laufen lassen',
+  'lvconvert --merge daten/vor-update',
+  'umount /srv/messungen',
+  'lvchange -an daten/messungen, dann lvchange -ay daten/messungen',
+  'mount /srv/messungen',
+]} />
+
+## Aktivieren und Platten räumen
+
+<Karte nr={3} titel="vgchange und pvmove">
+Ein LV hat erst dann Gerätedateien, wenn es **aktiv** ist. Beim Start aktiviert udev bzw. ein Dienst alle gefundenen VGs. Von Hand:
+
+```
+sudo vgchange -ay            # alle VGs aktivieren
+sudo vgchange -an daten      # alle LVs von daten deaktivieren (vorher aushängen)
+sudo lvchange -ay daten/archiv
+```
+
+Das braucht man, wenn eine Platte mit einer VG an einen anderen Rechner wandert (vorher `vgchange -an` und `vgexport`, dort `vgimport` und `vgchange -ay`), im Rettungssystem oder nach `vgscan`, wenn LVM neue Geräte suchen soll. `lvscan` zeigt ACTIVE oder inactive je LV.
+
+Eine alte Platte aus der VG zu nehmen geht ohne Ausfallzeit:
+
+```
+sudo pvmove /dev/sdc1               # Extents auf die anderen PVs verschieben
+sudo vgreduce daten /dev/sdc1       # leeres PV aus der VG nehmen
+sudo pvremove /dev/sdc1             # LVM-Label löschen
+```
+
+pvmove arbeitet im Hintergrund mit einem temporären Spiegel und kann nach einem Abbruch mit `pvmove` ohne Argument fortgesetzt werden. Es braucht genug freie Extents auf den übrigen PVs.
+</Karte>
+
+<Merke>Snapshot: lvcreate -s, Größe für Änderungen. Zurück: lvconvert --merge, wirksam bei der nächsten Aktivierung. Aktivieren: vgchange -ay. Platte räumen: pvmove, vgreduce, pvremove.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: Aktivieren" fragen={[
+  { frage: 'Im Rettungssystem fehlt /dev/daten/messungen, pvs zeigt die PVs aber. Was hilft?', richtig: 'vgchange -ay daten', falsch: ['pvcreate auf allen PVs', 'lvcreate -n messungen daten'], erklaerung: 'Die VG existiert, nur ihre LVs sind nicht aktiv. pvcreate oder lvcreate würden Daten zerstören.' },
+  { frage: 'vgreduce daten /dev/sdc1 meldet „still in use“. Was fehlt?', richtig: 'pvmove /dev/sdc1', falsch: ['pvremove /dev/sdc1', 'vgchange -an daten'], erklaerung: 'Erst müssen die belegten Extents auf andere PVs.' },
+]} />
+
+<Lueckentext id="luecke" titel="Lückentext: Snapshot und Platte räumen" aufgabe="Ergänze die Befehle."
+  code={`$ sudo lvcreate ___ -L 5G -n vor-update daten/messungen
+$ sudo lvconvert ___ daten/vor-update
+$ sudo vgchange ___ daten
+$ sudo ___ /dev/sdc1
+$ sudo vgreduce daten /dev/sdc1`}
+  luecken={[
+    { loesungen: ['-s', '--snapshot'] },
+    { loesungen: ['--merge'] },
+    { loesungen: ['-ay', '-a y', '--activate y'] },
+    { loesungen: ['pvmove'] },
+  ]} />
+
+<Terminal id="snapshot" titel="Terminal: Die Nacht des neuen Auswerteprogramms" welt={{ speicher: { lvm: 'fertig' } }} aufgaben={[
+  { text: 'Friere die Messreihen vor dem Lauf ein: Snapshot vor-update mit 5 GiB.', zustand: 'lvsnap:daten/vor-update=von:messungen' },
+  { text: 'Sieh dir die Volumes an.', befehl: '^(lvs|lvm lvs|lvdisplay)', frage: 'Mit welchem Buchstaben beginnt die Attr-Spalte beim Snapshot?', antwort: ['s'] },
+  { text: 'Das Programm hat sich verrechnet und eine Datei gelöscht. Spiel das nach: Lösch /srv/messungen/2026/messreihe-a.csv.', befehl: 'rm .*/srv/messungen/2026/messreihe-a\\.csv' },
+  { text: 'Häng den Snapshot nur lesend unter /mnt/vor-update ein und sieh nach, ob die Datei dort noch da ist. Häng ihn danach wieder aus.', befehl: 'mount .*(-o ro|-r|--read-only|ro).*/dev/(daten/vor-update|mapper/daten-vor--update)|mount .*/dev/(daten/vor-update|mapper/daten-vor--update).*(-o ro|-r)', zustand: 'nicht:einh:/mnt/vor-update' },
+  { text: 'Roll die Messreihen vollständig auf den Stand vor dem Lauf zurück und häng sie wieder ein.', zustand: 'lv:daten/vor-update=weg && lvfs:daten/messungen~messreihe-a && einh:/srv/messungen && historie~lvconvert' },
+  { text: 'Sorg in /etc/lvm/lvm.conf dafür, dass Snapshots ab 70 % Belegung automatisch wachsen.', zustand: 'datei:/etc/lvm/lvm.conf~^\\s*snapshot_autoextend_threshold\\s*=\\s*70\\s*$' },
+  { text: 'Räum /dev/sdc1 im laufenden Betrieb leer und nimm es aus der VG.', zustand: 'pv:/dev/sdc1=frei && vg:daten=1pvs && einh:/srv/messungen && einh:/srv/archiv' },
+  { text: 'Übe für den Notfall: Deaktiviere die VG daten komplett und aktiviere sie wieder. Am Ende soll alles wie vorher eingehängt sein.', zustand: 'historie~vgchange -an && historie~vgchange -ay && einh:/srv/messungen && einh:/srv/archiv' },
+]} />
+
+<Labor id="labor" titel="Labor: Snapshot auf srv1"
+  aufgabe="Leg auf srv1 ein kleines LV mit einer Datei an, mach einen Snapshot, lösch die Datei und hol sie per Merge zurück. Füge die Ausgabe ein."
+  befehl={"truncate -s 400M /tmp/p0.img; L0=$(sudo losetup -f --show /tmp/p0.img)\nsudo vgcreate uebung $L0 && sudo lvcreate -L 100M -n w uebung && sudo mkfs.ext4 -q /dev/uebung/w\nsudo mkdir -p /mnt/w && sudo mount /dev/uebung/w /mnt/w && echo wichtig | sudo tee /mnt/w/datei\nsudo lvcreate -s -L 20M -n snap uebung/w\nsudo rm /mnt/w/datei; sudo lvs uebung\nsudo umount /mnt/w; sudo lvconvert --merge uebung/snap\nsudo mount /dev/uebung/w /mnt/w && cat /mnt/w/datei\nsudo umount /mnt/w; sudo vgremove -y uebung; sudo pvremove $L0; sudo losetup -d $L0; rm /tmp/p0.img"}
+  muster={["snap\\s+uebung\\s+swi", "Merg", "wichtig"]}
+  erfolg="Weil das Original ausgehängt war, lief der Merge sofort. lvs hat vorher gezeigt, dass der Snapshot nur einen winzigen Teil seiner 20 MiB belegt hatte: Gespeichert wurden nur die geänderten Blöcke." />
+
+<Hinweis titel="Prüfungstipp">
+Snapshots und das Aktivieren von VGs stehen ausdrücklich im Lernziel 204.3. Merk dir lvcreate -s, die Bedeutung der Snapshot-Größe, lvconvert --merge und vgchange -ay. pvmove ist im Lernziel nicht einzeln genannt, gehört aber zu /sbin/pv* und kommt in der Praxis ständig vor.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Wozu legt man vor einer Sicherung gern einen Snapshot an?', richtig: 'Damit die Sicherung einen festen Stand sieht, während das Original weiterarbeitet', falsch: ['Damit die Sicherung schneller wird, weil der Snapshot komprimiert ist', 'Weil tar und rsync nur von Snapshots lesen können'], erklaerung: 'Danach wird der Snapshot wieder gelöscht.' },
+  { frage: 'lvconvert --merge meldet „Delaying merge since origin is open“. Was heißt das?', richtig: 'Das Zusammenführen geschieht bei der nächsten Aktivierung des Originals.', falsch: ['Der Merge ist gescheitert, der Snapshot wurde gelöscht.', 'Der Merge läuft jetzt im Hintergrund, das Original bleibt benutzbar.'], erklaerung: 'Aushängen, lvchange -an und -ay, oder bei der Wurzel neu starten.' },
+  { frage: 'Welcher Befehl zeigt kurz für jedes LV, ob es aktiv ist?', richtig: 'lvscan', falsch: ['vgscan', 'pvscan'], erklaerung: 'lvscan nennt jedes LV mit ACTIVE oder inactive. lvs zeigt es im Attr-Feld.' },
+]} />

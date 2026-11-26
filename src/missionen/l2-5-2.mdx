@@ -1,0 +1,168 @@
+---
+id: l2-5-2
+checks:
+  - id: k1
+  - id: reihe
+  - id: k2
+  - id: luecke
+  - id: tausch
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "Ausfall erkennen"
+    v: "cat /proc/mdstat: (F) und [U_] · mdadm --detail /dev/md0: State degraded · dmesg · mdadm --monitor --scan --oneshot"
+  - t: "Platte tauschen"
+    v: "mdadm /dev/md0 --fail /dev/sdd1 --remove /dev/sdd1 · sfdisk -d /dev/sdc | sfdisk /dev/sde · mdadm /dev/md0 --add /dev/sde1"
+  - t: "Wiederaufbau"
+    v: "recovery in /proc/mdstat · sysctl -w dev.raid.speed_limit_min=50000 (KiB/s, Standard 1000) · speed_limit_max Standard 200000"
+  - t: "Reserve und Wachsen"
+    v: "--spare-devices=1 beim Anlegen · --add an ein volles Array = Reserve (S) · mdadm --grow /dev/md0 --raid-devices=4"
+  - t: "Aufräumen"
+    v: "mdadm --zero-superblock /dev/sdd1 · mdadm --stop /dev/md0 · mdadm --assemble --scan"
+karten:
+  - f: "Was markiert (F) hinter einem Gerät in /proc/mdstat?"
+    a: ["das gerät ist ausgefallen", "faulty", "defekt"]
+  - f: "Welche zwei mdadm-Optionen nehmen ein aktives Mitglied aus dem Array?"
+    a: ["--fail und --remove", "-f und -r", "--fail --remove"]
+  - f: "Wie kopierst du die Partitionstabelle von /dev/sdc auf /dev/sde?"
+    a: ["sfdisk -d /dev/sdc | sfdisk /dev/sde"]
+  - f: "Welcher sysctl-Wert legt die Mindestgeschwindigkeit des RAID-Wiederaufbaus fest?"
+    a: ["dev.raid.speed_limit_min", "/proc/sys/dev/raid/speed_limit_min"]
+  - f: "Was passiert, wenn in einem RAID 5 mit Reserveplatte ein Mitglied ausfällt?"
+    a: ["die reserve springt ein und der wiederaufbau startet von selbst", "der kernel baut automatisch auf die reserveplatte auf"]
+  - f: "Welche Zeile in mdadm.conf legt fest, wer bei Ausfällen eine Mail bekommt?"
+    a: ["mailaddr", "MAILADDR root"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Reihenfolge from '../components/Reihenfolge.astro';
+import Lueckentext from '../components/Lueckentext.astro';
+
+Freitagnachmittag. Seit dem Morgen steht in der Mail an root: „DegradedArray event on /dev/md0“. Der Spiegel läuft noch, aber nur noch auf einer Platte. Eine Ersatzplatte steckt schon im Gehäuse. **Deine Mission: Finde die defekte Hälfte, nimm sie aus dem Array, bereite die Ersatzplatte vor, bau den Spiegel neu auf und beschleunige den Wiederaufbau.** Lernziel 204.1.
+
+## Einen Ausfall erkennen
+
+<Karte nr={1} titel="Degradiert, aber nicht tot">
+Fällt in einem RAID 1 oder 5 ein Mitglied aus, markiert der Kernel es als **faulty** und arbeitet mit den übrigen weiter. Die Daten sind noch da, aber ohne Schutz: Ein zweiter Ausfall wäre das Ende.
+
+```
+$ cat /proc/mdstat
+md0 : active raid1 sdd1[1](F) sdc1[0]
+      976630488 blocks super 1.2 [2/1] [U_]
+```
+
+`(F)` heißt faulty, `[2/1]` zwei Plätze, einer belegt, `[U_]` der zweite fehlt. `mdadm --detail /dev/md0` meldet „State : clean, degraded“ und listet das Gerät unten als faulty. Im Kernel-Protokoll (`dmesg`, `journalctl -k`) stehen die Lesefehler, die zum Ausfall geführt haben.
+
+Damit das nicht erst am Freitag auffällt, läuft **mdadm --monitor** als Dienst (mdmonitor) und schickt bei Ereignissen wie DegradedArray, Fail oder SpareActive eine Mail an die Adresse aus `MAILADDR` in mdadm.conf. Einmal von Hand: `mdadm --monitor --scan --oneshot`.
+</Karte>
+
+<Quiz id="k1" titel="Kurzcheck: Lesen" fragen={[
+  { frage: 'Ein RAID 5 aus drei Platten zeigt [3/2] [U_U]. Was gilt?', richtig: 'Das zweite Mitglied fehlt, die Daten sind da, aber ohne Redundanz.', falsch: ['Zwei der drei Platten sind ausgefallen.', 'Der Abgleich läuft noch und das Array ist gesund.'], erklaerung: 'Die erste Zahl sind die Plätze, die zweite die aktiven Geräte.' },
+]} />
+
+## Tauschen
+
+<Karte nr={2} titel="Fail, Remove, Partitionieren, Add">
+Ein Gerät kann nur aus dem Array genommen werden, wenn es als defekt markiert ist. Hat der Kernel das schon getan, reicht `--remove`. Sonst, etwa vor einem geplanten Tausch, erst `--fail`:
+
+```
+sudo mdadm /dev/md0 --fail /dev/sdd1 --remove /dev/sdd1
+sudo mdadm --manage /dev/md0 -f /dev/sdd1 -r /dev/sdd1        # gleichwertig
+```
+
+Die neue Platte braucht dieselbe Aufteilung wie die gesunde. **sfdisk** kann eine Partitionstabelle als Text ausgeben und wieder einlesen, das ergibt eine exakte Kopie:
+
+```
+sudo sfdisk -d /dev/sdc > sdc.tabelle          # Sicherung, gut für später
+sudo sfdisk -d /dev/sdc | sudo sfdisk /dev/sde  # direkt übertragen
+```
+
+Für GPT-Platten geht das ebenso, oder mit `sgdisk -R /dev/sde /dev/sdc` plus `sgdisk -G /dev/sde` für neue GUIDs. Dann kommt die neue Partition ins Array:
+
+```
+sudo mdadm /dev/md0 --add /dev/sde1
+```
+
+Der Kernel beginnt sofort mit dem Wiederaufbau, in /proc/mdstat als **recovery** zu sehen. Erst wenn er fertig ist, steht dort wieder [UU].
+</Karte>
+
+<Reihenfolge id="reihe" titel="Reihenfolge: Eine Platte im Spiegel tauschen" aufgabe="Bring die Schritte in die richtige Reihenfolge." schritte={[
+  'In /proc/mdstat das Gerät mit (F) finden',
+  'mdadm /dev/md0 --remove /dev/sdd1',
+  'Platte physisch tauschen',
+  'sfdisk -d /dev/sdc | sfdisk /dev/sde',
+  'mdadm /dev/md0 --add /dev/sde1',
+  'Warten, bis /proc/mdstat wieder [UU] zeigt',
+]} />
+
+## Wiederaufbau, Reserve, Wachsen
+
+<Karte nr={3} titel="Schneller, sicherer, größer">
+Der Kernel drosselt den Wiederaufbau, damit der Rechner benutzbar bleibt. Die Grenzen stehen in KiB pro Sekunde und je Gerät in:
+
+```
+/proc/sys/dev/raid/speed_limit_min    # Standard 1000: so schnell mindestens, auch unter Last
+/proc/sys/dev/raid/speed_limit_max    # Standard 200000: höchstens, wenn nichts anderes los ist
+sudo sysctl -w dev.raid.speed_limit_min=50000
+```
+
+Höheres Minimum heißt: Der Wiederaufbau setzt sich gegen andere Zugriffe durch und das Array ist früher wieder geschützt. Dauerhaft gehört das nach /etc/sysctl.d/.
+
+Eine **Reserveplatte** (spare) springt von selbst ein, sobald ein Mitglied ausfällt. Du gibst sie beim Anlegen mit `--spare-devices=1` an, oder fügst einem vollständigen Array eine Platte mit `--add` hinzu, sie erscheint dann als `(S)`.
+
+Ein RAID 5 lässt sich im laufenden Betrieb um ein Mitglied vergrößern: erst die Platte als Reserve hinzufügen, dann `mdadm --grow /dev/md0 --raid-devices=4`. Der Kernel verteilt die Daten neu (reshape), danach muss noch das Dateisystem wachsen.
+
+Eine ausgebaute Platte, die woanders weiterleben soll, bekommt `mdadm --zero-superblock /dev/sdd1`, sonst versucht mdadm sie beim nächsten Start in ein Array einzubauen.
+</Karte>
+
+<Merke>Ausfall: (F) und [U_]. Tausch: --fail, --remove, sfdisk -d | sfdisk, --add. Tempo: dev.raid.speed_limit_min. Reserve springt von selbst ein.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: Wiederaufbau" fragen={[
+  { frage: 'Der Wiederaufbau läuft mit 1000 KiB/s, weil der Rechner viel zu tun hat. Was hilft?', richtig: 'dev.raid.speed_limit_min hochsetzen', falsch: ['dev.raid.speed_limit_max hochsetzen', 'Das Array mit mdadm --stop anhalten und neu starten'], erklaerung: 'Das Maximum gilt nur, wenn sonst nichts los ist. Unter Last bestimmt das Minimum das Tempo.' },
+  { frage: 'Du fügst einem gesunden RAID 1 [2/2] mit --add eine dritte Partition hinzu. Was wird sie?', richtig: 'Eine Reserve, die bei einem Ausfall einspringt', falsch: ['Ein drittes aktives Mitglied, der Spiegel hat dann drei Kopien', 'Nichts, mdadm lehnt das ab'], erklaerung: 'Für eine dritte Kopie bräuchte es zusätzlich mdadm --grow --raid-devices=3.' },
+]} />
+
+<Lueckentext id="luecke" titel="Lückentext: Tausch im Spiegel" aufgabe="Ergänze die Befehle."
+  code={`$ sudo mdadm /dev/md0 ___ /dev/sdd1 ___ /dev/sdd1
+$ sudo sfdisk ___ /dev/sdc | sudo sfdisk /dev/sde
+$ sudo mdadm /dev/md0 ___ /dev/sde1
+$ sudo sysctl -w dev.raid.___=50000`}
+  luecken={[
+    { loesungen: ['--fail', '-f', '--set-faulty'] },
+    { loesungen: ['--remove', '-r'] },
+    { loesungen: ['-d', '--dump'] },
+    { loesungen: ['--add', '-a'] },
+    { loesungen: ['speed_limit_min'] },
+  ]} />
+
+<Terminal id="tausch" titel="Terminal: Der Spiegel am Freitag" welt={{ speicher: { raid: 'kaputt' } }} aufgaben={[
+  { text: 'Lies, was der Kernel über das Array weiß.', befehl: '^(cat|less) /proc/mdstat$', frage: 'Welches Mitglied ist ausgefallen? (/dev/…)', antwort: ['/dev/sdd1', 'sdd1'] },
+  { text: 'Lass mdadm einmal prüfen, was der Überwachungsdienst melden würde.', befehl: 'mdadm (--monitor|-F) .*(--oneshot|-1)|mdadm (--monitor|-F) .*--scan', frage: 'Welches Ereignis meldet er?', antwort: ['DegradedArray', 'degradedarray'] },
+  { text: 'Nimm die defekte Hälfte aus dem Array.', zustand: 'md:md0:/dev/sdd1=weg' },
+  { text: 'Die Ersatzplatte ist /dev/sde. Gib ihr exakt dieselbe Aufteilung wie der gesunden Platte /dev/sdc.', zustand: 'parttyp:/dev/sde1~^fd$' },
+  { text: 'Bau die neue Partition in den Spiegel ein.', zustand: 'md:md0:/dev/sde1=neu' },
+  { text: 'Der Rechner ist nebenbei beschäftigt. Sorg dafür, dass der Wiederaufbau mit mindestens 50000 KiB/s läuft.', zustand: 'datei:/proc/sys/dev/raid/speed_limit_min~^([5-9]\\d{4}|\\d{6,})' },
+  { text: 'Warte, bis der Spiegel wieder vollständig ist. /proc/mdstat zeigt dir den Fortschritt.', zustand: 'md:md0=sauber' },
+  { text: 'Die alte Partition /dev/sdd1 soll auf einem anderen Rechner weiterleben. Entferne den md-Superblock.', zustand: 'nicht:fs:/dev/sdd1=linux_raid_member' },
+]} />
+
+<Labor id="labor" titel="Labor: Ausfall üben auf srv1"
+  aufgabe="Bau auf srv1 einen Spiegel aus drei Loop-Geräten, zwei aktiv und eine Reserve. Lass eine Hälfte ausfallen und sieh zu, wie die Reserve einspringt. Füge die Ausgabe ein."
+  befehl={"truncate -s 200M /tmp/r0.img /tmp/r1.img /tmp/r2.img\nL0=$(sudo losetup -f --show /tmp/r0.img); L1=$(sudo losetup -f --show /tmp/r1.img); L2=$(sudo losetup -f --show /tmp/r2.img)\nsudo mdadm --create /dev/md9 --run --level=1 --raid-devices=2 --spare-devices=1 $L0 $L1 $L2\nsleep 5; sudo mdadm /dev/md9 --fail $L1\nsleep 2; cat /proc/mdstat\nsudo mdadm --stop /dev/md9; sudo losetup -d $L0 $L1 $L2; rm /tmp/r?.img"}
+  muster={["\\(F\\)", "md9 : active raid1", "stopped /dev/md9"]}
+  erfolg="Nach dem --fail hat der Kernel die Reserve sofort übernommen und mit der recovery begonnen, ohne dass du --add geben musstest. Die ausgefallene Hälfte steht mit (F) daneben, bis du sie mit --remove herausnimmst." />
+
+<Hinweis titel="Prüfungstipp">
+Typische Aufgaben: die Reihenfolge fail, remove, add, das Kopieren der Partitionstabelle mit sfdisk und die Bedeutung von (F), (S), [U_]. speed_limit_min und speed_limit_max solltest du auseinanderhalten können.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'mdadm /dev/md0 --remove /dev/sdc1 meldet „Device or resource busy“. Warum?', richtig: 'sdc1 ist noch aktives Mitglied, es muss vorher mit --fail als defekt markiert werden.', falsch: ['Das Dateisystem auf md0 ist noch eingehängt.', 'Der Wiederaufbau muss erst abgeschlossen sein.'], erklaerung: 'Das Array darf eingehängt bleiben, nur das Gerät muss den Zustand faulty haben.' },
+  { frage: 'Wozu dient mdadm --zero-superblock?', richtig: 'Es löscht die md-Metadaten auf einem ehemaligen Mitglied.', falsch: ['Es setzt den Superblock des Dateisystems auf md0 zurück.', 'Es leert den Schreibcache der Platten im Array.'], erklaerung: 'Sonst taucht die Platte beim nächsten --assemble --scan wieder als Teil eines Arrays auf.' },
+  { frage: 'Ein RAID 5 aus drei Platten soll eine vierte bekommen. Welche Schritte?', richtig: 'Platte mit --add als Reserve hinzufügen, dann mdadm --grow --raid-devices=4, danach das Dateisystem vergrößern', falsch: ['mdadm --create mit vier Platten über das bestehende Array', 'mdadm --assemble mit der neuen Platte, das Dateisystem wächst von selbst'], erklaerung: 'Ein neues --create würde die Daten zerstören.' },
+]} />

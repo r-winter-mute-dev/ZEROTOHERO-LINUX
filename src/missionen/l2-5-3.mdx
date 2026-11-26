@@ -1,0 +1,163 @@
+---
+id: l2-5-3
+checks:
+  - id: k1
+  - id: zuordnung
+  - id: k2
+  - id: luecke
+  - id: geraete
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "Gerätenamen"
+    v: "/dev/hd* alte IDE-Treiber · /dev/sd* SATA, SAS, USB, iSCSI über libata und SCSI · /dev/nvme0n1p1 NVMe: Controller 0, Namespace 1, Partition 1"
+  - t: "hdparm (SATA/IDE)"
+    v: "-I Fähigkeiten · -i Kurzinfo · -tT Lesetempo · -W0/-W1 Schreibcache · -d1 DMA (nur IDE) · -S N Standby · -C Zustand"
+  - t: "sdparm und nvme"
+    v: "sdparm GERÄT · sdparm --inquiry · --get=WCE · nvme list · nvme id-ctrl /dev/nvme0 · nvme smart-log /dev/nvme0"
+  - t: "Scheduler"
+    v: "cat /sys/block/sdc/queue/scheduler · echo bfq > …/scheduler · mq-deadline, bfq, kyber, none · rotational 1 = drehende Platte"
+  - t: "TRIM"
+    v: "lsblk -D · fstrim -v / · fstrim -av · systemctl status fstrim.timer · Einhängeoption discard · tune2fs -o discard"
+karten:
+  - f: "Mit welchem Programm liest und setzt du Parameter von SATA- und IDE-Platten?"
+    a: ["hdparm"]
+  - f: "Welches Programm ist das Gegenstück zu hdparm für SCSI-Geräte?"
+    a: ["sdparm"]
+  - f: "Mit welchem Befehl liest du die SMART-Werte einer NVMe-SSD mit nvme-cli?"
+    a: ["nvme smart-log /dev/nvme0", "nvme smart-log"]
+  - f: "Wo stellst du den I/O-Scheduler von /dev/sdc ein?"
+    a: ["/sys/block/sdc/queue/scheduler"]
+  - f: "Welcher Befehl teilt einer SSD die freien Blöcke eines eingehängten Dateisystems mit?"
+    a: ["fstrim"]
+  - f: "Was bedeutet AHCI?"
+    a: ["advanced host controller interface", "die standardschnittstelle für sata-controller"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Zuordnung from '../components/Zuordnung.astro';
+import Lueckentext from '../components/Lueckentext.astro';
+
+werkstatt hat drei sehr verschiedene Speicher: eine NVMe-SSD für das System, eine drehende 1-TB-Platte für Messdaten und einen USB-Stick. Die Kollegen beschweren sich, dass Kopieren auf die große Platte die ganze Maschine ausbremst. **Deine Mission: Lies aus, was die Geräte können, stell den Schreibcache und den I/O-Scheduler passend ein und sorg dafür, dass die SSD regelmäßig getrimmt wird.** Lernziel 204.2.
+
+## Vom Controller zum Gerätenamen
+
+<Karte nr={1} titel="IDE, SATA, AHCI, NVMe">
+Früher hingen Platten am parallelen **IDE**-Bus (auch PATA, ATA), der alte Treiber nannte sie /dev/hda, /dev/hdb. Ob die Platte per **DMA** (Direct Memory Access) Daten direkt in den Speicher schreiben durfte oder jedes Byte über den Prozessor ging (PIO), war damals eine echte Einstellung: `hdparm -d1 /dev/hda`.
+
+Heute laufen SATA-Platten über den Treiber **libata**, der sie wie SCSI-Geräte behandelt. Darum heißen SATA-, SAS-, USB- und iSCSI-Platten alle /dev/sd*. Der SATA-Controller arbeitet im Modus **AHCI** (Advanced Host Controller Interface), dem Standard, der Native Command Queuing und Hotplug kann. DMA ist dort immer an.
+
+**NVMe**-SSDs hängen direkt am PCI-Express-Bus und haben ein eigenes, schlankes Protokoll mit vielen parallelen Warteschlangen. Sie heißen /dev/nvme0n1: Controller 0, Namespace 1, Partitionen p1, p2.
+
+Jeder Controller meldet fertige Aufträge über einen **Interrupt**. Welche es gibt und wie oft sie feuern, steht in /proc/interrupts. Bei NVMe siehst du dort oft eine Zeile pro Warteschlange und Prozessorkern.
+</Karte>
+
+<Zuordnung id="zuordnung" titel="Zuordnung: Welches Werkzeug?" aufgabe="Ordne jedem Gerät das passende Werkzeug für seine Parameter zu." paare={[
+  { links: 'SATA-Platte /dev/sdc', rechts: 'hdparm' },
+  { links: 'iSCSI-Ziel /dev/sdf', rechts: 'sdparm' },
+  { links: 'NVMe-SSD /dev/nvme0', rechts: 'nvme' },
+  { links: 'Dateisystem ext4 auf /dev/sdc1', rechts: 'tune2fs' },
+  { links: 'Kernel-Parameter dev.raid.*', rechts: 'sysctl' },
+]} />
+
+## hdparm, sdparm, nvme
+
+<Karte nr={2} titel="Fragen und einstellen">
+```
+sudo hdparm -I /dev/sdc       # alles, was die Platte über sich sagt: Modell, Sektoren, Drehzahl, TRIM, Cache
+sudo hdparm -tT /dev/sdc      # Lesetempo aus dem Cache (-T) und von der Platte (-t)
+sudo hdparm -W0 /dev/sdc      # Schreibcache aus (-W1 an, -W allein zeigt den Zustand)
+sudo hdparm -S 120 /dev/sdc   # nach 120 × 5 s = 10 min Leerlauf in den Standby
+sudo hdparm -C /dev/sdc       # Zustand: active/idle oder standby
+```
+
+hdparm spricht ATA-Befehle. Für SCSI-Geräte, SAS, USB und iSCSI gibt es **sdparm** (Mode Pages, VPD-Kennungen, `--get=WCE` für den Schreibcache). Für NVMe gibt es **nvme-cli**:
+
+```
+sudo nvme list                    # alle NVMe-Geräte mit Modell, Firmware, Belegung
+sudo nvme id-ctrl /dev/nvme0      # Fähigkeiten des Controllers
+sudo nvme smart-log /dev/nvme0    # Temperatur, Abnutzung (percentage_used), Fehler
+```
+
+Ein abgeschalteter Schreibcache macht Schreiben langsamer, aber sicherer bei Stromausfall ohne USV. Einstellungen von hdparm gelten bis zum nächsten Neustart. Dauerhaft gehören sie auf Debian in /etc/hdparm.conf oder in eine udev-Regel.
+</Karte>
+
+<Quiz id="k1" titel="Kurzcheck: Werkzeuge" fragen={[
+  { frage: 'hdparm -I /dev/nvme0n1 meldet „SG_IO: bad/missing sense data“. Warum?', richtig: 'NVMe spricht kein ATA, dafür nimmt man nvme-cli.', falsch: ['Das Gerät ist eingehängt und daher gesperrt.', 'hdparm braucht bei NVMe die Option -d1.'], erklaerung: 'hdparm ist für SATA und IDE, sdparm für SCSI, nvme für NVMe.' },
+  { frage: 'Wofür war hdparm -d1 gedacht?', richtig: 'DMA auf einer alten IDE-Platte einschalten', falsch: ['Den Schreibcache einer SATA-Platte einschalten', 'Die Platte sofort in den Standby schicken'], erklaerung: 'Unter libata und AHCI ist DMA immer aktiv.' },
+]} />
+
+## Scheduler und TRIM
+
+<Karte nr={3} titel="Wer zuerst darf, und was frei ist">
+Der **I/O-Scheduler** entscheidet, in welcher Reihenfolge Lese- und Schreibaufträge an ein Gerät gehen. Jedes Blockgerät hat seinen eigenen:
+
+```
+$ cat /sys/block/sdc/queue/scheduler
+[mq-deadline] kyber bfq none
+$ echo bfq | sudo tee /sys/block/sdc/queue/scheduler
+```
+
+Die eckigen Klammern zeigen den aktiven. **mq-deadline** sortiert und verhindert, dass Aufträge verhungern. **bfq** verteilt die Bandbreite fair auf Prozesse, gut für drehende Platten an Arbeitsplätzen. **kyber** zielt auf niedrige Latenz bei schnellen Geräten, **none** reicht alles direkt durch, üblich bei NVMe. Ob ein Gerät dreht, verrät /sys/block/sdc/queue/rotational (1 ja, 0 nein). Dauerhaft setzt man den Scheduler per udev-Regel.
+
+SSDs müssen wissen, welche Blöcke das Dateisystem nicht mehr braucht, sonst werden sie mit der Zeit langsam. Das teilt ihnen **TRIM** (bei SCSI: UNMAP, allgemein discard) mit:
+
+```
+lsblk -D                    # DISC-MAX größer als 0B: Gerät kann discard
+sudo fstrim -v /            # einmal für ein Dateisystem
+sudo fstrim -av             # für alle eingehängten, die es können
+systemctl status fstrim.timer   # Debian, Ubuntu und Red Hat trimmen so wöchentlich
+```
+
+Alternativ trimmt die Einhängeoption `discard` sofort bei jedem Löschen, was auf manchen SSDs bremst. `tune2fs -o discard /dev/…` speichert sie als Standardoption im ext4. Über **sysctl** stellst du Kernel-Werte wie `vm.dirty_ratio` (ab welchem Anteil schmutziger Seiten Schreiber selbst warten müssen) oder `dev.raid.speed_limit_min` ein.
+</Karte>
+
+<Merke>hdparm für ATA, sdparm für SCSI, nvme für NVMe. Scheduler in /sys/block/GERÄT/queue/scheduler. SSDs brauchen TRIM: fstrim oder discard.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: Scheduler und TRIM" fragen={[
+  { frage: 'cat /sys/block/nvme0n1/queue/scheduler zeigt „[none] mq-deadline kyber bfq“. Was heißt das?', richtig: 'Für die NVMe ist kein Scheduler aktiv, Aufträge gehen direkt ans Gerät.', falsch: ['Das Gerät unterstützt keinen der Scheduler.', 'Der Kernel wählt bei jedem Auftrag zufällig einen Scheduler.'], erklaerung: 'Die Klammern markieren den aktiven Eintrag.' },
+  { frage: 'fstrim -v /srv/spiegel meldet „Verwerfen-Operation wird nicht unterstützt“. Was ist die wahrscheinliche Ursache?', richtig: 'Das Gerät darunter kann kein discard, etwa eine drehende Platte.', falsch: ['fstrim funktioniert nur, wenn das Dateisystem ausgehängt ist.', 'Vorher muss der Schreibcache mit hdparm -W0 aus sein.'], erklaerung: 'lsblk -D zeigt bei solchen Geräten DISC-MAX 0B.' },
+]} />
+
+<Lueckentext id="luecke" titel="Lückentext: Geräte einstellen" aufgabe="Ergänze die Befehle."
+  code={`$ sudo hdparm ___ /dev/sdc          # Schreibcache aus
+$ echo bfq | sudo tee /sys/block/sdc/queue/___
+$ sudo nvme ___ /dev/nvme0          # SMART-Werte der NVMe
+$ sudo ___ -av                       # alle SSD-Dateisysteme trimmen`}
+  luecken={[
+    { loesungen: ['-W0', '-W 0'] },
+    { loesungen: ['scheduler'] },
+    { loesungen: ['smart-log'] },
+    { loesungen: ['fstrim'] },
+  ]} />
+
+<Terminal id="geraete" titel="Terminal: Drei Speicher, drei Charaktere" welt={{ speicher: { platten: 1 } }} aufgaben={[
+  { text: 'Finde heraus, welche Geräte discard können.', befehl: '^lsblk (-D|--discard)', frage: 'Welche Platte kann es nicht? (Name wie sdX)', antwort: ['sdc', '/dev/sdc'] },
+  { text: 'Lass dir von /dev/sdc alle Fähigkeiten zeigen.', befehl: 'hdparm -I /dev/sdc', frage: 'Mit wie vielen Umdrehungen pro Minute dreht sie?', antwort: ['5400'] },
+  { text: 'Schalte den Schreibcache von /dev/sdc ab. Das Labor hat keine USV.', befehl: 'hdparm (-W ?0|-W 0) /dev/sdc' },
+  { text: 'Gib /dev/sdc den Scheduler bfq, damit große Kopien den Rest nicht ausbremsen.', zustand: 'sched:sdc=bfq' },
+  { text: 'Installiere nvme-cli und lies die SMART-Werte der NVMe.', befehl: 'nvme smart-log', frage: 'Wie viel Prozent ihrer Lebensdauer hat sie verbraucht? (percentage_used)', antwort: ['2', '2%', '2 %'] },
+  { text: 'Trimme alle eingehängten Dateisysteme, die es können, und lass dir das Ergebnis zeigen.', befehl: 'fstrim (-av|-va|-a -v|-v -a|--all --verbose|--verbose --all)' },
+  { text: 'Prüfe, ob das wöchentliche Trimmen eingeplant ist.', befehl: 'systemctl (status|list-timers).*fstrim|systemctl list-timers', frage: 'Wie heißt die Unit, die es auslöst?', antwort: ['fstrim.timer', 'fstrim.service'] },
+]} />
+
+<Labor id="labor" titel="Labor: Die Geräte von srv1"
+  aufgabe="Sieh dir auf srv1 an, welche Geräte er hat, welcher Scheduler läuft und ob TRIM möglich ist. Füge die Ausgabe ein."
+  befehl={"lsblk -d -o NAME,ROTA,DISC-MAX,SCHED,TRAN,SIZE\nfor d in /sys/block/*/queue/scheduler; do echo \"$d: $(cat $d)\"; done\ngrep -iE 'ahci|nvme|virtio' /proc/interrupts | head -5"}
+  muster={["NAME\\s+ROTA", "queue/scheduler: .*\\["]}
+  erfolg="In einer virtuellen Maschine steht oft ROTA 1, obwohl darunter eine SSD liegt: Der Gast sieht nur, was der Hypervisor meldet. Virtio-Platten haben meist den Scheduler none oder mq-deadline." />
+
+<Hinweis titel="Prüfungstipp">
+Das Lernziel 204.2 nennt hdparm, sdparm, nvme, tune2fs, fstrim und sysctl, dazu die Gerätenamen /dev/hd*, /dev/sd* und /dev/nvme*. Rechne mit Fragen, welches Werkzeug zu welchem Gerät passt, und mit DMA als Begriff aus der IDE-Zeit.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Was steht hinter dem Namen /dev/nvme1n2p3?', richtig: 'Controller 1, Namespace 2, Partition 3', falsch: ['Bus 1, Platte 2, Slot 3', 'Controller 1, Partition 2, Dateisystem 3'], erklaerung: 'Die Zählung beginnt beim Controller mit 0, beim Namespace mit 1.' },
+  { frage: 'Warum heißen SATA-Platten unter aktuellen Kerneln /dev/sd* und nicht /dev/hd*?', richtig: 'libata bindet sie über die SCSI-Schicht ein.', falsch: ['Weil SATA ein serielles SCSI-Kabel benutzt.', 'Weil /dev/hd* für Disketten reserviert ist.'], erklaerung: 'Darum funktionieren auch SCSI-Werkzeuge wie sdparm teilweise mit SATA-Platten.' },
+  { frage: 'Welche Datei zeigt, ob der Kernel ein Gerät für eine drehende Platte hält?', richtig: '/sys/block/GERÄT/queue/rotational', falsch: ['/proc/partitions', '/sys/block/GERÄT/queue/discard'], erklaerung: '1 heißt drehend, 0 nicht drehend. lsblk zeigt es als ROTA.' },
+]} />

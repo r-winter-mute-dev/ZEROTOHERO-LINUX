@@ -168,6 +168,7 @@ function loeschen(w: Welt, p: string) { for (const k of Object.keys(w.fs)) if (k
 function sysctlStandard(w: Welt) {
   for (const [k, v0] of SYSCTL_STD) {
     const v = v0 === '@host' ? w.host : v0 === '@kernel' ? w.kernel : v0 === '@version' ? (ks0(w)?.infos[w.kernel] ?? BAU_INFO[w.kernel] ?? '#1 SMP') : v0;
+    if (typeof w.fs[sysPfad(k)] === 'string' && k.startsWith('dev.raid.')) continue;
     datei(w, sysPfad(k), v + '\n', SYSCTL_NUR_LESEN.has(k) ? 0o444 : k === 'vm.drop_caches' ? 0o200 : 0o644);
   }
 }

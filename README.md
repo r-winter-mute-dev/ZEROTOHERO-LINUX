@@ -8,7 +8,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/spielbar-LPIC--1_komplett-a6e3a1?labelColor=2a2a2a" alt="Spielbar: LPIC-1 komplett">
-  <img src="https://img.shields.io/badge/im_Aufbau-LPIC--2_Akt_0_bis_4-f9e2af?labelColor=2a2a2a" alt="Im Aufbau: LPIC-2 Akt 0 bis 4">
+  <img src="https://img.shields.io/badge/im_Aufbau-LPIC--2_Akt_0_bis_5-f9e2af?labelColor=2a2a2a" alt="Im Aufbau: LPIC-2 Akt 0 bis 5">
   <img src="https://img.shields.io/badge/kostenlos-ohne_Anmeldung-cba6f7?labelColor=2a2a2a" alt="Kostenlos, ohne Anmeldung">
   <img src="https://img.shields.io/badge/Inhalte-CC_BY--SA_4.0-a0a0a0?labelColor=2a2a2a" alt="Inhalte: CC BY-SA 4.0">
   <img src="https://img.shields.io/badge/Code-MIT-a0a0a0?labelColor=2a2a2a" alt="Code: MIT">
@@ -27,7 +27,7 @@
 | Kampagne | Zertifikat | Prüfungen | Lernziele | Stand |
 | :---: | --- | --- | :---: | :---: |
 | 1 | LPIC-1 Linux Administrator | 101-500, 102-500 | v5.0 | komplett spielbar: Akt 0 bis 10, Generalproben 101 und 102 |
-| 2 | LPIC-2 Linux Engineer | 201-450, 202-450 | v4.5 | im Aufbau: Akt 0 bis 4 spielbar. Stoff, der im angekündigten Entwurf 5.0 entfällt oder umzieht, ist in den Missionen gekennzeichnet |
+| 2 | LPIC-2 Linux Engineer | 201-450, 202-450 | v4.5 | im Aufbau: Akt 0 bis 5 spielbar. Stoff, der im angekündigten Entwurf 5.0 entfällt oder umzieht, ist in den Missionen gekennzeichnet |
 | 3 | LPIC-3 Security | 303-300 | v3.0 | Lehrplan steht |
 
 Jede Prüfung hat 60 Fragen in 90 Minuten. Bestanden ist ab 500 auf einer Skala von 200 bis 800.
@@ -60,7 +60,8 @@ Jede Prüfung hat 60 Fragen in 90 Minuten. Bestanden ist ab 500 auf einer Skala 
 | 2 | 201 | Kernelversionen und Abbilder, Quellcode und Patches, Konfigurieren und Bauen, Installieren mit initramfs und GRUB, DKMS, Module zur Laufzeit, sysctl und /proc, udev, Bosskampf, Probeprüfung | ✅ |
 | 3 | 202 | SysV-init mit inittab, update-rc.d und chkconfig, systemd-Units mit Drop-ins und systemd-delta, BIOS und UEFI, ESP und efibootmgr, GRUB-Menü und GRUB-Shell, Rescue- und Emergency-Modus, Rettung aus dem Live-System mit chroot, SYSLINUX, PXE für BIOS und UEFI, hybride ISOs, Bosskampf, Probeprüfung | ✅ |
 | 4 | 203 | fstab, /proc/mounts und Mount-Units, Swap mit Prioritäten, Superblock retten mit e2fsck -b, dumpe2fs, tune2fs und debugfs, Btrfs mit Subvolumes, Snapshots und btrfs-convert, ZFS im Überblick, XFS mit xfsdump, SMART mit smartctl und smartd, AutoFS und systemd-Automount, ISO 9660 und UDF, LUKS mit cryptsetup, Bosskampf, Probeprüfung | ✅ |
-| 5–13 | 204–212 | RAID und LVM, Netzwerk, Wartung, DNS, Web, Samba und NFS, DHCP, PAM und LDAP, E-Mail, Sicherheit | 📝 |
+| 5 | 204 | RAID-Level, Software-RAID mit mdadm, /proc/mdstat und mdadm.conf, Plattentausch mit sfdisk und Wiederaufbau, hdparm, sdparm, nvme-cli, I/O-Scheduler, fstrim, iSCSI mit iscsiadm und CHAP, WWID, WWN und LUN, LVM mit PVs, VGs und LVs, Vergrößern und Verkleinern, Snapshots mit lvconvert --merge, vgchange, pvmove, Bosskampf, Probeprüfung | ✅ |
+| 6–13 | 205–212 | Netzwerk, Wartung, DNS, Web, Samba und NFS, DHCP, PAM und LDAP, E-Mail, Sicherheit | 📝 |
 
 ✅ spielbar · 📝 Lehrplan steht, Missionen folgen
 
@@ -111,7 +112,7 @@ Am meisten hilft gerade:
 - [ ] **Feedback von Einsteigern.** Wo bist du hängen geblieben?
 - [ ] **Prüfungserfahrung.** Wer die Prüfung abgelegt hat: Welche Themen kamen stärker dran als gedacht? (Bitte keine Prüfungsfragen weitergeben, das verbieten die Regeln des LPI.)
 - [x] LPIC-1 komplett (Akt 0 bis 10, Generalproben 101 und 102)
-- [x] LPIC-2 Akt 0 bis 4 (Labor, Topics 200 bis 203)
+- [x] LPIC-2 Akt 0 bis 5 (Labor, Topics 200 bis 204)
 - [ ] LPIC-2 Akt 5 bis 13 (Topics 204 bis 212)
 - [ ] LPIC-3 Security
 - [ ] **Labor-Aufgaben testen** auf anderen Distributionen und mit anderen Virtualisierern.
