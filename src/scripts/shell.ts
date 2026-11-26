@@ -1342,7 +1342,9 @@ function einfachAusfuehren(w: Welt, c: Einfach, stdin: string, rootStart: boolea
   if (!woerter.length) {
     for (const [k, v] of Object.entries(temp)) { if (k in w.env) w.env[k] = v; else w.vars[k] = v; }
   }
-  // Umleitungen öffnen (von links nach rechts). Die Shell des Benutzers öffnet sie, nicht sudo.
+  // Umleitungen öffnen (von links nach rechts). Die Shell, die diese Zeile ausführt, öffnet sie, nicht sudo:
+  // Bei „sudo befehl > datei“ ist das die Shell des Benutzers, bei „sudo sh -c '… > datei'“ und in Skripten unter sudo eine Root-Shell.
+  const shellRoot = rootStart || w.root;
   type Ziel = { art: 'tty' | 'pipe' | 'datei'; datei?: string; anh?: boolean };
   let fd1: Ziel = letzter ? { art: 'tty' } : { art: 'pipe' }; let fd2: Ziel = { art: 'tty' };
   const offen: Record<string, string[]> = {};
@@ -1350,20 +1352,20 @@ function einfachAusfuehren(w: Welt, c: Einfach, stdin: string, rootStart: boolea
     if (u.op === 'dup1') { fd2 = { ...fd1 }; continue; }
     if (u.op === 'dup2') { fd1 = { ...fd2 }; continue; }
     if (u.op === '<<<') { stdin = erweitern(w, u.ziel!, root, false).join(' ') + '\n'; stand(w).eingabeTty = false; continue; }
-    const ziele = erweitern(w, u.ziel!, w.root);
+    const ziele = erweitern(w, u.ziel!, shellRoot);
     if (ziele.length !== 1) return frueh(`bash: ${u.ziel}: Mehrdeutige Umlenkung.`);
     const z = ziele[0];
     if (u.fd === 0) {
       const p = pfad(w, z);
       if (!(p in w.fs)) return frueh(`bash: ${z}: Datei oder Verzeichnis nicht gefunden`);
       if (w.fs[p] === null) return frueh(`bash: ${z}: Ist ein Verzeichnis`);
-      if (!darf(w, p, 'r', w.root)) return frueh(`bash: ${z}: Keine Berechtigung`);
+      if (!darf(w, p, 'r', shellRoot)) return frueh(`bash: ${z}: Keine Berechtigung`);
       stdin = w.fs[p] ?? ''; stand(w).eingabeTty = false; continue;
     }
     const anh = u.op === '>>';
     const p = pfad(w, z);
     // Beim Öffnen mit > wird die Datei sofort geleert, noch bevor der Befehl läuft
-    const e = p === '/dev/null' ? null : schreiben(w, z, anh ? '' : '', anh, w.root);
+    const e = p === '/dev/null' ? null : schreiben(w, z, anh ? '' : '', anh, shellRoot);
     if (e) return frueh(`bash: ${z}: ${e}`);
     if (!anh && p !== '/dev/null' && !(p in offen)) w.fs[p] = '';
     offen[p] = offen[p] ?? [];

@@ -69,8 +69,7 @@ export const DEB: Paket[] = [
   D('dpkg-dev', '1.21.22', 'Debian package development tools', ['make', 'patch', 'xz-utils'], ['/usr/bin/dpkg-buildpackage'], [], 3300),
   D('build-essential', '12.9', 'Informational list of build-essential packages', ['gcc', 'make', 'dpkg-dev', 'libc6-dev'], [], [], 20),
   D('rsync', '3.2.7-1', 'fast, versatile, remote (and local) file-copying tool', ['libc6'], ['/usr/bin/rsync'], [], 780),
-  // Version von mt-st für Debian 12 nicht gegen packages.debian.org geprüft
-  D('mt-st', '1.4-2', 'Linux SCSI tape driver aware magnetic tape control', ['libc6'], ['/usr/bin/mt-st'], [], 120),
+  D('mt-st', '1.7-1', 'Linux SCSI tape driver aware magnetic tape control (aka mt)', ['libc6'], ['/usr/bin/mt-st'], [], 122),
   D('bc', '1.07.1-3+b1', 'GNU bc arbitrary precision calculator language', ['libc6'], ['/usr/bin/bc'], [], 220),
   D('bison', '2:3.8.2+dfsg-1+b1', 'YACC-compatible parser generator', ['libc6'], ['/usr/bin/bison'], [], 2100),
   D('flex', '2.6.4-8.2', 'fast lexical analyzer generator', ['libc6'], ['/usr/bin/flex'], [], 1200),
