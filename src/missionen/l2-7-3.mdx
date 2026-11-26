@@ -1,0 +1,163 @@
+---
+id: l2-7-3
+checks:
+  - id: k1
+  - id: zuordnung
+  - id: k2
+  - id: reihe
+  - id: luecke
+  - id: sichern
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "Sichern"
+    v: "/etc /home /root /srv /var/lib /var/spool /var/mail /usr/local /opt · nicht: /proc /sys /dev /run /tmp /mnt /media · Datenbanken als Dump oder per Snapshot"
+  - t: "Arten"
+    v: "Voll: alles · inkrementell: seit der letzten Sicherung jeder Art · differenziell: seit der letzten Vollsicherung"
+  - t: "tar"
+    v: "tar czf voll.tar.gz -g stand.snar /etc /home /srv (ohne snar: Stufe 0) · gleicher Aufruf später: inkrementell · tar czf … --exclude='*.tmp' · tar tzf · tar dzf a.tar.gz -C / (Vergleich) · tar xzf a.tar.gz -C / srv/lager/preise.csv"
+  - t: "Prüfen"
+    v: "sha256sum a.tar.gz > SHA256SUMS · sha256sum -c SHA256SUMS · gzip -t a.tar.gz · tar tzf > /dev/null · Probe-Wiederherstellung nach /tmp"
+  - t: "Netzwerk"
+    v: "Amanda (tar/dump, Band) · Bacula (Director, Storage, File Daemon, Katalog) · Bareos (Abspaltung von Bacula) · BackupPC (auf Platte, Pool mit Deduplizierung, Weboberfläche, ohne Client)"
+karten:
+  - f: "Was sichert eine inkrementelle Sicherung?"
+    a: ["Alles, was sich seit der letzten Sicherung beliebiger Art geändert hat."]
+    aufdecken: true
+  - f: "Was sichert eine differenzielle Sicherung?"
+    a: ["Alles, was sich seit der letzten Vollsicherung geändert hat."]
+    aufdecken: true
+  - f: "Welche Option von GNU tar führt eine Snapshot-Datei für inkrementelle Sicherungen?"
+    a: ["-g", "--listed-incremental"]
+  - f: "Welche Option von tar vergleicht ein Archiv mit dem Dateisystem?"
+    a: ["-d", "--diff", "--compare"]
+  - f: "Warum gehört /proc nicht in die Sicherung?"
+    a: ["weil der kernel es erst zur laufzeit erzeugt", "es ist ein virtuelles dateisystem", "es liegt nicht auf der platte"]
+  - f: "Welche Netzwerksicherung ist eine Abspaltung von Bacula?"
+    a: ["bareos"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Zuordnung from '../components/Zuordnung.astro';
+import Reihenfolge from '../components/Reihenfolge.astro';
+import Lueckentext from '../components/Lueckentext.astro';
+
+Bisher hat sich niemand um die Sicherung von werkstatt gekümmert. Auf dem Rechner liegen inzwischen der Lagerbestand unter /srv/lager, Konfigurationen und die Home-Verzeichnisse. Unter /mnt/backup hängt seit gestern eine USB-Platte. **Deine Mission: Leg ein Sicherungskonzept fest, mach eine Vollsicherung und eine inkrementelle Sicherung mit tar, prüf beide und hol eine gelöschte Datei zurück.** Lernziel 206.2.
+
+## Was, wie oft, wohin
+
+<Karte nr={1} titel="Welche Verzeichnisse in die Sicherung gehören">
+Eine Sicherung soll den Rechner nach einem Ausfall wiederherstellen. Das System selbst lässt sich neu installieren, die eigenen Daten und Einstellungen nicht.
+
+- **Immer sichern:** `/etc` (Konfiguration), `/home` und `/root`, `/srv` (Daten der Dienste), `/usr/local` und `/opt` (selbst Installiertes), aus `/var` vor allem `/var/lib` (Daten von Diensten), `/var/spool` (cron-Tabellen, Mail-Warteschlangen) und `/var/mail`. Dazu eine Liste der Pakete: `dpkg --get-selections` oder `rpm -qa`.
+- **Nie sichern:** `/proc` und `/sys` (erzeugt der Kernel zur Laufzeit), `/dev` und `/run`, `/tmp`, Einhängepunkte wie `/mnt` und `/media` (sonst sichert man die Sicherungsplatte mit), Swap.
+- **Mit Vorsicht:** Laufende Datenbanken. Eine Kopie der Dateien mitten im Schreiben ist oft unbrauchbar. Besser ein Dump (`pg_dump`, `mysqldump`) oder ein LVM-Snapshot wie in Akt 5.
+</Karte>
+
+<Quiz id="k1" titel="Kurzcheck: Auswahl" fragen={[
+  { frage: 'Welches Verzeichnis gehört in jede Sicherung eines Servers?', richtig: '/etc', falsch: ['/proc', '/run'], erklaerung: '/proc und /run entstehen bei jedem Start neu und liegen nicht auf der Platte.' },
+  { frage: 'Ein Kollege sichert / komplett mit tar. Was passiert mit der Sicherungsplatte unter /mnt/backup?', richtig: 'tar sichert sie mit, das Archiv wächst und enthält sich am Ende teilweise selbst.', falsch: ['tar überspringt /mnt automatisch.', 'tar bricht sofort mit einem Fehler ab.'], erklaerung: 'Abhilfe: --exclude=/mnt oder --one-file-system, damit tar keine anderen Dateisysteme betritt.' },
+]} />
+
+<Karte nr={2} titel="Sicherungsarten und Medien">
+Eine **Vollsicherung** enthält alles. Eine **inkrementelle** Sicherung enthält nur, was sich seit der **letzten Sicherung** (gleich welcher Art) geändert hat. Eine **differenzielle** enthält alles seit der **letzten Vollsicherung**. Zum Wiederherstellen braucht man bei inkrementell die Vollsicherung und **alle** Stufen danach, bei differenziell nur die Vollsicherung und die **letzte** Differenz. Bewährt hat sich die Faustregel 3-2-1: drei Kopien, zwei verschiedene Medien, eine davon außer Haus.
+
+| Medium | Vorteile | Nachteile |
+|---|---|---|
+| Band (LTO) | billig pro TB, lange haltbar, lagert offline | langsam beim Suchen, teures Laufwerk |
+| CD-R, DVD, Blu-ray | billig, einmal beschreibbar | wenig Platz, langsam, altert |
+| Festplatte, USB | schnell, wahlfreier Zugriff | eingehängt angreifbar (Ransomware), mechanisch empfindlich |
+| Netz, Cloud | automatisch außer Haus | hängt an Bandbreite, Vertrauen, Kosten |
+
+Für viele Rechner gibt es Lösungen über das Netz: **Amanda** steuert tar und dump zentral und schreibt gern auf Band. **Bacula** trennt Director, Storage Daemon, File Daemon und einen Katalog in einer Datenbank. **Bareos** ist eine Abspaltung von Bacula. **BackupPC** sichert auf Platte, legt gleiche Dateien nur einmal ab und braucht auf den Clients keine eigene Software.
+</Karte>
+
+<Zuordnung id="zuordnung" titel="Zuordnung: Sicherungslösungen und Begriffe" aufgabe="Ordne jeder Beschreibung den passenden Namen zu." paare={[
+  { links: 'Sichert auf Platte, Weboberfläche, gleiche Dateien nur einmal', rechts: 'BackupPC' },
+  { links: 'Director, Storage Daemon, File Daemon und Katalog', rechts: 'Bacula' },
+  { links: 'Abspaltung von Bacula', rechts: 'Bareos' },
+  { links: 'Steuert tar und dump zentral, klassisch mit Band', rechts: 'Amanda' },
+  { links: 'Alles seit der letzten Vollsicherung', rechts: 'differenziell' },
+  { links: 'Alles seit der letzten Sicherung jeder Art', rechts: 'inkrementell' },
+]} />
+
+## Sichern mit tar
+
+<Karte nr={3} titel="Voll, inkrementell, vergleichen, zurückholen">
+GNU tar führt mit `-g DATEI` (`--listed-incremental`) eine **Snapshot-Datei**. Gibt es sie noch nicht, wird eine Vollsicherung (Stufe 0) daraus. Jeder weitere Lauf mit derselben Datei sichert nur Geändertes und schreibt den neuen Stand hinein.
+
+```
+sudo tar czf /mnt/backup/voll.tar.gz -g /mnt/backup/stand.snar /etc /home /srv
+sudo tar czf /mnt/backup/inkr1.tar.gz -g /mnt/backup/stand.snar /etc /home /srv
+```
+
+Für **differenzielle** Sicherungen kopiert man vor jedem Lauf die Snapshot-Datei der Vollsicherung und gibt tar die Kopie.
+
+Sicherungen sind erst etwas wert, wenn sie lesbar sind:
+
+```
+sha256sum voll.tar.gz | sudo tee SHA256SUMS; sha256sum -c SHA256SUMS
+tar tzf voll.tar.gz > /dev/null        # lässt sich alles lesen?
+sudo tar dzf voll.tar.gz -C /          # was hat sich seitdem geändert?
+```
+
+`tar d` (`--diff`, `--compare`) meldet Dateien, deren Inhalt, Größe, Rechte oder Zeit abweicht. Neue Dateien erwähnt es nicht. Zum **teilweisen** Zurückholen nennt man die Namen wie im Archiv, ohne führendes `/`: `tar xzf voll.tar.gz -C / srv/lager/preise.csv`. Wer unsicher ist, packt erst nach `/tmp` aus und kopiert dann. Eine Kette inkrementeller Archive spielt man der Reihe nach mit `-g /dev/null` ein, dann löscht tar auch, was zwischendurch entfernt wurde.
+</Karte>
+
+<Quiz id="k2" titel="Kurzcheck: tar als Sicherung" fragen={[
+  { frage: 'Du rufst jeden Abend tar czf tag-N.tar.gz -g stand.snar /srv mit derselben Datei stand.snar auf. Welche Art von Sicherung entsteht ab dem zweiten Abend?', richtig: 'Inkrementell, jede Sicherung enthält die Änderungen seit dem Vortag', falsch: ['Differenziell, jede Sicherung enthält die Änderungen seit dem ersten Abend', 'Jeden Abend eine neue Vollsicherung'], erklaerung: 'tar schreibt den neuen Stand in die Snapshot-Datei zurück. Für differenzielle Sicherungen nimmt man jedes Mal eine Kopie der Datei von Stufe 0.' },
+  { frage: 'tar dzf voll.tar.gz -C / meldet nichts und endet mit 0. Was heißt das?', richtig: 'Alle Dateien aus dem Archiv liegen unverändert auf der Platte.', falsch: ['Das Archiv ist leer.', 'Seit der Sicherung sind keine neuen Dateien hinzugekommen.'], erklaerung: 'tar d prüft nur Dateien, die im Archiv stehen. Neue Dateien auf der Platte meldet es nicht.' },
+]} />
+
+<Reihenfolge id="reihe" titel="Reihenfolge: Wiederherstellen nach einem Plattenausfall" aufgabe="Stufe 0 am Sonntag, inkrementelle Sicherungen Montag bis Mittwoch. Am Donnerstag stirbt die Platte. In welcher Reihenfolge spielst du zurück?" schritte={[
+  'Neue Platte einbauen, partitionieren, Dateisystem anlegen und einhängen',
+  'Vollsicherung vom Sonntag einspielen',
+  'Inkrementelle Sicherung vom Montag einspielen',
+  'Inkrementelle Sicherung vom Dienstag einspielen',
+  'Inkrementelle Sicherung vom Mittwoch einspielen',
+]} />
+
+<Merke>Sichern, was sich nicht neu installieren lässt. tar -g macht aus derselben Snapshot-Datei erst eine Voll-, dann inkrementelle Sicherungen. Prüfen mit sha256sum, tar t und tar d.</Merke>
+
+<Lueckentext id="luecke" titel="Lückentext: Sichern ohne Zwischendateien" aufgabe="Ergänze die Befehle. Die Sicherung soll /var/cache auslassen, danach wird sie geprüft und eine einzelne Datei zurückgeholt."
+  code={`$ sudo tar czf /mnt/backup/var.tar.gz ___='/var/cache' /var
+$ tar ___ /mnt/backup/var.tar.gz > /dev/null && echo lesbar
+$ sudo tar dzf /mnt/backup/var.tar.gz -C ___
+$ sudo tar xzf /mnt/backup/var.tar.gz -C /tmp ___`}
+  luecken={[
+    { loesungen: ['--exclude'] },
+    { loesungen: ['tzf', '-tzf', 'tf', '-tf', 'ztf', '-ztf'] },
+    { loesungen: ['/'] },
+    { loesungen: ['var/spool/cron/crontabs/lena'], tipp: 'Name im Archiv, ohne führendes /: die crontab von lena' },
+  ]} />
+
+<Terminal id="sichern" titel="Terminal: Die erste Sicherung von werkstatt" welt={{ wartung: { sicherung: true } }} aufgaben={[
+  { text: 'Mach eine Vollsicherung von <code>/etc</code>, <code>/home</code> und <code>/srv</code> nach <code>/mnt/backup/voll.tar.gz</code>, gepackt mit gzip. Führ dabei die Snapshot-Datei <code>/mnt/backup/stand.snar</code>, damit spätere Läufe inkrementell werden.', zustand: 'archiv:/mnt/backup/voll.tar.gz~^etc/fstab$ && archiv:/mnt/backup/voll.tar.gz~^srv/lager/preise\\.csv$ && archiv:/mnt/backup/voll.tar.gz~^home/ && da:/mnt/backup/stand.snar && nicht:inkrementell:/mnt/backup/voll.tar.gz' },
+  { text: 'Max trägt neue Ware ein. Spiel ihn: <code>echo "10052,Winkel 40x40,90" >> /srv/lager/bestand.csv</code>', befehl: '>> ?/srv/lager/bestand\\.csv' },
+  { text: 'Sichere jetzt inkrementell nach <code>/mnt/backup/inkr1.tar.gz</code>.', zustand: 'inkrementell:/mnt/backup/inkr1.tar.gz && archiv:/mnt/backup/inkr1.tar.gz~^srv/lager/bestand\\.csv$', befehl: '^(sudo )?tar .*t[a-z]*f /mnt/backup/inkr1\\.tar\\.gz|^(sudo )?tar .*--list', frage: 'Welche Datei (ohne Verzeichnisse) steckt im inkrementellen Archiv?', antwort: ['srv/lager/bestand.csv', '/srv/lager/bestand.csv', 'bestand.csv'] },
+  { text: 'Vergleich die Vollsicherung mit dem, was jetzt auf der Platte liegt.', befehl: 'tar .*(-?[a-z]*d[a-z]*f|--diff|--compare).*voll\\.tar\\.gz', auchFehler: true, frage: 'Welche Datei meldet tar als verändert?', antwort: ['srv/lager/bestand.csv', '/srv/lager/bestand.csv', 'bestand.csv'] },
+  { text: 'Leg die Prüfsummen beider Archive in <code>/mnt/backup/SHA256SUMS</code> ab und prüf sie gleich.', zustand: 'datei:/mnt/backup/SHA256SUMS~voll\\.tar\\.gz && datei:/mnt/backup/SHA256SUMS~inkr1\\.tar\\.gz', befehl: 'sha256sum (-c|--check)' },
+  { text: 'Max löscht aus Versehen die Preisliste: <code>rm /srv/lager/preise.csv</code>', befehl: '^rm (-f )?/srv/lager/preise\\.csv' },
+  { text: 'Hol nur diese eine Datei aus der Vollsicherung zurück. Max’ neue Zeile in <code>bestand.csv</code> darf dabei nicht verloren gehen.', zustand: 'datei:/srv/lager/preise.csv~10023 && datei:/srv/lager/bestand.csv~10052' },
+]} />
+
+<Labor id="labor" titel="Labor: Inkrementell auf srv1"
+  aufgabe="Sichere auf srv1 einen kleinen Ordner voll und inkrementell und vergleich die Vollsicherung mit dem neuen Stand. Füge die Ausgabe ein."
+  befehl={"mkdir -p /tmp/s/daten && cd /tmp/s && echo eins > daten/a && echo zwei > daten/b\ntar czf voll.tgz -g stand.snar daten\nsleep 1; echo neu > daten/c; echo mehr >> daten/a\ntar czvf inkr.tgz -g stand.snar daten\ntar dzf voll.tgz; echo \"Rückgabe: $?\""}
+  muster={["daten/c", "(Größe ist unterschiedlich|Size differs)", "Rückgabe: 1"]}
+  erfolg="Die inkrementelle Sicherung enthält nur a und c, b hat sich nicht geändert. tar d meldet die geänderte Datei a, die neue Datei c erwähnt es nicht, und der Rückgabewert 1 zeigt Unterschiede an." />
+
+<Hinweis titel="Prüfungstipp">
+Lernziel 206.2 verlangt, welche Verzeichnisse in eine Sicherung gehören, die Vor- und Nachteile der Medien, die Namen Amanda, Bacula, Bareos und BackupPC sowie teilweise Sicherungen, ihre Prüfung und teilweise oder vollständige Wiederherstellung. Werkzeuge: /bin/sh, dd, tar, /dev/st* und /dev/nst*, mt und rsync. Der Entwurf 5.0 (dort 205.2) behält rsync, dd, tar und Band und ergänzt rclone, BorgBackup und restic. Der Entwurf ist nicht final.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Vollsicherung am Sonntag, differenzielle Sicherungen Montag bis Freitag. Am Samstag fällt die Platte aus. Was brauchst du?', richtig: 'Die Vollsicherung vom Sonntag und die differenzielle vom Freitag', falsch: ['Die Vollsicherung und alle fünf differenziellen Sicherungen', 'Nur die differenzielle vom Freitag'], erklaerung: 'Jede differenzielle Sicherung enthält alles seit der Vollsicherung. Bei inkrementellen bräuchtest du alle fünf.' },
+  { frage: 'Was bewirkt tar czf neu.tar.gz -g stand.snar /srv, wenn stand.snar noch nicht existiert?', richtig: 'Eine Vollsicherung, danach steht der Stand in stand.snar', falsch: ['Einen Fehler, weil die Snapshot-Datei fehlt', 'Ein leeres Archiv, weil sich nichts geändert hat'], erklaerung: 'Ohne Snapshot-Datei beginnt tar mit Stufe 0.' },
+  { frage: 'Welcher Befehl holt nur /etc/fstab aus der Sicherung etc.tar.gz zurück, die mit tar czf etc.tar.gz /etc erstellt wurde?', richtig: 'tar xzf etc.tar.gz -C / etc/fstab', falsch: ['tar xzf etc.tar.gz /etc/fstab', 'tar xzf etc.tar.gz --only=/etc/fstab'], erklaerung: 'tar hat das führende / beim Sichern entfernt, im Archiv heißt die Datei etc/fstab. --only gibt es nicht.' },
+]} />

@@ -1047,7 +1047,9 @@ function patchLesen(t: string): Teil[] {
       while (i < z.length && z[i].startsWith('@@')) {
         const m = z[i].match(/^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/); if (!m) break;
         const h: Hunk = { altStart: Number(m[1]), alt: [], neu: [] }; i++;
-        while (i < z.length && /^[ +-]/.test(z[i]) && !z[i].startsWith('--- ')) { const c = z[i][0]; const s = z[i].slice(1); if (c !== '+') h.alt.push(s); if (c !== '-') h.neu.push(s); i++; }
+        // Wie patch: die Zeilenzahlen im Kopf des Hunks begrenzen ihn (danach kann etwa „-- “ einer Mail folgen)
+        const nAlt = Number(m[2] ?? 1); const nNeu = Number(m[4] ?? 1);
+        while (i < z.length && /^[ +-]/.test(z[i]) && !z[i].startsWith('--- ') && (h.alt.length < nAlt || h.neu.length < nNeu)) { const c = z[i][0]; const s = z[i].slice(1); if (c !== '+') h.alt.push(s); if (c !== '-') h.neu.push(s); i++; }
         // Leere Kontextzeile am Dateiende
         while (i < z.length && z[i] === '' && h.alt.length < Number(m[2] ?? 1)) { h.alt.push(''); h.neu.push(''); i++; }
         teil.hunks.push(h);
@@ -1142,7 +1144,7 @@ export function kernBefehle(alt: Record<string, B>): Record<string, B> {
     if (typeof mf !== 'string') return fehler(auftrag.ziele.length ? `make: *** Keine Regel, um „${auftrag.ziele[0]}“ zu erstellen.  Schluss.` : 'make: *** Es wurden keine Ziele angegeben und keine Makedatei gefunden.  Schluss.', 2);
     if (/^obj-m/m.test(mf)) return extMake(w, auftrag);
     if (istBaum(w, d)) { basis(w); return kernelMake(w, auftrag); }
-    return fehler('(Dieses Makefile kann der Simulator noch nicht ausführen. Programme aus dem Quellcode baust du in Akt 7.)', 2);
+    return fehler('(Dieses Makefile kann der Simulator nicht ausführen. Er kennt den Kernelbaum, externe Module und das Programm lagerist aus Akt 7.)', 2);
   };
 
   b.patch = (w, a, i, r) => patch(w, a, i, r);

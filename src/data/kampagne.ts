@@ -305,9 +305,19 @@ const LPIC2: Akt[] = [
       m('l2-6-probe', 'Probe 6', 'Probeprüfung Topic 205', 'Topic 205 gemischt mit den Netzwerkgrundlagen aus LPIC-1.', 'Topic 205 und Wiederholung aus LPIC-1', 'Prüfungssimulation', { probe: true, ziele: ['205.1', '205.2', '205.3', '109.1', '109.2', '109.3', '109.4'], bereit: true }),
     ],
   },
-  geplanterAkt('l2', 7, 'Systemwartung', '206', 'Aus dem Quellcode bauen, sichern und Nutzer informieren.', 'lpic2', [
-    m('l2-7-probe', 'Probe 201', 'Generalprobe Prüfung 201', '60 Fragen, 90 Minuten, gewichtet wie die echte Prüfung 201-450.', 'Topics 200 bis 206', 'Prüfungssimulation', { probe: true }),
-  ]),
+  {
+    nr: 7, titel: 'Systemwartung', teil: 'l2-7', teilName: 'Topic 206',
+    ziel: 'Programme aus dem Quellcode bauen, patchen und sauber installieren, Daten mit tar, Band und rsync sichern und zurückholen und Benutzer rechtzeitig über Wartungen informieren. 6 von 60 Fragen in Prüfung 201, danach die Generalprobe für Prüfung 201.',
+    missionen: [
+      m('l2-7-1', '7.1', 'Vom Tarball zum Programm', 'Einen Tarball prüfen und auspacken, lagerist bauen und nach /usr/local installieren.', 'gzip, bzip2, xz, tar, sha256sum, /usr/src, /usr/local/src, ./configure, --prefix, config.log, build-essential, -dev-Pakete, make, make check, make install, uname', 'Terminal-Simulator, Reihenfolge, Lückentext, Quiz', { ziele: ['206.1'], bereit: true }),
+      m('l2-7-2', '7.2', 'Patchen und aufräumen', 'Einen Patch einspielen, mit den Tests prüfen und so installieren, dass es sich wieder entfernen lässt.', 'diff -u, patch -p1, --dry-run, -R, .rej, install -m/-o/-g/-d/-D, DESTDIR, make uninstall, make clean, make distclean', 'Terminal-Simulator, Lückentext, Zuordnung, Quiz', { ziele: ['206.1'], bereit: true }),
+      m('l2-7-3', '7.3', 'Das Sicherungskonzept', 'Festlegen, was gesichert wird, mit tar voll und inkrementell sichern, prüfen und eine Datei zurückholen.', 'Verzeichnisse, Voll, inkrementell, differenziell, Medien, Amanda, Bacula, Bareos, BackupPC, tar -g, --exclude, tar -d, sha256sum -c, teilweise Wiederherstellung', 'Terminal-Simulator, Reihenfolge, Lückentext, Quiz', { ziele: ['206.2'], bereit: true }),
+      m('l2-7-4', '7.4', 'Band, dd und rsync', 'Mehrere Archive auf ein Band schreiben, gezielt wieder lesen und den Lagerbestand auf srv1 spiegeln.', '/dev/st0, /dev/nst0, Dateimarken, mt status/rewind/fsf/bsf/eod/offline, TAPE, dd mit bs und count, MBR, rsync -a, Schrägstrich, -n, --delete, über SSH, --link-dest', 'Terminal-Simulator, Lückentext, Zuordnung, Quiz', { ziele: ['206.2'], bereit: true }),
+      m('l2-7-5', '7.5', 'Benutzer informieren', 'Vor und nach der Anmeldung auf die Wartung hinweisen, alle Angemeldeten warnen und den Neustart ankündigen.', '/etc/issue und Escapes, agetty --show-issue, /etc/issue.net, Banner in sshd, /etc/motd, update-motd.d, who, wall, mesg, shutdown mit Zeit und Nachricht, shutdown -c, /run/nologin, systemctl --message', 'Terminal-Simulator, Zuordnung, Lückentext, Quiz', { ziele: ['206.3'], bereit: true }),
+      m('l2-7-boss', 'Boss 7', 'Das Wartungsfenster', 'Die kaputte Bandsicherung reparieren, auf srv1 spiegeln, das gepatchte lagerist installieren und den Neustart ankündigen.', 'Alles aus Topic 206', 'Terminal-Simulator', { boss: true, ziele: ['206.1', '206.2', '206.3'], bereit: true }),
+      m('l2-7-probe', 'Probe 201', 'Generalprobe Prüfung 201', '60 Fragen, 90 Minuten, gewichtet wie die echte Prüfung 201-450.', 'Topics 200 bis 206', 'Prüfungssimulation', { probe: true, ziele: ['200.1', '200.2', '201.1', '201.2', '201.3', '202.1', '202.2', '202.3', '203.1', '203.2', '203.3', '204.1', '204.2', '204.3', '205.1', '205.2', '205.3', '206.1', '206.2', '206.3'], bereit: true }),
+    ],
+  },
   geplanterAkt('l2', 8, 'DNS', '207', 'Einen eigenen Nameserver betreiben und absichern.', 'lpic2'),
   geplanterAkt('l2', 9, 'Webserver', '208', 'Apache, HTTPS, Squid und Nginx.', 'lpic2'),
   geplanterAkt('l2', 10, 'Dateifreigaben', '209', 'Samba und NFS.', 'lpic2'),

@@ -82,7 +82,7 @@ export const CPIO = '\u0007CPIO:';
 export function groesse(c: string | null | undefined): number {
   if (c == null) return 4096;
   if (c.startsWith('-> ')) return c.length - 3;
-  if (c.startsWith(BIN)) return Number(c.slice(BIN.length)) || 0;
+  if (c.startsWith(BIN)) return parseInt(c.slice(BIN.length), 10) || 0;
   if (c.startsWith(KOMP)) { const [art, ...r] = c.slice(KOMP.length).split(':'); const roh = groesse(r.join(':')); return Math.max(20, Math.round(roh * ({ gz: 0.42, bz2: 0.38, xz: 0.33 } as Record<string, number>)[art])); }
   if (c.startsWith(TAR)) { try { return 10240 * Math.max(1, Math.ceil((JSON.parse(c.slice(TAR.length)) as { c: string | null }[]).reduce((a, e) => a + 512 + groesse(e.c ?? ''), 0) / 10240)); } catch { return 10240; } }
   if (c.startsWith(CPIO)) return c.length > 400 ? 48 * 1024 * 1024 + c.length * 97 : 512 * 2;

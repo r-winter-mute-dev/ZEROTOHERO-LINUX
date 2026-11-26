@@ -1,0 +1,156 @@
+---
+id: l2-7-2
+checks:
+  - id: k1
+  - id: luecke
+  - id: k2
+  - id: zuordnung
+  - id: patchen
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "patch"
+    v: "patch -p1 --dry-run < datei.patch · patch -p1 < datei.patch · patch -p1 -i datei.patch · patch -R -p1 < … (zurücknehmen) · zcat x.patch.gz | patch -p1 · Reste: DATEI.rej, DATEI.orig"
+  - t: "diff"
+    v: "diff -u alt neu > a.patch · diff -ruN alt/ neu/ > a.patch · --- alt, +++ neu, @@ -Start,Zeilen +Start,Zeilen @@"
+  - t: "install"
+    v: "install -m 0755 -o root -g root prog /usr/local/bin/ · install -d -m 2770 -g lager /var/lib/lagerist · install -D -m 0644 a.conf /etc/x/y/a.conf · Standard ohne -m: 0755"
+  - t: "Aufräumen"
+    v: "make uninstall (im selben konfigurierten Baum, vor dem nächsten configure) · make clean · make distclean · make DESTDIR=/tmp/stage install"
+karten:
+  - f: "Welche Option von patch schneidet bei Pfaden wie a/src/x.c den ersten Teil ab?"
+    a: ["-p1"]
+  - f: "Wie prüfst du, ob ein Patch passt, ohne etwas zu ändern?"
+    a: ["patch --dry-run", "patch -p1 --dry-run < datei.patch", "mit --dry-run"]
+  - f: "Wie nimmst du einen eingespielten Patch zurück?"
+    a: ["patch -R", "patch -R -p1 < datei.patch", "mit -R"]
+  - f: "Welche Rechte bekommt eine Datei, die du mit install ohne -m kopierst?"
+    a: ["0755", "755", "rwxr-xr-x"]
+  - f: "Welche Variable lenkt make install in einen Zwischenordner um?"
+    a: ["destdir"]
+  - f: "Warum musst du make uninstall vor einem neuen configure mit anderem --prefix aufrufen?"
+    a: ["Weil make uninstall die Pfade aus dem aktuellen Makefile nimmt. Nach dem neuen configure sucht es am neuen Ort."]
+    aufdecken: true
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Zuordnung from '../components/Zuordnung.astro';
+import Lueckentext from '../components/Lueckentext.astro';
+
+Die Buchhaltung ist unzufrieden: Der CSV-Export von lagerist 2.4.1 zerlegt Bezeichnungen wie „Unterlegscheibe 6,4 mm“ in zu viele Spalten. Auf der Mailingliste der Entwickler gibt es schon einen Patch, eine neue Version noch nicht. **Deine Mission: Spiel den Patch ein, bau lagerist neu, beweis mit den Tests, dass der Fehler weg ist, und installiere sauber, so dass du es später wieder entfernen kannst.** Lernziel 206.1.
+
+## Patches
+
+<Karte nr={1} titel="diff und patch">
+Ein **Patch** beschreibt Änderungen an Textdateien. `diff -u alt neu` erzeugt ihn im **unified format**:
+
+```
+--- a/src/export.c
++++ b/src/export.c
+@@ -1,11 +1,23 @@
+ #include <stdio.h>
++#include <string.h>
+ #include "lagerist.h"
+```
+
+`---` und `+++` nennen die alte und die neue Datei. Jeder Abschnitt (**Hunk**) beginnt mit `@@ -Start,Zeilen +Start,Zeilen @@`. Zeilen mit `-` fallen weg, mit `+` kommen dazu, mit Leerzeichen bleiben sie als Kontext.
+
+**patch** spielt die Änderung ein. Die Pfade im Kopf beginnen oft mit `a/` und `b/` (so schreibt git sie). Darum ruft man im Quellbaum `patch -p1` auf: `-p1` schneidet den ersten Pfadteil ab, aus `a/src/export.c` wird `src/export.c`.
+
+```
+patch -p1 --dry-run < ../lagerist-2.4.1-csv.patch   # nur prüfen
+patch -p1 < ../lagerist-2.4.1-csv.patch             # einspielen
+patch -R -p1 < ../lagerist-2.4.1-csv.patch          # zurücknehmen
+zcat fix.patch.gz | patch -p1                       # gepackter Patch
+```
+
+Passt ein Hunk nicht, landet er in `DATEI.rej`. Genau so hast du in Akt 2 den Kernel gepatcht.
+</Karte>
+
+<Quiz id="k1" titel="Kurzcheck: patch" fragen={[
+  { frage: 'Im Patch steht „--- linux-6.18.64/Makefile“. Du stehst im Ordner linux-6.18.64. Welche Option brauchst du?', richtig: '-p1', falsch: ['-p0', '-R'], erklaerung: 'Ein Pfadteil (linux-6.18.64/) muss weg. -p0 ließe den Pfad unverändert, -R würde den Patch rückwärts anwenden.' },
+  { frage: 'patch meldet „Reversed (or previously applied) patch detected!“. Was heißt das meistens?', richtig: 'Der Patch ist schon eingespielt.', falsch: ['Der Patch wurde mit diff in falscher Reihenfolge erzeugt und ist kaputt.', 'patch braucht Root-Rechte.'], erklaerung: 'Möglich ist beides, aber meist hat schon jemand den Patch angewendet. patch -R würde ihn zurücknehmen.' },
+]} />
+
+<Lueckentext id="luecke" titel="Lückentext: Einen Patch erzeugen und anwenden" aufgabe="Ergänze die Befehle. Erst wird aus zwei Bäumen ein Patch, dann wird er in einer dritten Kopie geprüft und eingespielt."
+  code={`$ diff -___ alt/ neu/ > fix.patch      # unified, rekursiv, neue Dateien
+$ cd kopie
+$ patch -___ --dry-run < ../fix.patch
+$ patch -p1 < ../fix.patch
+$ patch ___ -p1 < ../fix.patch           # wieder zurücknehmen`}
+  luecken={[
+    { loesungen: ['ruN', 'Nur', 'urN', 'Naur', 'Nru', 'rNu', 'uNr', 'Nurp', 'ruNp'], tipp: 'Drei Buchstaben: unified, rekursiv, neue Dateien' },
+    { loesungen: ['p1'] },
+    { loesungen: ['-R', '--reverse'] },
+  ]} />
+
+## Installieren und wieder loswerden
+
+<Karte nr={2} titel="install, DESTDIR und make uninstall">
+Hinter `make install` steckt meist das Programm **install** aus coreutils. Es kopiert und setzt dabei Rechte, Besitzer und Gruppe in einem Schritt:
+
+```
+sudo install -m 0755 -o root -g root src/lagerist /usr/local/bin/
+sudo install -d -m 2770 -g lena /var/lib/lagerist          # Verzeichnis
+sudo install -D -m 0644 lagerist.conf /etc/lagerist/lagerist.conf   # Ordner mit anlegen
+```
+
+Ohne `-m` bekommt die Kopie **0755**, nicht die Rechte des Originals wie bei `cp`.
+
+Selbst gebaute Programme kennt kein Paketmanager. Drei Wege halten Ordnung:
+
+- **`make uninstall`** entfernt, was `make install` kopiert hat. Es liest die Pfade aus dem **aktuellen** Makefile. Den konfigurierten Quellbaum also aufheben und vor einem neuen `configure` mit anderem `--prefix` erst deinstallieren.
+- **`make DESTDIR=/tmp/stage install`** installiert in einen Zwischenordner. So siehst du ohne Root-Rechte, welche Dateien entstehen, und kannst daraus ein Paket bauen.
+- Ein eigenes Präfix wie `--prefix=/opt/lagerist` hält alles in einem Ordner zusammen.
+
+`make clean` löscht die Objektdateien, `make distclean` zusätzlich alles, was configure erzeugt hat.
+</Karte>
+
+<Merke>patch -p1 im Quellbaum, erst mit --dry-run. install kopiert und setzt Rechte in einem Schritt. Vor einem neuen configure erst make uninstall.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: install und DESTDIR" fragen={[
+  { frage: 'Du kopierst ein Skript mit install ohne -m nach /usr/local/bin. Welche Rechte hat die Kopie?', richtig: '0755, rwxr-xr-x', falsch: ['Die Rechte des Originals, wie bei cp', '0644, weil die umask greift'], erklaerung: 'install setzt ohne -m immer rwxr-xr-x. Für Konfigurationsdateien gehört darum -m 0644 dazu.' },
+  { frage: 'Was bewirkt make DESTDIR=/tmp/stage install bei einem Präfix von /usr/local?', richtig: 'Die Dateien landen unter /tmp/stage/usr/local/…', falsch: ['Die Dateien landen direkt unter /tmp/stage/bin', 'make ändert das Präfix dauerhaft auf /tmp/stage'], erklaerung: 'DESTDIR wird vor jeden Zielpfad gesetzt, das Präfix im Makefile bleibt gleich. Das Programm erwartet seine Dateien später trotzdem unter /usr/local.' },
+]} />
+
+<Zuordnung id="zuordnung" titel="Zuordnung: Wofür ist welcher Aufruf?" aufgabe="Ordne jeder Absicht den passenden Befehl zu." paare={[
+  { links: 'Sehen, welche Dateien make install anlegt, ohne Root', rechts: 'make DESTDIR=/tmp/stage install' },
+  { links: 'Objektdateien löschen, Konfiguration behalten', rechts: 'make clean' },
+  { links: 'Zurück zum Stand direkt nach dem Auspacken', rechts: 'make distclean' },
+  { links: 'Selbst gebautes Programm entfernen', rechts: 'sudo make uninstall' },
+  { links: 'Verzeichnis mit Rechten 2770 anlegen', rechts: 'install -d -m 2770 DIR' },
+]} extra={['make prefix=/tmp/stage uninstall']} />
+
+<Terminal id="patchen" titel="Terminal: Der Patch für den CSV-Export" welt={{ wartung: { quelle: 'entpackt', patch: true, werkzeuge: true } }} aufgaben={[
+  { text: 'Konfiguriere lagerist in <code>~/quellen/lagerist-2.4.1</code> so, dass es unter <code>/opt/lagerist</code> landet.', zustand: 'lager:konfiguriert=/opt/lagerist' },
+  { text: 'Bau es und lass die Tests laufen.', befehl: '^make( -j\\S*)? check', auchFehler: true, frage: 'Welcher Test schlägt fehl?', antwort: ['tests/csv.sh', 'csv.sh', 'csv', 'tests/csv'] },
+  { text: 'Lies im Testprotokoll nach, was genau nicht stimmt.', befehl: '(cat|less|more|grep .*|tail .*) test-suite\\.log', frage: 'Welche Artikelnummer steht in der ersten bemängelten Zeile?', antwort: ['10017'] },
+  { text: 'Im Ordner darüber liegt der Patch der Entwickler. Prüf, ob er sauber passt, ohne etwas zu ändern.', befehl: 'patch .*--dry-run', frage: 'Welche Datei würde patch ändern?', antwort: ['src/export.c', 'export.c'] },
+  { text: 'Spiel den Patch ein.', zustand: 'datei:/home/lena/quellen/lagerist-2.4.1/src/export.c~strpbrk' },
+  { text: 'Bau neu, bis alle Tests bestehen.', zustand: 'lager:tests=ok', befehl: '^make', frage: 'Welche Objektdatei hat make dabei neu übersetzt?', antwort: ['src/export.o', 'export.o'] },
+  { text: 'Installiere zur Probe nach <code>/tmp/stage</code>, ganz ohne sudo, und sieh nach, was dort entstanden ist.', zustand: 'lager:staging=/tmp/stage', befehl: '(find|ls -R|tree) /tmp/stage', frage: 'Wie viele Dateien (ohne Verzeichnisse) legt make install an?', antwort: ['3', 'drei'] },
+  { text: 'Installiere jetzt richtig nach <code>/opt/lagerist</code>.', zustand: 'lager:installiert=/opt/lagerist && lager:csv=ok' },
+  { text: 'Leg mit <code>install</code> in einem Schritt das Datenverzeichnis <code>/var/lib/lagerist</code> an: Gruppe lena, Rechte 2770.', zustand: 'ordner:/var/lib/lagerist && modus:/var/lib/lagerist=2770 && gruppe:/var/lib/lagerist=lena', befehl: '^install .*-d' },
+  { text: 'Die Kollegen wollen lagerist ohne Pfad aufrufen. Entferne es sauber aus <code>/opt/lagerist</code> und installiere es nach <code>/usr/local</code>.', zustand: 'lager:weg=/opt/lagerist && lager:installiert=/usr/local && lager:csv=ok' },
+]} />
+
+<Labor id="labor" titel="Labor: diff, patch und install auf srv1"
+  aufgabe="Erzeuge auf srv1 einen kleinen Patch, spiel ihn in einer Kopie ein und installiere das Ergebnis mit install. Füge die Ausgabe ein."
+  befehl={"mkdir -p /tmp/p/a /tmp/p/b && cd /tmp/p\nprintf 'eins\\nzwei\\ndrei\\n' > a/text; printf 'eins\\nZWEI\\ndrei\\n' > b/text\ndiff -u a/text b/text > text.patch; cat text.patch\ncp -r a c && cd c && patch -p1 --dry-run < ../text.patch && patch -p1 < ../text.patch\ninstall -D -m 640 text /tmp/p/ziel/tief/text && stat -c '%a %n' /tmp/p/ziel/tief/text\nuname -m; ls /usr/src"}
+  muster={["@@ -1,3 \\+1,3 @@", "patching file text", "640 /tmp/p/ziel/tief/text"]}
+  erfolg="diff hat die geänderte Zeile als - und + mit je einer Kontextzeile davor und danach geschrieben. patch -p1 hat a/ abgeschnitten, install -D hat die fehlenden Ordner angelegt und gleich die Rechte 640 gesetzt. In /usr/src liegen auf Debian meist nur die Kernel-Header, falls installiert." />
+
+<Hinweis titel="Prüfungstipp">
+patch und install stehen ausdrücklich in Lernziel 206.1. Rechne mit Fragen zu -p0 und -p1, zu --dry-run und -R und zu den Optionen -m, -o, -g und -d von install. make uninstall und DESTDIR stehen nicht in der Liste, helfen aber, die Frage nach sauberem Aufräumen zu beantworten.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Du hast mit --prefix=/opt/x gebaut und installiert, dann neu mit --prefix=/usr/local konfiguriert und make uninstall aufgerufen. Was passiert?', richtig: 'make uninstall sucht unter /usr/local, die Dateien unter /opt/x bleiben liegen.', falsch: ['make uninstall entfernt beide Installationen.', 'make uninstall verweigert den Dienst, weil sich das Präfix geändert hat.'], erklaerung: 'Die Pfade kommen aus dem aktuellen Makefile. Richtig wäre: erst deinstallieren, dann neu konfigurieren.' },
+  { frage: 'Welcher Befehl kopiert prog nach /usr/local/bin und setzt gleich Rechte 0750 und die Gruppe staff?', richtig: 'install -m 0750 -g staff prog /usr/local/bin/', falsch: ['cp -m 0750 -g staff prog /usr/local/bin/', 'install -d -m 0750 -g staff prog /usr/local/bin/'], erklaerung: 'cp kennt -m und -g nicht. Mit -d würde install prog und /usr/local/bin als Verzeichnisse anlegen.' },
+  { frage: 'Was erzeugt diff -u?', richtig: 'Einen Patch im unified format mit Kopfzeilen --- und +++ und Hunks ab @@', falsch: ['Eine Liste der Dateien, die sich unterscheiden', 'Einen binären Patch, den nur patch -b lesen kann'], erklaerung: 'Nur die Namen der unterschiedlichen Dateien zeigt diff -rq.' },
+]} />

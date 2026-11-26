@@ -1,0 +1,185 @@
+---
+id: l2-7-1
+checks:
+  - id: k1
+  - id: zuordnung
+  - id: k2
+  - id: reihe
+  - id: luecke
+  - id: bauen
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "Prüfen und auspacken"
+    v: "sha256sum -c DATEI.sha256 · gpg --verify DATEI.sig · tar tzf a.tar.gz · tar xzf a.tar.gz -C ~/quellen · tar xjf (bz2) · tar xJf (xz) · tar xf erkennt die Kompression selbst · xz -dc a.tar.xz | tar xf -"
+  - t: "Der Dreischritt"
+    v: "./configure [--prefix=/opt/x] [--sysconfdir=/etc] [--without-FEATURE] · make [-j$(nproc)] · make check · sudo make install"
+  - t: "Wenn configure scheitert"
+    v: "config.log lesen · kein C-Compiler: apt install build-essential (Red Hat: dnf group install \"Development Tools\") · fehlende Bibliothek: Paket mit -dev (Red Hat: -devel)"
+  - t: "Orte"
+    v: "/usr/src Quellen von Kernel und Paketen · /usr/local/src eigene Quellen · /usr/local/bin, /usr/local/etc, /usr/local/share/man Standardziel von make install · uname -m Architektur, uname -r Kernel"
+karten:
+  - f: "Welches Präfix nutzt make install bei Programmen mit GNU Autoconf, wenn configure keins bekommt?"
+    a: ["/usr/local"]
+  - f: "Wie packst du a.tar.xz mit tar aus?"
+    a: ["tar xJf a.tar.xz", "tar xf a.tar.xz", "tar -xJf a.tar.xz"]
+  - f: "In welcher Datei suchst du die Ursache, wenn configure mit einem Fehler abbricht?"
+    a: ["config.log"]
+  - f: "Welches Debian-Paket bringt gcc, make und die Header der C-Bibliothek mit?"
+    a: ["build-essential"]
+  - f: "configure findet eine Bibliothek nicht, obwohl sie installiert ist. Was fehlt meistens?"
+    a: ["das entwicklerpaket", "das -dev-paket", "die header", "das paket mit -dev"]
+  - f: "Warum baust du als normaler Benutzer und installierst erst am Ende mit sudo?"
+    a: ["Ein Fehler oder ein bösartiges Makefile kann beim Bauen nicht das ganze System beschädigen."]
+    aufdecken: true
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Zuordnung from '../components/Zuordnung.astro';
+import Reihenfolge from '../components/Reihenfolge.astro';
+import Lueckentext from '../components/Lueckentext.astro';
+
+Im Lager der Firma läuft ein kleines Programm namens **lagerist**, das den Bestand verwaltet. Debian liefert es nicht als Paket, die Entwickler stellen nur den Quellcode als Tarball bereit. Die neue Version 2.4.1 kann endlich als CSV exportieren, und genau das braucht die Buchhaltung. **Deine Mission: Prüf den heruntergeladenen Tarball, pack ihn aus, bau lagerist und installier es nach /usr/local.** Lernziel 206.1.
+
+<Hinweis titel="Das Labor in Akt 7">
+Die Labore dieses Akts laufen auf **srv1** und brauchen Internet über **gw**: 2 VMs mit 1 GB und 2 GB, zusammen 3 GB. Für Bandlaufwerke gibt es kein Labor, die übst du nur im Simulator.
+</Hinweis>
+
+## Vom Download zum Quellbaum
+
+<Karte nr={1} titel="Tarballs prüfen und auspacken">
+Quellcode kommt fast immer als **Tarball**: ein tar-Archiv, das zusätzlich gepackt ist. Die Endung verrät den Packer:
+
+| Endung | Packer | tar-Option |
+|---|---|---|
+| `.tar.gz`, `.tgz` | gzip | `z` |
+| `.tar.bz2`, `.tbz2` | bzip2 | `j` |
+| `.tar.xz`, `.txz` | xz | `J` |
+
+```
+sha256sum -c lagerist-2.4.1.tar.gz.sha256    # Prüfsumme stimmt?
+tar tzf lagerist-2.4.1.tar.gz | head          # erst ansehen
+tar xzf lagerist-2.4.1.tar.gz -C ~/quellen    # dann auspacken
+xz -dc paket.tar.xz | tar xf -                # dasselbe in zwei Schritten
+```
+
+Beim Auspacken erkennt GNU tar die Kompression auch ohne `z`, `j` oder `J`. Vor dem Auspacken lohnt `tar t`: Ein sauberer Tarball legt alles in **einen** Ordner wie `lagerist-2.4.1/`. Erst prüfen, dann vertrauen: `sha256sum -c` gegen die veröffentlichte Prüfsumme, besser noch `gpg --verify` gegen eine Signatur (Lernziel 110.3).
+
+Wohin damit? Die Verzeichnisstruktur (FHS) sieht **/usr/src** für Quellcode vor, dort liegen etwa Kernelquellen und die Header für Module (Akt 2). Für eigene Quellen gibt es **/usr/local/src**. Gebaut wird trotzdem als normaler Benutzer, darum hier `~/quellen`.
+</Karte>
+
+<Quiz id="k1" titel="Kurzcheck: Archive" fragen={[
+  { frage: 'Welcher Befehl packt projekt-1.0.tar.bz2 aus?', richtig: 'tar xjf projekt-1.0.tar.bz2', falsch: ['tar xJf projekt-1.0.tar.bz2', 'bunzip2 -x projekt-1.0.tar.bz2'], erklaerung: 'j steht für bzip2, J für xz. bunzip2 entpackt nur die Kompression und kennt kein -x.' },
+  { frage: 'Wofür ist /usr/src nach dem FHS vorgesehen?', richtig: 'Für Quellcode, etwa den des Kernels', falsch: ['Für selbst gebaute Programme', 'Für Skripte der Systemverwaltung'], erklaerung: 'Selbst gebaute Programme landen unter /usr/local, Skripte der Verwaltung meist in /usr/local/sbin.' },
+]} />
+
+<Zuordnung id="zuordnung" titel="Zuordnung: Packer und Optionen" aufgabe="Ordne jeder Aufgabe den passenden Befehl zu." paare={[
+  { links: 'Inhalt eines .tar.gz zeigen', rechts: 'tar tzf a.tar.gz' },
+  { links: '.tar.xz auspacken', rechts: 'tar xJf a.tar.xz' },
+  { links: 'In einen anderen Ordner auspacken', rechts: 'tar xzf a.tar.gz -C /usr/local/src' },
+  { links: 'Nur die Kompression entfernen', rechts: 'gunzip a.tar.gz' },
+  { links: 'Gepacktes Archiv an tar weiterreichen', rechts: 'xz -dc a.tar.xz | tar xf -' },
+]} extra={['tar czf a.tar.gz -C /usr/local/src']} />
+
+## configure, make, make install
+
+<Karte nr={2} titel="Der Dreischritt der GNU-Werkzeuge">
+Die meisten C-Programme nutzen **GNU Autoconf** und **Automake**. Das Ergebnis ist ein Skript `configure` im Quellbaum. Erst einmal `README` und `INSTALL` lesen, dann:
+
+1. **`./configure`** prüft das System: Gibt es einen Compiler? Welche Bibliotheken? Danach schreibt es das **Makefile** und `config.h`. Optionen passen den Bau an: `--prefix=/opt/lagerist` legt das Ziel fest (Standard **/usr/local**), `--sysconfdir=/etc` den Ort der Konfiguration, `--without-tui` oder `--disable-nls` schalten Teile ab. Alle Optionen zeigt `./configure --help`. Was schiefging, steht in **config.log**.
+2. **`make`** liest das Makefile und übersetzt. Es baut nur neu, was sich seit dem letzten Lauf geändert hat. `make -j$(nproc)` nutzt alle Kerne.
+3. **`make check`** (manchmal `make test`) führt die mitgelieferten Tests aus.
+4. **`sudo make install`** kopiert Programm, Handbuchseite und Konfiguration unter das Präfix.
+
+Neuere Projekte nutzen statt Autoconf auch CMake oder Meson. Die Idee bleibt gleich: konfigurieren, bauen, installieren.
+</Karte>
+
+<Quiz id="k2" titel="Kurzcheck: configure und make" fragen={[
+  { frage: 'Wofür ist ./configure --help gut?', richtig: 'Es zeigt alle Optionen, mit denen sich der Bau anpassen lässt, etwa --prefix und --without-…', falsch: ['Es prüft, ob alle Abhängigkeiten installiert sind, ohne ein Makefile zu schreiben', 'Es zeigt die Hilfe von make, weil configure selbst keine Optionen kennt'], erklaerung: 'Geprüft wird erst beim normalen Lauf von configure. Die Optionen stammen aus configure.ac des Projekts und aus Autoconf.' },
+  { frage: 'Warum ruft man ./configure mit ./ auf?', richtig: 'Weil das Skript im aktuellen Ordner liegt und der aktuelle Ordner nicht im PATH steht', falsch: ['Weil configure sonst als root läuft', 'Weil ./ das Skript im Hintergrund startet'], erklaerung: 'Ohne Pfad sucht die Shell nur in den Ordnern aus PATH.' },
+]} />
+
+<Reihenfolge id="reihe" titel="Reihenfolge: Ein Programm aus dem Quellcode" aufgabe="Bring die Schritte in die richtige Reihenfolge." schritte={[
+  'Prüfsumme oder Signatur des Tarballs prüfen',
+  'Tarball als normaler Benutzer auspacken',
+  'README und INSTALL lesen',
+  './configure mit den gewünschten Optionen',
+  'make',
+  'make check',
+  'sudo make install',
+]} />
+
+<Merke>Erst prüfen und als Benutzer bauen, dann mit sudo installieren: ./configure schreibt das Makefile, make übersetzt, make install kopiert nach /usr/local.</Merke>
+
+<Lueckentext id="luecke" titel="Lückentext: lagerist nach /opt" aufgabe="Ergänze die Befehle, sodass lagerist mit allen Kernen gebaut und unter /opt/lagerist installiert wird."
+  code={`$ tar ___ lagerist-2.4.1.tar.gz
+$ cd lagerist-2.4.1
+$ ./configure ___=/opt/lagerist
+$ make -j$(___)
+$ sudo make ___`}
+  luecken={[
+    { loesungen: ['xzf', 'xf', '-xzf', '-xf', 'zxf', '-zxf', 'xvzf', 'xzvf', '-xzvf', '-xvzf'], tipp: 'Auspacken, gzip, Datei' },
+    { loesungen: ['--prefix'] },
+    { loesungen: ['nproc'] },
+    { loesungen: ['install'] },
+  ]} />
+
+## Wenn configure scheitert
+
+<Karte nr={3} titel="Fehlende Werkzeuge und Bibliotheken">
+Ein frisches Debian hat weder `gcc` noch `make`. configure bricht dann früh ab:
+
+```
+checking for gcc... no
+configure: error: no acceptable C compiler found in $PATH
+```
+
+Das Metapaket **build-essential** bringt gcc, make und die Header der C-Bibliothek mit. Auf Red Hat heißt das Gegenstück `dnf group install "Development Tools"`.
+
+Die zweite typische Meldung betrifft Bibliotheken. Die Bibliothek zum **Ausführen** (etwa `libncursesw6`) ist oft schon installiert, zum **Bauen** braucht es aber die Header und Verweise aus dem Entwicklerpaket: auf Debian mit der Endung **-dev** (`libncurses-dev`), auf Red Hat **-devel** (`ncurses-devel`). Alternativ schaltet man den Teil ab, wenn das Programm es anbietet, etwa mit `--without-tui`.
+
+Steht in der Meldung nicht genug, hilft **config.log**: Dort stehen der genaue Testaufruf und die Antwort des Compilers.
+</Karte>
+
+<Terminal id="bauen" titel="Terminal: lagerist bauen" welt={{ wartung: { quelle: 'download' } }} aufgaben={[
+  { text: 'Prüf den Tarball in <code>~/downloads</code> gegen die mitgelieferte Prüfsumme.', befehl: 'sha256sum (-c|--check)', frage: 'Was meldet sha256sum für den Tarball?', antwort: ['OK'] },
+  { text: 'Sieh dir den Inhalt des Archivs an, ohne es auszupacken.', befehl: '^tar (-?[a-z]*t[a-z]*f?|--list)', frage: 'In welchem Ordner liegt alles?', antwort: ['lagerist-2.4.1', 'lagerist-2.4.1/'] },
+  { text: 'Pack das Archiv nach <code>~/quellen</code> aus.', zustand: 'lager:entpackt' },
+  { text: 'Lies in der Datei INSTALL nach, wohin <code>make install</code> ohne weitere Angabe installiert.', befehl: '(cat|less|more|grep .*|head .*) (.*/)?INSTALL', frage: 'Welches Präfix ist der Standard?', antwort: ['/usr/local'] },
+  { text: 'Wechsle in den Quellordner und starte configure.', befehl: '(^|/)configure', auchFehler: true, frage: 'Was fehlt dem System?', antwort: ['ein C-Compiler', 'C-Compiler', 'gcc', 'ein compiler', 'compiler', 'c compiler'] },
+  { text: 'Installiere die Werkzeuge zum Bauen und lass configure noch einmal laufen.', zustand: 'paket:build-essential=an', befehl: '(^|/)configure', auchFehler: true, frage: 'Welche Bibliothek fehlt jetzt?', antwort: ['libncursesw', 'ncursesw', 'ncurses', 'libncurses'] },
+  { text: 'Sorg dafür, dass configure durchläuft, und zwar <strong>mit</strong> Terminal-Oberfläche und dem Standardpräfix.', zustand: 'lager:konfiguriert=/usr/local && lager:tui=an' },
+  { text: 'Bau lagerist. Wenn du magst, mit allen Kernen.', zustand: 'lager:gebaut' },
+  { text: 'Starte das frisch gebaute Programm aus dem Quellbaum, bevor du es installierst, und lass dir die Version zeigen.', befehl: '(^|\\s|/)src/lagerist (--version|-V)', frage: 'Welche Konfigurationsdatei wird lagerist lesen?', antwort: ['/usr/local/etc/lagerist.conf'] },
+  { text: 'Installiere lagerist.', zustand: 'lager:installiert=/usr/local' },
+  { text: 'Prüf, welche Datei die Shell jetzt startet, wenn du <code>lagerist</code> tippst.', befehl: '^(which|type|command -v|type -a|whereis) lagerist$', frage: 'Welcher Pfad?', antwort: ['/usr/local/bin/lagerist'] },
+]} />
+
+<Karte nr={4} titel="Was make install anrichtet">
+Nach `make install` liegen die Dateien verteilt unter dem Präfix: `/usr/local/bin/lagerist`, `/usr/local/etc/lagerist.conf`, `/usr/local/share/man/man1/lagerist.1`. Kein Paketmanager weiß davon. `dpkg -S` findet die Dateien nicht, und ein Update von Debian fasst sie nicht an.
+
+Weil `/usr/local/bin` im PATH **vor** `/usr/bin` steht, gewinnt die selbst gebaute Version, falls Debian später ein gleichnamiges Paket installiert. Bash merkt sich gefundene Pfade. Nach einer neuen Installation hilft `hash -r`, wenn die Shell noch das alte Programm startet. `type -a lagerist` zeigt alle Fundstellen.
+
+Vor dem Herunterladen fertiger Programme hilft **uname**: `uname -m` nennt die Architektur (`x86_64`, `aarch64`), `uname -r` den Kernel, für den Module gebaut werden müssen.
+</Karte>
+
+<Labor id="labor" titel="Labor: GNU Hello auf srv1"
+  aufgabe="GNU Hello ist ein Beispielprogramm der Free Software Foundation, gedacht genau für diese Übung. Bau es auf srv1 und installiere es in dein Home-Verzeichnis, ganz ohne sudo. Füge die Ausgabe ein."
+  befehl={"sudo apt install -y build-essential wget\ncd /tmp && wget -q https://ftp.gnu.org/gnu/hello/hello-2.12.1.tar.gz\ntar xzf hello-2.12.1.tar.gz && cd hello-2.12.1\n./configure --prefix=$HOME/hello > /dev/null && make -s > /dev/null && make -s install > /dev/null\n$HOME/hello/bin/hello --version | head -1\nls $HOME/hello"}
+  muster={["hello \\(GNU Hello\\) 2\\.\\d+", "bin", "share"]}
+  erfolg="Mit --prefix=$HOME/hello hat make install alles in dein Home-Verzeichnis geschrieben, darum ging es ohne Root-Rechte. Unter share liegen Handbuchseite, Info-Datei und Übersetzungen." />
+
+<Hinweis titel="Prüfungstipp">
+Lernziel 206.1 nennt /usr/src, gunzip, gzip, bzip2, xz, tar, configure, make, uname, install und patch. Gefragt wird vor allem nach der Reihenfolge der Schritte, nach Optionen für configure wie --prefix und nach den passenden tar-Optionen für jede Endung. Der Entwurf 5.0 der Lernziele behält das Thema (dort als 205.1) und nennt zusätzlich /usr/local/src und zstd. Der Entwurf ist nicht final.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: './configure endet mit „configure: error: libssl not found“. Auf dem System läuft aber OpenSSL. Was fehlt am wahrscheinlichsten?', richtig: 'Das Entwicklerpaket mit den Headern, auf Debian libssl-dev', falsch: ['Ein Neustart, damit ld.so die Bibliothek findet', 'Root-Rechte für configure'], erklaerung: 'Zum Ausführen genügt die Bibliothek, zum Bauen braucht es Header und Verweise aus dem -dev-Paket. configure braucht keine Root-Rechte.' },
+  { frage: 'Du startest make ein zweites Mal, ohne etwas zu ändern. Was passiert?', richtig: 'make meldet, dass nichts zu tun ist', falsch: ['make übersetzt alles noch einmal', 'make bricht ab, weil das Programm schon existiert'], erklaerung: 'make vergleicht die Zeitstempel von Quellen und Zielen und baut nur nach, was älter ist als seine Quellen.' },
+  { frage: 'Welcher Aufruf installiert ein Autoconf-Projekt nach /opt/werkzeug?', richtig: './configure --prefix=/opt/werkzeug && make && sudo make install', falsch: ['./configure && make && sudo make install /opt/werkzeug', 'make --prefix=/opt/werkzeug install'], erklaerung: 'Das Ziel legt configure fest und schreibt es ins Makefile. make kennt keine Option --prefix.' },
+]} />

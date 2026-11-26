@@ -12,8 +12,8 @@ Kurs „Linux to Hero“: interaktive Vorbereitung auf LPIC-1, LPIC-2 und LPIC-3
 ## Stand
 
 - LPIC-1: alle Akte fertig.
-- LPIC-2: Akt 0 bis 6 fertig (Topics 200 bis 205). **Als Nächstes Akt 7, Topic 206** (206.1 aus dem Quellcode bauen, 206.2 Datensicherung, 206.3 Benutzer informieren). Akt 7 enthält schon die Mission `l2-7-probe`, die Generalprobe für Prüfung 201 (Topics 200 bis 206). Sie bleibt beim Ausschreiben des Akts erhalten und wird mit fertig gemacht.
-- Danach Akt 8 bis 13 (Topics 207 bis 212, Prüfung 202). Akt 13 enthält die Generalprobe 202 (`l2-13-probe`).
+- LPIC-2: Akt 0 bis 7 fertig (Topics 200 bis 206), dazu die Generalprobe 201 (`l2-7-probe`). Akt 7 nutzt das Modul `shell-wartung.ts` (Welt-Option `wartung`) mit dem erfundenen Autoconf-Projekt lagerist.
+- **Als Nächstes Akt 8, Topic 207 (DNS)**, danach Akt 9 bis 13 (Topics 208 bis 212, Prüfung 202). Akt 13 enthält die Generalprobe 202 (`l2-13-probe`).
 - LPIC-3: nur geplant. Labore dort nur in echten VMs (siehe CONTRIBUTING, Abschnitt Labore). Vor dem ersten Akt prüfen, welche Version der Lernziele gilt: Die LPI-Übersichtsseite nannte im November 2026 andere Themen als das Wiki (303-300 v3.0).
 - Zuordnung LPIC-2: Prüfung 201 = Topics 200 bis 206, Prüfung 202 = Topics 207 bis 212. In Texten nicht verwechseln.
 
@@ -48,6 +48,10 @@ In `src/scripts/shell.ts`, genau wie bei `shell-speicher.ts` und `shell-netzwerk
 - Indexfilter wie `a.filter((x, i) => i !== idx + 1)` mit `idx = -1` schneiden das erste Argument ab. Immer `(idx < 0 || …)` prüfen.
 - Dialoge (Passwortabfragen) laufen über `w.dialog`, Rückfragen wie `[y/N]` über `w.wartet`.
 - Fragen in `fragen.ts`: Die richtige Antwort steht immer an Index 0, die Seite mischt. `tests/fragen.mjs` meldet richtige Antworten, die auffällig länger sind als die falschen. Solche Hinweise beheben, indem die falschen Antworten länger werden. IDs nie ändern.
+- tar läuft in jeder Welt durch den Wrapper aus `shell-wartung.ts` (-d, -g, --exclude, Zeiten beim Auspacken, `Nicht im Archiv gefunden`, Bandgeräte). Optionen, die der Wrapper nicht kennt, gehen unverändert an das einfache tar aus `shell-text.ts`.
+- patch begrenzt einen Hunk über die Zeilenzahlen im Kopf `@@ -a,b +c,d @@`. Leere Kontextzeilen in Patches, die als Template-Literal im Code stehen, brauchen ihr führendes Leerzeichen.
+- `sudo sh -c '… > datei'` schreibt im Simulator ohne Root-Rechte. In Lösungen `… | sudo tee datei` nehmen.
+- Ein frisches Debian im Simulator hat weder gcc noch make noch patch (`which` findet sie trotzdem, weil die Befehle registriert sind). Wer bauen lässt, installiert build-essential oder setzt `wartung: { werkzeuge: true }`.
 - Der Abgleich mit echten Systemen vergleicht Rückgabecodes. Fälle für `ip` laufen auf dem Kernel des Runners. Was von der Kernelversion abhängt, gehört nicht hinein.
 - Ohne Zugriff auf Docker Hub lassen sich die Vergleichsfälle lokal in einem eigenen Netz-Namensraum gegen das installierte System laufen lassen: `sudo unshare -n python3 tests/vergleich/echt.py lokal /tmp/echt.json`, dann `node tests/vergleich/simulator.mjs debian /tmp/sim.json` und `node tests/vergleich/vergleiche.mjs /tmp/echt.json /tmp/sim.json`.
 

@@ -1,0 +1,23 @@
+---
+id: l2-7-probe
+abzeichen: "Bereit für Prüfung 201"
+checks:
+  - id: probe
+---
+import Probe from '../components/Probe.astro';
+import Karte from '../components/Karte.astro';
+import Hinweis from '../components/Hinweis.astro';
+
+Das ist die Generalprobe für die erste Prüfung von LPIC-2. Sie hat das Format der echten Prüfung 201-450: **60 Fragen in 90 Minuten**, gemischt aus Topic 200 bis 206 und gewichtet wie die offiziellen Lernziele 4.5. **Deine Mission: Bestehe die Generalprobe mit mindestens 80 %.** Für das Zertifikat LPIC-2 brauchst du danach noch die Prüfung 202 und ein gültiges LPIC-1.
+
+<Karte nr={1} titel="Wie aussagekräftig ist das?">
+Die echte Prüfung bewertet auf einer Skala von 200 bis 800, bestanden ist ab 500. Wie das LPI Fragen in Punkte umrechnet, ist nicht öffentlich. 80 % hier ist ein selbst gesetzter, eher strenger Richtwert, keine Vorhersage deines Ergebnisses.
+
+Die Gewichte verteilen sich ungleich: Netzwerk (Topic 205, 11 Punkte) und Dateisysteme (Topic 203, 9 Punkte) bringen zusammen ein Drittel der Fragen, Systemwartung (Topic 206) nur etwa sechs. Die Fragen sind selbst geschrieben. Echte Prüfungsfragen sind vertraulich.
+</Karte>
+
+<Hinweis titel="So nutzt du die Generalprobe">
+Unter echten Bedingungen: ohne Spickzettel, ohne Pause, Zeit im Blick. Die Auswertung zeigt danach deine schwachen Lernziele. Geh in diese Missionen zurück, wiederhole die Spickzettel und mach die Generalprobe frühestens am nächsten Tag noch einmal. Sie zieht dann andere Fragen. Falsch beantwortete Fragen landen automatisch in deiner Wiederholung.
+</Hinweis>
+
+<Probe id="probe" titel="Generalprobe Prüfung 201" ziele={['200.1', '200.2', '201.1', '201.2', '201.3', '202.1', '202.2', '202.3', '203.1', '203.2', '203.3', '204.1', '204.2', '204.3', '205.1', '205.2', '205.3', '206.1', '206.2', '206.3']} anzahl={60} />

@@ -1,0 +1,31 @@
+---
+id: l2-7-boss
+checks:
+  - id: wartung
+spick:
+  - t: "Band"
+    v: "mt -f /dev/nst0 load|status|rewind|fsf N|offline · tar czf /dev/nst0 DIR · tar tzf /dev/nst0 · tar dzf /dev/nst0 -C / · /dev/st0 spult zurück"
+  - t: "Spiegel"
+    v: "rsync -avn --delete QUELLE/ backup@srv1:/ZIEL/ · danach ohne -n"
+  - t: "Bauen"
+    v: "patch -p1 --dry-run < X.patch · ./configure --prefix=… · make · make check · sudo make install"
+  - t: "Ankündigen"
+    v: "who · /etc/motd · wall \"…\" · shutdown -r +MIN \"Grund\" · shutdown -c"
+---
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+
+Samstag, 7:45 Uhr, das Wartungsfenster beginnt um 8. Die Liste des Chefs ist kurz, aber es gibt einen Haken: Die Bandsicherung von heute Nacht sieht verdächtig klein aus, und die Kassette ist ausgeworfen. Erst wenn die Sicherung stimmt, darf etwas geändert werden. **Dein Bosskampf: Bring die Bandsicherung in Ordnung, spiegle den Lagerbestand auf srv1, installiere das reparierte lagerist und kündige den Neustart an.** Alles aus Topic 206.
+
+<Hinweis titel="Vorgehen">
+Die Aufgaben nennen nur das Ziel. Das Sicherungsskript liegt unter /usr/local/sbin/band-sicherung, die Kassette ist zurück im Laufwerk. Der Quellbaum von lagerist und der Patch liegen in ~/quellen, die Werkzeuge zum Bauen sind installiert. lagerist soll diesmal unter /opt/lagerist landen.
+</Hinweis>
+
+<Terminal id="wartung" titel="Bosskampf: Das Wartungsfenster" welt={{ wartung: { quelle: 'entpackt', patch: true, werkzeuge: true, sicherung: true, band: 'nacht', fern: true } }} aufgaben={[
+  { text: 'Finde heraus, was die Bandsicherung von heute Nacht wirklich enthält.', befehl: '^tar .*t[a-z]*f (/dev/nst0|/dev/st0|\\$TAPE)', frage: 'Welches Verzeichnis steht als einziges auf dem Band?', antwort: ['srv', '/srv', 'srv/'] },
+  { text: 'Repariere das Sicherungsskript, so dass es alle drei Verzeichnisse als eigene Archive vom Bandanfang an schreibt, und lass es laufen.', zustand: 'band:0~^etc/ && band:1~^home/ && band:2~^srv/ && band:dateien=3 && nicht:datei:/usr/local/sbin/band-sicherung~/dev/st0' },
+  { text: 'Vergleich das Archiv von <code>/home</code> auf dem Band mit der Platte.', befehl: '^tar .*(-?[a-z]*d[a-z]*f|--diff|--compare)', auchFehler: true, zustand: 'band:gelesen=1' },
+  { text: 'Spiegle <code>/srv/lager</code> auf srv1 nach <code>/sicherung/lager</code>, ohne Altlasten dort.', zustand: 'srv1:/sicherung/lager/preise.csv && nicht:srv1:/sicherung/lager/alt-inventur-2024.csv && srv1:/sicherung/lager/bestand.csv~1200' },
+  { text: 'Installiere lagerist mit dem Patch für den CSV-Export unter <code>/opt/lagerist</code>, und zwar erst, wenn alle Tests bestehen.', zustand: 'lager:tests=ok && lager:installiert=/opt/lagerist && lager:csv=ok' },
+  { text: 'Kündige die Wartung in <code>/etc/motd</code> an und plane den Neustart in 10 Minuten mit Begründung.', zustand: 'datei:/etc/motd~(W|w)artung && shutdown=reboot', befehl: '^shutdown (-r|--reboot) \\+10 \\S' },
+]} />

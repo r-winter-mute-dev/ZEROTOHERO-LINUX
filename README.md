@@ -27,7 +27,7 @@
 | Kampagne | Zertifikat | Prüfungen | Lernziele | Stand |
 | :---: | --- | --- | :---: | :---: |
 | 1 | LPIC-1 Linux Administrator | 101-500, 102-500 | v5.0 | komplett spielbar: Akt 0 bis 10, Generalproben 101 und 102 |
-| 2 | LPIC-2 Linux Engineer | 201-450, 202-450 | v4.5 | im Aufbau: Akt 0 bis 6 spielbar. Stoff, der im angekündigten Entwurf 5.0 entfällt oder umzieht, ist in den Missionen gekennzeichnet |
+| 2 | LPIC-2 Linux Engineer | 201-450, 202-450 | v4.5 | im Aufbau: Akt 0 bis 7 spielbar, Generalprobe 201. Stoff, der im angekündigten Entwurf 5.0 entfällt oder umzieht, ist in den Missionen gekennzeichnet |
 | 3 | LPIC-3 Security | 303-300 | v3.0 | Lehrplan steht |
 
 Jede Prüfung hat 60 Fragen in 90 Minuten. Bestanden ist ab 500 auf einer Skala von 200 bis 800.
@@ -62,7 +62,8 @@ Jede Prüfung hat 60 Fragen in 90 Minuten. Bestanden ist ab 500 auf einer Skala 
 | 4 | 203 | fstab, /proc/mounts und Mount-Units, Swap mit Prioritäten, Superblock retten mit e2fsck -b, dumpe2fs, tune2fs und debugfs, Btrfs mit Subvolumes, Snapshots und btrfs-convert, ZFS im Überblick, XFS mit xfsdump, SMART mit smartctl und smartd, AutoFS und systemd-Automount, ISO 9660 und UDF, LUKS mit cryptsetup, Bosskampf, Probeprüfung | ✅ |
 | 5 | 204 | RAID-Level, Software-RAID mit mdadm, /proc/mdstat und mdadm.conf, Plattentausch mit sfdisk und Wiederaufbau, hdparm, sdparm, nvme-cli, I/O-Scheduler, fstrim, iSCSI mit iscsiadm und CHAP, WWID, WWN und LUN, LVM mit PVs, VGs und LVs, Vergrößern und Verkleinern, Snapshots mit lvconvert --merge, vgchange, pvmove, Bosskampf, Probeprüfung | ✅ |
 | 6 | 205 | ip und net-tools, Adressen mit Labels, VLAN, veth, MTU, Routen, ARP und ip neigh, WLAN mit rfkill, iw, iwconfig, iwlist und wpa_supplicant, zwei Netze und ip_forward, ss, lsof, tcpdump mit Filtern, nc, nmap, Fehlersuche auf Debian und Red Hat mit interfaces, ifcfg und NetworkManager, hosts.allow, mtr, Bosskampf, Probeprüfung | ✅ |
-| 7–13 | 206–212 | Wartung, DNS, Web, Samba und NFS, DHCP, PAM und LDAP, E-Mail, Sicherheit | 📝 |
+| 7 | 206 | Tarballs prüfen und auspacken, configure, make, make check und make install, -dev-Pakete, patch und diff, install, DESTDIR und make uninstall, Sicherungskonzept und Medien, Amanda, Bacula, Bareos und BackupPC, tar voll und inkrementell mit -g, tar -d, Bänder mit /dev/st0, /dev/nst0 und mt, dd, rsync über SSH, /etc/issue, issue.net, motd, wall, shutdown und /run/nologin, Bosskampf, Generalprobe 201 | ✅ |
+| 8–13 | 207–212 | DNS, Web, Samba und NFS, DHCP, PAM und LDAP, E-Mail, Sicherheit | 📝 |
 
 ✅ spielbar · 📝 Lehrplan steht, Missionen folgen
 

@@ -3381,5 +3381,147 @@
    "4444",
    "0"
   ]
+ },
+ "l2-7-1/bauen": {
+  "befehle": [
+   "cd ~/downloads",
+   "sha256sum -c lagerist-2.4.1.tar.gz.sha256",
+   "tar tzf lagerist-2.4.1.tar.gz",
+   "tar xzf lagerist-2.4.1.tar.gz -C ~/quellen",
+   "cd ~/quellen/lagerist-2.4.1",
+   "cat INSTALL",
+   "./configure",
+   "sudo apt install -y build-essential",
+   "./configure",
+   "sudo apt install -y libncurses-dev",
+   "./configure",
+   "make -j$(nproc)",
+   "./src/lagerist --version",
+   "sudo make install",
+   "which lagerist"
+  ],
+  "antworten": [
+   "OK",
+   "lagerist-2.4.1",
+   "/usr/local",
+   "gcc",
+   "ncursesw",
+   "/usr/local/etc/lagerist.conf",
+   "/usr/local/bin/lagerist"
+  ]
+ },
+ "l2-7-2/patchen": {
+  "befehle": [
+   "cd ~/quellen/lagerist-2.4.1",
+   "./configure --prefix=/opt/lagerist",
+   "make check",
+   "cat test-suite.log",
+   "patch -p1 --dry-run < ../lagerist-2.4.1-csv.patch",
+   "patch -p1 < ../lagerist-2.4.1-csv.patch",
+   "make check",
+   "make DESTDIR=/tmp/stage install",
+   "find /tmp/stage",
+   "sudo make install",
+   "sudo install -d -m 2770 -g lena /var/lib/lagerist",
+   "sudo make uninstall",
+   "./configure",
+   "make",
+   "sudo make install"
+  ],
+  "antworten": [
+   "tests/csv.sh",
+   "10017",
+   "src/export.c",
+   "src/export.o",
+   "3"
+  ]
+ },
+ "l2-7-3/sichern": {
+  "befehle": [
+   "sudo tar czf /mnt/backup/voll.tar.gz -g /mnt/backup/stand.snar /etc /home /srv",
+   "echo \"10052,Winkel 40x40,90\" >> /srv/lager/bestand.csv",
+   "sudo tar czf /mnt/backup/inkr1.tar.gz -g /mnt/backup/stand.snar /etc /home /srv",
+   "tar tzf /mnt/backup/inkr1.tar.gz",
+   "sudo tar dzf /mnt/backup/voll.tar.gz -C /",
+   "cd /mnt/backup",
+   "sha256sum voll.tar.gz inkr1.tar.gz | sudo tee SHA256SUMS",
+   "sha256sum -c SHA256SUMS",
+   "rm /srv/lager/preise.csv",
+   "sudo tar xzf /mnt/backup/voll.tar.gz -C / srv/lager/preise.csv"
+  ],
+  "antworten": [
+   "srv/lager/bestand.csv",
+   "srv/lager/bestand.csv"
+  ]
+ },
+ "l2-7-4/band": {
+  "befehle": [
+   "sudo mt -f /dev/nst0 status",
+   "sudo tar czf /dev/nst0 /etc",
+   "sudo tar czf /dev/nst0 /srv",
+   "sudo mt -f /dev/nst0 rewind",
+   "sudo mt -f /dev/nst0 fsf 1",
+   "sudo tar tzf /dev/nst0",
+   "sudo mt -f /dev/nst0 offline",
+   "rsync backup@srv1:/sicherung/lager/",
+   "rsync -avn --delete /srv/lager/ backup@srv1:/sicherung/lager/",
+   "rsync -av --delete /srv/lager/ backup@srv1:/sicherung/lager/",
+   "rsync -av --delete /srv/lager/ backup@srv1:/sicherung/lager/"
+  ],
+  "antworten": [
+   "0",
+   "lieferanten.txt",
+   "alt-inventur-2024.csv",
+   "bestand.csv",
+   "0"
+  ]
+ },
+ "l2-7-5/wartung": {
+  "befehle": [
+   "who",
+   "agetty --show-issue",
+   "echo 'Rechner \\n (\\l), Kernel \\r. Nur für Befugte.' | sudo tee /etc/issue",
+   "agetty --show-issue",
+   "echo 'Zugang nur für Befugte. Verbindungen werden protokolliert.' | sudo tee /etc/issue.net",
+   "echo 'Banner /etc/issue.net' | sudo tee /etc/ssh/sshd_config.d/banner.conf",
+   "sudo systemctl reload ssh",
+   "echo 'Samstag 8 bis 12 Uhr Wartung, werkstatt startet neu.' | sudo tee -a /etc/motd",
+   "wall \"werkstatt startet in 30 Minuten neu, bitte alles speichern.\"",
+   "sudo shutdown -r +30 \"Kernel-Update, bitte alles speichern\"",
+   "sudo shutdown -c",
+   "sudo shutdown -r +3 \"Kernel-Update\"",
+   "ls -l /run/nologin"
+  ],
+  "antworten": [
+   "max",
+   "tty1",
+   "6.1.0-27-amd64",
+   "/run/nologin"
+  ]
+ },
+ "l2-7-boss/wartung": {
+  "befehle": [
+   "sudo mt -f /dev/nst0 load",
+   "sudo tar tzf /dev/nst0",
+   "cat /usr/local/sbin/band-sicherung",
+   "sudo sed -i \"s|/dev/st0|/dev/nst0|g\" /usr/local/sbin/band-sicherung",
+   "sudo sed -i \"s|^for d|mt -f /dev/nst0 rewind\\nfor d|\" /usr/local/sbin/band-sicherung",
+   "sudo mt -f /dev/nst0 load",
+   "sudo /usr/local/sbin/band-sicherung",
+   "sudo mt -f /dev/nst0 load",
+   "sudo mt -f /dev/nst0 fsf 1",
+   "sudo tar dzf /dev/nst0 -C /",
+   "rsync -av --delete /srv/lager/ backup@srv1:/sicherung/lager/",
+   "cd ~/quellen/lagerist-2.4.1",
+   "patch -p1 < ../lagerist-2.4.1-csv.patch",
+   "./configure --prefix=/opt/lagerist",
+   "make check",
+   "sudo make install",
+   "echo \"Samstag 8 bis 12 Uhr Wartung\" | sudo tee -a /etc/motd",
+   "sudo shutdown -r +10 \"Wartung: neuer Kernel\""
+  ],
+  "antworten": [
+   "srv"
+  ]
  }
 }

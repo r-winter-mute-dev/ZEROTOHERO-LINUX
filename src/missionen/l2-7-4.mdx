@@ -1,0 +1,152 @@
+---
+id: l2-7-4
+checks:
+  - id: k1
+  - id: luecke
+  - id: k2
+  - id: zuordnung
+  - id: band
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "Band"
+    v: "/dev/st0 spult nach dem Schließen zurück · /dev/nst0 bleibt stehen · jedes tar auf nst0 wird eine eigene Datei · export TAPE=/dev/nst0 (mt und tar ohne -f)"
+  - t: "mt"
+    v: "mt -f /dev/nst0 status · rewind · fsf N (vor) · bsf N (zurück, landet vor der Marke) · asf N · eod (ans Ende) · weof · erase · offline/eject · load"
+  - t: "dd"
+    v: "dd if=/dev/sda of=sda.img bs=4M status=progress · MBR: bs=512 count=1 · nur Bootcode zurück: bs=446 count=1 · conv=noerror,sync bei Lesefehlern · nur ausgehängt oder schreibgeschützt"
+  - t: "rsync"
+    v: "rsync -av QUELLE/ ZIEL/ (Inhalt) · rsync -av QUELLE ZIEL/ (Ordner selbst) · -n trocken · --delete · -z · -e ssh · user@host:/pfad/ · --exclude=MUSTER · --link-dest=VORTAG"
+karten:
+  - f: "Welches Bandgerät spult nach dem Schließen nicht zurück?"
+    a: ["/dev/nst0", "nst0"]
+  - f: "Mit welchem Befehl springst du auf dem Band über eine Dateimarke vorwärts?"
+    a: ["mt -f /dev/nst0 fsf 1", "mt fsf", "mt fsf 1", "fsf"]
+  - f: "Du schreibst zwei tar-Archive nacheinander auf /dev/st0. Was liegt danach auf dem Band?"
+    a: ["nur das zweite", "nur das letzte archiv"]
+  - f: "Wie sicherst du den MBR von /dev/sda mit dd?"
+    a: ["dd if=/dev/sda of=mbr.img bs=512 count=1"]
+  - f: "Was ist der Unterschied zwischen rsync -a quelle/ ziel/ und rsync -a quelle ziel/?"
+    a: ["Mit Schrägstrich kopiert rsync den Inhalt von quelle, ohne Schrägstrich den Ordner quelle selbst nach ziel/quelle."]
+    aufdecken: true
+  - f: "Welche Option von rsync zeigt nur, was passieren würde?"
+    a: ["-n", "--dry-run"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Zuordnung from '../components/Zuordnung.astro';
+import Lueckentext from '../components/Lueckentext.astro';
+
+Die USB-Platte allein reicht dem Chef nicht: Brennt das Büro ab, ist sie mit weg. Im Keller steht ein LTO-Bandlaufwerk aus dem alten Server, und srv1 im Rechenraum nebenan hat noch Platz. **Deine Mission: Schreib /etc und /srv als zwei getrennte Archive auf Band, lies das zweite gezielt wieder, und spiegle den Lagerbestand per rsync auf srv1.** Lernziel 206.2.
+
+## Bänder
+
+<Karte nr={1} titel="/dev/st0, /dev/nst0 und mt">
+Bandlaufwerke spricht der Kernel mit dem Treiber **st** an (SCSI tape). Jedes Laufwerk gibt es zweimal:
+
+- **/dev/st0** spult nach jedem Schließen an den Anfang zurück (*rewinding*).
+- **/dev/nst0** bleibt stehen, wo es ist (*non-rewinding*).
+
+Ein Band ist eine Folge von **Dateien**, getrennt durch **Dateimarken**. Jedes `tar cf` auf das Band schreibt eine solche Datei. Wer mehrere Archive hintereinander will, braucht `/dev/nst0`. Mit `/dev/st0` überschreibt jedes neue Archiv das vorige, denn das Band steht danach wieder am Anfang.
+
+```
+mt -f /dev/nst0 status     # Dateinummer, BOT = Bandanfang
+mt -f /dev/nst0 rewind     # an den Anfang
+mt -f /dev/nst0 fsf 1      # eine Dateimarke vor
+mt -f /dev/nst0 bsf 1      # eine zurück, landet vor der Marke
+mt -f /dev/nst0 eod        # hinter die letzte Datei, zum Anhängen
+mt -f /dev/nst0 offline    # zurückspulen und auswerfen
+```
+
+**mt** (Paket mt-st) und **tar** nehmen ohne `-f` das Gerät aus der Variablen **TAPE**, etwa nach `export TAPE=/dev/nst0`.
+</Karte>
+
+<Quiz id="k1" titel="Kurzcheck: Band" fragen={[
+  { frage: 'Du hast drei Archive auf /dev/nst0 geschrieben und willst das dritte lesen. Was tust du?', richtig: 'mt -f /dev/nst0 rewind, dann mt -f /dev/nst0 fsf 2, dann tar tf /dev/nst0', falsch: ['mt -f /dev/nst0 fsf 3, dann tar tf /dev/nst0', 'mt -f /dev/st0 fsf 2, dann tar tf /dev/st0'], erklaerung: 'Zwischen erstem und drittem Archiv liegen zwei Dateimarken. /dev/st0 würde nach mt wieder an den Anfang spulen.' },
+  { frage: 'Ein Sicherungsskript schreibt jede Nacht /etc, /home und /srv nacheinander mit tar auf /dev/st0. Was liegt morgens auf dem Band?', richtig: 'Nur das Archiv von /srv', falsch: ['Alle drei Archive hintereinander', 'Gar nichts, st0 ist schreibgeschützt'], erklaerung: 'Nach jedem tar spult st0 zurück, das nächste Archiv überschreibt das vorige.' },
+]} />
+
+<Lueckentext id="luecke" titel="Lückentext: Zwei Archive auf ein Band" aufgabe="Ergänze die Befehle, sodass beide Archive erhalten bleiben und am Ende das zweite gelesen wird."
+  code={`$ export TAPE=/dev/___
+$ sudo -E mt rewind
+$ sudo -E tar czf $TAPE /etc
+$ sudo -E tar czf $TAPE /srv
+$ sudo -E mt ___
+$ sudo -E mt fsf ___
+$ sudo -E tar tzf $TAPE`}
+  luecken={[
+    { loesungen: ['nst0'] },
+    { loesungen: ['rewind'] },
+    { loesungen: ['1'] },
+  ]} />
+
+## Blockweise und als Spiegel
+
+<Karte nr={2} titel="dd und rsync">
+**dd** kopiert Blöcke, ohne sich um Dateien zu kümmern. Damit entstehen Abbilder ganzer Platten oder Partitionen:
+
+```
+sudo dd if=/dev/sda of=/mnt/backup/sda.img bs=4M status=progress
+sudo dd if=/dev/sda of=/mnt/backup/mbr.img bs=512 count=1      # MBR
+sudo dd if=/mnt/backup/mbr.img of=/dev/sda bs=446 count=1     # nur Bootcode zurück
+```
+
+Die ersten 512 Byte einer MBR-Platte sind 446 Byte Bootcode, 64 Byte Partitionstabelle und 2 Byte Signatur. Bei GPT steckt die Tabelle in weiteren Sektoren, dafür eignet sich `sgdisk --backup` oder `sfdisk -d` (Akt 5). Ein Abbild ist nur sauber, wenn das Dateisystem ausgehängt oder schreibgeschützt ist. Bei einer sterbenden Platte hilft `conv=noerror,sync`.
+
+**rsync** gleicht Ordner ab und überträgt nur Unterschiede, auch über SSH:
+
+```
+rsync -av /srv/lager/ backup@srv1:/sicherung/lager/      # Inhalt abgleichen
+rsync -avn --delete /srv/lager/ backup@srv1:/sicherung/lager/   # trocken
+```
+
+`-a` (archive) erhält Rechte, Zeiten und Links und arbeitet rekursiv. Der **Schrägstrich** am Ende der Quelle ist wichtig: `lager/` meint den Inhalt, `lager` den Ordner selbst, der dann als `ziel/lager` ankommt. `--delete` löscht im Ziel, was es in der Quelle nicht mehr gibt. Ein Spiegel ist keine Historie: Gelöschtes oder Zerstörtes verschwindet beim nächsten Lauf auch im Ziel. `--link-dest=VORTAG` legt unveränderte Dateien als harte Links auf die Sicherung des Vortags an, so entstehen platzsparende tägliche Stände.
+</Karte>
+
+<Merke>Mehrere Archive auf ein Band nur über /dev/nst0. dd kopiert Blöcke, rsync gleicht Dateien ab: Schrägstrich am Ende heißt Inhalt, --delete macht einen genauen Spiegel, -n zeigt vorher, was passiert.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: dd und rsync" fragen={[
+  { frage: 'Welcher Befehl spielt aus mbr.img nur den Bootcode zurück und lässt die Partitionstabelle von /dev/sda in Ruhe?', richtig: 'dd if=mbr.img of=/dev/sda bs=446 count=1', falsch: ['dd if=mbr.img of=/dev/sda bs=512 count=1', 'dd if=/dev/sda of=mbr.img bs=446 count=1'], erklaerung: 'Mit 512 Byte käme auch die alte Partitionstabelle zurück. Im dritten Befehl sind Quelle und Ziel vertauscht.' },
+  { frage: 'Was macht rsync -av --delete /srv/daten/ srv1:/sicherung/daten/ mit einer Datei, die nur auf srv1 liegt?', richtig: 'Es löscht sie auf srv1.', falsch: ['Es kopiert sie zurück nach werkstatt.', 'Es lässt sie liegen, --delete gilt nur für die Quelle.'], erklaerung: 'rsync überträgt immer nur in eine Richtung. --delete macht das Ziel zu einem genauen Abbild der Quelle.' },
+]} />
+
+<Zuordnung id="zuordnung" titel="Zuordnung: Welches Werkzeug, welcher Aufruf?" aufgabe="Ordne jeder Absicht den passenden Befehl zu." paare={[
+  { links: 'Band zurückspulen und auswerfen', rechts: 'mt -f /dev/nst0 offline' },
+  { links: 'Zum Anhängen hinter die letzte Datei', rechts: 'mt -f /dev/nst0 eod' },
+  { links: 'Abbild der ersten Partition', rechts: 'dd if=/dev/sda1 of=sda1.img bs=4M' },
+  { links: 'Genauen Spiegel auf einen anderen Rechner ziehen', rechts: 'rsync -a --delete /srv/ srv1:/sicherung/srv/' },
+  { links: 'Nur zeigen, was rsync tun würde', rechts: 'rsync -avn --delete /srv/ srv1:/sicherung/srv/' },
+]} extra={['mt -f /dev/st0 fsf 1']} />
+
+<Terminal id="band" titel="Terminal: Band und Spiegel" welt={{ wartung: { sicherung: true, band: 'leer', fern: true } }} aufgaben={[
+  { text: 'Sieh nach, wo das Band steht. Nimm das Gerät, das nicht zurückspult.', befehl: '^mt (-f|-t) /dev/nst0 status', frage: 'Welche Dateinummer meldet mt?', antwort: ['0'] },
+  { text: 'Schreib <code>/etc</code> als erstes Archiv aufs Band, gepackt mit gzip.', zustand: 'band:0~^etc/' },
+  { text: 'Schreib <code>/srv</code> als zweites Archiv dahinter.', zustand: 'band:0~^etc/ && band:1~^srv/ && band:dateien=2' },
+  { text: 'Spul zurück, spring zum zweiten Archiv und sieh dir seinen Inhalt an.', zustand: 'band:gelesen=1', frage: 'Welche Datei liegt in srv/lager außer bestand.csv und preise.csv?', antwort: ['lieferanten.txt', 'srv/lager/lieferanten.txt'] },
+  { text: 'Wirf die Kassette aus, sie kommt heute Abend ins Bankschließfach.', zustand: 'band:aus' },
+  { text: 'Auf srv1 liegt unter <code>/sicherung/lager</code> ein älterer Stand. Sieh ihn dir an, ohne etwas zu kopieren.', befehl: '^rsync( -[a-z]+)* (backup@)?srv1:/sicherung/lager/?$', frage: 'Welche Datei liegt dort, die es auf werkstatt nicht gibt?', antwort: ['alt-inventur-2024.csv'] },
+  { text: 'Auf srv1 soll am Ende genau das liegen, was in <code>/srv/lager</code> auf werkstatt liegt. Spiel den Abgleich erst trocken durch.', befehl: 'rsync .*(-[a-z]*n[a-z]*|--dry-run).*--delete|rsync .*--delete.*(-[a-z]*n[a-z]*|--dry-run)', frage: 'Welche Dateien würde rsync übertragen? Nenn eine.', antwort: ['bestand.csv', 'preise.csv'] },
+  { text: 'Gleich jetzt wirklich ab.', zustand: 'srv1:/sicherung/lager/preise.csv && nicht:srv1:/sicherung/lager/alt-inventur-2024.csv && srv1:/sicherung/lager/bestand.csv~1200' },
+  { text: 'Lass denselben Abgleich mit <code>-v</code> noch einmal laufen.', befehl: 'rsync .*-[a-z]*v.*srv1:/sicherung/lager', frage: 'Wie viele Dateien überträgt rsync diesmal?', antwort: ['0', 'keine'] },
+]} />
+
+<Labor id="labor" titel="Labor: rsync und dd auf srv1"
+  aufgabe="Probier auf srv1 die Wirkung des Schrägstrichs, einen trockenen Lauf mit --delete und eine Kopie des ersten Sektors. Füge die Ausgabe ein."
+  befehl={"mkdir -p /tmp/r/quelle/sub && cd /tmp/r && echo 1 > quelle/a && echo 2 > quelle/sub/b\nrsync -av quelle/ ziel/\necho alt > ziel/weg; rsync -avn --delete quelle/ ziel/\nrsync -a quelle ziel2/ && find ziel2 -type f\nD=$(lsblk -dnpo NAME,TYPE | awk '$2==\"disk\"{print $1; exit}')\nsudo dd if=$D of=/tmp/r/mbr.img bs=512 count=1 status=none; stat -c '%s %n' /tmp/r/mbr.img"}
+  muster={["created directory ziel", "deleting weg", "\\(DRY RUN\\)", "ziel2/quelle/sub/b", "512 /tmp/r/mbr.img"]}
+  erfolg="Mit quelle/ landete der Inhalt direkt in ziel, ohne Schrägstrich entstand ziel2/quelle. Der trockene Lauf hat angekündigt, weg zu löschen, aber nichts angefasst. dd hat genau einen Sektor mit 512 Byte kopiert." />
+
+<Hinweis titel="Prüfungstipp">
+/dev/st* und /dev/nst*, mt, dd und rsync stehen ausdrücklich in Lernziel 206.2. Klassische Fragen: Welches Gerät spult zurück? Wie liest man das n-te Archiv? Was bewirkt der Schrägstrich bei rsync? Welche Werte für bs und count sichern den MBR?
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Welcher Aufruf hängt ein weiteres Archiv an ein Band, auf dem schon Daten liegen?', richtig: 'mt -f /dev/nst0 eod, dann tar cf /dev/nst0 /home', falsch: ['tar rf /dev/st0 /home', 'mt -f /dev/st0 eod, dann tar cf /dev/st0 /home'], erklaerung: 'Nach mt auf /dev/st0 steht das Band wieder am Anfang. tar r hängt Dateien an ein bestehendes Archiv an, nicht ein neues Archiv an das Band, und klappt auf vielen Bandlaufwerken gar nicht.' },
+  { frage: 'rsync -a /srv/lager srv1:/sicherung/ legt die Dateien wo ab?', richtig: 'Unter /sicherung/lager/ auf srv1', falsch: ['Direkt unter /sicherung/ auf srv1', 'Unter /sicherung/srv/lager/ auf srv1'], erklaerung: 'Ohne Schrägstrich am Ende der Quelle kopiert rsync den Ordner lager selbst. Mit -R würde es den ganzen Pfad nachbauen.' },
+  { frage: 'Was spricht gegen einen nächtlichen rsync mit --delete als einzige Sicherung?', richtig: 'Was versehentlich gelöscht oder zerstört wird, verschwindet beim nächsten Lauf auch in der Kopie.', falsch: ['rsync überträgt immer alle Dateien vollständig und belastet das Netz.', 'rsync kann keine Rechte und Zeitstempel übertragen.'], erklaerung: 'Gegen dieses Risiko helfen ältere Stände, etwa mit --link-dest, oder zusätzlich Bänder.' },
+]} />

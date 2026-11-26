@@ -1,0 +1,152 @@
+---
+id: l2-7-5
+checks:
+  - id: k1
+  - id: zuordnung
+  - id: k2
+  - id: luecke
+  - id: reihe
+  - id: wartung
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "Vor der Anmeldung"
+    v: "/etc/issue (Konsole, agetty) · /etc/issue.d/*.issue · Escapes \\n Rechner, \\l Terminal, \\r Kernel, \\m Architektur, \\s System, \\d Datum, \\t Zeit, \\U Benutzer, \\4 IPv4 · agetty --show-issue · /etc/issue.net (telnet, sshd mit Banner /etc/issue.net, ohne Escapes)"
+  - t: "Nach der Anmeldung"
+    v: "/etc/motd (pam_motd) · Debian: Skripte in /etc/update-motd.d, Ergebnis in /run/motd.dynamic · ~/.hushlogin unterdrückt die Meldung"
+  - t: "Angemeldete erreichen"
+    v: "who · w · wall \"Text\" · wall DATEI · echo Text | wall · mesg n blockt Nachrichten außer von root · write BENUTZER TTY"
+  - t: "Herunterfahren ankündigen"
+    v: "shutdown -r +30 \"Grund\" · shutdown -h 18:00 \"Grund\" · shutdown -k +5 (nur Warnung) · shutdown -c · 5 Minuten vorher entsteht /run/nologin · /etc/nologin von Hand · systemctl reboot --message=\"Grund\" · --no-wall"
+karten:
+  - f: "Welche Datei zeigt die Textkonsole vor der Anmeldung?"
+    a: ["/etc/issue"]
+  - f: "Welche Datei zeigt das System nach einer erfolgreichen Anmeldung?"
+    a: ["/etc/motd"]
+  - f: "Wofür steht \\r in /etc/issue?"
+    a: ["kernelversion", "die version des kernels", "kernel release", "das release des kernels"]
+  - f: "Welche Zeile in sshd_config lässt sshd vor der Anmeldung /etc/issue.net zeigen?"
+    a: ["banner /etc/issue.net"]
+  - f: "Welcher Befehl schickt eine Nachricht an alle angemeldeten Benutzer?"
+    a: ["wall"]
+  - f: "Welche Datei legt shutdown fünf Minuten vor dem Termin an, damit sich niemand mehr neu anmeldet?"
+    a: ["/run/nologin"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Zuordnung from '../components/Zuordnung.astro';
+import Reihenfolge from '../components/Reihenfolge.astro';
+import Lueckentext from '../components/Lueckentext.astro';
+
+Am Samstag bekommt werkstatt einen neuen Kernel und das Bandlaufwerk einen festen Platz. Beim letzten Mal hat Max mitten in einer Sitzung die Verbindung verloren und den halben Vormittag Arbeit. Das soll nicht wieder passieren. **Deine Mission: Sorg dafür, dass jeder schon vor und nach der Anmeldung von der Wartung erfährt, warn alle, die gerade arbeiten, und kündige den Neustart richtig an.** Lernziel 206.3.
+
+## Vor und nach der Anmeldung
+
+<Karte nr={1} titel="/etc/issue und /etc/issue.net">
+Bevor jemand sich anmeldet, zeigt **agetty** auf der Textkonsole den Inhalt von **/etc/issue** und danach die Dateien in `/etc/issue.d/` mit der Endung `.issue`. Darin ersetzt agetty Escapes:
+
+| Escape | wird zu |
+|---|---|
+| `\n` | Rechnername |
+| `\l` | Terminal, etwa tty1 |
+| `\r` | Kernelversion (wie `uname -r`) |
+| `\m` | Architektur (wie `uname -m`) |
+| `\s` | Systemname, Linux |
+| `\d`, `\t` | Datum, Uhrzeit |
+| `\U` | Zahl der angemeldeten Benutzer |
+| `\4` | IPv4-Adresse |
+
+Wie das aussieht, zeigt `agetty --show-issue` im laufenden Terminal.
+
+Für Anmeldungen übers Netz gibt es **/etc/issue.net**. Telnet-Dienste zeigen sie. **sshd** zeigt sie nur mit `Banner /etc/issue.net` in der sshd_config und ersetzt dabei **keine** Escapes. Ein Banner verrät jedem, der anklopft, was darin steht: also keine Versionsnummern, lieber ein rechtlicher Hinweis.
+</Karte>
+
+<Quiz id="k1" titel="Kurzcheck: issue" fragen={[
+  { frage: 'In /etc/issue steht „Willkommen auf \\n“. Was zeigt die Konsole?', richtig: 'Willkommen auf werkstatt', falsch: ['Willkommen auf, dann ein Zeilenumbruch', 'Willkommen auf \\n'], erklaerung: 'agetty ersetzt \\n durch den Rechnernamen, nicht durch einen Zeilenumbruch.' },
+  { frage: 'Du schreibst „Kernel \\r“ in /etc/issue.net und setzt Banner /etc/issue.net. Was sieht ein SSH-Client?', richtig: 'Kernel \\r, unverändert', falsch: ['Kernel 6.1.0-27-amd64', 'Nichts, sshd ignoriert Dateien mit Escapes'], erklaerung: 'sshd gibt die Datei so aus, wie sie ist.' },
+]} />
+
+<Zuordnung id="zuordnung" titel="Zuordnung: Wer zeigt was, wann?" aufgabe="Ordne jeder Datei zu, wann sie erscheint." paare={[
+  { links: '/etc/issue', rechts: 'Textkonsole, vor dem Login-Prompt' },
+  { links: '/etc/issue.net', rechts: 'Anmeldung übers Netz, vor der Anmeldung' },
+  { links: '/etc/motd', rechts: 'Nach jeder erfolgreichen Anmeldung' },
+  { links: '/etc/update-motd.d/', rechts: 'Debian: Skripte, deren Ausgabe nach der Anmeldung erscheint' },
+  { links: '/run/nologin', rechts: 'Kurz vor dem Herunterfahren, sperrt neue Anmeldungen' },
+]} />
+
+<Karte nr={2} titel="/etc/motd, wall und shutdown">
+Nach der Anmeldung zeigt **pam_motd** die **message of the day** aus **/etc/motd**. Auf Debian führt es vorher die Skripte in **/etc/update-motd.d/** aus (etwa `10-uname`) und zeigt deren Ausgabe aus `/run/motd.dynamic`. Wer die Meldung nicht sehen will, legt `~/.hushlogin` an. Hinweise in der motd gehören nach der Wartung wieder heraus, sonst liest sie bald niemand mehr.
+
+Wer schon arbeitet, sieht weder issue noch motd. Für sie gibt es:
+
+```
+who                                   # wer ist wo angemeldet?
+wall "Um 12 Uhr startet werkstatt neu. Bitte speichern."
+sudo shutdown -r +30 "Kernel-Update, bitte alles speichern"
+sudo shutdown -c                      # abbrechen
+sudo shutdown -k +10 "Nur ein Test"   # nur warnen, nicht herunterfahren
+```
+
+**wall** schreibt auf jedes Terminal. Mit `mesg n` sperrt ein Benutzer Nachrichten anderer Benutzer, die von root kommen trotzdem an. **shutdown** mit Zeit verschickt die Nachricht per wall und wiederholt sie, je näher der Termin rückt. Fünf Minuten vorher legt es **/run/nologin** an: Ab dann dürfen sich nur noch root und Konten mit Ausnahmen anmelden. Für längere Wartung legt man **/etc/nologin** von Hand an und löscht es danach. `systemctl reboot` schickt ebenfalls eine Nachricht, `--message="Grund"` schreibt den Grund ins Journal, `--no-wall` unterdrückt die Nachricht.
+</Karte>
+
+<Merke>issue vor der Anmeldung (Konsole), issue.net übers Netz, motd danach. Wer schon arbeitet, erfährt es per wall oder durch die Nachricht von shutdown, fünf Minuten vorher sperrt /run/nologin neue Anmeldungen.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: Angemeldete erreichen" fragen={[
+  { frage: 'Max arbeitet seit dem Morgen per SSH auf werkstatt. Du änderst um 10 Uhr /etc/motd. Wann sieht er den neuen Text?', richtig: 'Erst bei seiner nächsten Anmeldung', falsch: ['Sofort, pam_motd schickt Änderungen an alle Sitzungen', 'Nie, über SSH erscheint die motd nicht'], erklaerung: 'Wer schon angemeldet ist, erreichst du nur mit wall, write oder der Nachricht von shutdown.' },
+  { frage: 'Was bewirkt shutdown -k +5 "Test"?', richtig: 'Es schickt die Warnung an alle, fährt aber nicht herunter.', falsch: ['Es fährt in fünf Minuten herunter, ohne zu warnen.', 'Es beendet in fünf Minuten alle Sitzungen außer der von root.'], erklaerung: 'Mit -k verschickt shutdown nur die Nachricht. Einen geplanten Termin bricht -c ab.' },
+]} />
+
+<Lueckentext id="luecke" titel="Lückentext: Wartung ankündigen" aufgabe="Ergänze die Befehle für eine Wartung in 15 Minuten."
+  code={`$ ___                                    # wer arbeitet gerade?
+$ echo "Wartung ab 12 Uhr" | sudo tee -a /etc/___
+$ sudo shutdown ___ +15 "Kernel-Update, bitte speichern"
+$ sudo shutdown ___                       # doch nicht`}
+  luecken={[
+    { loesungen: ['who', 'w', 'users'] },
+    { loesungen: ['motd'] },
+    { loesungen: ['-r', '--reboot'] },
+    { loesungen: ['-c'] },
+  ]} />
+
+<Reihenfolge id="reihe" titel="Reihenfolge: Eine Wartung mit Neustart" aufgabe="Bring die Schritte in eine sinnvolle Reihenfolge." schritte={[
+  'Einige Tage vorher: Hinweis in /etc/motd',
+  'Am Morgen: mit who und w prüfen, wer angemeldet ist',
+  'Neustart mit shutdown -r +30 und Begründung planen',
+  'Wartung durchführen, nach dem Neustart prüfen',
+  'Hinweis aus /etc/motd wieder entfernen',
+]} />
+
+<Terminal id="wartung" titel="Terminal: Die Wartung am Samstag" welt={{ wartung: {} }} aufgaben={[
+  { text: 'Sieh nach, wer gerade angemeldet ist.', befehl: '^(who|w|users)( |$)', frage: 'Wer ist außer lena angemeldet?', antwort: ['max'] },
+  { text: 'Lass dir zeigen, wie die Textkonsole <code>/etc/issue</code> gerade darstellt.', befehl: '^(sudo )?agetty .*--show-issue', frage: 'Was steht dort anstelle von \\l?', antwort: ['tty1'] },
+  { text: 'Schreib eine neue <code>/etc/issue</code> mit dem Rechnernamen, der Kernelversion und dem Hinweis „Nur für Befugte“. Nutz dafür die Escapes von agetty.', zustand: 'datei:/etc/issue~\\\\n && datei:/etc/issue~\\\\r && datei:/etc/issue~(B|b)efugt' },
+  { text: 'Prüf das Ergebnis.', befehl: '^(sudo )?agetty .*--show-issue', frage: 'Welche Kernelversion zeigt die Konsole jetzt an?', antwort: ['6.1.0-27-amd64'] },
+  { text: 'Für SSH: Schreib den Hinweis auf Befugte ohne Escapes nach <code>/etc/issue.net</code> und lass sshd ihn vor jeder Anmeldung zeigen.', zustand: 'datei:/etc/issue.net~(B|b)efugt && nicht:datei:/etc/issue.net~\\\\[nlrm] && sshd:banner=/etc/issue.net' },
+  { text: 'Kündige in <code>/etc/motd</code> die Wartung am Samstag an, damit jeder sie nach der Anmeldung liest.', zustand: 'datei:/etc/motd~(S|s)amstag' },
+  { text: 'Sag allen, die gerade angemeldet sind, sofort Bescheid, dass werkstatt in 30 Minuten neu startet.', zustand: 'wall', befehl: '^wall ' },
+  { text: 'Plane den Neustart in 30 Minuten und gib eine eigene Begründung mit.', zustand: 'shutdown=reboot', befehl: '^shutdown (-r|--reboot) \\+30 \\S' },
+  { text: 'Der Chef will lieber noch warten. Brich den Neustart ab.', zustand: 'shutdown=keiner', befehl: '^shutdown -c' },
+  { text: 'Neuer Plan: Neustart in drei Minuten. Plane ihn und sieh dann nach, was neue Anmeldungen jetzt verhindert.', zustand: 'shutdown=reboot && da:/run/nologin', befehl: '(ls|cat|stat) .*/run/nologin', frage: 'Welche Datei sperrt neue Anmeldungen?', antwort: ['/run/nologin', 'nologin'] },
+]} />
+
+<Labor id="labor" titel="Labor: Meldungen auf srv1"
+  aufgabe="Sieh dir auf srv1 an, was vor und nach der Anmeldung erscheint. Melde dich dafür per SSH an, damit agetty ein Terminal hat. Füge die Ausgabe ein."
+  befehl={"cat /etc/issue\nagetty --show-issue\nls /etc/update-motd.d/\nrun-parts /etc/update-motd.d/\nwho"}
+  muster={["Debian GNU/Linux 12", "10-uname", "Linux \\S+ \\d+\\.\\d+"]}
+  erfolg="In /etc/issue stehen die Escapes, agetty --show-issue zeigt, was daraus wird. Die Zeile aus 10-uname ist der Teil der motd, der bei jeder Anmeldung neu entsteht." />
+
+<Hinweis titel="Prüfungstipp">
+Lernziel 206.3 ist klein (Gewicht 1) und nennt /etc/issue, /etc/issue.net, /etc/motd, wall, shutdown und systemctl. Gefragt wird, welche Datei wann erscheint, wie man alle Angemeldeten erreicht und wie shutdown mit Zeit und Nachricht aufgerufen wird. Im Entwurf 5.0 der Lernziele ist nicht erkennbar, wo dieses Lernziel landet.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Welcher Aufruf fährt das System um 18 Uhr herunter und warnt alle Angemeldeten mit eigenem Text?', richtig: 'shutdown -h 18:00 "Feierabend, bitte speichern"', falsch: ['wall -h 18:00 "Feierabend, bitte speichern"', 'shutdown -k 18:00 "Feierabend, bitte speichern"'], erklaerung: '-k würde nur warnen und nicht herunterfahren. wall kennt keine Zeit.' },
+  { frage: 'Max hat mesg n gesetzt. Wer erreicht ihn mit wall?', richtig: 'Nur root', falsch: ['Niemand mehr', 'Jeder Benutzer der Gruppe tty'], erklaerung: 'mesg n sperrt Schreibzugriffe anderer Benutzer auf sein Terminal. wall von root kommt trotzdem an.' },
+  { frage: 'Die Wartung dauert den ganzen Tag. Wie hältst du normale Benutzer vom Anmelden ab, ohne herunterzufahren?', richtig: 'Mit einer Datei /etc/nologin, die nach der Wartung wieder gelöscht wird', falsch: ['Mit einem Eintrag in /etc/issue', 'Mit shutdown -c'], erklaerung: 'pam_nologin verweigert Anmeldungen, solange /etc/nologin oder /run/nologin existiert, und zeigt deren Inhalt an. root darf weiter.' },
+]} />

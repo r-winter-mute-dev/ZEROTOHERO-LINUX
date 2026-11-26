@@ -1,0 +1,268 @@
+{
+ "name": "install, tar und rsync: Rückgabecodes",
+ "version": "tar --version | head -1",
+ "vorbereitung": [],
+ "faelle": [
+  {
+   "name": "install: ungültiger Modus",
+   "dateien": {
+    "/tmp/lth-a": {
+     "inhalt": "eins\n",
+     "modus": "644"
+    }
+   },
+   "befehl": "install -m abc /tmp/lth-a /tmp/lth-b",
+   "aufraeumen": [
+    "rm -f /tmp/lth-b"
+   ]
+  },
+  {
+   "name": "install: Ziel fehlt",
+   "dateien": {
+    "/tmp/lth-a": {
+     "inhalt": "eins\n",
+     "modus": "644"
+    }
+   },
+   "befehl": "install /tmp/lth-a"
+  },
+  {
+   "name": "install -D legt Ordner an",
+   "dateien": {
+    "/tmp/lth-a": {
+     "inhalt": "eins\n",
+     "modus": "644"
+    }
+   },
+   "befehl": "install -D -m 640 /tmp/lth-a /tmp/lth-x/y/z",
+   "aufraeumen": [
+    "rm -rf /tmp/lth-x"
+   ]
+  },
+  {
+   "name": "install: Zielordner fehlt",
+   "dateien": {
+    "/tmp/lth-a": {
+     "inhalt": "eins\n",
+     "modus": "644"
+    }
+   },
+   "befehl": "install /tmp/lth-a /tmp/lth-nix/z"
+  },
+  {
+   "name": "install: Quelle ist ein Ordner",
+   "dateien": {
+    "/tmp/lth-a": {
+     "inhalt": "eins\n",
+     "modus": "644"
+    }
+   },
+   "befehl": "install /tmp/lth-o /tmp/lth-p",
+   "vorher": [
+    "mkdir -p /tmp/lth-o"
+   ],
+   "aufraeumen": [
+    "rm -rf /tmp/lth-o /tmp/lth-p"
+   ]
+  },
+  {
+   "name": "install -d mit 2770",
+   "dateien": {
+    "/tmp/lth-a": {
+     "inhalt": "eins\n",
+     "modus": "644"
+    }
+   },
+   "befehl": "install -d -m 2770 /tmp/lth-d/e",
+   "aufraeumen": [
+    "rm -rf /tmp/lth-d"
+   ]
+  },
+  {
+   "name": "install: mehrere Quellen, Ziel kein Ordner",
+   "dateien": {
+    "/tmp/lth-a": {
+     "inhalt": "eins\n",
+     "modus": "644"
+    }
+   },
+   "befehl": "install /tmp/lth-a /tmp/lth-a /tmp/lth-b",
+   "aufraeumen": [
+    "rm -f /tmp/lth-b"
+   ]
+  },
+  {
+   "name": "install: unbekannte Option",
+   "dateien": {
+    "/tmp/lth-a": {
+     "inhalt": "eins\n",
+     "modus": "644"
+    }
+   },
+   "befehl": "install -q /tmp/lth-a /tmp/lth-b",
+   "aufraeumen": [
+    "rm -f /tmp/lth-b"
+   ]
+  },
+  {
+   "name": "tar d: unverändert",
+   "dateien": {
+    "/tmp/lth-a": {
+     "inhalt": "eins\n",
+     "modus": "644"
+    }
+   },
+   "befehl": "tar dzf /tmp/lth.tgz -C /tmp",
+   "vorher": [
+    "tar czf /tmp/lth.tgz -C /tmp lth-a"
+   ],
+   "aufraeumen": [
+    "rm -f /tmp/lth.tgz"
+   ]
+  },
+  {
+   "name": "tar d: Inhalt geändert",
+   "dateien": {
+    "/tmp/lth-a": {
+     "inhalt": "eins\n",
+     "modus": "644"
+    }
+   },
+   "befehl": "tar dzf /tmp/lth.tgz -C /tmp",
+   "vorher": [
+    "tar czf /tmp/lth.tgz -C /tmp lth-a",
+    "echo zwei >> /tmp/lth-a"
+   ],
+   "aufraeumen": [
+    "rm -f /tmp/lth.tgz"
+   ]
+  },
+  {
+   "name": "tar d: Datei fehlt",
+   "dateien": {
+    "/tmp/lth-a": {
+     "inhalt": "eins\n",
+     "modus": "644"
+    }
+   },
+   "befehl": "tar dzf /tmp/lth.tgz -C /tmp",
+   "vorher": [
+    "tar czf /tmp/lth.tgz -C /tmp lth-a",
+    "rm /tmp/lth-a"
+   ],
+   "aufraeumen": [
+    "rm -f /tmp/lth.tgz"
+   ]
+  },
+  {
+   "name": "tar -g: erste Sicherung",
+   "dateien": {
+    "/tmp/lth-a": {
+     "inhalt": "eins\n",
+     "modus": "644"
+    }
+   },
+   "befehl": "tar czf /tmp/lth.tgz -g /tmp/lth.snar -C /tmp lth-a",
+   "aufraeumen": [
+    "rm -f /tmp/lth.tgz /tmp/lth.snar"
+   ]
+  },
+  {
+   "name": "tar x: Element nicht im Archiv",
+   "dateien": {
+    "/tmp/lth-a": {
+     "inhalt": "eins\n",
+     "modus": "644"
+    }
+   },
+   "befehl": "tar xzf /tmp/lth.tgz -C /tmp gibtsnicht",
+   "vorher": [
+    "tar czf /tmp/lth.tgz -C /tmp lth-a"
+   ],
+   "aufraeumen": [
+    "rm -f /tmp/lth.tgz"
+   ]
+  },
+  {
+   "name": "tar --exclude",
+   "dateien": {
+    "/tmp/lth-a": {
+     "inhalt": "eins\n",
+     "modus": "644"
+    }
+   },
+   "befehl": "tar czf /tmp/lth.tgz --exclude='*.tmp' -C /tmp lth-a",
+   "aufraeumen": [
+    "rm -f /tmp/lth.tgz"
+   ]
+  },
+  {
+   "name": "rsync: Quelle fehlt",
+   "dateien": {
+    "/tmp/lth-a": {
+     "inhalt": "eins\n",
+     "modus": "644"
+    }
+   },
+   "befehl": "rsync -a /tmp/lth-gibtsnicht/ /tmp/lth-r/",
+   "aufraeumen": [
+    "rm -rf /tmp/lth-r"
+   ]
+  },
+  {
+   "name": "rsync: trocken",
+   "dateien": {
+    "/tmp/lth-a": {
+     "inhalt": "eins\n",
+     "modus": "644"
+    }
+   },
+   "befehl": "rsync -an /tmp/lth-a /tmp/lth-r/",
+   "aufraeumen": [
+    "rm -rf /tmp/lth-r"
+   ]
+  },
+  {
+   "name": "rsync: zwei Ebenen fehlen",
+   "dateien": {
+    "/tmp/lth-a": {
+     "inhalt": "eins\n",
+     "modus": "644"
+    }
+   },
+   "befehl": "rsync -a /tmp/lth-a /tmp/lth-nix/da/"
+  },
+  {
+   "name": "rsync: Ordner ohne -r",
+   "dateien": {
+    "/tmp/lth-a": {
+     "inhalt": "eins\n",
+     "modus": "644"
+    }
+   },
+   "befehl": "rsync /tmp/lth-o /tmp/lth-r/",
+   "vorher": [
+    "mkdir -p /tmp/lth-o"
+   ],
+   "aufraeumen": [
+    "rm -rf /tmp/lth-o /tmp/lth-r"
+   ]
+  },
+  {
+   "name": "rsync: unbekannte Option",
+   "dateien": {
+    "/tmp/lth-a": {
+     "inhalt": "eins\n",
+     "modus": "644"
+    }
+   },
+   "befehl": "rsync --gibtsnicht /tmp/lth-a /tmp/lth-r/"
+  }
+ ],
+ "welt": {
+  "wartung": {
+   "sicherung": true
+  }
+ },
+ "hinweis": "rsync braucht im Container das Paket rsync, tar auf AlmaLinux das Paket tar."
+}
