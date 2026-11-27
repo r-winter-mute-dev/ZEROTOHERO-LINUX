@@ -60,6 +60,7 @@ In `src/scripts/shell.ts`, genau wie bei `shell-speicher.ts` und `shell-netzwerk
 - `shell-dns.ts` hängt sich über `dnsHaken` in `frage()` aus `shell-netz.ts`: Der Haken beantwortet Fragen an werkstatt und srv1, bevor der normale Resolver greift. Ohne Welt-Option `dns` bleibt `frage()` unverändert.
 - Zustände `dnszone:ZONE~…` vergleichen Namen ohne Punkt am Ende, Daten aber mit (`lab.example.org NS ns2.lab.example.org.`). `dnsfrage:` gibt die ganze Antwortzeile, also nicht mit `^` verankern.
 - Private Namen (intern, local, lan …) über eine Weiterleitungszone scheitern mit `dnssec-validation auto` wie echt mit SERVFAIL, bis `validate-except` sie ausnimmt.
+- BIND-Versionen im Simulator folgen dem Stand der Vergleichs-Action (Debian 12: 1:9.18.49-1~deb12u3, Alma 9: 9.16.50-12.el9_9.1, Ausgabe `9.16.50-RH`). Nach Sicherheitsupdates zieht die Action neuere Versionen; Abweichungen zeigt `named-checkconf -v` im Kopf der Gruppe dns. Nicht nachgebildet: Auf Red Hat liegen named-checkconf und dnssec-* in /usr/sbin, dnssec-* im Paket bind-dnssec-utils.
 - In MDX-Fließtext (`<Merke>`, Absätze) sind `{` und `}` Ausdrücke. In Prosa als `\{ \}` schreiben oder in Backticks setzen. Einfache Anführungszeichen in Quiz-Texten mit `\'` maskieren.
 
 ## Testbefehle

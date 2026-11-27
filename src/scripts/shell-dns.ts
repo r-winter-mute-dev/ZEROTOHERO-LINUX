@@ -52,8 +52,8 @@ const SRV1 = ['192.168.1.10', 'srv1', 'srv1.lab.example.org', 'ns2.lab.example.o
 const TSIG = { name: 'ns1-ns2', secret: 'Wq0mK4bXr7hT2c9ZfN1vY8sE3uJ6pL5aD0gH4kR7tQw=' };
 const rh = (w: Welt) => w.distro !== 'debian';
 const ort = (w: Welt) => rh(w)
-  ? { conf: '/etc/named.conf', dir: '/var/named', user: 'named', key: '/etc/rndc.key', version: '9.16.23-RH', exe: '/usr/sbin/named -u named -c /etc/named.conf' }
-  : { conf: '/etc/bind/named.conf', dir: '/var/cache/bind', user: 'bind', key: '/etc/bind/rndc.key', version: '9.18.28-1~deb12u2-Debian', exe: '/usr/sbin/named -f -u bind' };
+  ? { conf: '/etc/named.conf', dir: '/var/named', user: 'named', key: '/etc/rndc.key', version: '9.16.50-RH', exe: '/usr/sbin/named -u named -c /etc/named.conf' }
+  : { conf: '/etc/bind/named.conf', dir: '/var/cache/bind', user: 'bind', key: '/etc/bind/rndc.key', version: '9.18.49-1~deb12u3-Debian', exe: '/usr/sbin/named -f -u bind' };
 const VERSION_LANG = (w: Welt) => `BIND ${ort(w).version} (Extended Support Version) <id:>`;
 
 function datei(w: Welt, p: string, c: string, mode = 0o644, owner = 'root', group = owner) {

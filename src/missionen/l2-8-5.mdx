@@ -92,7 +92,7 @@ Jeder kann einen BIND-Server nach seiner Version fragen, über eine Sonderzone i
 
 ```
 dig @192.0.2.53 version.bind chaos txt +short
-"9.16.23-RH"
+"9.16.50-RH"
 ```
 
 Für einen Angreifer ist das die halbe Arbeit: Er schlägt nach, welche Lücken diese Version hat. Mit `version none;` (oder einem beliebigen Text wie `version "geheim";`) in den Optionen antwortet named ohne Inhalt. `hostname none;` und `server-id none;` verbergen auf dieselbe Weise den Rechnernamen. Das schützt nicht vor der Lücke selbst, nur vor dem Finden. Updates bleiben Pflicht.
@@ -130,7 +130,7 @@ zone "example.net" {
 <Terminal id="kaefig" titel="Terminal: named auf AlmaLinux" welt={{ distro: 'alma', dns: {} }} aufgaben={[
   { text: 'Installier BIND samt Werkzeugen und starte named so, dass er auch nach einem Neustart läuft.', zustand: 'named:installiert && named:laeuft && named:enabled=named' },
   { text: 'Sieh nach, unter welchem Benutzer named läuft und wie der Benutzer in <code>/etc/passwd</code> eingetragen ist.', befehl: '(grep|getent) .*named.*(/etc/passwd|passwd)|getent passwd named', frage: 'Welche Shell hat er?', antwort: ['/sbin/nologin', '/usr/sbin/nologin'] },
-  { text: 'Frag deinen Server nach seiner Version.', befehl: '^dig .*version\\.bind', frage: 'Was antwortet er?', antwort: ['9.16.23-RH', '"9.16.23-RH"'] },
+  { text: 'Frag deinen Server nach seiner Version.', befehl: '^dig .*version\\.bind', frage: 'Was antwortet er?', antwort: ['9.16.50-RH', '"9.16.50-RH"'] },
   { text: 'Verbirg die Version und sperr Zonentransfers für alle Zonen. Lade named neu, ohne ihn zu beenden.', zustand: 'named:opt:version~none && named:opt:allow-transfer~^none$ && named:laeuft', befehl: '^(rndc reload|rndc reconfig|systemctl reload named|kill -HUP|kill -1|kill -s HUP)' },
   { text: 'Sperr named in einen Käfig. Er soll auch nach einem Neustart dort landen, und die normale Unit soll nicht mehr starten.', zustand: 'named:chroot && named:enabled=named-chroot && nicht:named:enabled=named' },
   { text: 'Sieh dir den laufenden Prozess an.', befehl: '^(ps|pgrep|systemctl status named-chroot|pidof)', frage: 'Welches Verzeichnis ist für named jetzt /?', antwort: ['/var/named/chroot', '/var/named/chroot/'] },

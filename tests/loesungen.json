@@ -3636,7 +3636,7 @@
   ],
   "antworten": [
    "/sbin/nologin",
-   "9.16.23-RH",
+   "9.16.50-RH",
    "/var/named/chroot"
   ]
  },
