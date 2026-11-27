@@ -1,0 +1,153 @@
+---
+id: l2-8-5
+checks:
+  - id: k1
+  - id: reihe
+  - id: k2
+  - id: luecke
+  - id: kaefig
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "Benutzer"
+    v: "named -u named (Red Hat) · named -u bind (Debian) · Shell /sbin/nologin · /etc/named.conf root:named 640 · /var/named root:named, Zonen nur lesbar"
+  - t: "Käfig"
+    v: "dnf install bind-chroot · systemctl disable --now named · systemctl enable --now named-chroot · named -t /var/named/chroot · Debian: OPTIONS=\"-u bind -t /var/lib/named\" in /etc/default/named"
+  - t: "Verbergen"
+    v: "version none; (oder \"Text\") · dig @SERVER version.bind CH TXT · hostname none; · allow-transfer { none; }; global, je Zone freigeben"
+  - t: "Abschotten"
+    v: "allow-query · allow-recursion · allow-transfer · allow-update { none; }; · recursion no; auf öffentlichen Servern"
+karten:
+  - f: "Mit welcher Option startet named als anderer Benutzer?"
+    a: ["-u"]
+  - f: "Mit welcher Option sperrt sich named in ein Verzeichnis ein?"
+    a: ["-t"]
+  - f: "Welches Paket richtet auf Red Hat den Käfig für named ein?"
+    a: ["bind-chroot"]
+  - f: "Wie heißt die Unit, die named auf Red Hat im Käfig startet?"
+    a: ["named-chroot", "named-chroot.service"]
+  - f: "Welche Abfrage zeigt die Version eines BIND-Servers?"
+    a: ["dig version.bind chaos txt", "dig @server version.bind ch txt", "dig version.bind ch txt", "dig @server version.bind chaos txt"]
+  - f: "Welche Option versteckt die Version von BIND?"
+    a: ["version", "version none", "version none;"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Lueckentext from '../components/Lueckentext.astro';
+import Reihenfolge from '../components/Reihenfolge.astro';
+
+Die Firma will einen öffentlichen Nameserver für die Außenstelle aufstellen, auf AlmaLinux. Der Sicherheitsbeauftragte hat drei Bedingungen: named darf nicht als root laufen, er soll in einem Käfig stecken, und von außen darf niemand sehen, welche Version läuft oder welche Rechner es gibt. **Deine Mission: Installier BIND auf labor-alma, prüf, unter welchem Benutzer er läuft, verbirg Version und Zone und sperr ihn in einen Käfig.** Lernziel 207.3.
+
+## Weniger Rechte
+
+<Karte nr={1} titel="Nicht als root">
+named muss als root starten, weil nur root Port 53 öffnen darf. Danach gibt er die Rechte ab und läuft als einfacher Benutzer weiter: `named -u named` auf Red Hat, `named -u bind` auf Debian. Beide Pakete legen den Benutzer an, mit `/sbin/nologin` als Shell (Debian: `/usr/sbin/nologin`), damit sich niemand damit anmelden kann.
+
+Der Benutzer braucht nur wenig:
+
+- Lesen: `/etc/named.conf` (root:named, Modus 640, damit Schlüssel darin geschützt sind), Zonendateien, Schlüssel.
+- Schreiben: nur sein Arbeitsverzeichnis für sekundäre Zonen und Journale (`/var/named/slaves`, `/var/named/dynamic` auf Red Hat, `/var/cache/bind` auf Debian) und die Protokolldateien.
+
+Gehören die Zonendateien named selbst, könnte ein Angreifer, der named übernimmt, sie umschreiben. Darum gehören sie root und sind für named nur lesbar.
+</Karte>
+
+<Quiz id="k1" titel="Kurzcheck: Benutzer" fragen={[
+  { frage: 'Warum startet named trotzdem als root?', richtig: 'Um Port 53 zu öffnen, danach wechselt er zum Benutzer named', falsch: ['Um die Zonendateien in /var/named zu lesen', 'Um die Schlüssel in /etc/rndc.key zu erzeugen'], erklaerung: 'Ports unter 1024 darf nur root öffnen. Lesen kann named als Gruppe named.' },
+  { frage: 'Welche Shell hat der Benutzer named auf AlmaLinux?', richtig: '/sbin/nologin', falsch: ['/bin/bash', '/bin/false oder gar keine'], erklaerung: 'nologin lehnt jede Anmeldung höflich ab.' },
+]} />
+
+## Der Käfig
+
+<Karte nr={2} titel="chroot">
+Mit `-t VERZEICHNIS` ruft named nach dem Start `chroot()` auf. Von da an ist das Verzeichnis für ihn `/`, alles außerhalb existiert nicht mehr. Selbst wer named übernimmt, sieht nur den Käfig.
+
+Auf **Red Hat** erledigt das Paket **bind-chroot** die Arbeit: Es bringt die Unit **named-chroot** mit, die `named -u named -t /var/named/chroot` startet. Davor hängt ein Hilfsdienst (`named-chroot-setup`) `/etc/named.conf`, `/var/named` und die übrigen Dateien per bind-mount in den Käfig. Man pflegt die Dateien also weiter an der gewohnten Stelle. Die normale Unit named muss dafür aus sein:
+
+```
+sudo dnf install bind-chroot
+sudo systemctl disable --now named
+sudo systemctl enable --now named-chroot
+```
+
+Auf **Debian** gibt es kein fertiges Paket. Man baut den Käfig von Hand (etwa `/var/lib/named` mit `etc/bind`, `var/cache/bind`, `dev/null`, `dev/random`), kopiert die Konfiguration hinein und setzt in `/etc/default/named` `OPTIONS="-u bind -t /var/lib/named"`. Wichtig ist in beiden Fällen: Alle Pfade in named.conf gelten danach **innerhalb** des Käfigs.
+</Karte>
+
+<Reihenfolge id="reihe" titel="Reihenfolge: named in den Käfig auf Red Hat" aufgabe="Bring die Schritte in die richtige Reihenfolge." schritte={[
+  'sudo dnf install bind-chroot',
+  'sudo named-checkconf -t /var/named/chroot',
+  'sudo systemctl disable --now named',
+  'sudo systemctl enable --now named-chroot',
+  'ps -o user,cmd -C named',
+]} />
+
+## Wenig verraten
+
+<Karte nr={3} titel="Version und Zone">
+Jeder kann einen BIND-Server nach seiner Version fragen, über eine Sonderzone in der Klasse CHAOS:
+
+```
+dig @192.0.2.53 version.bind chaos txt +short
+"9.16.23-RH"
+```
+
+Für einen Angreifer ist das die halbe Arbeit: Er schlägt nach, welche Lücken diese Version hat. Mit `version none;` (oder einem beliebigen Text wie `version "geheim";`) in den Optionen antwortet named ohne Inhalt. `hostname none;` und `server-id none;` verbergen auf dieselbe Weise den Rechnernamen. Das schützt nicht vor der Lücke selbst, nur vor dem Finden. Updates bleiben Pflicht.
+
+Mehr verrät ein offener Zonentransfer, nämlich alle Namen auf einmal. Darum `allow-transfer { none; };` in die Optionen und nur in den Zonen mit sekundärem Server dessen Adresse oder Schlüssel freigeben. Dazu `allow-update { none; };`, wenn niemand die Zone dynamisch ändern soll (auf Red Hat steht das schon bei den mitgelieferten Zonen), und auf einem öffentlichen zuständigen Server `recursion no;`.
+</Karte>
+
+<Merke>named startet als root, läuft mit -u als named oder bind. Käfig mit -t, auf Red Hat per bind-chroot und named-chroot. version none; verbirgt die Version, allow-transfer \{ none; \}; global sperrt Zonentransfers.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: Käfig und Version" fragen={[
+  { frage: 'named läuft mit -t /var/named/chroot. In named.conf steht directory "/var/named";. Welches Verzeichnis auf der Platte ist gemeint?', richtig: '/var/named/chroot/var/named', falsch: ['/var/named', '/var/named/chroot'], erklaerung: 'Nach chroot gelten alle Pfade innerhalb des Käfigs. bind-chroot hängt /var/named darum dorthin ein.' },
+  { frage: 'Nach version none; antwortet dig version.bind chaos txt mit status NOERROR und ohne ANSWER. Ist die Version damit sicher?', richtig: 'Nein, nur schwerer zu finden. Updates braucht der Server trotzdem', falsch: ['Ja, ohne Version kann niemand eine Lücke ausnutzen', 'Nein, die Version steht weiter in der Zeile flags'], erklaerung: 'Angreifer probieren Lücken auch einfach aus.' },
+]} />
+
+<Lueckentext id="luecke" titel="Lückentext: Ein verschwiegener Server" aufgabe="Ergänze die Optionen eines öffentlichen, rein zuständigen Servers."
+  code={`options {
+    directory "/var/named";
+    ___ none;
+    recursion ___;
+    allow-___ { none; };
+    allow-update { none; };
+};
+
+zone "example.net" {
+    type primary;
+    file "example.net.zone";
+    allow-transfer { 198.51.100.53; };
+};`}
+  luecken={[
+    { loesungen: ['version'] },
+    { loesungen: ['no'] },
+    { loesungen: ['transfer'] },
+  ]} />
+
+<Terminal id="kaefig" titel="Terminal: named auf AlmaLinux" welt={{ distro: 'alma', dns: {} }} aufgaben={[
+  { text: 'Installier BIND samt Werkzeugen und starte named so, dass er auch nach einem Neustart läuft.', zustand: 'named:installiert && named:laeuft && named:enabled=named' },
+  { text: 'Sieh nach, unter welchem Benutzer named läuft und wie der Benutzer in <code>/etc/passwd</code> eingetragen ist.', befehl: '(grep|getent) .*named.*(/etc/passwd|passwd)|getent passwd named', frage: 'Welche Shell hat er?', antwort: ['/sbin/nologin', '/usr/sbin/nologin'] },
+  { text: 'Frag deinen Server nach seiner Version.', befehl: '^dig .*version\\.bind', frage: 'Was antwortet er?', antwort: ['9.16.23-RH', '"9.16.23-RH"'] },
+  { text: 'Verbirg die Version und sperr Zonentransfers für alle Zonen. Lade named neu, ohne ihn zu beenden.', zustand: 'named:opt:version~none && named:opt:allow-transfer~^none$ && named:laeuft', befehl: '^(rndc reload|rndc reconfig|systemctl reload named|kill -HUP|kill -1|kill -s HUP)' },
+  { text: 'Sperr named in einen Käfig. Er soll auch nach einem Neustart dort landen, und die normale Unit soll nicht mehr starten.', zustand: 'named:chroot && named:enabled=named-chroot && nicht:named:enabled=named' },
+  { text: 'Sieh dir den laufenden Prozess an.', befehl: '^(ps|pgrep|systemctl status named-chroot|pidof)', frage: 'Welches Verzeichnis ist für named jetzt /?', antwort: ['/var/named/chroot', '/var/named/chroot/'] },
+]} />
+
+<Labor id="labor" titel="Labor: Rechte und Version auf srv1"
+  aufgabe="Prüf auf srv1, unter welchem Benutzer named läuft, und verbirg seine Version. Füge die Ausgabe ein."
+  befehl={"ps -o user,cmd -C named\ngetent passwd bind\ndig @127.0.0.1 version.bind chaos txt +short\nsudo sed -i 's|^options {|options {\\n\\tversion none;|' /etc/bind/named.conf.options\nsudo named-checkconf && sudo rndc reconfig\ndig @127.0.0.1 version.bind chaos txt | grep -E 'status|ANSWER:'"}
+  muster={["^bind\\s+/usr/sbin/named", "nologin", "status: NOERROR", "ANSWER: 0"]}
+  erfolg="Debian startet named schon als bind. Nach version none; bleibt die Antwort leer, aber die Frage selbst wird weiter beantwortet, denn named ist für die Zone version.bind zuständig." />
+
+<Hinweis titel="Prüfungstipp">
+Lernziel 207.3 verlangt, BIND als einfachen Benutzer und in einem chroot-Käfig zu betreiben. Rechne mit den Optionen -u und -t, mit bind-chroot und named-chroot und mit der Frage, was nach chroot aus den Pfaden in named.conf wird. version und allow-transfer zählen zu den Grundlagen der Absicherung.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Welche Startzeile setzt Benutzer und Käfig für named auf Debian?', richtig: 'OPTIONS="-u bind -t /var/lib/named" in /etc/default/named', falsch: ['user bind; chroot "/var/lib/named"; in named.conf.options', 'OPTIONS="--user bind --root /var/lib/named" in /etc/bind/named.conf'], erklaerung: 'Benutzer und Käfig sind Optionen des Programms, nicht der Konfigurationsdatei.' },
+  { frage: 'Nach dem Umstieg auf named-chroot startet named nicht: „address in use“. Was ist passiert?', richtig: 'Die normale Unit named läuft noch und belegt Port 53', falsch: ['Im Käfig fehlt /dev/null', 'Der Benutzer named darf Port 53 nicht öffnen'], erklaerung: 'Erst systemctl disable --now named, dann named-chroot.' },
+  { frage: 'Wem sollen die Zonendateien eines primären Servers gehören?', richtig: 'root, für die Gruppe named nur lesbar', falsch: ['Dem Benutzer named mit Schreibrecht', 'Dem Benutzer nobody, damit named sie nicht ändern kann'], erklaerung: 'Schreibrechte braucht named nur für sekundäre und dynamische Zonen.' },
+]} />

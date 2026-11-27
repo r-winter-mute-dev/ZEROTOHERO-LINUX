@@ -63,7 +63,8 @@ Jede Prüfung hat 60 Fragen in 90 Minuten. Bestanden ist ab 500 auf einer Skala 
 | 5 | 204 | RAID-Level, Software-RAID mit mdadm, /proc/mdstat und mdadm.conf, Plattentausch mit sfdisk und Wiederaufbau, hdparm, sdparm, nvme-cli, I/O-Scheduler, fstrim, iSCSI mit iscsiadm und CHAP, WWID, WWN und LUN, LVM mit PVs, VGs und LVs, Vergrößern und Verkleinern, Snapshots mit lvconvert --merge, vgchange, pvmove, Bosskampf, Probeprüfung | ✅ |
 | 6 | 205 | ip und net-tools, Adressen mit Labels, VLAN, veth, MTU, Routen, ARP und ip neigh, WLAN mit rfkill, iw, iwconfig, iwlist und wpa_supplicant, zwei Netze und ip_forward, ss, lsof, tcpdump mit Filtern, nc, nmap, Fehlersuche auf Debian und Red Hat mit interfaces, ifcfg und NetworkManager, hosts.allow, mtr, Bosskampf, Probeprüfung | ✅ |
 | 7 | 206 | Tarballs prüfen und auspacken, configure, make, make check und make install, -dev-Pakete, patch und diff, install, DESTDIR und make uninstall, Sicherungskonzept und Medien, Amanda, Bacula, Bareos und BackupPC, tar voll und inkrementell mit -g, tar -d, Bänder mit /dev/st0, /dev/nst0 und mt, dd, rsync über SSH, /etc/issue, issue.net, motd, wall, shutdown und /run/nologin, Bosskampf, Generalprobe 201 | ✅ |
-| 8–13 | 207–212 | DNS, Web, Samba und NFS, DHCP, PAM und LDAP, E-Mail, Sicherheit | 📝 |
+| 8 | 207 | BIND als Cache mit acl, allow-recursion und forwarders, rndc, kill -HUP und logging, Zonendateien mit SOA und allen Eintragstypen, named-checkconf und named-checkzone, Rückwärtszonen, Wurzelserver, Delegation mit Glue, sekundärer Server mit NOTIFY und allow-transfer, named-compilezone und raw, named als einfacher Benutzer und mit bind-chroot, version none, TSIG, Split DNS mit Weiterleitungszonen, DNSSEC mit dnssec-keygen und dnssec-signzone, DANE, Bosskampf, Probeprüfung | ✅ |
+| 9–13 | 208–212 | Web, Samba und NFS, DHCP, PAM und LDAP, E-Mail, Sicherheit | 📝 |
 
 ✅ spielbar · 📝 Lehrplan steht, Missionen folgen
 

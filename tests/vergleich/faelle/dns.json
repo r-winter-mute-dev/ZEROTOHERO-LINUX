@@ -1,0 +1,288 @@
+{
+ "name": "named-checkconf, named-checkzone und Schlüssel: Rückgabecodes",
+ "version": "named-checkconf -v",
+ "welt": {
+  "dns": {
+   "paket": true
+  }
+ },
+ "vorbereitung": [],
+ "faelle": [
+  {
+   "name": "named-checkconf: gültig",
+   "dateien": {
+    "/tmp/lth-named.conf": {
+     "inhalt": "options {\n\tdirectory \"/tmp\";\n\trecursion yes;\n\tallow-recursion { 127.0.0.1; };\n};\n",
+     "modus": "644"
+    }
+   },
+   "befehl": "named-checkconf /tmp/lth-named.conf"
+  },
+  {
+   "name": "named-checkconf: Semikolon fehlt",
+   "dateien": {
+    "/tmp/lth-named.conf": {
+     "inhalt": "options {\n\tdirectory \"/tmp\"\n\trecursion yes;\n};\n",
+     "modus": "644"
+    }
+   },
+   "befehl": "named-checkconf /tmp/lth-named.conf"
+  },
+  {
+   "name": "named-checkconf: unbekannte Option",
+   "dateien": {
+    "/tmp/lth-named.conf": {
+     "inhalt": "options {\n\tdirectory \"/tmp\";\n\tgibtsnicht yes;\n};\n",
+     "modus": "644"
+    }
+   },
+   "befehl": "named-checkconf /tmp/lth-named.conf"
+  },
+  {
+   "name": "named-checkconf: kein Wahrheitswert",
+   "dateien": {
+    "/tmp/lth-named.conf": {
+     "inhalt": "options {\n\tdirectory \"/tmp\";\n\trecursion vielleicht;\n};\n",
+     "modus": "644"
+    }
+   },
+   "befehl": "named-checkconf /tmp/lth-named.conf"
+  },
+  {
+   "name": "named-checkconf: Klammer fehlt",
+   "dateien": {
+    "/tmp/lth-named.conf": {
+     "inhalt": "options {\n\tdirectory \"/tmp\";\n",
+     "modus": "644"
+    }
+   },
+   "befehl": "named-checkconf /tmp/lth-named.conf"
+  },
+  {
+   "name": "named-checkconf: primäre Zone ohne file",
+   "dateien": {
+    "/tmp/lth-named.conf": {
+     "inhalt": "options {\n\tdirectory \"/tmp\";\n\trecursion yes;\n\tallow-recursion { 127.0.0.1; };\n};\nzone \"t.example\" {\n\ttype primary;\n};\n",
+     "modus": "644"
+    }
+   },
+   "befehl": "named-checkconf /tmp/lth-named.conf"
+  },
+  {
+   "name": "named-checkconf: Zone doppelt",
+   "dateien": {
+    "/tmp/lth-named.conf": {
+     "inhalt": "options {\n\tdirectory \"/tmp\";\n\trecursion yes;\n\tallow-recursion { 127.0.0.1; };\n};\nzone \"t.example\" { type primary; file \"/tmp/lth-zone\"; };\nzone \"t.example\" { type primary; file \"/tmp/lth-zone\"; };\n",
+     "modus": "644"
+    }
+   },
+   "befehl": "named-checkconf /tmp/lth-named.conf"
+  },
+  {
+   "name": "named-checkconf: ACL nicht definiert",
+   "dateien": {
+    "/tmp/lth-named.conf": {
+     "inhalt": "options {\n\tdirectory \"/tmp\";\n\tallow-query { labor; };\n};\n",
+     "modus": "644"
+    }
+   },
+   "befehl": "named-checkconf /tmp/lth-named.conf"
+  },
+  {
+   "name": "named-checkconf: Datei fehlt",
+   "dateien": {},
+   "befehl": "named-checkconf /tmp/lth-gibtsnicht.conf"
+  },
+  {
+   "name": "named-checkconf: forward-Zone mit validate-except",
+   "dateien": {
+    "/tmp/lth-named.conf": {
+     "inhalt": "options {\n\tdirectory \"/tmp\";\n\tvalidate-except { \"firma.intern\"; };\n};\nzone \"firma.intern\" {\n\ttype forward;\n\tforward only;\n\tforwarders { 192.0.2.53; };\n};\n",
+     "modus": "644"
+    }
+   },
+   "befehl": "named-checkconf /tmp/lth-named.conf"
+  },
+  {
+   "name": "named-checkconf -z: Zone mit Fehler",
+   "dateien": {
+    "/tmp/lth-named.conf": {
+     "inhalt": "options {\n\tdirectory \"/tmp\";\n\trecursion yes;\n\tallow-recursion { 127.0.0.1; };\n};\nzone \"t.example\" { type primary; file \"/tmp/lth-zone\"; };\n",
+     "modus": "644"
+    },
+    "/tmp/lth-zone": {
+     "inhalt": "$TTL 3600\n@ IN SOA ns1.t.example. hostmaster.t.example. 1 7200 3600 1209600 900\n@ IN NS ns1.t.example.\nns1 IN A 192.0.2.1\nmail IN A 192.0.2.2555\n",
+     "modus": "644"
+    }
+   },
+   "befehl": "named-checkconf -z /tmp/lth-named.conf"
+  },
+  {
+   "name": "named-checkzone: gültig",
+   "dateien": {
+    "/tmp/lth-zone": {
+     "inhalt": "$TTL 3600\n@ IN SOA ns1.t.example. hostmaster.t.example. 1 7200 3600 1209600 900\n@ IN NS ns1.t.example.\nns1 IN A 192.0.2.1\nwww IN CNAME ns1\n@ IN MX 10 ns1\n",
+     "modus": "644"
+    }
+   },
+   "befehl": "named-checkzone t.example /tmp/lth-zone"
+  },
+  {
+   "name": "named-checkzone: ungültige Adresse",
+   "dateien": {
+    "/tmp/lth-zone": {
+     "inhalt": "$TTL 3600\n@ IN SOA ns1.t.example. hostmaster.t.example. 1 7200 3600 1209600 900\n@ IN NS ns1.t.example.\nns1 IN A 192.0.2.1\nmail IN A 192.0.2.2555\n",
+     "modus": "644"
+    }
+   },
+   "befehl": "named-checkzone t.example /tmp/lth-zone"
+  },
+  {
+   "name": "named-checkzone: ungültige IPv6-Adresse",
+   "dateien": {
+    "/tmp/lth-zone": {
+     "inhalt": "$TTL 3600\n@ IN SOA ns1.t.example. hostmaster.t.example. 1 7200 3600 1209600 900\n@ IN NS ns1.t.example.\nns1 IN A 192.0.2.1\nmail IN AAAA 2001:db8::zz\n",
+     "modus": "644"
+    }
+   },
+   "befehl": "named-checkzone t.example /tmp/lth-zone"
+  },
+  {
+   "name": "named-checkzone: CNAME neben anderen Daten",
+   "dateien": {
+    "/tmp/lth-zone": {
+     "inhalt": "$TTL 3600\n@ IN SOA ns1.t.example. hostmaster.t.example. 1 7200 3600 1209600 900\n@ IN NS ns1.t.example.\nns1 IN A 192.0.2.1\nwww IN CNAME ns1\nwww IN A 192.0.2.8\n",
+     "modus": "644"
+    }
+   },
+   "befehl": "named-checkzone t.example /tmp/lth-zone"
+  },
+  {
+   "name": "named-checkzone: NS ohne Punkt",
+   "dateien": {
+    "/tmp/lth-zone": {
+     "inhalt": "$TTL 3600\n@ IN SOA ns1.t.example. hostmaster.t.example. 1 7200 3600 1209600 900\n@ IN NS ns1.t.example\nns1 IN A 192.0.2.1\n",
+     "modus": "644"
+    }
+   },
+   "befehl": "named-checkzone t.example /tmp/lth-zone"
+  },
+  {
+   "name": "named-checkzone: kein SOA",
+   "dateien": {
+    "/tmp/lth-zone": {
+     "inhalt": "$TTL 3600\n@ IN NS ns1.t.example.\nns1 IN A 192.0.2.1\n",
+     "modus": "644"
+    }
+   },
+   "befehl": "named-checkzone t.example /tmp/lth-zone"
+  },
+  {
+   "name": "named-checkzone: kein NS",
+   "dateien": {
+    "/tmp/lth-zone": {
+     "inhalt": "$TTL 3600\n@ IN SOA ns1.t.example. hostmaster.t.example. 1 7200 3600 1209600 900\nns1 IN A 192.0.2.1\n",
+     "modus": "644"
+    }
+   },
+   "befehl": "named-checkzone t.example /tmp/lth-zone"
+  },
+  {
+   "name": "named-checkzone: unbekannter Typ",
+   "dateien": {
+    "/tmp/lth-zone": {
+     "inhalt": "$TTL 3600\n@ IN SOA ns1.t.example. hostmaster.t.example. 1 7200 3600 1209600 900\n@ IN NS ns1.t.example.\nns1 IN A 192.0.2.1\nx IN QUATSCH 1\n",
+     "modus": "644"
+    }
+   },
+   "befehl": "named-checkzone t.example /tmp/lth-zone"
+  },
+  {
+   "name": "named-checkzone: MX auf einen CNAME",
+   "dateien": {
+    "/tmp/lth-zone": {
+     "inhalt": "$TTL 3600\n@ IN SOA ns1.t.example. hostmaster.t.example. 1 7200 3600 1209600 900\n@ IN NS ns1.t.example.\nns1 IN A 192.0.2.1\nwww IN CNAME ns1\n@ IN MX 10 www\n",
+     "modus": "644"
+    }
+   },
+   "befehl": "named-checkzone t.example /tmp/lth-zone"
+  },
+  {
+   "name": "named-checkzone: Daten außerhalb der Zone",
+   "dateien": {
+    "/tmp/lth-zone": {
+     "inhalt": "$TTL 3600\n@ IN SOA ns1.t.example. hostmaster.t.example. 1 7200 3600 1209600 900\n@ IN NS ns1.t.example.\nns1 IN A 192.0.2.1\nfremd.example. IN A 192.0.2.9\n",
+     "modus": "644"
+    }
+   },
+   "befehl": "named-checkzone t.example /tmp/lth-zone"
+  },
+  {
+   "name": "named-checkzone: ohne $TTL",
+   "dateien": {
+    "/tmp/lth-zone": {
+     "inhalt": "@ IN SOA ns1.t.example. hostmaster.t.example. 1 7200 3600 1209600 900\n@ IN NS ns1.t.example.\nns1 IN A 192.0.2.1\n",
+     "modus": "644"
+    }
+   },
+   "befehl": "named-checkzone t.example /tmp/lth-zone"
+  },
+  {
+   "name": "named-checkzone: Zahl ungültig im SOA",
+   "dateien": {
+    "/tmp/lth-zone": {
+     "inhalt": "$TTL 3600\n@ IN SOA ns1.t.example. hostmaster.t.example. eins 7200 3600 1209600 900\n@ IN NS ns1.t.example.\nns1 IN A 192.0.2.1\n",
+     "modus": "644"
+    }
+   },
+   "befehl": "named-checkzone t.example /tmp/lth-zone"
+  },
+  {
+   "name": "named-checkzone: Datei fehlt",
+   "dateien": {},
+   "befehl": "named-checkzone t.example /tmp/lth-gibtsnicht"
+  },
+  {
+   "name": "named-compilezone: nach raw und zurück",
+   "dateien": {
+    "/tmp/lth-zone": {
+     "inhalt": "$TTL 3600\n@ IN SOA ns1.t.example. hostmaster.t.example. 1 7200 3600 1209600 900\n@ IN NS ns1.t.example.\nns1 IN A 192.0.2.1\nwww IN CNAME ns1\n",
+     "modus": "644"
+    }
+   },
+   "befehl": "named-compilezone -f raw -F text -o /tmp/lth-zone.txt t.example /tmp/lth-zone.raw",
+   "vorher": [
+    "named-compilezone -F raw -o /tmp/lth-zone.raw t.example /tmp/lth-zone"
+   ],
+   "aufraeumen": [
+    "rm -f /tmp/lth-zone.raw /tmp/lth-zone.txt"
+   ]
+  },
+  {
+   "name": "named-checkzone: raw als Text gelesen",
+   "dateien": {
+    "/tmp/lth-zone": {
+     "inhalt": "$TTL 3600\n@ IN SOA ns1.t.example. hostmaster.t.example. 1 7200 3600 1209600 900\n@ IN NS ns1.t.example.\nns1 IN A 192.0.2.1\n",
+     "modus": "644"
+    }
+   },
+   "befehl": "named-checkzone t.example /tmp/lth-zone.raw",
+   "vorher": [
+    "named-compilezone -F raw -o /tmp/lth-zone.raw t.example /tmp/lth-zone"
+   ],
+   "aufraeumen": [
+    "rm -f /tmp/lth-zone.raw"
+   ]
+  },
+  {
+   "name": "dnssec-keygen: HMAC geht nicht mehr",
+   "dateien": {},
+   "befehl": "dnssec-keygen -K /tmp -a HMAC-SHA256 t.example"
+  },
+  {
+   "name": "tsig-keygen: Schlüssel",
+   "dateien": {},
+   "befehl": "tsig-keygen -a hmac-sha256 lth-test"
+  }
+ ]
+}

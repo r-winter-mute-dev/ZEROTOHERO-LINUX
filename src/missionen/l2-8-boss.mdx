@@ -1,0 +1,31 @@
+---
+id: l2-8-boss
+checks:
+  - id: montag
+spick:
+  - t: "Fehler finden"
+    v: "systemctl status named · journalctl -u named · named-checkconf -z · named-checkzone ZONE DATEI"
+  - t: "Zone ändern"
+    v: "Eintrag · Serial hoch · named-checkzone · rndc reload ZONE · dig @127.0.0.1 NAME · dig -x ADRESSE"
+  - t: "Transfer"
+    v: "allow-transfer { 192.168.1.10; }; · @ IN NS ns2… · dig @192.168.1.10 ZONE SOA · journalctl: sending notifies, AXFR ended"
+  - t: "Absichern"
+    v: "version none; · allow-recursion { labor; }; · rndc reconfig"
+---
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+
+Montag, 7:50 Uhr. Im Labor geht nichts: Kein Rechner findet einen Namen, nicht einmal google.com. Am Freitagabend hat Max „schnell noch“ den neuen Plotter eingetragen und an der Konfiguration gedreht. Dann ist er in den Urlaub gefahren. **Dein Bosskampf: Bring werkstatt wieder zum Laufen und den Plotter in beide Zonen, vorwärts und rückwärts, und zwar so, dass auch srv1 ihn kennt.** Alles aus Topic 207.
+
+<Hinweis titel="Vorgehen">
+Die Aufgaben nennen nur das Ziel. Plotter heißt plotter.lab.example.org und hat die Adresse 192.168.1.41. srv1 (192.168.1.10) ist sekundärer Server für lab.example.org und als ns2 in der Zone eingetragen. Prüf jede Datei, bevor du named neu startest. Max hat vermutlich mehr als einen Fehler gemacht.
+</Hinweis>
+
+<Terminal id="montag" titel="Bosskampf: Montagmorgen" welt={{ dns: { paket: true, cache: true, zone: true, rueck: true, sekundaer: true, boss: true } }} aufgaben={[
+  { text: 'Finde heraus, warum niemand einen Namen auflöst.', befehl: '^(systemctl status|journalctl|named-checkconf)', auchFehler: true, frage: 'In welcher Datei und Zeile steckt der Fehler? (Datei:Zeile)', antwort: ['/etc/bind/named.conf.options:18', 'named.conf.options:18'] },
+  { text: 'Bring named wieder zum Laufen, so dass das Labor fremde Namen auflösen kann.', zustand: 'named:laeuft && named:konf-ok && dnsfrage:www.example.org/A~203\\.0\\.113\\.80' },
+  { text: 'Der Plotter soll unter seinem Namen erreichbar sein. Sorg dafür, dass werkstatt die Zone lab.example.org vollständig ausliefert.', zustand: 'dnszone:lab.example.org=geladen && dnsfrage:plotter.lab.example.org/A~192\\.168\\.1\\.41' },
+  { text: 'Auch srv1 soll den Plotter kennen, ohne dass du dort etwas änderst.', zustand: 'srv1zone:lab.example.org~plotter && srv1zone:lab.example.org>=2026112302' },
+  { text: 'Trag den Plotter in die Rückwärtszone ein.', zustand: 'dnsfrage:41.1.168.192.in-addr.arpa/PTR~plotter\\.lab\\.example\\.org\\.$ && dnszone:1.168.192.in-addr.arpa>=2026112302' },
+  { text: 'Max hat außerdem notiert: „Version vom Server verstecken!“. Erledige das, ohne named neu zu starten.', zustand: 'named:opt:version~none && named:laeuft', befehl: '^(rndc (reload|reconfig)|systemctl reload (named|bind9)|kill -(HUP|1|s HUP))' },
+]} />

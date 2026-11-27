@@ -1,0 +1,165 @@
+---
+id: l2-8-1
+checks:
+  - id: k1
+  - id: zuordnung
+  - id: k2
+  - id: luecke
+  - id: cache
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "Debian"
+    v: "apt install bind9 · /etc/bind/named.conf → named.conf.options, named.conf.local, named.conf.default-zones · Arbeitsverzeichnis /var/cache/bind · Benutzer bind · Dienst named (auch bind9)"
+  - t: "Red Hat"
+    v: "dnf install bind bind-utils · /etc/named.conf · /etc/named.rfc1912.zones · /var/named · named.ca · Benutzer named · Dienst named"
+  - t: "Cache"
+    v: "acl labor { 192.168.1.0/24; localhost; }; · listen-on { 127.0.0.1; 192.168.1.23; }; · allow-query, allow-recursion { labor; }; · forwarders { 192.168.1.1; }; forward first|only; · recursion yes; · dnssec-validation auto;"
+  - t: "Prüfen"
+    v: "named-checkconf [-z] · systemctl restart named · dig @127.0.0.1 NAME · host NAME SERVER · Kommentare: //, #, /* */"
+karten:
+  - f: "Wie heißt das Programm des BIND-Nameservers?"
+    a: ["named"]
+  - f: "Welche Datei ist auf Red Hat die Hauptkonfiguration von BIND?"
+    a: ["/etc/named.conf"]
+  - f: "In welchem Verzeichnis liegen auf Red Hat die Zonendateien?"
+    a: ["/var/named", "/var/named/"]
+  - f: "Welche Option bestimmt, wer rekursive Anfragen stellen darf?"
+    a: ["allow-recursion"]
+  - f: "Was unterscheidet forward first von forward only?"
+    a: ["Bei first fragt named selbst weiter, wenn die Weiterleitung scheitert. Bei only gibt er dann auf."]
+    aufdecken: true
+  - f: "Welcher Befehl prüft named.conf auf Fehler, ohne named anzufassen?"
+    a: ["named-checkconf"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Zuordnung from '../components/Zuordnung.astro';
+import Lueckentext from '../components/Lueckentext.astro';
+
+Bisher fragt jeder Rechner im Labor den Router nach jedem Namen, und der fragt beim Provider. Das ist langsam, und eigene Namen wie werkstatt.lab.example.org kennt niemand. Der erste Schritt zu einem eigenen Namensdienst: werkstatt bekommt BIND. **Deine Mission: Installiere BIND, sieh dir an, wie er aufgebaut ist, und mach ihn zu einem Cache, der nur dem Labornetz antwortet.** Lernziel 207.1.
+
+<Hinweis titel="Das Labor in Akt 8">
+Die Labore dieses Akts laufen auf **srv1** (Debian 12) und brauchen Internet über **gw**: 2 VMs mit 1 GB und 2 GB, zusammen 3 GB. Für den Zonentransfer in 8.4 und 8.6 übernimmt srv1 im Simulator die Rolle des zweiten Nameservers.
+</Hinweis>
+
+## Was ein Nameserver tut
+
+<Karte nr={1} titel="Zuständig oder zwischengespeichert">
+Ein Nameserver kann zwei Rollen haben:
+
+- **Autoritativ** (zuständig) für eine Zone: Er kennt die Antworten selbst, aus seinen Zonendateien, und setzt in der Antwort das Flag **aa** (authoritative answer).
+- **Rekursiv** mit Cache: Er kennt die Antwort nicht, fragt sich für den Client von der Wurzel über die Top-Level-Domain bis zum zuständigen Server durch und merkt sich das Ergebnis. Ein **caching-only** Server hat gar keine eigenen Zonen.
+
+Der bekannteste Nameserver ist **BIND 9** vom ISC, das Programm heißt **named**. Daneben gibt es **dnsmasq** (klein, DNS-Weiterleitung mit Cache und DHCP in einem, beliebt auf Routern), **djbdns** von D. J. Bernstein (strikt getrennt: tinydns zuständig, dnscache rekursiv) und **PowerDNS** (Authoritative Server mit Datenbank-Backends und ein eigener Recursor).
+
+Ein rekursiver Server, der jedem im Internet antwortet, heißt **offener Resolver**. Angreifer missbrauchen solche Server für Verstärkungsangriffe. Rekursion gibt es darum nur für die eigenen Netze.
+</Karte>
+
+<Quiz id="k1" titel="Kurzcheck: Rollen" fragen={[
+  { frage: 'Woran erkennst du in der Ausgabe von dig, dass die Antwort von einem zuständigen Server stammt?', richtig: 'Am Flag aa in der Zeile flags', falsch: ['Am Flag ra in der Zeile flags', 'An einer kurzen Query time'], erklaerung: 'ra heißt nur, dass der Server Rekursion anbietet. Eine kurze Zeit kommt auch aus dem Cache.' },
+  { frage: 'Welche Software trennt den zuständigen und den rekursiven Teil in zwei Programme?', richtig: 'djbdns mit tinydns und dnscache', falsch: ['dnsmasq mit dnsmasq-dhcp', 'BIND mit named und rndc'], erklaerung: 'rndc steuert named nur. dnsmasq ist ein einziges Programm.' },
+]} />
+
+## BIND auf Debian und Red Hat
+
+<Karte nr={2} titel="Wo was liegt">
+| | Debian | Red Hat |
+|---|---|---|
+| Paket | `bind9`, Werkzeuge `bind9-utils` | `bind`, Werkzeuge `bind-utils` |
+| Hauptdatei | `/etc/bind/named.conf` | `/etc/named.conf` |
+| Eigene Zonen | `/etc/bind/named.conf.local` | in `/etc/named.conf` |
+| Optionen | `/etc/bind/named.conf.options` | in `/etc/named.conf` |
+| Arbeitsverzeichnis | `/var/cache/bind` | `/var/named` |
+| Zonendateien | meist `/etc/bind/db.*` | `/var/named/*` |
+| Wurzelserver | `/usr/share/dns/root.hints` | `/var/named/named.ca` |
+| Benutzer | `bind` | `named` |
+| Dienst | `named` (Alias `bind9`) | `named` |
+
+Die Lernziele nennen `/etc/named.conf` und `/var/named/`, also die Red-Hat-Pfade. Auf Debian ist die Datei in mehrere Teile zerlegt, die `named.conf` mit `include` zusammenführt.
+
+Die Syntax ist überall gleich: Anweisungen enden mit `;`, Blöcke stehen in `{ }`, und auch nach der schließenden Klammer steht ein `;`. Kommentare beginnen mit `//` oder `#` oder stehen zwischen `/*` und `*/`. Ein fehlendes Semikolon ist der häufigste Grund, warum named nicht startet. **named-checkconf** findet es.
+</Karte>
+
+<Zuordnung id="zuordnung" titel="Zuordnung: Debian und Red Hat" aufgabe="Ordne jedem Gegenstand den Ort oder Namen auf Red Hat zu." paare={[
+  { links: 'Hauptkonfiguration', rechts: '/etc/named.conf' },
+  { links: 'Arbeitsverzeichnis und Zonendateien', rechts: '/var/named' },
+  { links: 'Liste der Wurzelserver', rechts: '/var/named/named.ca' },
+  { links: 'Benutzer, unter dem named läuft', rechts: 'named' },
+  { links: 'Paket mit dig und host', rechts: 'bind-utils' },
+]} extra={['/etc/bind/named.conf.local']} />
+
+<Karte nr={3} titel="Ein Cache fürs Labor">
+```
+acl labor {
+    192.168.1.0/24;
+    localhost;
+};
+
+options {
+    directory "/var/cache/bind";
+    listen-on { 127.0.0.1; 192.168.1.23; };
+    listen-on-v6 { ::1; };
+    allow-query { labor; };
+    allow-recursion { labor; };
+    forwarders { 192.168.1.1; };
+    forward first;
+    dnssec-validation auto;
+};
+```
+
+**acl** gibt einer Liste von Adressen einen Namen. Eingebaut sind `any`, `none`, `localhost` (die eigenen Adressen) und `localnets` (die Netze an den eigenen Schnittstellen). **listen-on** legt fest, auf welchen Adressen named lauscht. **allow-query** regelt, wer überhaupt fragen darf, **allow-recursion**, wer rekursive Antworten bekommt. Mit **forwarders** schickt named Anfragen, die er nicht selbst kennt, an andere Server. `forward first` fragt danach selbst weiter, wenn die Weiterleitung scheitert, `forward only` gibt dann auf. `recursion no;` macht einen rein zuständigen Server.
+</Karte>
+
+<Merke>named.conf: Semikolon nach jeder Anweisung, auch nach \}. Rekursion nur für die eigenen Netze, mit acl und allow-recursion. Vor jedem Neustart named-checkconf.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: Optionen" fragen={[
+  { frage: 'Ein Kunde aus dem Internet fragt werkstatt nach www.example.com. allow-query ist any, allow-recursion ist labor. Was antwortet named?', richtig: 'REFUSED, denn rekursive Antworten bekommt nur labor', falsch: ['Die Adresse von www.example.com aus dem Cache', 'Gar nichts, named lauscht nicht auf Anfragen von außen'], erklaerung: 'allow-query lässt die Frage zu, aber für fremde Namen bräuchte er Rekursion. Für eigene Zonen bekäme der Kunde trotzdem eine Antwort.' },
+  { frage: 'Was bewirkt forward only, wenn der Router 192.168.1.1 nicht antwortet?', richtig: 'named antwortet mit SERVFAIL', falsch: ['named fragt selbst bei den Wurzelservern', 'named antwortet aus /etc/hosts'], erklaerung: 'Mit forward first würde named selbst weiterfragen.' },
+]} />
+
+<Lueckentext id="luecke" titel="Lückentext: named.conf.options" aufgabe="Ergänze die Konfiguration für einen Cache, der dem Netz 10.20.0.0/16 rekursiv antwortet und an 10.20.0.1 weiterleitet."
+  code={`___ intern { 10.20.0.0/16; localhost; };
+
+options {
+    directory "/var/cache/bind";
+    allow-___ { intern; };
+    ___ { 10.20.0.1; };
+    forward ___;
+};`}
+  luecken={[
+    { loesungen: ['acl'] },
+    { loesungen: ['recursion'] },
+    { loesungen: ['forwarders'] },
+    { loesungen: ['first', 'only'] },
+  ]} />
+
+<Terminal id="cache" titel="Terminal: BIND als Cache" welt={{ dns: {} }} aufgaben={[
+  { text: 'Installiere BIND.', zustand: 'named:installiert && named:laeuft' },
+  { text: 'Sieh dir an, welche Dateien die Hauptkonfiguration einbindet.', befehl: '(cat|less|more|grep .*) /etc/bind/named\\.conf$', frage: 'In welche Datei gehören eigene Zonen?', antwort: ['/etc/bind/named.conf.local', 'named.conf.local'] },
+  { text: 'Frag den neuen Server mit dig nach www.example.org.', befehl: '^dig .*@(127\\.0\\.0\\.1|localhost|::1|192\\.168\\.1\\.23).*www\\.example\\.org|^dig .*www\\.example\\.org.*@(127\\.0\\.0\\.1|localhost|::1|192\\.168\\.1\\.23)', frage: 'Wie viele Millisekunden hat die Antwort gedauert?', antwort: ['87'] },
+  { text: 'Stell dieselbe Frage noch einmal.', befehl: '^dig .*www\\.example\\.org', frage: 'Und jetzt? (Millisekunden)', antwort: ['0'] },
+  { text: 'Mach named zum Cache fürs Labor: ACL <code>labor</code> mit 192.168.1.0/24 und localhost, Fragen und Rekursion nur für labor, lauschen auf 127.0.0.1 und 192.168.1.23, Weiterleitung an den Router 192.168.1.1 mit forward first. Prüf die Datei, bevor du named neu startest.', zustand: 'named:acl:labor~192\\.168\\.1\\.0/24 && named:acl:labor~localhost && named:opt:allow-recursion~labor && named:opt:allow-query~labor && named:opt:forwarders~192\\.168\\.1\\.1 && named:opt:forward~first && named:opt:listen-on~192\\.168\\.1\\.23', befehl: '^named-checkconf' },
+  { text: 'Frag über die LAN-Adresse von werkstatt nach mail.example.org. host reicht.', befehl: '^host .*mail\\.example\\.org .*192\\.168\\.1\\.23', frage: 'Welche Adresse hat mail.example.org?', antwort: ['203.0.113.25'] },
+]} />
+
+<Labor id="labor" titel="Labor: BIND auf srv1"
+  aufgabe="Installiere BIND auf srv1, prüf die Konfiguration und miss, wie der Cache die zweite Anfrage beschleunigt. Füge die Ausgabe ein."
+  befehl={"sudo apt install -y bind9 bind9-dnsutils\nsudo named-checkconf && echo Konfiguration OK\ndig @127.0.0.1 debian.org | grep 'Query time'\ndig @127.0.0.1 debian.org | grep 'Query time'\nsystemctl is-active named"}
+  muster={["Konfiguration OK", "Query time: \\d+ msec", "^active"]}
+  erfolg="Die erste Anfrage musste named von den Wurzelservern an durchfragen, die zweite kam aus dem Cache und dauerte fast nichts. Ohne eigene Zonen ist srv1 jetzt ein caching-only Server." />
+
+<Hinweis titel="Prüfungstipp">
+Lernziel 207.1 nennt /etc/named.conf, /var/named/, rndc, named-checkconf, kill, host und dig sowie die Namen dnsmasq, djbdns und PowerDNS. Rechne mit Fragen zu den Optionen allow-query, allow-recursion, forwarders und listen-on und zur Syntax mit Semikolons. Der Entwurf 5.0 behält das Lernziel, streicht kill und ergänzt die Grundlagen des DNS. Der Entwurf ist nicht final.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'named startet nicht. Welcher Befehl zeigt dir am schnellsten Datei und Zeile des Fehlers?', richtig: 'named-checkconf', falsch: ['named-checkzone', 'rndc status'], erklaerung: 'named-checkzone prüft nur Zonendateien, rndc braucht einen laufenden named.' },
+  { frage: 'Was bedeutet localnets in einer Adressliste?', richtig: 'Alle Netze, an denen der Server mit einer Schnittstelle hängt', falsch: ['Nur die Adresse 127.0.0.1', 'Alle privaten Netze nach RFC 1918'], erklaerung: 'localhost meint die eigenen Adressen, localnets die ganzen Netze dazu.' },
+  { frage: 'Welche Antwort ist bei einem rein zuständigen Server für die eigene Zone richtig?', richtig: 'recursion no; in den Optionen', falsch: ['forward only; in den Optionen', 'allow-query { none; }; in den Optionen'], erklaerung: 'allow-query none würde auch Fragen zur eigenen Zone verbieten.' },
+]} />

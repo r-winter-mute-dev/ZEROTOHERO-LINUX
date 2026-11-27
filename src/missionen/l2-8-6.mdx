@@ -1,0 +1,187 @@
+---
+id: l2-8-6
+checks:
+  - id: k1
+  - id: luecke
+  - id: k2
+  - id: zuordnung
+  - id: k3
+  - id: sicher
+  - id: labor
+    hardware: true
+  - id: k4
+spick:
+  - t: "TSIG"
+    v: "tsig-keygen -a hmac-sha256 NAME > NAME.key · include \"/etc/bind/NAME.key\"; · allow-transfer { key NAME; }; · sekundär: server 192.168.1.23 { keys { NAME; }; }; · dig -k DATEI … AXFR · dig -y hmac-sha256:NAME:GEHEIM"
+  - t: "Split DNS"
+    v: "zone \"firma.intern\" { type forward; forward only; forwarders { 192.168.1.10; }; }; · private Namen: validate-except { \"firma.intern\"; }; · Alternative: view mit match-clients"
+  - t: "DNSSEC"
+    v: "dnssec-keygen -a ECDSAP256SHA256 ZONE (ZSK) · -f KSK ZONE · Kzone.+013+ID.key/.private · dnssec-signzone -S -o ZONE DATEI → DATEI.signed, dsset-ZONE. · file auf .signed · dig +dnssec · DS an die übergeordnete Zone · vor Ablauf der RRSIG neu signieren"
+  - t: "Einträge"
+    v: "DNSKEY (256 ZSK, 257 KSK) · RRSIG · DS · NSEC/NSEC3 · TLSA für DANE: _443._tcp.www IN TLSA 3 1 1 HASH"
+karten:
+  - f: "Welches Programm erzeugt einen TSIG-Schlüssel in BIND 9.18?"
+    a: ["tsig-keygen"]
+  - f: "Wie heißt die Option von dig für eine Schlüsseldatei?"
+    a: ["-k"]
+  - f: "Welcher Eintrag enthält die Signatur eines Datensatzes?"
+    a: ["RRSIG"]
+  - f: "Welcher Eintrag verbindet eine signierte Zone mit der übergeordneten Zone?"
+    a: ["DS"]
+  - f: "Mit welcher Option erzeugt dnssec-keygen einen Schlüssel zum Signieren der Schlüssel?"
+    a: ["-f KSK", "-f ksk", "-fk"]
+  - f: "Welcher Eintragstyp gehört zu DANE?"
+    a: ["TLSA"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Zuordnung from '../components/Zuordnung.astro';
+import Lueckentext from '../components/Lueckentext.astro';
+
+srv1 holt die Zone lab.example.org jetzt per Zonentransfer ab, freigegeben nur für seine Adresse. Lena ist das zu wenig: Adressen lassen sich fälschen. Außerdem sollen die Laborrechner die Namen der Firma (wiki.firma.intern) auflösen können, und die Firma verlangt, dass lab.example.org signiert wird. **Deine Mission: Sichere den Zonentransfer mit einem gemeinsamen Schlüssel, leite firma.intern an srv1 weiter und signiere die Zone mit DNSSEC.** Lernziel 207.3.
+
+## Transfers mit Schlüssel
+
+<Karte nr={1} titel="TSIG">
+**TSIG** (transaction signature, RFC 8945) sichert einzelne Nachrichten zwischen zwei Servern: Beide kennen denselben geheimen Schlüssel und hängen an jede Nachricht einen HMAC an. Wer den Schlüssel nicht hat, bekommt keinen Transfer, egal von welcher Adresse er kommt. TSIG schützt so Zonentransfers, NOTIFY, dynamische Updates und auch rndc (dessen Schlüssel ist ein TSIG-Schlüssel).
+
+```
+$ tsig-keygen -a hmac-sha256 ns1-ns2 > ns1-ns2.key
+$ cat ns1-ns2.key
+key "ns1-ns2" {
+    algorithm hmac-sha256;
+    secret "Wq0mK4bX…";
+};
+```
+
+Die Datei kommt auf beide Server, gehört root und ist nur für named lesbar (`640 root:bind`), und named.conf bindet sie mit `include` ein. Auf dem primären Server erlaubt man den Transfer dann nur noch mit Schlüssel: `allow-transfer { key ns1-ns2; };`. Auf dem sekundären sagt ein **server**-Block, dass er beim primären immer signiert fragt: `server 192.168.1.23 { keys { ns1-ns2; }; };`.
+
+Von Hand prüft man mit `dig -k ns1-ns2.key @ns1 lab.example.org AXFR` oder `dig -y hmac-sha256:ns1-ns2:GEHEIM …`. Ältere Anleitungen erzeugen TSIG-Schlüssel mit `dnssec-keygen -a HMAC-MD5`. Das geht seit BIND 9.13 nicht mehr, und MD5 gilt ohnehin als zu schwach.
+</Karte>
+
+<Quiz id="k1" titel="Kurzcheck: TSIG" fragen={[
+  { frage: 'Was beweist ein gültiger TSIG-Schlüssel an einer Anfrage?', richtig: 'Dass der Absender das gemeinsame Geheimnis kennt und die Nachricht unterwegs nicht verändert wurde', falsch: ['Dass die Antworten der Zone selbst echt sind, wie bei DNSSEC', 'Dass der Absender die richtige IP-Adresse hat'], erklaerung: 'TSIG sichert den Weg zwischen zwei Servern. Die Daten selbst sichert DNSSEC.' },
+  { frage: 'Im Journal steht „request has invalid signature: TSIG ns1-ns2: tsig verify failure (BADKEY)“. Was ist los?', richtig: 'Der Server kennt keinen Schlüssel dieses Namens mit diesem Geheimnis', falsch: ['Die Uhren der beiden Server gehen mehr als fünf Minuten auseinander', 'allow-transfer erlaubt den Schlüssel nicht'], erklaerung: 'Abweichende Uhren meldet named als BADTIME, eine fehlende Freigabe als „denied“.' },
+]} />
+
+<Lueckentext id="luecke" titel="Lückentext: Zonentransfer mit Schlüssel" aufgabe="Ergänze die Konfiguration auf dem primären Server (oben) und dem sekundären (unten)."
+  code={`include "/etc/bind/ns1-ns2.key";
+zone "lab.example.org" {
+    type primary;
+    file "/etc/bind/db.lab.example.org";
+    allow-transfer { ___ ns1-ns2; };
+};
+
+include "/etc/bind/ns1-ns2.key";
+___ 192.168.1.23 {
+    keys { ns1-ns2; };
+};
+zone "lab.example.org" {
+    type ___;
+    primaries { 192.168.1.23; };
+    file "/var/cache/bind/db.lab.example.org";
+};`}
+  luecken={[
+    { loesungen: ['key'] },
+    { loesungen: ['server'] },
+    { loesungen: ['secondary', 'slave'] },
+  ]} />
+
+## Split DNS
+
+<Karte nr={2} titel="Interne Namen weiterleiten">
+Die Namen unter firma.intern gibt es nur im Firmennetz, auf srv1. Das Internet kennt sie nicht. Damit werkstatt sie trotzdem auflöst, schickt er alle Fragen dazu gezielt an srv1, während alles andere den normalen Weg nimmt:
+
+```
+zone "firma.intern" {
+    type forward;
+    forward only;
+    forwarders { 192.168.1.10; };
+};
+```
+
+So entsteht **Split DNS**: Je nach Server oder Netz bekommt man unterschiedliche Antworten, intern mehr als extern. Ein zweiter Weg sind **views** in named.conf. Ein Server liefert dann mit `match-clients { 192.168.1.0/24; };` dem eigenen Netz eine andere Fassung einer Zone als dem Rest.
+
+Eine Falle mit DNSSEC: Die signierte Wurzel beweist, dass es die Top-Level-Domain intern nicht gibt. Ein prüfender Resolver hält die Antwort von srv1 darum für gefälscht und meldet SERVFAIL, im Journal „insecurity proof failed“. Für private Namen schaltet `validate-except { "firma.intern"; };` in den Optionen die Prüfung gezielt ab. Sauberer ist ein Name unter einer echten, eigenen Domain oder unter home.arpa.
+</Karte>
+
+<Quiz id="k2" titel="Kurzcheck: Weiterleiten" fragen={[
+  { frage: 'Was ändert forward only in einer Zone vom Typ forward?', richtig: 'named fragt für diese Namen nie selbst bei den Wurzelservern, nur bei den forwarders', falsch: ['named liefert die Zone als zuständiger Server aus', 'named leitet nur Fragen ohne Rekursion weiter'], erklaerung: 'Eine Weiterleitungszone macht named nicht zuständig. Er setzt kein aa.' },
+  { frage: 'Die Weiterleitung von firma.intern ist eingerichtet, srv1 antwortet direkt richtig, werkstatt aber mit SERVFAIL. Was ist am wahrscheinlichsten?', richtig: 'Die DNSSEC-Prüfung verwirft die Antwort, es fehlt validate-except', falsch: ['srv1 erlaubt keine Rekursion', 'firma.intern braucht einen Glue-Eintrag'], erklaerung: 'srv1 ist für firma.intern zuständig und braucht keine Rekursion.' },
+]} />
+
+## DNSSEC
+
+<Karte nr={3} titel="Signierte Zonen">
+**DNSSEC** sichert die Daten selbst: Jede Gruppe gleicher Einträge bekommt eine Signatur, die jeder prüfen kann. Die neuen Eintragstypen:
+
+| Typ | Inhalt |
+|---|---|
+| DNSKEY | öffentliche Schlüssel der Zone, Flag 256 = ZSK, 257 = KSK |
+| RRSIG | Signatur über eine Gruppe von Einträgen |
+| DS | Fingerabdruck des KSK, steht in der **übergeordneten** Zone |
+| NSEC, NSEC3 | beweisen, dass es einen Namen nicht gibt |
+
+Zwei Schlüssel sind üblich: Der **ZSK** (zone signing key) signiert die Einträge, der **KSK** (key signing key) nur die DNSKEY-Einträge. Den ZSK kann man so wechseln, ohne die übergeordnete Zone zu bemühen. Die Kette des Vertrauens läuft von der Wurzel über den DS jeder Ebene bis zum Schlüssel der Zone.
+
+Von Hand signiert:
+
+```
+cd /etc/bind
+sudo dnssec-keygen -a ECDSAP256SHA256 lab.example.org        # ZSK
+sudo dnssec-keygen -a ECDSAP256SHA256 -f KSK lab.example.org # KSK
+sudo dnssec-signzone -S -o lab.example.org db.lab.example.org
+```
+
+dnssec-keygen legt je Schlüssel zwei Dateien an: `Klab.example.org.+013+41200.key` (öffentlich, 013 ist die Nummer des Algorithmus) und `….private`. dnssec-signzone mit `-S` sucht die Schlüssel selbst und schreibt `db.lab.example.org.signed` und `dsset-lab.example.org.` mit dem DS für die übergeordnete Zone. In named.conf zeigt `file` danach auf die `.signed`-Datei. Signaturen laufen nach 30 Tagen ab, also muss man regelmäßig neu signieren, sonst wird die Zone ungültig.
+
+Weil das mühsam ist, signiert named das heute selbst: `dnssec-policy default;` im Zonenblock (KASP, key and signing policy) erzeugt Schlüssel, signiert und erneuert. Der Entwurf 5.0 der Lernziele setzt darauf und streicht dnssec-keygen und dnssec-signzone. In 4.5 stehen sie noch.
+
+Auf Clientseite zeigt `dig +dnssec` die Signaturen, das Flag **ad** heißt, dass der Resolver die Kette geprüft hat. **DANE** (RFC 6698) baut darauf auf: Ein **TLSA**-Eintrag wie `_25._tcp.mail.lab.example.org. IN TLSA 3 1 1 …` nennt den Fingerabdruck des TLS-Zertifikats eines Dienstes. Ohne DNSSEC wäre er wertlos.
+</Karte>
+
+<Zuordnung id="zuordnung" titel="Zuordnung: DNSSEC-Einträge" aufgabe="Ordne jedem Inhalt den Eintragstyp zu." paare={[
+  { links: 'Öffentlicher Schlüssel der Zone', rechts: 'DNSKEY' },
+  { links: 'Signatur über die A-Einträge eines Namens', rechts: 'RRSIG' },
+  { links: 'Fingerabdruck des KSK in der übergeordneten Zone', rechts: 'DS' },
+  { links: 'Beweis, dass es einen Namen nicht gibt', rechts: 'NSEC' },
+  { links: 'Fingerabdruck eines TLS-Zertifikats für DANE', rechts: 'TLSA' },
+]} extra={['TSIG']} />
+
+<Merke>TSIG: gemeinsames Geheimnis für Transfers, tsig-keygen, allow-transfer \{ key NAME; \}. Split DNS: Zone type forward. DNSSEC: dnssec-keygen (ZSK, -f KSK), dnssec-signzone -S -o, file auf .signed, DS nach oben.</Merke>
+
+<Quiz id="k3" titel="Kurzcheck: DNSSEC" fragen={[
+  { frage: 'Welche Datei schickst du dem Betreiber der übergeordneten Zone?', richtig: 'dsset-lab.example.org. mit dem DS-Eintrag', falsch: ['Die .private-Datei des KSK', 'db.lab.example.org.signed'], erklaerung: 'Die privaten Schlüssel verlassen den Server nie.' },
+  { frage: 'Seit Wochen hat niemand die Zone neu signiert, und plötzlich melden prüfende Resolver SERVFAIL. Warum?', richtig: 'Die RRSIG-Einträge sind abgelaufen', falsch: ['Der DS in der übergeordneten Zone ist abgelaufen', 'Die negative TTL ist überschritten'], erklaerung: 'dnssec-signzone setzt die Gültigkeit standardmäßig auf 30 Tage. dnssec-policy erneuert die Signaturen selbst.' },
+]} />
+
+<Terminal id="sicher" titel="Terminal: Schlüssel, Weiterleitung, Signatur" welt={{ dns: { paket: true, cache: true, zone: true, sekundaer: true, tsig: true } }} aufgaben={[
+  { text: 'srv1 verlangt seit heute einen Schlüssel. Frag ihn nach dem SOA seiner Kopie und sieh im Journal von werkstatt nach, warum er nichts Neues bekommt.', befehl: '^(sudo )?journalctl .*(named|bind9)', frage: 'Welcher Fehler steht im Journal (das Wort in Klammern)?', antwort: ['BADKEY', 'badkey'] },
+  { text: 'Lena hat den gemeinsamen Schlüssel als <code>~/ns1-ns2.key</code> abgelegt. Bind ihn sicher in named ein und erlaube den Transfer der Zone nur noch mit diesem Schlüssel.', zustand: 'named:key:ns1-ns2 && dnszone:lab.example.org:transfer~^key ns1-ns2$' },
+  { text: 'Schick srv1 eine Benachrichtigung, ohne die Zone zu ändern, und prüf, ob seine Kopie aktuell ist.', zustand: 'srv1zone:lab.example.org~laser && srv1zone:lab.example.org>=2026112301', befehl: '^rndc notify lab\\.example\\.org' },
+  { text: 'Hol die Zone von Hand mit dig ab, einmal ohne und einmal mit Schlüssel.', befehl: '^dig .*-k .*(axfr|AXFR)|^dig .*-y hmac-sha256:ns1-ns2:.*(axfr|AXFR)', frage: 'Wie viele Einträge hat der Transfer mit Schlüssel geliefert?', antwort: ['12'] },
+  { text: 'Leite alle Fragen zu firma.intern an srv1 (192.168.1.10) weiter, nur dorthin, und sorg dafür, dass wiki.firma.intern aufgelöst wird.', zustand: 'dnsfrage:wiki.firma.intern/A~192\\.168\\.1\\.10 && named:opt:dnssec-validation~auto' },
+  { text: 'Erzeug in <code>/etc/bind</code> einen ZSK und einen KSK für lab.example.org mit ECDSAP256SHA256.', befehl: '^dnssec-keygen .*-f (KSK|ksk)', frage: 'Welche Zahl steht im Dateinamen für den Algorithmus?', antwort: ['013', '13'] },
+  { text: 'Signier die Zone und lass named die signierte Fassung ausliefern.', zustand: 'dnszone:lab.example.org=signiert' },
+  { text: 'Frag mit dig nach laser.lab.example.org samt Signatur und sieh dir die Datei für die übergeordnete Zone an.', befehl: '(cat|less|more|head) .*dsset-lab\\.example\\.org', frage: 'Welchen Eintragstyp enthält sie?', antwort: ['DS'] },
+]} />
+
+<Labor id="labor" titel="Labor: Schlüssel und Signaturen auf srv1"
+  aufgabe="Erzeug auf srv1 einen TSIG-Schlüssel und signiere eine Testzone in /tmp. Füge die Ausgabe ein."
+  befehl={"tsig-keygen -a hmac-sha256 ns1-ns2\nmkdir -p /tmp/dnssec && cd /tmp/dnssec\nprintf '$TTL 300\\n@ IN SOA srv1.test.lab. hostmaster.test.lab. 1 3600 600 86400 300\\n@ IN NS srv1.test.lab.\\nsrv1 IN A 127.0.0.1\\n' > db.test.lab\ndnssec-keygen -a ECDSAP256SHA256 test.lab\ndnssec-keygen -a ECDSAP256SHA256 -f KSK test.lab\ndnssec-signzone -S -o test.lab db.test.lab\ncat dsset-test.lab.\nnamed-checkzone test.lab db.test.lab.signed"}
+  muster={["key \"ns1-ns2\"", "secret \"", "Zone fully signed", "IN DS \\d+ 13 2 ", "loaded serial 1 \\(DNSSEC signed\\)"]}
+  erfolg="Der DS-Eintrag ist das Einzige, was die übergeordnete Zone von dir braucht. Für eine echte Zone würdest du danach file auf die .signed-Datei setzen und das Neusignieren planen oder gleich dnssec-policy nutzen." />
+
+<Hinweis titel="Prüfungstipp">
+Lernziel 207.3 nennt DNSSEC mit dnssec-keygen und dnssec-signzone, TSIG, Split DNS über forwarders, chroot und den Betrieb als einfacher Benutzer sowie DANE mit seinen Einträgen als Grundwissen. Rechne mit Fragen zu den Eintragstypen DNSKEY, RRSIG, DS und TLSA, zum Unterschied zwischen ZSK und KSK und zu allow-transfer \{ key …; \}. Der Entwurf 5.0 ersetzt dnssec-keygen und dnssec-signzone durch dnssec-policy und nimmt tsig-keygen auf. Der Entwurf ist nicht final.
+</Hinweis>
+
+<Quiz id="k4" titel="Abschluss" fragen={[
+  { frage: 'Wofür steht im Namen Klab.example.org.+013+41200.key die Zahl 41200?', richtig: 'Für die Kennung (key tag) des Schlüssels', falsch: ['Für die Länge des Schlüssels in Bit', 'Für die Seriennummer der Zone beim Erzeugen'], erklaerung: 'Die Kennung steht auch in jedem RRSIG und im DS.' },
+  { frage: 'Welcher Unterschied besteht zwischen TSIG und DNSSEC?', richtig: 'TSIG sichert die Verbindung zwischen zwei Servern mit einem gemeinsamen Geheimnis, DNSSEC die Daten mit öffentlichen Schlüsseln', falsch: ['TSIG verschlüsselt die Anfragen, DNSSEC nur die Zonentransfers', 'TSIG ist der Nachfolger von DNSSEC und ersetzt ihn'], erklaerung: 'Keines von beiden verschlüsselt. Dafür gibt es DNS über TLS oder HTTPS.' },
+  { frage: 'Was braucht ein TLSA-Eintrag, damit ein Client ihm trauen kann?', richtig: 'Eine mit DNSSEC signierte Zone', falsch: ['Einen TSIG-Schlüssel zwischen Client und Server', 'Einen passenden PTR-Eintrag'], erklaerung: 'Ohne Signatur könnte ein Angreifer den Fingerabdruck einfach austauschen.' },
+]} />

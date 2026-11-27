@@ -1,0 +1,175 @@
+---
+id: l2-8-3
+checks:
+  - id: k1
+  - id: zuordnung
+  - id: k2
+  - id: luecke
+  - id: reihe
+  - id: zone
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "Zone eintragen"
+    v: "zone \"lab.example.org\" { type primary; file \"/etc/bind/db.lab.example.org\"; }; · ältere Schreibweise type master · Red Hat: Datei relativ zu /var/named"
+  - t: "Zonendatei"
+    v: "$TTL 3600 · $ORIGIN · @ = Zonenname · SOA: MNAME RNAME (Serial Refresh Retry Expire negative-TTL) · Name ohne Punkt bekommt $ORIGIN angehängt · leerer Name = wie die Zeile davor"
+  - t: "Einträge"
+    v: "A · AAAA · CNAME (allein) · MX Prio Ziel · NS · PTR · TXT \"…\" · SRV Prio Gewicht Port Ziel"
+  - t: "Ändern"
+    v: "Eintrag ändern → Serial erhöhen → named-checkzone ZONE DATEI → rndc reload ZONE → dig @127.0.0.1 NAME"
+karten:
+  - f: "Wofür steht das Zeichen @ in einer Zonendatei?"
+    a: ["Für den Namen der Zone ($ORIGIN)", "zonenname", "origin", "$origin"]
+    aufdecken: true
+  - f: "Welcher Befehl prüft eine Zonendatei?"
+    a: ["named-checkzone"]
+  - f: "Was passiert mit einem Namen ohne Punkt am Ende in einer Zonendatei?"
+    a: ["Der Zonenname wird angehängt."]
+    aufdecken: true
+  - f: "Welcher Wert im SOA muss steigen, damit sekundäre Server eine Änderung übernehmen?"
+    a: ["Die Seriennummer", "serial", "seriennummer"]
+  - f: "Welcher Eintragstyp darf nicht neben anderen Einträgen desselben Namens stehen?"
+    a: ["CNAME"]
+  - f: "Wie schreibt man die E-Mail-Adresse hostmaster@lab.example.org im SOA?"
+    a: ["hostmaster.lab.example.org."]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Zuordnung from '../components/Zuordnung.astro';
+import Lueckentext from '../components/Lueckentext.astro';
+import Reihenfolge from '../components/Reihenfolge.astro';
+
+Die Werkstatt hat von der Firma die Domain lab.example.org bekommen. Max hat am Wochenende einen Entwurf für die Zonendatei geschrieben und ihn in deinem Home-Verzeichnis abgelegt, mit dem Vermerk „bitte prüfen!“. **Deine Mission: Lies die Zonendatei, finde Max' Fehler, mach werkstatt zum zuständigen Server für lab.example.org und trag einen neuen Rechner ein.** Lernziel 207.2.
+
+## Die Zone in named.conf
+
+<Karte nr={1} titel="Eine Zone anmelden">
+Eine eigene Zone braucht zweierlei: einen Eintrag in der Konfiguration und eine Zonendatei. Auf Debian gehört der Eintrag in `/etc/bind/named.conf.local`:
+
+```
+zone "lab.example.org" {
+    type primary;
+    file "/etc/bind/db.lab.example.org";
+};
+```
+
+`type primary` heißt: Dieser Server hält die Originaldaten (ältere Schreibweise und in vielen Prüfungsfragen: `type master`). Ein **sekundärer** Server (`type secondary`, früher `slave`) holt sich die Zone per Zonentransfer vom primären. Steht in `file` ein relativer Pfad, gilt er ab `directory` aus den Optionen. Auf Red Hat heißt das: `file "lab.example.org.zone";` liegt in `/var/named/`.
+
+Die Zonendatei gehört root und muss für named lesbar sein. Schreibrechte braucht named nur für Zonen, die er selbst ändert (sekundäre Zonen, dynamische Updates, DNSSEC-Signaturen).
+</Karte>
+
+## Die Zonendatei
+
+<Karte nr={2} titel="Aufbau">
+```
+$TTL 3600
+@   IN  SOA ns1.lab.example.org. hostmaster.lab.example.org. (
+            2026112701 ; Seriennummer
+            7200       ; Refresh
+            3600       ; Retry
+            1209600    ; Expire
+            900 )      ; negative TTL
+    IN  NS  ns1.lab.example.org.
+    IN  MX  10 mail.lab.example.org.
+ns1     IN  A      192.168.1.23
+mail    IN  A      192.168.1.25
+www     IN  CNAME  werkstatt
+```
+
+- **$TTL** legt fest, wie lange andere Server eine Antwort zwischenspeichern dürfen. **$ORIGIN** setzt den Namen, der an Namen ohne Punkt angehängt wird, anfangs der Zonenname. `@` steht für genau diesen Namen. **$INCLUDE** liest eine weitere Datei ein.
+- **Der Punkt am Ende** macht einen Namen vollständig. `ns1.lab.example.org` ohne Punkt würde zu `ns1.lab.example.org.lab.example.org.`, ein Klassiker.
+- Eine Zeile, die mit Leerraum beginnt, gilt für denselben Namen wie die Zeile davor. NS und MX oben gehören also zu `@`.
+- **SOA** (start of authority): primärer Server (MNAME), Mailadresse des Verantwortlichen mit Punkt statt @ (RNAME), dann fünf Zahlen. Die **Seriennummer** muss bei jeder Änderung steigen, üblich ist JJJJMMTTNN. **Refresh**: wie oft sekundäre Server nachsehen. **Retry**: wann sie es nach einem Fehler erneut versuchen. **Expire**: nach welcher Zeit ohne Kontakt sie die Zone aufgeben. Die letzte Zahl ist heute die **negative TTL**, also wie lange ein „gibt es nicht“ gilt.
+- Kommentare beginnen mit `;`. Klammern erlauben, einen Eintrag über mehrere Zeilen zu schreiben.
+</Karte>
+
+<Quiz id="k1" titel="Kurzcheck: Zonendatei" fragen={[
+  { frage: 'In der Zone lab.example.org steht: www IN CNAME srv1. Auf welchen Namen zeigt www?', richtig: 'srv1.lab.example.org.', falsch: ['srv1.', 'srv1.lab.example.org.lab.example.org.'], erklaerung: 'Ohne Punkt am Ende hängt named $ORIGIN an, hier lab.example.org.' },
+  { frage: 'Ein sekundärer Server erreicht den primären seit Tagen nicht. Welcher SOA-Wert entscheidet, wann er die Zone nicht mehr ausliefert?', richtig: 'Expire', falsch: ['Refresh', 'Retry'], erklaerung: 'Refresh und Retry bestimmen nur, wie oft er nachfragt.' },
+]} />
+
+<Karte nr={3} titel="Die Eintragstypen">
+| Typ | Inhalt | Beispiel |
+|---|---|---|
+| A | IPv4-Adresse | `laser IN A 192.168.1.40` |
+| AAAA | IPv6-Adresse | `laser IN AAAA 2001:db8:1::40` |
+| CNAME | anderer Name (Alias) | `www IN CNAME srv1` |
+| MX | Mailserver mit Priorität (kleiner = zuerst) | `@ IN MX 10 mail` |
+| NS | zuständiger Nameserver | `@ IN NS ns1` |
+| PTR | Name zu einer Adresse (Rückwärtszone) | `40 IN PTR laser.lab.example.org.` |
+| TXT | freier Text, etwa SPF | `@ IN TXT "v=spf1 mx -all"` |
+| SRV | Dienst mit Priorität, Gewicht, Port, Ziel | `_ldap._tcp IN SRV 0 0 389 srv1` |
+
+Regeln, die named-checkzone durchsetzt: Ein **CNAME** steht allein, neben ihm darf derselbe Name keine anderen Einträge haben. Darum hat auch `@` nie einen CNAME. Ziele von MX und NS sollen keine Aliasse sein. Jeder Name in einem NS-Eintrag innerhalb der Zone braucht eine Adresse.
+</Karte>
+
+<Zuordnung id="zuordnung" titel="Zuordnung: Eintragstypen" aufgabe="Ordne jedem Zweck den Eintragstyp zu." paare={[
+  { links: 'Wohin gehen Mails für die Domain?', rechts: 'MX' },
+  { links: 'Welcher Name gehört zu 192.168.1.40?', rechts: 'PTR' },
+  { links: 'IPv6-Adresse eines Rechners', rechts: 'AAAA' },
+  { links: 'Zweiter Name für einen vorhandenen Rechner', rechts: 'CNAME' },
+  { links: 'Welche Server sind für die Zone zuständig?', rechts: 'NS' },
+  { links: 'Seriennummer und Zeiten der Zone', rechts: 'SOA' },
+]} extra={['TXT', 'SRV']} />
+
+<Merke>Punkt am Ende macht den Namen vollständig, ohne Punkt hängt named die Zone an. Leere Spalte vorn = derselbe Name wie davor. Jede Änderung: Seriennummer hoch.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: Regeln" fragen={[
+  { frage: 'named-checkzone meldet „www.lab.example.org: CNAME and other data“. Was ist los?', richtig: 'Für www gibt es einen CNAME und zusätzlich einen anderen Eintrag', falsch: ['Das Ziel des CNAME existiert nicht', 'Der CNAME zeigt auf einen Namen ohne Punkt'], erklaerung: 'Ein fehlendes Ziel würde named-checkzone nicht bemängeln.' },
+  { frage: 'Du hast einen Rechner eingetragen und rndc reload gemacht. Der primäre Server antwortet richtig, der sekundäre nicht. Was hast du am wahrscheinlichsten vergessen?', richtig: 'Die Seriennummer zu erhöhen', falsch: ['named-checkconf aufzurufen', 'Den Cache mit rndc flush zu leeren'], erklaerung: 'Der sekundäre Server holt die Zone nur, wenn die Seriennummer gestiegen ist. named meldet dazu im Journal „zone serial unchanged“.' },
+]} />
+
+<Lueckentext id="luecke" titel="Lückentext: Kopf einer Zone" aufgabe="Ergänze den Anfang der Zonendatei für firma.example.net mit ns.firma.example.net als primärem Server."
+  code={`$___ 86400
+@   IN  ___ ns.firma.example.net. hostmaster.firma.example.net. (
+            2026112701 7200 3600 1209600 900 )
+    IN  NS  ns.firma.example.net___
+    IN  ___ 10 mail
+ns      IN  A   198.51.100.2
+mail    IN  ___ 198.51.100.3`}
+  luecken={[
+    { loesungen: ['TTL'] },
+    { loesungen: ['SOA'] },
+    { loesungen: ['.'] },
+    { loesungen: ['MX'] },
+    { loesungen: ['A'] },
+  ]} />
+
+<Reihenfolge id="reihe" titel="Reihenfolge: Ein neuer Rechner in der Zone" aufgabe="Bring die Schritte in die richtige Reihenfolge." schritte={[
+  'Eintrag in die Zonendatei schreiben',
+  'Seriennummer im SOA erhöhen',
+  'named-checkzone lab.example.org /etc/bind/db.lab.example.org',
+  'sudo rndc reload lab.example.org',
+  'dig @127.0.0.1 NAME.lab.example.org',
+]} />
+
+<Terminal id="zone" titel="Terminal: Die Zone lab.example.org" welt={{ dns: { paket: true, cache: true, entwurf: true } }} aufgaben={[
+  { text: 'Prüf Max\' Entwurf <code>~/db.lab.example.org</code> für die Zone lab.example.org.', befehl: '^named-checkzone .*lab\\.example\\.org ', auchFehler: true, frage: 'In welcher Zeile steht der erste Fehler?', antwort: ['13'] },
+  { text: 'Behebe alle Fehler im Entwurf, bis named-checkzone ihn lädt. Die Webseite liegt auf werkstatt, der Alias bleibt.', zustand: 'datei:/home/lena/db.lab.example.org~www\\s+IN\\s+CNAME && nicht:datei:/home/lena/db.lab.example.org~2555 && nicht:datei:/home/lena/db.lab.example.org~www\\s+IN\\s+A\\s', befehl: '^named-checkzone .*lab\\.example\\.org .*db\\.lab\\.example\\.org$' },
+  { text: 'Mach werkstatt zum primären Server für lab.example.org. Die Zonendatei gehört nach <code>/etc/bind/db.lab.example.org</code>.', zustand: 'dnszone:lab.example.org=geladen && dnszone:lab.example.org:typ=primary' },
+  { text: 'Frag deinen Server nach dem Mailserver der Domain.', befehl: '^dig .*lab\\.example\\.org.*(mx|MX)|^dig .*(mx|MX).*lab\\.example\\.org|^host -t (mx|MX) lab\\.example\\.org', frage: 'Mit welchem Flag in der Antwort zeigt named, dass er zuständig ist?', antwort: ['aa'] },
+  { text: 'Frag nach einem Namen, den es in der Zone nicht gibt, etwa drucker.lab.example.org.', befehl: '^(dig|host|nslookup) .*drucker\\.lab\\.example\\.org', auchFehler: true, frage: 'Wie heißt der Status der Antwort?', antwort: ['NXDOMAIN'] },
+  { text: 'Trag srv1 mit 192.168.1.10 ein, so dass auch ein sekundärer Server die Änderung bemerken würde, und lade nur diese Zone neu.', zustand: 'dnsfrage:srv1.lab.example.org/A~192\\.168\\.1\\.10 && dnszone:lab.example.org>=2026112702', befehl: '^rndc reload lab\\.example\\.org' },
+]} />
+
+<Labor id="labor" titel="Labor: Eine Zone auf srv1"
+  aufgabe="Leg auf srv1 die Zone test.lab an, prüf sie und frag den Server. Füge die Ausgabe ein."
+  befehl={"printf '$TTL 300\\n@ IN SOA srv1.test.lab. hostmaster.test.lab. 1 3600 600 86400 300\\n@ IN NS srv1.test.lab.\\nsrv1 IN A 127.0.0.1\\nwww IN CNAME srv1\\n' | sudo tee /etc/bind/db.test.lab\nprintf 'zone \"test.lab\" { type primary; file \"/etc/bind/db.test.lab\"; };\\n' | sudo tee -a /etc/bind/named.conf.local\nnamed-checkzone test.lab /etc/bind/db.test.lab\nsudo named-checkconf && sudo rndc reconfig\ndig @127.0.0.1 www.test.lab +noall +answer"}
+  muster={["loaded serial 1", "^OK", "www\\.test\\.lab\\.\\s+\\d+\\s+IN\\s+CNAME\\s+srv1\\.test\\.lab\\.", "srv1\\.test\\.lab\\.\\s+\\d+\\s+IN\\s+A\\s+127\\.0\\.0\\.1"]}
+  erfolg="named liefert den Alias und löst ihn gleich auf, weil das Ziel in derselben Zone liegt. Die Zone test.lab kannst du danach wieder aus named.conf.local entfernen." />
+
+<Hinweis titel="Prüfungstipp">
+Lernziel 207.2 verlangt, Zonendateien zu lesen und zu schreiben: alle Eintragstypen oben, die Felder des SOA und die Bedeutung von $TTL, $ORIGIN, @ und dem Punkt am Ende. Rechne mit Fragen, in denen ein Fehler in einer abgedruckten Zonendatei steckt, und mit der Frage, was nach einer Änderung zu tun ist.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Welcher Eintrag legt fest, dass Mails für lab.example.org an mail.lab.example.org gehen?', richtig: '@ IN MX 10 mail.lab.example.org.', falsch: ['mail IN MX 10 lab.example.org.', '@ IN A mail.lab.example.org.'], erklaerung: 'Der MX steht beim Namen der Domain und zeigt auf den Mailserver.' },
+  { frage: 'Auf Red Hat steht in /etc/named.conf: file "lab.example.org.zone";. Wo sucht named die Datei?', richtig: '/var/named/lab.example.org.zone', falsch: ['/etc/lab.example.org.zone', '/var/named/zones/lab.example.org.zone'], erklaerung: 'Relative Pfade gelten ab directory, auf Red Hat /var/named.' },
+  { frage: 'Die negative TTL im SOA beträgt 900. Was bedeutet das?', richtig: 'Andere Server merken sich 15 Minuten, dass ein Name nicht existiert', falsch: ['Die Zone verfällt auf sekundären Servern nach 15 Minuten', 'named prüft alle 15 Minuten die Zonendatei auf Änderungen'], erklaerung: 'named prüft die Datei nie von selbst, dafür gibt es rndc reload.' },
+]} />

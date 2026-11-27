@@ -1,0 +1,167 @@
+---
+id: l2-8-4
+checks:
+  - id: k1
+  - id: luecke
+  - id: k2
+  - id: zuordnung
+  - id: zonen
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "Rückwärts"
+    v: "192.168.1.0/24 → zone \"1.168.192.in-addr.arpa\" · 40 IN PTR laser.lab.example.org. · IPv6: ip6.arpa, Nibbles rückwärts · dig -x 192.168.1.40"
+  - t: "Wurzel"
+    v: "zone \".\" { type hint; file \"/usr/share/dns/root.hints\"; }; · Red Hat named.ca · aktuelle Liste: dig @a.root-servers.net . NS"
+  - t: "Delegation"
+    v: "werkhalle IN NS ns.werkhalle.lab.example.org. · ns.werkhalle IN A 192.168.1.10 (Glue) · Serial hoch · rndc reload ZONE"
+  - t: "Sekundär"
+    v: "auf ns2: zone \"Z\" { type secondary; primaries { 192.168.1.23; }; file \"/var/cache/bind/db.Z\"; }; · auf ns1: @ IN NS ns2 + A · allow-transfer { 192.168.1.10; }; · also-notify · dig @ns2 Z SOA"
+  - t: "Formate"
+    v: "named-compilezone -F raw -o DATEI ZONE QUELLE · -f raw -F text -o - · named-checkzone -D · masterfile-format raw|text;"
+karten:
+  - f: "Wie heißt die Rückwärtszone für das Netz 10.20.30.0/24?"
+    a: ["30.20.10.in-addr.arpa"]
+  - f: "Welcher Eintragstyp steht in einer Rückwärtszone für jeden Rechner?"
+    a: ["PTR"]
+  - f: "Wie heißt der Zonentyp für die Liste der Wurzelserver?"
+    a: ["hint"]
+  - f: "Was ist ein Glue-Eintrag?"
+    a: ["Die Adresse eines Nameservers, der selbst in der delegierten Zone liegt, in der übergeordneten Zone."]
+    aufdecken: true
+  - f: "Mit welcher Option begrenzt man, wer eine Zone vollständig abholen darf?"
+    a: ["allow-transfer"]
+  - f: "In welches Format wandelt named-compilezone -F raw eine Zone um?"
+    a: ["binär", "ein binäres format", "raw"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Zuordnung from '../components/Zuordnung.astro';
+import Lueckentext from '../components/Lueckentext.astro';
+
+Die Zone lab.example.org läuft auf werkstatt. Jetzt kommen drei Wünsche auf einmal: Die Logs sollen statt nackter Adressen Namen zeigen, die Werkhalle will ihre Maschinen unter werkhalle.lab.example.org selbst verwalten, und wenn werkstatt ausfällt, soll die Zone trotzdem erreichbar bleiben. **Deine Mission: Richte die Rückwärtszone ein, delegiere die Unterzone an srv1 und mach srv1 zum zweiten Nameserver für lab.example.org.** Lernziel 207.2.
+
+## Rückwärts und von der Wurzel aus
+
+<Karte nr={1} titel="Rückwärtszonen und Wurzelserver">
+Für die Frage „welcher Name gehört zu 192.168.1.40?“ gibt es den Baum **in-addr.arpa**. Die Adresse steht dort rückwärts, damit wie bei Namen das Allgemeine rechts steht: Das Netz 192.168.1.0/24 ist die Zone `1.168.192.in-addr.arpa`, der Rechner .40 darin der Name `40`. Für IPv6 gibt es **ip6.arpa**, jede Hex-Ziffer (Nibble) einzeln und rückwärts.
+
+```
+zone "1.168.192.in-addr.arpa" {
+    type primary;
+    file "/etc/bind/db.192.168.1";
+};
+
+; db.192.168.1
+$TTL 3600
+@   IN SOA ns1.lab.example.org. hostmaster.lab.example.org. ( 2026112701 7200 3600 1209600 900 )
+@   IN NS  ns1.lab.example.org.
+40  IN PTR laser.lab.example.org.
+```
+
+Im PTR steht der volle Name mit Punkt, sonst hinge named `1.168.192.in-addr.arpa.` an. Gefragt wird mit `dig -x 192.168.1.40` oder `host 192.168.1.40`.
+
+Ein rekursiver Server beginnt bei der **Wurzel**. Woher er deren Adressen kennt, steht in einer Zone vom Typ **hint**: auf Debian `zone "." { type hint; file "/usr/share/dns/root.hints"; };`, auf Red Hat die Datei `/var/named/named.ca`. named fragt beim Start einen der Server aus der Liste nach der aktuellen Liste (priming). Die Datei muss man darum selten anfassen. Eine frische Liste liefert `dig @a.root-servers.net . NS`.
+</Karte>
+
+<Quiz id="k1" titel="Kurzcheck: Rückwärts" fragen={[
+  { frage: 'In der Zone 1.168.192.in-addr.arpa steht: 40 IN PTR laser.lab.example.org. Welche Frage beantwortet der Eintrag?', richtig: 'dig -x 192.168.1.40', falsch: ['dig laser.lab.example.org PTR', 'dig -x 40.1.168.192'], erklaerung: 'dig -x dreht die Adresse selbst um und hängt in-addr.arpa an.' },
+  { frage: 'Was enthält /var/named/named.ca auf Red Hat?', richtig: 'Namen und Adressen der Wurzelserver', falsch: ['Die Zertifikate der Zertifizierungsstellen für DNSSEC', 'Den Cache von named beim Herunterfahren'], erklaerung: 'ca steht hier für cache, nicht für certificate authority. DNSSEC-Vertrauensanker bringt BIND selbst mit.' },
+]} />
+
+<Lueckentext id="luecke" titel="Lückentext: Rückwärtszone" aufgabe="Ergänze Eintrag und Zonendatei für das Netz 10.20.30.0/24. Der Rechner .7 heißt drucker.firma.example.net."
+  code={`zone "___" {
+    type primary;
+    file "/etc/bind/db.10.20.30";
+};
+
+$TTL 3600
+@   IN SOA ns.firma.example.net. hostmaster.firma.example.net. 1 7200 3600 1209600 900
+@   IN NS  ns.firma.example.net.
+___ IN ___ drucker.firma.example.net___`}
+  luecken={[
+    { loesungen: ['30.20.10.in-addr.arpa'] },
+    { loesungen: ['7'] },
+    { loesungen: ['PTR'] },
+    { loesungen: ['.'] },
+  ]} />
+
+## Delegieren und verteilen
+
+<Karte nr={2} titel="Eine Unterzone abgeben">
+Wer werkhalle.lab.example.org selbst verwaltet, betreibt dafür eine eigene Zone auf eigenem Server, hier srv1. Die übergeordnete Zone lab.example.org **delegiert** sie mit NS-Einträgen:
+
+```
+werkhalle     IN NS  ns.werkhalle.lab.example.org.
+ns.werkhalle  IN A   192.168.1.10
+```
+
+Der A-Eintrag heißt **Glue**: Der Nameserver liegt selbst in der delegierten Zone, also könnte niemand seine Adresse erfragen, ohne sie schon zu kennen. Darum steht sie zusätzlich in der übergeordneten Zone. Liegt der Nameserver außerhalb, ist kein Glue nötig.
+
+Fragt man werkstatt ohne Rekursion (`dig +norec`), antwortet er nicht mit der Adresse, sondern mit einem **Verweis** (referral): leere Antwort, kein aa, in AUTHORITY die NS-Einträge, in ADDITIONAL der Glue. Mit Rekursion folgt er dem Verweis selbst.
+</Karte>
+
+<Karte nr={3} titel="Ein zweiter Server">
+Ein **sekundärer** Server holt die ganze Zone per **Zonentransfer** (AXFR, über TCP) vom primären. Auf srv1 sieht der Eintrag so aus:
+
+```
+zone "lab.example.org" {
+    type secondary;
+    primaries { 192.168.1.23; };
+    file "/var/cache/bind/db.lab.example.org";
+};
+```
+
+Ältere Schreibweise: `type slave; masters { … };`. named schreibt die Kopie selbst, die Datei liegt darum in seinem Arbeitsverzeichnis. Seit BIND 9.9 speichert er sie im Format **raw** statt als Text.
+
+Auf dem primären Server gehört srv1 als `@ IN NS ns2…` mit Adresse in die Zone. Dann schickt named bei jeder neuen Seriennummer ein **NOTIFY** an alle Nameserver der Zone, und die holen sich die Änderung sofort, statt bis zum nächsten Refresh zu warten. Server, die nicht als NS eingetragen sind, benachrichtigt man mit `also-notify { … };`.
+
+Ohne Einschränkung darf in BIND 9.18 jeder die ganze Zone abholen, also alle Rechnernamen. `allow-transfer { 192.168.1.10; };` im Zonenblock (oder in den Optionen für alle) erlaubt es nur noch dem sekundären Server.
+</Karte>
+
+<Merke>Rückwärtszone: Netz rückwärts plus in-addr.arpa, PTR mit vollem Namen. Delegation: NS in der übergeordneten Zone, Glue nur, wenn der Server in der Unterzone liegt. Sekundär: NS eintragen, Serial hoch, NOTIFY, allow-transfer begrenzen.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: Delegation und Transfer" fragen={[
+  { frage: 'Die Zone werkhalle.lab.example.org soll auf ns.firma.example.net liegen. Braucht lab.example.org einen Glue-Eintrag?', richtig: 'Nein, der Nameserver liegt außerhalb der delegierten Zone', falsch: ['Ja, jede Delegation braucht einen A-Eintrag', 'Nur wenn ns.firma.example.net kein IPv6 hat'], erklaerung: 'Die Adresse von ns.firma.example.net lässt sich ganz normal erfragen.' },
+  { frage: 'Auf srv1 steht die alte Seriennummer, obwohl du auf werkstatt neu geladen hast. Im Journal von werkstatt steht kein „sending notifies“. Was fehlt am wahrscheinlichsten?', richtig: 'srv1 steht nicht als NS in der Zone und nicht in also-notify', falsch: ['Die Rückwärtszone für srv1', 'Der Eintrag forwarders auf srv1'], erklaerung: 'named benachrichtigt nur die NS der Zone und die Server aus also-notify.' },
+]} />
+
+<Zuordnung id="zuordnung" titel="Zuordnung: Werkzeuge und Formate" aufgabe="Ordne jeder Aufgabe den Befehl oder die Option zu." paare={[
+  { links: 'Zone in das binäre Format umwandeln', rechts: 'named-compilezone -F raw' },
+  { links: 'Binäre Kopie wieder lesbar machen', rechts: 'named-compilezone -f raw -F text' },
+  { links: 'Zone so ausgeben, wie named sie versteht', rechts: 'named-checkzone -D' },
+  { links: 'Format der Kopie auf dem sekundären Server festlegen', rechts: 'masterfile-format text;' },
+  { links: 'Ganze Zone abholen und anzeigen', rechts: 'dig @ns1 lab.example.org AXFR' },
+]} extra={['rndc dumpdb -zones']} />
+
+<Terminal id="zonen" titel="Terminal: Rückwärts, delegiert, verteilt" welt={{ dns: { paket: true, cache: true, zone: 'ohne-ns2', sekundaer: true } }} aufgaben={[
+  { text: 'Sieh nach, woher werkstatt die Wurzelserver kennt, und schau in die Datei.', befehl: '(cat|less|more|grep .*|head .*|tail .*|wc .*) /usr/share/dns/root\\.hints', frage: 'Wie viele Wurzelserver stehen darin (Buchstaben A bis …)?', antwort: ['13'] },
+  { text: 'Richte die Rückwärtszone für 192.168.1.0/24 ein, mit PTR-Einträgen für srv1 (.10), werkstatt (.23), mail (.25) und laser (.40).', zustand: 'dnszone:1.168.192.in-addr.arpa=geladen && dnsfrage:40.1.168.192.in-addr.arpa/PTR~laser\\.lab\\.example\\.org\\.$ && dnsfrage:10.1.168.192.in-addr.arpa/PTR~srv1\\.lab\\.example\\.org\\.$ && dnsfrage:23.1.168.192.in-addr.arpa/PTR~werkstatt && dnsfrage:25.1.168.192.in-addr.arpa/PTR~mail' },
+  { text: 'srv1 ist für werkhalle.lab.example.org zuständig, sein Name dort ist ns.werkhalle.lab.example.org. Delegiere die Unterzone.', zustand: 'dnszone:lab.example.org~^werkhalle\\.lab\\.example\\.org NS ns\\.werkhalle && dnszone:lab.example.org~^ns\\.werkhalle\\.lab\\.example\\.org A 192\\.168\\.1\\.10 && dnszone:lab.example.org>=2026112302' },
+  { text: 'Frag werkstatt ohne Rekursion nach presse.werkhalle.lab.example.org.', befehl: '^dig .*\\+norec.*presse|^dig .*presse.*\\+norec', frage: 'In welchem Abschnitt der Antwort steht die Adresse von srv1?', antwort: ['ADDITIONAL', 'ADDITIONAL SECTION', 'additional'] },
+  { text: 'srv1 ist schon als sekundärer Server eingerichtet. Frag ihn nach dem SOA von lab.example.org.', befehl: '^dig .*@192\\.168\\.1\\.10.*(soa|SOA)|^dig .*(soa|SOA).*@192\\.168\\.1\\.10', frage: 'Welche Seriennummer hat seine Kopie?', antwort: ['2026111601'] },
+  { text: 'Trag srv1 als ns2.lab.example.org in die Zone ein, so dass er die aktuelle Fassung sofort bekommt.', zustand: 'srv1zone:lab.example.org~laser && srv1zone:lab.example.org~^ns2\\.lab\\.example\\.org A 192\\.168\\.1\\.10 && dnszone:lab.example.org~^lab\\.example\\.org NS ns2\\.lab\\.example\\.org\\.$' },
+  { text: 'Erlaube den Transfer der Zone nur noch srv1 und prüf, ob dein eigener Versuch von 127.0.0.1 abgewiesen wird.', zustand: 'dnszone:lab.example.org:transfer~^192\\.168\\.1\\.10$', befehl: '^dig .*(axfr|AXFR)', auchFehler: true },
+  { text: 'Wandle die Zone mit named-compilezone in das Format raw nach <code>/tmp/lab.raw</code> um und lies sie danach als Text wieder aus.', befehl: '^named-compilezone .*-f raw', frage: 'Mit welchen Zeichen beginnt die Datei /tmp/lab.raw (vor dem ersten Leerzeichen)?', antwort: ['BIN:2048'] },
+]} />
+
+<Labor id="labor" titel="Labor: Rückwärtszone und Transfer auf srv1"
+  aufgabe="Leg auf srv1 eine Rückwärtszone für 127.0.0.0/8 als test an und hol sie per AXFR ab. Füge die Ausgabe ein."
+  befehl={"printf '$TTL 300\\n@ IN SOA srv1.test.lab. hostmaster.test.lab. 1 3600 600 86400 300\\n@ IN NS srv1.test.lab.\\n1.0.0 IN PTR localhost.\\n' | sudo tee /etc/bind/db.127.test\nprintf 'zone \"test.127.in-addr.arpa\" { type primary; file \"/etc/bind/db.127.test\"; allow-transfer { localhost; }; };\\n' | sudo tee -a /etc/bind/named.conf.local\nsudo named-checkconf -z | grep test && sudo rndc reconfig\ndig @127.0.0.1 test.127.in-addr.arpa AXFR +noall +answer\nnamed-compilezone -F raw -o /tmp/test.raw test.127.in-addr.arpa /etc/bind/db.127.test && file /tmp/test.raw"}
+  muster={["loaded serial 1", "SOA\\s+srv1\\.test\\.lab\\.", "PTR\\s+localhost\\.", "/tmp/test\\.raw:"]}
+  erfolg="Die AXFR-Ausgabe beginnt und endet mit dem SOA, das ist das Zeichen für einen vollständigen Transfer. Den Zoneneintrag und die Datei kannst du wieder entfernen." />
+
+<Hinweis titel="Prüfungstipp">
+207.2 umfasst ausdrücklich Rückwärtszonen, die Delegation, die Zone der Wurzelserver und primäre und sekundäre Server. named-compilezone und das Format raw stehen in der Liste der Werkzeuge, ebenso masterfile-format. Rechne mit Fragen nach dem Namen der Rückwärtszone, dem Glue und der Frage, warum ein sekundärer Server eine Änderung nicht übernimmt.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Welcher Name gehört in der Rückwärtszone 1.168.192.in-addr.arpa zur Adresse 192.168.1.25?', richtig: '25', falsch: ['192.168.1.25', '25.1.168.192'], erklaerung: 'Der Rest des Namens kommt aus $ORIGIN. 25.1.168.192 ohne Punkt würde zu 25.1.168.192.1.168.192.in-addr.arpa.' },
+  { frage: 'Ein Angreifer ruft dig @ns1 lab.example.org AXFR auf und erhält die ganze Zone. Was fehlt?', richtig: 'allow-transfer mit den sekundären Servern', falsch: ['allow-recursion für das eigene Netz', 'recursion no; in den Optionen'], erklaerung: 'Rekursion hat mit Zonentransfers nichts zu tun.' },
+  { frage: 'Auf einem sekundären Server enthält die Kopie der Zone nur unlesbare Zeichen. Was ist los?', richtig: 'named speichert sekundäre Zonen im Format raw', falsch: ['Die Kopie ist mit DNSSEC verschlüsselt', 'Der Zonentransfer ist abgebrochen'], erklaerung: 'named-compilezone -f raw -F text macht sie lesbar, masterfile-format text; schaltet das ab.' },
+]} />

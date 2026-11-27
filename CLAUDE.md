@@ -12,8 +12,8 @@ Kurs „Linux to Hero“: interaktive Vorbereitung auf LPIC-1, LPIC-2 und LPIC-3
 ## Stand
 
 - LPIC-1: alle Akte fertig.
-- LPIC-2: Akt 0 bis 7 fertig (Topics 200 bis 206), dazu die Generalprobe 201 (`l2-7-probe`). Akt 7 nutzt das Modul `shell-wartung.ts` (Welt-Option `wartung`) mit dem erfundenen Autoconf-Projekt lagerist.
-- **Als Nächstes Akt 8, Topic 207 (DNS)**, danach Akt 9 bis 13 (Topics 208 bis 212, Prüfung 202). Akt 13 enthält die Generalprobe 202 (`l2-13-probe`).
+- LPIC-2: Akt 0 bis 8 fertig (Topics 200 bis 207), dazu die Generalprobe 201 (`l2-7-probe`). Akt 7 nutzt das Modul `shell-wartung.ts` (Welt-Option `wartung`) mit dem erfundenen Autoconf-Projekt lagerist, Akt 8 das Modul `shell-dns.ts` (Welt-Option `dns`) mit werkstatt als BIND-Server (192.168.1.23) und srv1 (192.168.1.10) als zweitem Nameserver.
+- **Als Nächstes Akt 9, Topic 208 (Webserver)**, danach Akt 10 bis 13 (Topics 209 bis 212). Akt 13 enthält die Generalprobe 202 (`l2-13-probe`).
 - LPIC-3: nur geplant. Labore dort nur in echten VMs (siehe CONTRIBUTING, Abschnitt Labore). Vor dem ersten Akt prüfen, welche Version der Lernziele gilt: Die LPI-Übersichtsseite nannte im November 2026 andere Themen als das Wiki (303-300 v3.0).
 - Zuordnung LPIC-2: Prüfung 201 = Topics 200 bis 206, Prüfung 202 = Topics 207 bis 212. In Texten nicht verwechseln.
 
@@ -55,6 +55,13 @@ In `src/scripts/shell.ts`, genau wie bei `shell-speicher.ts` und `shell-netzwerk
 - Der Abgleich mit echten Systemen vergleicht Rückgabecodes. Fälle für `ip` laufen auf dem Kernel des Runners. Was von der Kernelversion abhängt, gehört nicht hinein.
 - Ohne Zugriff auf Docker Hub lassen sich die Vergleichsfälle lokal in einem eigenen Netz-Namensraum gegen das installierte System laufen lassen: `sudo unshare -n python3 tests/vergleich/echt.py lokal /tmp/echt.json`, dann `node tests/vergleich/simulator.mjs debian /tmp/sim.json` und `node tests/vergleich/vergleiche.mjs /tmp/echt.json /tmp/sim.json`.
 
+- sed im Simulator trennt Skripte an `;` nur außerhalb von `/RE/` und `s///` und kennt `\t` in der Ersetzung. Lösungen in `loesungen.json` dürfen das nutzen, `grep -A`/`-B` aber nicht (fehlt).
+- In Zonendateien gilt eine Zeile, die mit Leerraum beginnt, für den Namen der Zeile davor, wie in echtem BIND. Wer NS-Einträge anhängt, schreibt `@ IN NS …`.
+- `shell-dns.ts` hängt sich über `dnsHaken` in `frage()` aus `shell-netz.ts`: Der Haken beantwortet Fragen an werkstatt und srv1, bevor der normale Resolver greift. Ohne Welt-Option `dns` bleibt `frage()` unverändert.
+- Zustände `dnszone:ZONE~…` vergleichen Namen ohne Punkt am Ende, Daten aber mit (`lab.example.org NS ns2.lab.example.org.`). `dnsfrage:` gibt die ganze Antwortzeile, also nicht mit `^` verankern.
+- Private Namen (intern, local, lan …) über eine Weiterleitungszone scheitern mit `dnssec-validation auto` wie echt mit SERVFAIL, bis `validate-except` sie ausnimmt.
+- In MDX-Fließtext (`<Merke>`, Absätze) sind `{` und `}` Ausdrücke. In Prosa als `\{ \}` schreiben oder in Backticks setzen. Einfache Anführungszeichen in Quiz-Texten mit `\'` maskieren.
+
 ## Testbefehle
 
 | Befehl | Zweck |
@@ -62,5 +69,5 @@ In `src/scripts/shell.ts`, genau wie bei `shell-speicher.ts` und `shell-netzwerk
 | `node tests/rep.mjs 'BEFEHLE' '{WELT}'` | Befehle im Simulator abspielen, `#z ZUSTAND` prüft einen Zustand |
 | `npm run test:fragen` | Prüfungsfragen prüfen |
 | `npm run build && npx astro preview --port 4321` | Seite bauen und lokal ausliefern |
-| `CHROME=/usr/bin/google-chrome python3 tests/e2e.py [IDS]` | Missionen im Browser durchspielen, ohne IDs alle (dauert einige Minuten) |
+| `CHROME=/usr/bin/google-chrome python3 tests/e2e.py [ID,ID,…]` | Missionen im Browser durchspielen, IDs mit Komma getrennt, ohne IDs alle (dauert einige Minuten) |
 | `npm run test:vergleich` | Vergleichsfälle in Debian 12 per Docker |

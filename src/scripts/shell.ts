@@ -20,6 +20,7 @@ import { lastBefehle, lastKern, lastStarten, lastSystemctl, sysstatPruefen, zust
 import { sicherBefehle, sicherDateien, sicherKern, sicherStarten, sicherSystemctl, sudoErlaubt, zustandSicherheit, type SicherOptionen } from './shell-sicherheit';
 import { netzBefehle, netzDateien, netzKern, netzStarten, zustandNetz, type NetzOptionen } from './shell-netz';
 import { dienstBefehle, dienstDateien, dienstKern, dienstStarten, dienstSystemctl, zustandDienste, type DienstOptionen } from './shell-dienste';
+import { dnsBefehle, dnsKern, dnsStarten, dnsSystemctl, zustandDns, type DnsOptionen } from './shell-dns';
 import { wartungBefehle, wartungKern, wartungProgramm, wartungStarten, installBefehl, zustandWartung, type WartungOptionen } from './shell-wartung';
 import { x11Befehle, x11Dateien, grafikStarten, zustandX11 } from './shell-x11';
 import { START_UHR, beruehren, darf, darfImOrdner, meta, neuMeta, type Meta } from './shell-dateien';
@@ -282,7 +283,7 @@ function modulPfad(name: string) {
   return `${ordner[name] ?? 'kernel/drivers/misc'}/${name.replace(/_/g, name === 'usb_storage' ? '-' : '_')}.ko`;
 }
 
-export interface WeltOptionen { wartung?: WartungOptionen; netzwerk?: NetzwerkOptionen; speicher?: SpeicherOptionen; dsys?: DsysOptionen; start?: StartOptionen; kern?: KernOptionen; last?: LastOptionen; sicherheit?: SicherOptionen; netz?: NetzOptionen; dienste?: DienstOptionen; grafik?: 'x11' | 'wayland'; defaultTarget?: string; target?: string; ohne?: string[]; dateien?: Record<string, string>; prozesse?: Prozess[]; root?: boolean; distro?: 'debian' | 'alma' | 'suse'; virt?: string; host?: string; aptVeraltet?: boolean; geaendert?: string[]; pathStandard?: boolean; cwd?: string; rechte?: Record<string, string>; zeiten?: Record<string, number>; aliase?: Record<string, string>; extraProzesse?: Prozess[]; neuePlatte?: boolean | 'leer' | 'partitioniert' | 'formatiert'; kaputt?: string[]; }
+export interface WeltOptionen { dns?: DnsOptionen; wartung?: WartungOptionen; netzwerk?: NetzwerkOptionen; speicher?: SpeicherOptionen; dsys?: DsysOptionen; start?: StartOptionen; kern?: KernOptionen; last?: LastOptionen; sicherheit?: SicherOptionen; netz?: NetzOptionen; dienste?: DienstOptionen; grafik?: 'x11' | 'wayland'; defaultTarget?: string; target?: string; ohne?: string[]; dateien?: Record<string, string>; prozesse?: Prozess[]; root?: boolean; distro?: 'debian' | 'alma' | 'suse'; virt?: string; host?: string; aptVeraltet?: boolean; geaendert?: string[]; pathStandard?: boolean; cwd?: string; rechte?: Record<string, string>; zeiten?: Record<string, number>; aliase?: Record<string, string>; extraProzesse?: Prozess[]; neuePlatte?: boolean | 'leer' | 'partitioniert' | 'formatiert'; kaputt?: string[]; }
 
 export function neueWelt(o: WeltOptionen = {}): Welt {
   const verfuegbar = Object.fromEntries(MODULE.map((x) => [x.name, x]));
@@ -333,6 +334,7 @@ export function neueWelt(o: WeltOptionen = {}): Welt {
   if (o.speicher) speicherStarten(w, o.speicher);
   if (o.netzwerk) netzwerkStarten(w, o.netzwerk);
   if (o.wartung) wartungStarten(w, o.wartung);
+  if (o.dns) dnsStarten(w, o.dns);
   locateDbAnlegen(w);
   for (const d of o.kaputt ?? []) plattenKaputt(w, d);
   if (o.neuePlatte) { w.fs['/dev/sdb'] = ''; for (const p of w.platten.platten.find((x) => x.name === 'sdb')!.partitionen) w.fs['/dev/sdb' + p.nr] = ''; }
@@ -1075,7 +1077,7 @@ function wildcards(w: Welt, muster: string): string[] {
 // ---------- Befehlssuche über PATH ----------
 
 // Wo die Programme auf Debian 12 liegen (merged /usr: /bin -> usr/bin, /sbin -> usr/sbin)
-const SBIN = new Set(['agetty', 'mkfs', 'mkfs.ext2', 'mkfs.ext3', 'mkfs.ext4', 'mkfs.xfs', 'mkfs.vfat', 'mkfs.fat', 'mkfs.exfat', 'mkfs.btrfs', 'mke2fs', 'mkswap', 'swapoff', 'blkid', 'e2fsck', 'fsck.ext2', 'fsck.ext3', 'fsck.ext4', 'tune2fs', 'e2label', 'xfs_repair', 'xfs_fsr', 'xfs_db', 'xfs_admin', 'parted', 'gdisk', 'updatedb', 'chroot', 'fdisk', 'modprobe', 'insmod', 'rmmod', 'lsmod', 'modinfo', 'depmod', 'shutdown', 'reboot', 'poweroff', 'halt', 'telinit', 'init', 'runlevel', 'ldconfig', 'update-grub', 'grub-install', 'grub-mkconfig', 'swapon', 'swapoff', 'dpkg-reconfigure', 'sshd', 'mkfs', 'fsck', 'blkid', 'parted', 'useradd', 'usermod', 'userdel', 'groupadd', 'groupmod', 'groupdel', 'hwclock', 'rsyslogd', 'logrotate', 'sendmail', 'postsuper', 'lpadmin', 'cupsenable', 'cupsdisable', 'cupsaccept', 'cupsreject', 'lpinfo', 'ifconfig', 'route', 'ifup', 'ifdown', 'visudo', 'tcpdmatch', 'service', 'ethtool', 'sshd', 'iotop', 'iftop', 'iptraf-ng', 'sysctl', 'update-initramfs', 'mkinitramfs', 'dkms', 'installkernel', 'update-rc.d', 'chkconfig', 'smartctl', 'smartd', 'xfsdump', 'xfsrestore', 'cryptsetup', 'automount', 'dumpe2fs', 'debugfs', 'xfs_info', 'mdadm', 'pvcreate', 'pvs', 'pvdisplay', 'pvremove', 'pvmove', 'pvscan', 'pvresize', 'vgcreate', 'vgs', 'vgdisplay', 'vgextend', 'vgreduce', 'vgrename', 'vgremove', 'vgchange', 'vgscan', 'lvcreate', 'lvs', 'lvdisplay', 'lvextend', 'lvreduce', 'lvresize', 'lvrename', 'lvremove', 'lvconvert', 'lvchange', 'lvscan', 'lvm', 'hdparm', 'resize2fs', 'xfs_growfs', 'sfdisk', 'fstrim', 'iscsiadm', 'iscsid', 'nvme', 'arp', 'iw', 'rfkill', 'wpa_supplicant', 'wpa_cli', 'dhclient', 'iwconfig', 'iwlist']);
+const SBIN = new Set(['rndc', 'rndc-confgen', 'tsig-keygen', 'named', 'agetty', 'mkfs', 'mkfs.ext2', 'mkfs.ext3', 'mkfs.ext4', 'mkfs.xfs', 'mkfs.vfat', 'mkfs.fat', 'mkfs.exfat', 'mkfs.btrfs', 'mke2fs', 'mkswap', 'swapoff', 'blkid', 'e2fsck', 'fsck.ext2', 'fsck.ext3', 'fsck.ext4', 'tune2fs', 'e2label', 'xfs_repair', 'xfs_fsr', 'xfs_db', 'xfs_admin', 'parted', 'gdisk', 'updatedb', 'chroot', 'fdisk', 'modprobe', 'insmod', 'rmmod', 'lsmod', 'modinfo', 'depmod', 'shutdown', 'reboot', 'poweroff', 'halt', 'telinit', 'init', 'runlevel', 'ldconfig', 'update-grub', 'grub-install', 'grub-mkconfig', 'swapon', 'swapoff', 'dpkg-reconfigure', 'sshd', 'mkfs', 'fsck', 'blkid', 'parted', 'useradd', 'usermod', 'userdel', 'groupadd', 'groupmod', 'groupdel', 'hwclock', 'rsyslogd', 'logrotate', 'sendmail', 'postsuper', 'lpadmin', 'cupsenable', 'cupsdisable', 'cupsaccept', 'cupsreject', 'lpinfo', 'ifconfig', 'route', 'ifup', 'ifdown', 'visudo', 'tcpdmatch', 'service', 'ethtool', 'sshd', 'iotop', 'iftop', 'iptraf-ng', 'sysctl', 'update-initramfs', 'mkinitramfs', 'dkms', 'installkernel', 'update-rc.d', 'chkconfig', 'smartctl', 'smartd', 'xfsdump', 'xfsrestore', 'cryptsetup', 'automount', 'dumpe2fs', 'debugfs', 'xfs_info', 'mdadm', 'pvcreate', 'pvs', 'pvdisplay', 'pvremove', 'pvmove', 'pvscan', 'pvresize', 'vgcreate', 'vgs', 'vgdisplay', 'vgextend', 'vgreduce', 'vgrename', 'vgremove', 'vgchange', 'vgscan', 'lvcreate', 'lvs', 'lvdisplay', 'lvextend', 'lvreduce', 'lvresize', 'lvrename', 'lvremove', 'lvconvert', 'lvchange', 'lvscan', 'lvm', 'hdparm', 'resize2fs', 'xfs_growfs', 'sfdisk', 'fstrim', 'iscsiadm', 'iscsid', 'nvme', 'arp', 'iw', 'rfkill', 'wpa_supplicant', 'wpa_cli', 'dhclient', 'iwconfig', 'iwlist']);
 const ROOT_PATH = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin';
 const AUCH_EXTERN = new Set(['echo', 'pwd', 'kill', 'true', 'false', 'printf', 'test', '[']);   // gibt es auch als Programm in /usr/bin
 const EIGENER_ORT: Record<string, string> = { 'apt-file': '/usr/bin' };
@@ -1860,6 +1862,13 @@ Object.assign(befehle, netzwerkBefehle({ ...befehle }));
 wartungKern({ pfad, installieren: paketeSetzen, zeile: (w, z, stdin, root) => zeileAusfuehren(w, z, stdin, root, false, true, true) });
 Object.assign(befehle, wartungBefehle({ ...befehle }));
 befehle.install = installBefehl();
+// DNS-Server aus LPIC-2 Topic 207
+dnsKern({ pfad, installieren: paketeSetzen, benutzer: benutzerBerechnen, datum: (w, ms, fmt) => datumFormat(w, ms, fmt) });
+Object.assign(befehle, dnsBefehle({ ...befehle }));
+{
+  const vorher = befehle.systemctl;
+  befehle.systemctl = (w, a, i, r) => dnsSystemctl(w, a, r || w.root) ?? vorher(w, a, i, r);
+}
 { const altExit = EINGEBAUT.exit; EINGEBAUT.exit = (w, a, i, r) => chrootVerlassen(w) ?? altExit(w, a, i, r); }
 // /proc/modules wird aus dem Zustand der Module erzeugt
 befehle.cat = (w, a, i, r) => a.some((x) => pfad(w, x) === '/proc/modules') ? procCat(w, a, i, r) : textCat(w, a, i, r);
@@ -1966,6 +1975,7 @@ export function zustandStimmt(w: Welt, z: string): boolean {
     if ((m = s.match(/^host=(.+)$/))) return w.host === m[1];
     if (s === 'antwort:ja') return w.verlauf.some((v) => v.zeile === '#antwort ja');
     const zw = zustandWartung(w, s); if (zw !== undefined) return zw;
+    const zdn = zustandDns(w, s); if (zdn !== undefined) return zdn;
     const p = zustandPakete(w, s); if (p !== undefined) return p;
     const pl = zustandPlatten(w, s); if (pl !== undefined) return pl;
     const re = zustandRechte(w, s, pfad); if (re !== undefined) return re;

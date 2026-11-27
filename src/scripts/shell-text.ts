@@ -758,7 +758,28 @@ export function textBefehle(h: TextHelfer): Record<string, Befehl> {
     if (!skripte.length) return fehler('Aufruf: sed [OPTION] … {Skript-falls-kein-anderes-Skript} [Eingabedatei] …', 1);
     type Cmd = { adr?: { re?: RegExp; nr?: number; bis?: number; reBis?: RegExp }; art: string; re?: RegExp; ersatz?: string; druck?: boolean; text?: string };
     const cmds: Cmd[] = [];
-    for (const sk of skripte.flatMap((x) => x.split(/;(?=\s*(?:\/|\d|\$|[sdpqaic]\b|y))/).flatMap((y) => y.split('\n')))) {
+    // Skript in Befehle zerlegen: ; und Zeilenumbruch trennen, aber nicht innerhalb von /…/ und s/…/…/
+    const zerlegen = (x: string): string[] => {
+      const out: string[] = []; let i = 0;
+      while (i < x.length) {
+        const start = i;
+        while (i < x.length && /[\s;]/.test(x[i])) i++;
+        const anfang = i;
+        if (x[i] === '/') { i++; while (i < x.length && x[i] !== '/') { if (x[i] === '\\') i++; i++; } i++; if (x[i] === ',') { i++; if (x[i] === '/') { i++; while (i < x.length && x[i] !== '/') { if (x[i] === '\\') i++; i++; } i++; } else while (/[\d$]/.test(x[i] ?? '')) i++; } }
+        else while (/[\d$,]/.test(x[i] ?? '')) i++;
+        while (x[i] === ' ') i++;
+        if ((x[i] === 's' || x[i] === 'y') && x[i + 1] && !/[\s;]/.test(x[i + 1])) {
+          const tr = x[i + 1]; i += 2; let teile = 0;
+          while (i < x.length && teile < 2) { if (x[i] === '\\') { i += 2; continue; } if (x[i] === tr) teile++; i++; }
+        }
+        if (/[aic]/.test(x[i] ?? '')) { while (i < x.length && x[i] !== '\n') i++; }
+        else while (i < x.length && x[i] !== ';' && x[i] !== '\n') i++;
+        const t = x.slice(anfang, i); if (t.trim()) out.push(t);
+        if (i === start) i++;
+      }
+      return out;
+    };
+    for (const sk of skripte.flatMap(zerlegen)) {
       let t = sk.trim(); if (!t) continue; let adr: Cmd['adr'];
       let m = t.match(/^\/((?:\\\/|[^/])*)\/(?:,\s*\/((?:\\\/|[^/])*)\/)?/);
       if (m) { adr = { re: regexAus(m[1].replace(/\\\//g, '/'), { ere }), reBis: m[2] !== undefined ? regexAus(m[2].replace(/\\\//g, '/'), { ere }) : undefined }; t = t.slice(m[0].length).trim(); }
@@ -768,7 +789,7 @@ export function textBefehle(h: TextHelfer): Record<string, Befehl> {
         for (; k < t.length && teile.length < 2; k++) { if (t[k] === '\\' && t[k + 1] === tr) { cur += (tr === '/' ? '/' : '\\' + tr); k++; continue; } if (t[k] === tr) { teile.push(cur); cur = ''; continue; } cur += t[k]; }
         if (teile.length < 2) return fehler(`sed: -e Ausdruck #1, Zeichen ${t.length}: Nicht beendeter »s«-Befehl`);
         const fl = t.slice(k);
-        cmds.push({ adr, art: 's', re: regexAus(teile[0], { ere, i: /[iI]/.test(fl), global: fl.includes('g') }), ersatz: teile[1].replace(/\\(\d)/g, '$$$1').replace(/(^|[^\\])&/g, '$1$$&').replace(/\\&/g, '&').replace(/\\n/g, '\n'), druck: fl.includes('p') });
+        cmds.push({ adr, art: 's', re: regexAus(teile[0], { ere, i: /[iI]/.test(fl), global: fl.includes('g') }), ersatz: teile[1].replace(/\\(\d)/g, '$$$1').replace(/(^|[^\\])&/g, '$1$$&').replace(/\\&/g, '&').replace(/\\n/g, '\n').replace(/\\t/g, '\t'), druck: fl.includes('p') });
       } else if (/^[dpq=]$/.test(t)) cmds.push({ adr, art: t });
       else if (/^[aic]\\?\s*/.test(t) && /^[aic]/.test(t)) cmds.push({ adr, art: t[0], text: t.slice(1).replace(/^\\?\s*/, '') });
       else if (t[0] === 'y') { const [, von, nach] = t.split(t[1]); cmds.push({ adr, art: 'y', text: von + '\u0000' + nach }); }

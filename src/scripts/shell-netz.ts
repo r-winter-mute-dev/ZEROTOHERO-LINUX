@@ -178,12 +178,26 @@ export function netzHosts(w: Welt, cidr: string): string[] { return [...eigeneIp
 
 // ---------- Namensauflösung ----------
 
-interface DnsAntwort { status: 'NOERROR' | 'NXDOMAIN'; antwort: string[]; server: string }
+export interface DnsAntwort { status: 'NOERROR' | 'NXDOMAIN'; antwort: string[]; server: string }
+/** Eigene Nameserver (Akt 8): Ein Haken beantwortet Anfragen an seine Adressen, sonst null. */
+export const dnsHaken: ((w: Welt, name: string, typ: string, server: string) => DnsAntwort | { fehler: string; server: string } | null)[] = [];
+/** Antwort aus dem erfundenen Internet, unabhängig davon, wer fragt (für Rekursion und Weiterleitung). */
+export function externAntwort(name: string, typ: string): { status: 'NOERROR' | 'NXDOMAIN'; antwort: string[] } {
+  const n = name.replace(/\.$/, '').toLowerCase();
+  if (typ === 'PTR') { const ip = n.replace(/\.in-addr\.arpa$/, '').split('.').reverse().join('.'); return PTR[ip] ? { status: 'NOERROR', antwort: [`${n}.\t3600\tIN\tPTR\t${PTR[ip]}.`] } : { status: 'NXDOMAIN', antwort: [] }; }
+  const e = DNS[n]; if (!e) return { status: 'NXDOMAIN', antwort: [] };
+  const out: string[] = [];
+  if (e.CNAME) { out.push(`${n}.\t3600\tIN\tCNAME\t${e.CNAME}.`); const z = DNS[e.CNAME]; for (const a of ((z as Record<string, string[] | undefined>)?.[typ] ?? [])) out.push(`${e.CNAME}.\t3600\tIN\t${typ}\t${a}${typ === 'MX' || typ === 'NS' ? '.' : ''}`); }
+  else for (const a of ((e as Record<string, string[] | undefined>)[typ] ?? [])) out.push(`${n}.\t3600\tIN\t${typ}\t${a}${typ === 'MX' || typ === 'NS' ? '.' : ''}`);
+  return { status: 'NOERROR', antwort: out };
+}
+export const dnsErreichbar = (w: Welt, ip: string) => istDnsServer(w, ip);
 function dnsServer(w: Welt): string[] { return (w.fs['/etc/resolv.conf'] ?? '').split('\n').map((z) => z.match(/^nameserver\s+(\S+)/)?.[1]).filter(Boolean) as string[]; }
 function suchdomains(w: Welt): string[] { const z = (w.fs['/etc/resolv.conf'] ?? '').match(/^(search|domain)\s+(.+)$/m); return z ? z[2].split(/\s+/) : []; }
 const istDnsServer = (w: Welt, ip: string) => HOSTS.some((h) => h.ip === ip && h.ports.includes(53)) && weg(w, ip).art === 'ok';
 function frage(w: Welt, name: string, typ: string, server?: string): DnsAntwort | { fehler: string; server: string } {
   const liste = server ? [server] : dnsServer(w);
+  for (const h of dnsHaken) { const r = h(w, name, typ, liste[0] ?? '127.0.0.1'); if (r) return r; }
   const s = liste.find((x) => istDnsServer(w, x));
   if (!s) return { fehler: 'timeout', server: liste[0] ?? '127.0.0.1' };
   const n = name.replace(/\.$/, '').toLowerCase();

@@ -1,0 +1,150 @@
+---
+id: l2-8-2
+checks:
+  - id: k1
+  - id: zuordnung
+  - id: k2
+  - id: luecke
+  - id: steuern
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "rndc"
+    v: "rndc status · reload · reload ZONE · reconfig · flush · flushname NAME · dumpdb -cache|-zones|-all · querylog on|off · zonestatus ZONE · notify ZONE · stop · Schlüssel /etc/bind/rndc.key (Red Hat /etc/rndc.key), Port 953"
+  - t: "Signale"
+    v: "kill -HUP $(pidof named) lädt neu · kill -TERM beendet sauber · systemctl reload named ruft rndc reload auf"
+  - t: "logging"
+    v: "logging { channel NAME { file \"/var/log/named/x.log\" versions 3 size 5m; severity info; print-time yes; }; category queries { NAME; }; }; · Ordner muss für bind schreibbar sein"
+  - t: "Protokolle"
+    v: "journalctl -u named · rndc querylog · named_dump.db im Arbeitsverzeichnis"
+karten:
+  - f: "Mit welchem Befehl lädt named Konfiguration und geänderte Zonen neu, ohne neu zu starten?"
+    a: ["rndc reload"]
+  - f: "Welches Signal lässt named neu laden?"
+    a: ["sighup", "hup", "1"]
+  - f: "Was unterscheidet rndc reconfig von rndc reload?"
+    a: ["reconfig liest die Konfiguration und lädt nur neue Zonen, reload lädt auch geänderte Zonendateien neu."]
+    aufdecken: true
+  - f: "Wohin schreibt rndc dumpdb den Cache?"
+    a: ["named_dump.db", "in named_dump.db im arbeitsverzeichnis"]
+  - f: "Über welchen Port spricht rndc mit named?"
+    a: ["953"]
+  - f: "Welche Kategorie im logging-Block enthält die einzelnen Anfragen?"
+    a: ["queries"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Zuordnung from '../components/Zuordnung.astro';
+import Lueckentext from '../components/Lueckentext.astro';
+
+Der Cache auf werkstatt läuft, und die Kollegen nutzen ihn. Max beschwert sich, dass eine Seite manchmal falsch aufgelöst wird, und will wissen, welche Rechner eigentlich was fragen. **Deine Mission: Steuer den laufenden named mit rndc und Signalen, schau in seinen Cache und richte ein Abfrageprotokoll ein, das du nach Bedarf ein- und ausschaltest.** Lernziel 207.1.
+
+## Den laufenden Server steuern
+
+<Karte nr={1} titel="rndc">
+**rndc** (remote name daemon control) spricht über TCP-Port **953** mit named. Beide kennen denselben geheimen Schlüssel: auf Debian `/etc/bind/rndc.key`, auf Red Hat `/etc/rndc.key`, angelegt bei der Installation (sonst mit `rndc-confgen -a`). Die Datei darf nur root und der Benutzer von named lesen, darum läuft rndc mit sudo.
+
+```
+sudo rndc status              # läuft er? wie viele Zonen? Abfrage-Log an?
+sudo rndc reload              # Konfiguration und geänderte Zonen neu laden
+sudo rndc reload lab.example.org   # nur diese Zone
+sudo rndc reconfig            # Konfiguration und nur neue Zonen
+sudo rndc flush               # Cache leeren
+sudo rndc dumpdb -cache       # Cache nach named_dump.db schreiben
+sudo rndc querylog on         # jede Anfrage protokollieren
+sudo rndc stop                # beenden
+```
+
+Ältere Werkzeuge sprechen named über **Signale** an: `kill -HUP` lässt ihn neu laden wie `rndc reload`, `kill -TERM` beendet ihn sauber. Die PID liefert `pidof named` oder `systemctl status named`. `systemctl reload named` ruft auf Debian intern `rndc reload` auf.
+</Karte>
+
+<Quiz id="k1" titel="Kurzcheck: rndc" fragen={[
+  { frage: 'rndc status meldet „rndc: error: open: /etc/bind/rndc.key: permission denied“. Was fehlt?', richtig: 'Root-Rechte, also sudo rndc status', falsch: ['Ein laufender named', 'Die Zeile controls in named.conf'], erklaerung: 'Läuft named nicht, meldet rndc „connect failed … connection refused“.' },
+  { frage: 'Du hast eine neue Zone in named.conf.local eingetragen und willst nichts anderes neu laden. Welcher Befehl passt am besten?', richtig: 'rndc reconfig', falsch: ['rndc flush', 'rndc dumpdb -zones'], erklaerung: 'reconfig liest die Konfiguration neu und lädt nur Zonen, die dazugekommen sind.' },
+]} />
+
+<Zuordnung id="zuordnung" titel="Zuordnung: Was bewirkt was?" aufgabe="Ordne jeder Wirkung den Befehl zu." paare={[
+  { links: 'Cache leeren', rechts: 'rndc flush' },
+  { links: 'Cache in eine Datei schreiben', rechts: 'rndc dumpdb -cache' },
+  { links: 'Neu laden per Signal', rechts: 'kill -HUP $(pidof named)' },
+  { links: 'Anfragen protokollieren', rechts: 'rndc querylog on' },
+  { links: 'Stand einer Zone mit Seriennummer', rechts: 'rndc zonestatus lab.example.org' },
+]} extra={['rndc notify lab.example.org']} />
+
+## Protokolle
+
+<Karte nr={2} titel="Der logging-Block">
+Ohne eigene Einstellungen schreibt named über syslog ins Journal: `journalctl -u named`. Mit einem **logging**-Block lenkt man einzelne **Kategorien** in eigene **Kanäle**:
+
+```
+logging {
+    channel abfragen {
+        file "/var/log/named/abfragen.log" versions 3 size 5m;
+        severity info;
+        print-time yes;
+    };
+    category queries { abfragen; };
+};
+```
+
+Ein **channel** ist ein Ziel: eine Datei (mit `versions` und `size` dreht named sie selbst weiter), `syslog`, `stderr` oder `null`. Eine **category** ist eine Art von Meldung, etwa `queries` für jede Anfrage, `xfer-out` für Zonentransfers, `security` oder `default` für alles ohne eigene Zuordnung.
+
+Zwei Fallen: Der Ordner muss existieren und für den Benutzer von named schreibbar sein, sonst startet named nicht („configuring logging: file not found“). Und eine Kategorie `queries` schaltet das Abfrageprotokoll ein. `rndc querylog off` schaltet es im Betrieb wieder ab, ohne die Datei zu ändern. Auf einem gut besuchten Server wächst das Protokoll schnell.
+</Karte>
+
+<Merke>rndc steuert named über Port 953 mit einem Schlüssel, darum mit sudo. kill -HUP lädt neu wie rndc reload. Eigene Protokolle mit logging, channel und category, der Ordner muss für named schreibbar sein.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: logging" fragen={[
+  { frage: 'Nach dem Einfügen eines logging-Blocks startet named nicht mehr. Im Journal steht „isc_stdio_open \'/var/log/named/abfragen.log\' failed: permission denied“. Was tust du?', richtig: 'Den Ordner /var/log/named dem Benutzer bind geben, etwa mit chown bind:bind', falsch: ['Die Datei mit chmod 777 für alle beschreibbar machen', 'print-time yes entfernen'], erklaerung: 'named läuft nicht als root, sondern als bind. 777 wäre ein unnötiges Loch.' },
+  { frage: 'Welche Kategorie wählst du, um Zonentransfers an andere Server zu protokollieren?', richtig: 'xfer-out', falsch: ['queries', 'notify-in'], erklaerung: 'xfer-in protokolliert Transfers, die named selbst holt, etwa als sekundärer Server.' },
+]} />
+
+<Lueckentext id="luecke" titel="Lückentext: Abfrageprotokoll" aufgabe="Ergänze den logging-Block und die Befehle."
+  code={`logging {
+    ___ abfragen {
+        file "/var/log/named/abfragen.log" ___ 3 size 5m;
+        print-time yes;
+    };
+    ___ queries { abfragen; };
+};
+
+$ sudo install -d -o ___ -g bind /var/log/named
+$ sudo rndc ___`}
+  luecken={[
+    { loesungen: ['channel'] },
+    { loesungen: ['versions'] },
+    { loesungen: ['category'] },
+    { loesungen: ['bind'] },
+    { loesungen: ['reload', 'reconfig'] },
+  ]} />
+
+<Terminal id="steuern" titel="Terminal: named im Betrieb" welt={{ dns: { paket: true, cache: true, zone: true } }} aufgaben={[
+  { text: 'Frag named, wie es ihm geht.', befehl: '^rndc status', frage: 'Wie viele Zonen kennt er insgesamt?', antwort: ['103'] },
+  { text: 'Frag nach www.example.org und lass named danach seinen Cache in eine Datei schreiben.', befehl: '^rndc dumpdb', frage: 'In welche Datei hat named den Cache geschrieben? (ganzer Pfad)', antwort: ['/var/cache/bind/named_dump.db'] },
+  { text: 'Leer den Cache.', befehl: '^rndc flush' },
+  { text: 'Lass named per Signal neu laden und sieh im Journal nach, was er dazu schreibt.', befehl: '^kill (-HUP|-1|-s HUP|-SIGHUP|-s SIGHUP) ', frage: 'Mit welcher Meldung bestätigt named das Signal?', antwort: ['received SIGHUP signal to reload zones', 'received sighup signal to reload zones'] },
+  { text: 'Richte ein Abfrageprotokoll ein: Kanal <code>abfragen</code>, Datei <code>/var/log/named/abfragen.log</code> mit Zeitstempel, Kategorie queries. Leg den logging-Block in eine eigene Datei, die named.conf einbindet.', zustand: 'named:kanal:/var/log/named/abfragen.log && named:querylog && named:laeuft' },
+  { text: 'Frag nach laser.lab.example.org und lies im Protokoll nach.', befehl: '(cat|tail|less|grep .*) .*/var/log/named/abfragen\\.log', frage: 'Von welcher Adresse kam die Anfrage?', antwort: ['127.0.0.1'] },
+  { text: 'Schalte das Abfrageprotokoll im Betrieb ab, ohne die Konfiguration zu ändern.', zustand: 'nicht:named:querylog', befehl: '^rndc querylog' },
+]} />
+
+<Labor id="labor" titel="Labor: named auf srv1 steuern"
+  aufgabe="Steuer den named auf srv1 mit rndc und einem Signal. Füge die Ausgabe ein."
+  befehl={"sudo rndc status | grep -E 'version|number of zones|running'\nsudo kill -HUP $(pidof named); sleep 1\nsudo journalctl -u named -n 5 --no-pager\nsudo rndc dumpdb -cache && sudo ls -l /var/cache/bind/named_dump.db"}
+  muster={["server is up and running", "SIGHUP", "named_dump\\.db"]}
+  erfolg="rndc und das Signal führen zum selben Ergebnis: named liest Konfiguration und geänderte Zonen neu, ohne dass der Cache verloren geht oder ein Dienst ausfällt." />
+
+<Hinweis titel="Prüfungstipp">
+rndc und kill stehen ausdrücklich in Lernziel 207.1, dazu das Neuladen geänderter Konfiguration und Zonen und das Einrichten von Protokollen. Gefragt wird nach den Unterbefehlen von rndc, nach dem Signal SIGHUP und nach channel und category im logging-Block.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Welcher Unterschied besteht zwischen rndc reload und systemctl restart named?', richtig: 'reload behält Prozess und Cache, restart beendet named und startet ihn mit leerem Cache neu', falsch: ['reload liest nur Zonen, restart nur die Konfiguration', 'Es gibt keinen Unterschied, beide rufen rndc auf'], erklaerung: 'Nach einem Neustart muss sich named alle Antworten neu erfragen.' },
+  { frage: 'rndc meldet „connect failed: 127.0.0.1#953: connection refused“. Was ist am wahrscheinlichsten?', richtig: 'named läuft nicht', falsch: ['Der Schlüssel in rndc.key ist falsch', 'named lauscht nicht auf Port 53'], erklaerung: 'Mit falschem Schlüssel käme eine Verbindung zustande, named würde sie aber abweisen.' },
+  { frage: 'Was enthält die Datei named_dump.db nach rndc dumpdb -cache?', richtig: 'Die Antworten, die named gerade im Cache hält', falsch: ['Alle Zonendateien in einer Datei', 'Die Abfragen der letzten Stunde'], erklaerung: 'Mit -zones oder -all kämen die eigenen Zonen dazu. Abfragen stehen im querylog.' },
+]} />
