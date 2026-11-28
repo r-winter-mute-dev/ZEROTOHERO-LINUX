@@ -1,0 +1,163 @@
+---
+id: l2-9-4
+checks:
+  - id: k1
+  - id: reihe
+  - id: k2
+  - id: luecke
+  - id: zert
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "Schlüssel und Antrag"
+    v: "openssl genrsa -out www.key 2048 · openssl req -new -key www.key -out www.csr -subj \"/CN=www.lab.example.org\" -addext \"subjectAltName=DNS:www.lab.example.org\" · openssl req -in www.csr -noout -text"
+  - t: "Eigene CA"
+    v: "openssl req -x509 -newkey rsa:4096 -noenc -keyout ca.key -out ca.crt -days 3650 -subj \"/CN=Labor CA\" · openssl x509 -req -in www.csr -CA ca.crt -CAkey ca.key -CAcreateserial -copy_extensions copy -days 365 -out www.crt · CA.pl -newca"
+  - t: "Prüfen"
+    v: "openssl x509 -in X.crt -noout -subject -issuer -dates -ext subjectAltName · openssl verify -CAfile ca.crt www.crt · Schlüssel passt: -modulus | sha256sum bei x509 und rsa"
+  - t: "Apache"
+    v: "a2enmod ssl · <VirtualHost *:443> SSLEngine on · SSLCertificateFile · SSLCertificateKeyFile · Debian /etc/ssl/certs, /etc/ssl/private · Red Hat dnf install mod_ssl, /etc/pki/tls · vertrauen: /usr/local/share/ca-certificates + update-ca-certificates"
+karten:
+  - f: "Wie nennt man den Antrag auf ein Zertifikat, den man einer CA schickt?"
+    a: ["CSR", "Certificate Signing Request"]
+  - f: "Welche Option von openssl req erzeugt statt eines Antrags gleich ein selbst signiertes Zertifikat?"
+    a: ["-x509"]
+  - f: "Welche Direktive schaltet TLS für einen virtuellen Host ein?"
+    a: ["SSLEngine on", "SSLEngine"]
+  - f: "Welche Erweiterung im Zertifikat prüfen Browser und curl auf den Namen?"
+    a: ["subjectAltName", "SAN", "Subject Alternative Name"]
+  - f: "Mit welchem Befehl prüfst du, ob ein Zertifikat von einer bestimmten CA stammt?"
+    a: ["openssl verify -CAfile ca.crt www.crt", "openssl verify -CAfile"]
+  - f: "Wo liegen auf Red Hat Zertifikate und Schlüssel üblicherweise?"
+    a: ["/etc/pki/tls/certs und /etc/pki/tls/private", "/etc/pki/tls", "/etc/pki/"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Lueckentext from '../components/Lueckentext.astro';
+import Reihenfolge from '../components/Reihenfolge.astro';
+
+Seit es auf intern Passwörter gibt, gehen sie im Klartext durchs Netz. Max hat zum Spaß mit tcpdump mitgelesen und Lenas Passwort gefunden. Die Werkstatt soll HTTPS bekommen, und weil Laborgeräte auch intern Zertifikate brauchen, baut ihr eine eigene kleine Zertifizierungsstelle. **Deine Mission: Leg eine eigene CA an, stell damit ein Zertifikat für www aus, schalte HTTPS in Apache ein und sorg dafür, dass werkstatt der CA vertraut.** Lernziel 208.2.
+
+## Schlüssel, Antrag, Zertifikat
+
+<Karte nr={1} titel="Die drei Dateien">
+Für HTTPS braucht der Server zwei Dinge:
+
+- einen **privaten Schlüssel** (`www.key`), der den Rechner nie verlässt und nur für root lesbar ist,
+- ein **Zertifikat** (`www.crt`): öffentlicher Schlüssel plus Name, Gültigkeit und die Unterschrift einer **Zertifizierungsstelle** (CA).
+
+Dazwischen steht der **Antrag** (`www.csr`, certificate signing request): öffentlicher Schlüssel und gewünschter Name, unterschrieben mit dem privaten Schlüssel. Ihn bekommt die CA, nie den Schlüssel.
+
+```
+openssl genrsa -out /etc/ssl/private/www.key 2048
+openssl req -new -key /etc/ssl/private/www.key -out www.csr \
+    -subj "/C=DE/O=Werkstatt/CN=www.lab.example.org" \
+    -addext "subjectAltName=DNS:www.lab.example.org,DNS:lab.example.org"
+```
+
+Der Name im **Subject** ist eine Folge von Feldern: C (Land), ST, L (Ort), O (Organisation), OU, **CN** (common name). Browser schauen heute nur noch in die Erweiterung **subjectAltName** (SAN). Ein Zertifikat ohne SAN lehnen sie ab, auch wenn der CN stimmt. Ohne `-subj` fragt `openssl req` jedes Feld einzeln ab.
+
+Alle drei Dateien sind **PEM**: Base64 zwischen `-----BEGIN …-----` und `-----END …-----`. Lesbar macht sie `openssl x509 -in www.crt -noout -text` (bzw. `req -in … -text`).
+</Karte>
+
+<Quiz id="k1" titel="Kurzcheck: Dateien" fragen={[
+  { frage: 'Was schickst du einer kommerziellen CA, um ein Zertifikat zu bekommen?', richtig: 'Den Antrag (CSR)', falsch: ['Den privaten Schlüssel, damit sie ihn unterschreiben kann', 'Das selbst signierte Zertifikat'], erklaerung: 'Der private Schlüssel verlässt den Server nie. Der CSR enthält nur den öffentlichen Teil.' },
+  { frage: 'Ein Zertifikat hat CN = www.lab.example.org, aber keinen subjectAltName. Was passiert in einem aktuellen Browser?', richtig: 'Er meldet einen ungültigen Namen, er prüft nur noch den SAN', falsch: ['Er akzeptiert es, der CN genügt', 'Er akzeptiert es nur über HTTP/2'], erklaerung: 'curl und OpenSSL greifen ohne SAN noch auf den CN zurück, Browser nicht mehr.' },
+]} />
+
+## Eine eigene CA
+
+<Karte nr={2} titel="Selbst unterschreiben">
+Eine **selbst signierte** Datei hat sich selbst unterschrieben, Aussteller und Inhaber sind gleich. Das ist genau, was eine CA ist: `openssl req -x509` macht aus dem Antrag sofort ein selbst signiertes Zertifikat, und OpenSSL 3 trägt dabei `CA:TRUE` ein.
+
+```
+cd /etc/ssl/werkstatt
+openssl req -x509 -newkey rsa:4096 -noenc -keyout ca.key -out ca.crt \
+    -days 3650 -subj "/C=DE/O=Werkstatt/CN=Werkstatt Labor CA"
+openssl x509 -req -in www.csr -CA ca.crt -CAkey ca.key -CAcreateserial \
+    -copy_extensions copy -days 365 -out /etc/ssl/certs/www.lab.example.org.crt
+```
+
+`-noenc` (früher `-nodes`) lässt den Schlüssel unverschlüsselt, sonst fragt Apache bei jedem Start nach der Passphrase. `-CAcreateserial` legt `ca.srl` mit der laufenden Seriennummer an, `-copy_extensions copy` übernimmt den SAN aus dem Antrag. Das Perl-Skript **CA.pl** (`/usr/lib/ssl/misc/CA.pl -newca`, `-newreq`, `-sign`) erledigt dieselben Schritte mit `openssl ca` und einer festen Ordnerstruktur.
+
+Wem vertraut ein Client? Den Wurzeln in seinem Speicher: auf Debian `/etc/ssl/certs/ca-certificates.crt`, gepflegt mit **update-ca-certificates** aus `/usr/local/share/ca-certificates/*.crt`; auf Red Hat `/etc/pki/tls/certs/ca-bundle.crt`, gepflegt mit **update-ca-trust** aus `/etc/pki/ca-trust/source/anchors/`. Browser haben oft einen eigenen Speicher.
+</Karte>
+
+<Reihenfolge id="reihe" titel="Reihenfolge: Zertifikat von der eigenen CA" aufgabe="Bring die Schritte in die richtige Reihenfolge." schritte={[
+  'CA-Schlüssel und CA-Zertifikat mit openssl req -x509 erzeugen',
+  'Serverschlüssel mit openssl genrsa erzeugen',
+  'Antrag mit openssl req -new und SAN stellen',
+  'Antrag mit openssl x509 -req -CA … unterschreiben',
+  'Mit openssl verify -CAfile ca.crt prüfen',
+  'In Apache eintragen und neu laden',
+]} />
+
+## HTTPS in Apache
+
+<Karte nr={3} titel="mod_ssl">
+```
+<VirtualHost *:443>
+    ServerName www.lab.example.org
+    DocumentRoot /var/www/www
+    SSLEngine on
+    SSLCertificateFile    /etc/ssl/certs/www.lab.example.org.crt
+    SSLCertificateKeyFile /etc/ssl/private/www.lab.example.org.key
+</VirtualHost>
+```
+
+Auf Debian: `a2enmod ssl` (zieht socache_shmcb nach, `ports.conf` öffnet dann `Listen 443`), Datei in sites-available, `a2ensite`, Neustart. Eine Vorlage ist `default-ssl.conf` mit dem Schnellschuss-Zertifikat `ssl-cert-snakeoil.pem` aus dem Paket ssl-cert. Auf Red Hat bringt `dnf install mod_ssl` die Datei `conf.d/ssl.conf` mit einem `<VirtualHost _default_:443>` und erzeugt beim ersten Start `/etc/pki/tls/certs/localhost.crt`.
+
+configtest prüft, ob die Dateien existieren. Ob Schlüssel und Zertifikat zusammenpassen, merkt Apache erst beim Start (`AH02565: Certificate and private key … do not match`). Vorher prüfen kannst du es selbst: `openssl x509 -noout -modulus -in www.crt | sha256sum` und `openssl rsa -noout -modulus -in www.key | sha256sum` müssen dasselbe ergeben.
+
+Eine HTTP-Anfrage an Port 443 beantwortet Apache mit 400 („You're speaking plain HTTP to an SSL-enabled server port“). Und curl bricht ohne Vertrauen in die CA mit Code 60 ab.
+</Karte>
+
+<Merke>genrsa → req -new (mit SAN) → x509 -req -CA. Schlüssel nach /etc/ssl/private, nur root. SSLEngine on, SSLCertificateFile, SSLCertificateKeyFile. Vertrauen: update-ca-certificates (Debian), update-ca-trust (Red Hat).</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: Apache und Vertrauen" fragen={[
+  { frage: 'curl https://www.lab.example.org/ meldet „SSL certificate problem: unable to get local issuer certificate“. Was bedeutet das?', richtig: 'curl kennt die CA nicht, die das Zertifikat ausgestellt hat', falsch: ['Das Zertifikat passt nicht zum privaten Schlüssel', 'Der Name www.lab.example.org fehlt im Zertifikat'], erklaerung: 'Ein falscher Name gäbe „no alternative certificate subject name matches“.' },
+  { frage: 'Apache startet nicht, im error.log steht „AH02565: Certificate and private key … do not match“. Was ist los?', richtig: 'SSLCertificateKeyFile zeigt auf einen anderen Schlüssel als den, zu dem das Zertifikat gehört', falsch: ['Das Zertifikat ist abgelaufen', 'mod_ssl ist nicht geladen'], erklaerung: 'Ohne mod_ssl hätte configtest schon „Invalid command SSLEngine“ gemeldet.' },
+]} />
+
+<Lueckentext id="luecke" titel="Lückentext: Selbst signiert für den Testserver" aufgabe="Ergänze die Befehle für ein selbst signiertes Zertifikat mit unverschlüsseltem Schlüssel, ein Jahr gültig."
+  code={`$ openssl ___ -x509 -newkey rsa:2048 -___ \\
+      -keyout /etc/ssl/private/test.key -out /etc/ssl/certs/test.crt \\
+      -___ 365 -subj "/CN=test.lab" -addext "subjectAltName=DNS:test.lab"
+$ openssl x509 -in /etc/ssl/certs/test.crt -noout -___`}
+  luecken={[
+    { loesungen: ['req'] },
+    { loesungen: ['noenc', 'nodes'] },
+    { loesungen: ['days'] },
+    { loesungen: ['subject', 'text', 'dates', 'issuer'] },
+  ]} />
+
+<Terminal id="zert" titel="Terminal: Eine CA für die Werkstatt" welt={{ web: { apache: true, seiten: true, intern: true } }} aufgaben={[
+  { text: 'Leg in <code>/etc/ssl/werkstatt</code> eine CA „Werkstatt Labor CA“ an: <code>ca.key</code> (4096 Bit, unverschlüsselt) und <code>ca.crt</code>, zehn Jahre gültig.', zustand: 'cert:/etc/ssl/werkstatt/ca.crt~subject=.*CN = Werkstatt Labor CA.*ca=true && cert:/etc/ssl/werkstatt/ca.crt:key=/etc/ssl/werkstatt/ca.key' },
+  { text: 'Erzeug den Schlüssel <code>/etc/ssl/private/www.lab.example.org.key</code> und dazu den Antrag <code>/etc/ssl/werkstatt/www.csr</code> für www.lab.example.org, mit lab.example.org als zweitem Namen.', zustand: 'datei:/etc/ssl/private/www.lab.example.org.key~BEGIN PRIVATE KEY && datei:/etc/ssl/werkstatt/www.csr~BEGIN CERTIFICATE REQUEST', befehl: '^openssl req .*-new' },
+  { text: 'Unterschreib den Antrag mit deiner CA, ein Jahr gültig, als <code>/etc/ssl/certs/www.lab.example.org.crt</code>. Beide Namen sollen im Zertifikat stehen.', zustand: 'cert:/etc/ssl/certs/www.lab.example.org.crt~issuer=.*Werkstatt Labor CA && cert:/etc/ssl/certs/www.lab.example.org.crt~san=DNS:www\\.lab\\.example\\.org,DNS:lab\\.example\\.org && cert:/etc/ssl/certs/www.lab.example.org.crt:key=/etc/ssl/private/www.lab.example.org.key' },
+  { text: 'Prüf das neue Zertifikat mit openssl verify, einmal ohne und einmal mit der CA.', befehl: '^openssl verify .*-CAfile', frage: 'Welche Fehlernummer meldet verify ohne -CAfile?', antwort: ['20'] },
+  { text: 'Schalte HTTPS für www.lab.example.org ein, mit eigener Datei <code>www-ssl.conf</code> und DocumentRoot <code>/var/www/www</code>.', zustand: 'apache:mod:ssl && apache:site:www-ssl && http(ca=/etc/ssl/werkstatt/ca.crt):https://www.lab.example.org/~Willkommen' },
+  { text: 'Ruf die Seite mit curl auf, ohne curl die CA zu nennen.', befehl: '^curl .*https://www\\.lab\\.example\\.org', auchFehler: true, frage: 'Mit welchem Rückgabecode bricht curl ab?', antwort: ['60'] },
+  { text: 'Sorg dafür, dass werkstatt deiner CA vertraut, so dass curl ohne Zusatz funktioniert.', zustand: 'http:https://www.lab.example.org/~Willkommen && datei:/etc/ssl/certs/ca-certificates.crt~BEGIN' },
+]} />
+
+<Labor id="labor" titel="Labor: Eine CA auf srv1"
+  aufgabe="Bau auf srv1 eine kleine CA, stell ein Zertifikat für test.lab aus und schalte HTTPS ein. Füge die Ausgabe ein."
+  befehl={"sudo mkdir -p /etc/ssl/labor && cd /etc/ssl/labor\nsudo openssl req -x509 -newkey rsa:4096 -noenc -keyout ca.key -out ca.crt -days 3650 -subj '/CN=Labor CA'\nsudo openssl req -new -newkey rsa:2048 -noenc -keyout /etc/ssl/private/test.key -out test.csr -subj '/CN=test.lab' -addext 'subjectAltName=DNS:test.lab'\nsudo openssl x509 -req -in test.csr -CA ca.crt -CAkey ca.key -CAcreateserial -copy_extensions copy -days 365 -out /etc/ssl/certs/test.crt\nopenssl verify -CAfile ca.crt /etc/ssl/certs/test.crt\nprintf '<VirtualHost *:443>\\n\\tServerName test.lab\\n\\tDocumentRoot /var/www/test\\n\\tSSLEngine on\\n\\tSSLCertificateFile /etc/ssl/certs/test.crt\\n\\tSSLCertificateKeyFile /etc/ssl/private/test.key\\n</VirtualHost>\\n' | sudo tee /etc/apache2/sites-available/test-ssl.conf\nsudo a2enmod ssl && sudo a2ensite test-ssl && sudo systemctl restart apache2\ncurl -s --cacert ca.crt -u lena:geheim https://test.lab/"}
+  muster={["Certificate request self-signature ok", "test\\.crt: OK", "Hallo von test\\.lab"]}
+  erfolg="Mit --cacert vertraut curl genau dieser einen CA. Ab jetzt reist das Passwort aus Mission 9.2 verschlüsselt." />
+
+<Hinweis titel="Prüfungstipp">
+208.2 nennt /etc/ssl/ und /etc/pki/, openssl und CA.pl, SSLEngine, SSLCertificateKeyFile, SSLCertificateFile, SSLCACertificateFile und SSLCACertificatePath. Gefragt wird, welche Datei an die CA geht, welche Direktive auf Schlüssel oder Zertifikat zeigt und wie man ein selbst signiertes Zertifikat erzeugt. SSLCACertificateFile und SSLCACertificatePath nennen die CAs, deren **Client**-Zertifikate Apache bei SSLVerifyClient annimmt, sie haben mit dem eigenen Serverzertifikat nichts zu tun.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Welche Direktive zeigt auf den privaten Schlüssel des Servers?', richtig: 'SSLCertificateKeyFile', falsch: ['SSLCACertificateFile', 'SSLCertificateChainFile'], erklaerung: 'SSLCACertificateFile nennt CAs für Client-Zertifikate, SSLCertificateChainFile (veraltet) Zwischenzertifikate.' },
+  { frage: 'Wozu dient -CAcreateserial bei openssl x509 -req?', richtig: 'Es legt eine Datei für die laufende Seriennummer der CA an, falls sie fehlt', falsch: ['Es macht das neue Zertifikat selbst zu einer CA', 'Es erzeugt einen neuen Schlüssel für die CA'], erklaerung: 'Jedes Zertifikat einer CA braucht eine eigene Seriennummer.' },
+  { frage: 'Wie bringst du einem Debian-Rechner bei, der eigenen CA zu vertrauen?', richtig: 'ca.crt nach /usr/local/share/ca-certificates/ kopieren und update-ca-certificates aufrufen', falsch: ['ca.crt nach /etc/ssl/private/ kopieren', 'ca.crt in /etc/apache2/ports.conf eintragen'], erklaerung: 'Auf Red Hat heißt der Ordner /etc/pki/ca-trust/source/anchors/, der Befehl update-ca-trust.' },
+]} />

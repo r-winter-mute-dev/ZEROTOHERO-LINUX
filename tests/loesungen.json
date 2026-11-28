@@ -3697,5 +3697,211 @@
   "antworten": [
    "/etc/bind/named.conf.options:18"
   ]
+ },
+ "l2-9-1/vhosts": {
+  "befehle": [
+   "sudo apt install -y apache2",
+   "cat /etc/apache2/sites-enabled/000-default.conf",
+   "printf '<VirtualHost *:80>\\n\\tServerName www.lab.example.org\\n\\tServerAlias lab.example.org\\n\\tDocumentRoot /var/www/www\\n\\tErrorLog ${APACHE_LOG_DIR}/www-error.log\\n\\tCustomLog ${APACHE_LOG_DIR}/www-access.log combined\\n</VirtualHost>\\n' | sudo tee /etc/apache2/sites-available/www.conf",
+   "sudo a2ensite www",
+   "sudo apache2ctl configtest",
+   "sudo systemctl reload apache2",
+   "curl http://www.lab.example.org/",
+   "printf '<VirtualHost *:80>\\n\\tServerName intern.lab.example.org\\n\\tDocumentRoot /var/www/intern\\n</VirtualHost>\\n' | sudo tee /etc/apache2/sites-available/intern.conf",
+   "sudo a2ensite intern",
+   "sudo systemctl reload apache2",
+   "sudo apache2ctl -S",
+   "curl -s http://intern.lab.example.org/",
+   "sudo tail /var/log/apache2/other_vhosts_access.log"
+  ],
+  "antworten": [
+   "/var/www/html",
+   "/etc/apache2/sites-enabled/000-default.conf",
+   "other_vhosts_access.log"
+  ]
+ },
+ "l2-9-2/zugriff": {
+  "befehle": [
+   "printf '<VirtualHost *:80>\\n\\tServerName intern.lab.example.org\\n\\tDocumentRoot /var/www/intern\\n\\tRedirect permanent /plan http://intern.lab.example.org/schichtplan.txt\\n\\t<Directory /var/www/intern>\\n\\t\\tRequire ip 192.168.1.0/24\\n\\t</Directory>\\n\\t<Directory /var/www/intern/doku>\\n\\t\\tAllowOverride AuthConfig\\n\\t</Directory>\\n</VirtualHost>\\n' | sudo tee /etc/apache2/sites-available/intern.conf",
+   "sudo apache2ctl configtest",
+   "sudo systemctl reload apache2",
+   "curl -sI http://intern.lab.example.org/plan",
+   "sudo htpasswd -c -b /etc/apache2/htpasswd lena geheim",
+   "sudo htpasswd -b /etc/apache2/htpasswd max passwort",
+   "printf 'AuthType Basic\\nAuthName Doku\\nAuthUserFile /etc/apache2/htpasswd\\nRequire valid-user\\n' | sudo tee /var/www/intern/doku/.htaccess",
+   "curl -s -o /dev/null -w '%{http_code}\\n' -u lena:falsch http://intern.lab.example.org/doku/wartung.txt",
+   "sudo tail -3 /var/log/apache2/error.log",
+   "printf 'AuthType Basic\\nAuthName Doku\\nAuthUserFile /etc/apache2/htpasswd\\nAuthGroupFile /etc/apache2/htgroup\\nRequire group team\\n' | sudo tee /var/www/intern/doku/.htaccess",
+   "echo 'team: max' | sudo tee /etc/apache2/htgroup",
+   "sudo a2enmod authz_groupfile",
+   "sudo systemctl restart apache2",
+   "curl -s -o /dev/null -w '%{http_code}\\n' http://intern.lab.example.org/doku/.htaccess"
+  ],
+  "antworten": [
+   "AH01617",
+   "403"
+  ]
+ },
+ "l2-9-3/leistung": {
+  "befehle": [
+   "a2query -M",
+   "curl -s http://localhost/server-status?auto",
+   "echo '<?php echo \"PHP \" . phpversion(); ?>' | sudo tee /var/www/html/info.php",
+   "sudo apt install -y libapache2-mod-php8.2",
+   "curl -s http://localhost/info.php",
+   "a2query -M",
+   "sudo sed -i 's/StartServers\\t\\t\\t 5/StartServers\\t\\t\\t 8/; s/MinSpareServers\\t\\t  5/MinSpareServers\\t\\t  8/; s/MaxSpareServers\\t\\t 10/MaxSpareServers\\t\\t 16/; s/MaxRequestWorkers\\t  150/ServerLimit\\t\\t300\\n\\tMaxRequestWorkers\\t  300/; s/MaxConnectionsPerChild   0/MaxConnectionsPerChild   1000/' /etc/apache2/mods-available/mpm_prefork.conf",
+   "sudo apache2ctl configtest",
+   "sudo systemctl restart apache2",
+   "sudo sed -i 's|\\t\\tRequire local|\\t\\tRequire local\\n\\t\\tRequire ip 192.168.1.0/24|' /etc/apache2/mods-available/status.conf",
+   "sudo systemctl reload apache2"
+  ],
+  "antworten": [
+   "event",
+   "2",
+   "prefork"
+  ]
+ },
+ "l2-9-3/redhat": {
+  "befehle": [
+   "sudo dnf install -y httpd",
+   "sudo systemctl enable --now httpd",
+   "curl -I http://localhost/",
+   "sudo ls /var/log/httpd",
+   "printf '<VirtualHost *:80>\\n\\tServerName intern.lab.example.org\\n\\tDocumentRoot /var/www/intern\\n</VirtualHost>\\n' | sudo tee /etc/httpd/conf.d/intern.conf",
+   "sudo apachectl configtest",
+   "sudo systemctl reload httpd",
+   "curl -s http://localhost/",
+   "echo '<?php echo date(\"Y\"); ?>' | sudo tee /var/www/intern/zeit.php",
+   "sudo dnf install -y php",
+   "sudo systemctl restart httpd",
+   "curl -s http://intern.lab.example.org/zeit.php"
+  ],
+  "antworten": [
+   "403",
+   "access_log",
+   "Intern"
+  ]
+ },
+ "l2-9-4/zert": {
+  "befehle": [
+   "sudo mkdir -p /etc/ssl/werkstatt",
+   "cd /etc/ssl/werkstatt",
+   "sudo openssl req -x509 -newkey rsa:4096 -noenc -keyout ca.key -out ca.crt -days 3650 -subj '/C=DE/O=Werkstatt/CN=Werkstatt Labor CA'",
+   "sudo openssl genrsa -out /etc/ssl/private/www.lab.example.org.key 2048",
+   "sudo openssl req -new -key /etc/ssl/private/www.lab.example.org.key -out www.csr -subj '/C=DE/O=Werkstatt/CN=www.lab.example.org' -addext 'subjectAltName=DNS:www.lab.example.org,DNS:lab.example.org'",
+   "sudo openssl x509 -req -in www.csr -CA ca.crt -CAkey ca.key -CAcreateserial -copy_extensions copy -days 365 -out /etc/ssl/certs/www.lab.example.org.crt",
+   "openssl verify /etc/ssl/certs/www.lab.example.org.crt",
+   "openssl verify -CAfile ca.crt /etc/ssl/certs/www.lab.example.org.crt",
+   "sudo a2enmod ssl",
+   "printf '<VirtualHost *:443>\\n\\tServerName www.lab.example.org\\n\\tDocumentRoot /var/www/www\\n\\tSSLEngine on\\n\\tSSLCertificateFile /etc/ssl/certs/www.lab.example.org.crt\\n\\tSSLCertificateKeyFile /etc/ssl/private/www.lab.example.org.key\\n</VirtualHost>\\n' | sudo tee /etc/apache2/sites-available/www-ssl.conf",
+   "sudo a2ensite www-ssl",
+   "sudo apache2ctl configtest",
+   "sudo systemctl restart apache2",
+   "curl https://www.lab.example.org/",
+   "sudo cp ca.crt /usr/local/share/ca-certificates/werkstatt.crt",
+   "sudo update-ca-certificates",
+   "curl https://www.lab.example.org/"
+  ],
+  "antworten": [
+   "20",
+   "60"
+  ]
+ },
+ "l2-9-5/haerten": {
+  "befehle": [
+   "openssl x509 -in /home/lena/zert/otl-r3.crt -noout -subject -issuer",
+   "cat /home/lena/zert/www.lab.example.org.crt /home/lena/zert/otl-r3.crt | sudo tee /etc/ssl/certs/www.lab.example.org.crt",
+   "sudo cp /home/lena/zert/www.lab.example.org.key /etc/ssl/private/www.lab.example.org.key",
+   "sudo systemctl reload apache2",
+   "curl -s https://www.lab.example.org/",
+   "openssl s_client -connect www.lab.example.org:443 -servername www.lab.example.org",
+   "cd /etc/ssl/werkstatt",
+   "sudo openssl req -new -newkey rsa:2048 -noenc -keyout /etc/ssl/private/intern.lab.example.org.key -out intern.csr -subj /CN=intern.lab.example.org -addext subjectAltName=DNS:intern.lab.example.org",
+   "sudo openssl x509 -req -in intern.csr -CA ca.crt -CAkey ca.key -copy_extensions copy -days 365 -out /etc/ssl/certs/intern.lab.example.org.crt",
+   "printf '<VirtualHost *:443>\\n\\tServerName intern.lab.example.org\\n\\tDocumentRoot /var/www/intern\\n\\tSSLEngine on\\n\\tSSLProtocol -all +TLSv1.3\\n\\tSSLCertificateFile /etc/ssl/certs/intern.lab.example.org.crt\\n\\tSSLCertificateKeyFile /etc/ssl/private/intern.lab.example.org.key\\n</VirtualHost>\\n' | sudo tee /etc/apache2/sites-available/intern-ssl.conf",
+   "sudo a2ensite intern-ssl",
+   "sudo systemctl reload apache2",
+   "sudo sed -i 's/^ServerTokens OS/ServerTokens Prod/; s/^ServerSignature On/ServerSignature Off/' /etc/apache2/conf-available/security.conf",
+   "sudo systemctl reload apache2",
+   "sudo sed -i 's|ServerAlias lab.example.org|ServerAlias lab.example.org\\n\\tRedirect permanent / https://www.lab.example.org/|' /etc/apache2/sites-available/www.conf",
+   "sudo apache2ctl configtest",
+   "sudo systemctl reload apache2",
+   "curl -sI http://www.lab.example.org/kontakt.html"
+  ],
+  "antworten": [
+   "Open Trust Root X1",
+   "2"
+  ]
+ },
+ "l2-9-6/proxy": {
+  "befehle": [
+   "sudo apt install -y squid",
+   "ss -tln",
+   "curl -s -i -x http://127.0.0.1:3128 http://www.example.org/",
+   "curl -s -i -x http://192.168.1.23:3128 http://www.example.org/",
+   "printf 'acl labor src 192.168.1.0/24\\nhttp_access allow labor\\n' | sudo tee /etc/squid/conf.d/labor.conf",
+   "sudo squid -k parse",
+   "sudo squid -k reconfigure",
+   "printf 'acl labor src 192.168.1.0/24\\nacl gesperrt dstdomain .example.net\\nhttp_access deny gesperrt\\nhttp_access allow labor\\n' | sudo tee /etc/squid/conf.d/labor.conf",
+   "sudo squid -k reconfigure",
+   "sudo apt install -y apache2-utils",
+   "sudo htpasswd -c -b /etc/squid/passwd lena geheim",
+   "printf 'auth_param basic program /usr/lib/squid/basic_ncsa_auth /etc/squid/passwd\\nauth_param basic realm Werkstatt-Proxy\\nacl angemeldet proxy_auth REQUIRED\\nacl labor src 192.168.1.0/24\\nacl gesperrt dstdomain .example.net\\nhttp_access deny gesperrt\\nhttp_access allow labor angemeldet\\n' | sudo tee /etc/squid/conf.d/labor.conf",
+   "sudo systemctl reload squid",
+   "printf 'cache_mem 128 MB\\ncache_dir ufs /var/spool/squid 500 16 256\\nmaximum_object_size 20 MB\\n' | sudo tee /etc/squid/conf.d/cache.conf",
+   "sudo systemctl restart squid",
+   "curl -s -o /dev/null -x http://192.168.1.23:3128 -U lena:geheim http://www.example.org/",
+   "curl -s -o /dev/null -x http://192.168.1.23:3128 -U lena:geheim http://www.example.org/",
+   "sudo tail -2 /var/log/squid/access.log"
+  ],
+  "antworten": [
+   "3128",
+   "ERR_ACCESS_DENIED",
+   "TCP_MEM_HIT"
+  ]
+ },
+ "l2-9-7/nginx": {
+  "befehle": [
+   "sudo apt install -y nginx",
+   "systemctl status nginx",
+   "sudo sed -i 's/^Listen 80$/Listen 127.0.0.1:8080/' /etc/apache2/ports.conf",
+   "sudo sed -i 's/<VirtualHost \\*:80>/<VirtualHost 127.0.0.1:8080>/' /etc/apache2/sites-available/000-default.conf /etc/apache2/sites-available/www.conf /etc/apache2/sites-available/intern.conf",
+   "sudo systemctl restart apache2",
+   "sudo systemctl start nginx",
+   "printf 'server {\\n\\tlisten 80;\\n\\tserver_name www.lab.example.org;\\n\\tlocation / {\\n\\t\\tproxy_pass http://127.0.0.1:8080;\\n\\t\\tproxy_set_header Host $host;\\n\\t}\\n}\\n' | sudo tee /etc/nginx/sites-available/www",
+   "sudo ln -s /etc/nginx/sites-available/www /etc/nginx/sites-enabled/",
+   "printf 'upstream lagerist {\\n\\tserver 192.168.1.10:8080;\\n\\tserver 192.168.1.10:8081;\\n}\\n\\nserver {\\n\\tlisten 80;\\n\\tserver_name lager.lab.example.org;\\n\\tlocation / {\\n\\t\\tproxy_pass http://lagerist;\\n\\t\\tproxy_set_header Host $host;\\n\\t\\tproxy_set_header X-Real-IP $remote_addr;\\n\\t\\tproxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\\n\\t}\\n\\tlocation /api/ {\\n\\t\\tallow 192.168.1.0/24;\\n\\t\\tdeny all;\\n\\t\\tproxy_pass http://lagerist;\\n\\t}\\n}\\n' | sudo tee /etc/nginx/sites-available/lager",
+   "sudo ln -s /etc/nginx/sites-available/lager /etc/nginx/sites-enabled/",
+   "sudo nginx -t",
+   "sudo nginx -s reload",
+   "curl -s http://lager.lab.example.org/",
+   "curl -s http://lager.lab.example.org/"
+  ],
+  "antworten": [
+   "still could not bind()",
+   "srv1:8081"
+  ]
+ },
+ "l2-9-boss/relaunch": {
+  "befehle": [
+   "sudo nginx -t",
+   "sudo sed -i 's|proxy_pass http://127.0.0.1:8080$|proxy_pass http://127.0.0.1:8080;|' /etc/nginx/sites-available/shop",
+   "cd /etc/ssl/werkstatt",
+   "sudo openssl req -new -newkey rsa:2048 -noenc -keyout /etc/ssl/private/shop.lab.example.org.key -out shop.csr -subj /CN=shop.lab.example.org -addext subjectAltName=DNS:shop.lab.example.org",
+   "sudo openssl x509 -req -in shop.csr -CA ca.crt -CAkey ca.key -copy_extensions copy -days 365 -out /etc/ssl/certs/shop.lab.example.org.crt",
+   "printf '\\nserver {\\n\\tlisten 80;\\n\\tserver_name shop.lab.example.org;\\n\\treturn 301 https://$host$request_uri;\\n}\\n' | sudo tee -a /etc/nginx/sites-available/shop",
+   "sudo nginx -t",
+   "sudo systemctl start nginx",
+   "sudo a2ensite shop",
+   "sudo systemctl reload apache2",
+   "sudo htpasswd -c -b /etc/apache2/shop.htpasswd max teile",
+   "sudo chmod 644 /var/www/shop/verwaltung/index.html",
+   "echo 'http_access allow localnet' | sudo tee /etc/squid/conf.d/labor.conf",
+   "sudo systemctl reload squid"
+  ],
+  "antworten": [
+   "/etc/nginx/sites-enabled/shop:14"
+  ]
  }
 }

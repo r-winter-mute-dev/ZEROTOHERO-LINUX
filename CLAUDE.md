@@ -12,8 +12,8 @@ Kurs „Linux to Hero“: interaktive Vorbereitung auf LPIC-1, LPIC-2 und LPIC-3
 ## Stand
 
 - LPIC-1: alle Akte fertig.
-- LPIC-2: Akt 0 bis 8 fertig (Topics 200 bis 207), dazu die Generalprobe 201 (`l2-7-probe`). Akt 7 nutzt das Modul `shell-wartung.ts` (Welt-Option `wartung`) mit dem erfundenen Autoconf-Projekt lagerist, Akt 8 das Modul `shell-dns.ts` (Welt-Option `dns`) mit werkstatt als BIND-Server (192.168.1.23) und srv1 (192.168.1.10) als zweitem Nameserver.
-- **Als Nächstes Akt 9, Topic 208 (Webserver)**, danach Akt 10 bis 13 (Topics 209 bis 212). Akt 13 enthält die Generalprobe 202 (`l2-13-probe`).
+- LPIC-2: Akt 0 bis 9 fertig (Topics 200 bis 208), dazu die Generalprobe 201 (`l2-7-probe`). Akt 7 nutzt das Modul `shell-wartung.ts` (Welt-Option `wartung`) mit dem erfundenen Autoconf-Projekt lagerist, Akt 8 das Modul `shell-dns.ts` (Welt-Option `dns`) mit werkstatt als BIND-Server (192.168.1.23) und srv1 (192.168.1.10) als zweitem Nameserver, Akt 9 die Module `shell-web.ts` (Welt-Option `web`: Apache, Squid, Nginx, curl, lagerist-web auf srv1:8080/8081) und `shell-tls.ts` (openssl).
+- **Als Nächstes Akt 10, Topic 209 (Samba und NFS)**, danach Akt 11 bis 13 (Topics 210 bis 212). Akt 13 enthält die Generalprobe 202 (`l2-13-probe`).
 - LPIC-3: nur geplant. Labore dort nur in echten VMs (siehe CONTRIBUTING, Abschnitt Labore). Vor dem ersten Akt prüfen, welche Version der Lernziele gilt: Die LPI-Übersichtsseite nannte im November 2026 andere Themen als das Wiki (303-300 v3.0).
 - Zuordnung LPIC-2: Prüfung 201 = Topics 200 bis 206, Prüfung 202 = Topics 207 bis 212. In Texten nicht verwechseln.
 
@@ -62,6 +62,12 @@ In `src/scripts/shell.ts`, genau wie bei `shell-speicher.ts` und `shell-netzwerk
 - Private Namen (intern, local, lan …) über eine Weiterleitungszone scheitern mit `dnssec-validation auto` wie echt mit SERVFAIL, bis `validate-except` sie ausnimmt.
 - BIND-Versionen im Simulator folgen dem Stand der Vergleichs-Action (Debian 12: 1:9.18.49-1~deb12u3, Alma 9: 9.16.50-12.el9_9.1, Ausgabe `9.16.50-RH`). Nach Sicherheitsupdates zieht die Action neuere Versionen; Abweichungen zeigt `named-checkconf -v` im Kopf der Gruppe dns. Nicht nachgebildet: Auf Red Hat liegen named-checkconf und dnssec-* in /usr/sbin, dnssec-* im Paket bind-dnssec-utils.
 - In MDX-Fließtext (`<Merke>`, Absätze) sind `{` und `}` Ausdrücke. In Prosa als `\{ \}` schreiben oder in Backticks setzen. Einfache Anführungszeichen in Quiz-Texten mit `\'` maskieren.
+
+- Symbolische Links sind Dateien mit dem Inhalt `-> ZIEL`. `shell-web.ts` löst sie mit `echt()` auch in Verzeichnisteilen auf (`/etc/httpd/modules`, `sites-enabled`). Neue Module, die Links lesen, brauchen dasselbe.
+- In der Web-Welt laufen Prüfungen `http(…)` auf einer Kopie und schreiben nichts in die Protokolle. Aufgaben, die ein Protokoll lesen lassen, müssen den Aufruf mit curl selbst verlangen.
+- Ab dem ersten `<VirtualHost *:80>` beantwortet Apache auch `localhost` mit dem ersten Host, wie echt. Auf Red Hat zeigt `http://localhost/` nach einer eigenen Datei in conf.d also diese Seite statt der Testseite.
+- Der Simulator verschlüsselt Schlüssel nicht wirklich. Ohne `-noenc` fragt openssl nach einer Passphrase und startet den Befehl mit `-passout`/`-passin pass:…` neu, Apache startet mit einem verschlüsselten Schlüssel nicht (AH02564).
+- Versionen für Apache, Nginx, Squid, OpenSSL und curl stehen als Konstanten in `shell-web.ts` und `shell-tls.ts` und als Pakete in `shell-pakete.ts`. Der Kopf der Vergleichsgruppe web zeigt die Versionen der Action.
 
 ## Testbefehle
 

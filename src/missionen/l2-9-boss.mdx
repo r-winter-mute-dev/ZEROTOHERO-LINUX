@@ -1,0 +1,32 @@
+---
+id: l2-9-boss
+checks:
+  - id: relaunch
+spick:
+  - t: "Nginx"
+    v: "nginx -t · systemctl start|reload nginx · journalctl -u nginx · ssl_certificate, ssl_certificate_key · return 301 https://$host$request_uri; · proxy_pass http://lagerist/;"
+  - t: "Apache"
+    v: "a2ensite · apache2ctl configtest · /var/log/apache2/error.log · htpasswd -c · Rechte für www-data"
+  - t: "Zertifikat"
+    v: "openssl req -new -newkey rsa:2048 -noenc -keyout KEY -out CSR -subj /CN=NAME -addext subjectAltName=DNS:NAME · openssl x509 -req -in CSR -CA ca.crt -CAkey ca.key -copy_extensions copy -days 365 -out CRT"
+  - t: "Squid"
+    v: "/etc/squid/conf.d/*.conf · acl … src · http_access allow … · systemctl reload squid · curl -x 192.168.1.23:3128"
+---
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+
+Montag, 9 Uhr, um 10 soll der neue Ersatzteilshop online gehen. Max hat am Freitag angefangen und ist jetzt beim Kunden: Nginx soll shop.lab.example.org über HTTPS annehmen und an Apache auf 127.0.0.1:8080 weiterreichen, die Lagerabfrage unter /lager/ geht an lagerist-web auf srv1, die Verwaltung braucht eine Anmeldung, und die Laborrechner sollen den Shop über den Proxy erreichen. Nichts davon funktioniert. **Dein Bosskampf: Bring den Shop pünktlich ans Netz.** Alles aus Topic 208.
+
+<Hinweis titel="Vorgehen">
+Die Aufgaben nennen nur das Ziel. Max' Dateien: `/etc/nginx/sites-available/shop` und `/etc/apache2/sites-available/shop.conf`. Die Werkstatt-CA liegt in `/etc/ssl/werkstatt` (ca.crt, ca.key), das Zertifikat für den Shop soll sie ausstellen: Schlüssel `/etc/ssl/private/shop.lab.example.org.key`, Zertifikat `/etc/ssl/certs/shop.lab.example.org.crt`. Für die Verwaltung gilt Benutzer max mit Passwort teile. Die Prüfungen sprechen den Shop mit der Werkstatt-CA an.
+</Hinweis>
+
+<Terminal id="relaunch" titel="Bosskampf: Der Relaunch" welt={{ web: { apache: true, seiten: true, intern: true, nginx: true, app: true, squid: true, boss: true } }} aufgaben={[
+  { text: 'Finde heraus, warum Nginx nicht läuft.', befehl: '^(nginx -t|systemctl status nginx|journalctl .*nginx)', auchFehler: true, frage: 'In welcher Datei und Zeile steckt der erste Fehler? (Datei:Zeile)', antwort: ['/etc/nginx/sites-enabled/shop:14', 'sites-enabled/shop:14', 'shop:14'] },
+  { text: 'Bring Nginx mit einem gültigen Zertifikat für shop.lab.example.org zum Laufen.', zustand: 'nginx:laeuft && nginx:konf-ok && tls:shop.lab.example.org:443~subject=CN = shop\\.lab\\.example\\.org issuer=.*Werkstatt Labor CA san=DNS:shop\\.lab\\.example\\.org' },
+  { text: 'https://shop.lab.example.org/ soll die Startseite des Shops zeigen.', zustand: 'http(ca=/etc/ssl/werkstatt/ca.crt):https://shop.lab.example.org/~Ersatzteile' },
+  { text: 'Die Verwaltung unter /verwaltung/ soll nur max mit seinem Passwort sehen.', zustand: 'http(ca=/etc/ssl/werkstatt/ca.crt,u=max/teile):https://shop.lab.example.org/verwaltung/~Bestellungen && http(ca=/etc/ssl/werkstatt/ca.crt):https://shop.lab.example.org/verwaltung/=401' },
+  { text: 'Die Lagerabfrage soll unter /lager/api/bestand antworten.', zustand: 'http(ca=/etc/ssl/werkstatt/ca.crt):https://shop.lab.example.org/lager/api/bestand~artikel' },
+  { text: 'Wer http://shop.lab.example.org/ aufruft, soll dauerhaft auf HTTPS umgeleitet werden.', zustand: 'http:http://shop.lab.example.org/=301 && http:http://shop.lab.example.org/~^Location: https://shop\\.lab\\.example\\.org/$' },
+  { text: 'Die Laborrechner erreichen den Shop nur über den Proxy auf werkstatt. Mach das möglich.', zustand: 'http(proxy=192.168.1.23:3128,ca=/etc/ssl/werkstatt/ca.crt):https://shop.lab.example.org/~Ersatzteile' },
+]} />

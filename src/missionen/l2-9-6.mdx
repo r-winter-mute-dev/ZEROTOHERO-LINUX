@@ -1,0 +1,172 @@
+---
+id: l2-9-6
+checks:
+  - id: k1
+  - id: reihe
+  - id: k2
+  - id: luecke
+  - id: proxy
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "Dateien"
+    v: "apt install squid · /etc/squid/squid.conf · Debian: eigene Regeln in /etc/squid/conf.d/*.conf · /var/log/squid/access.log, cache.log · Port 3128 · Benutzer proxy (Debian), squid (Red Hat)"
+  - t: "ACL"
+    v: "acl NAME src 192.168.1.0/24 · dst · dstdomain .example.net · port 443 · method CONNECT · time MTWHF 08:00-17:00 · url_regex -i \\.exe$ · proxy_auth REQUIRED"
+  - t: "Regeln"
+    v: "http_access allow|deny [!]ACL [ACL …] · ACLs in einer Zeile: UND · mehrere Zeilen: die erste passende gilt · keine passt: Gegenteil der letzten · am Ende http_access deny all"
+  - t: "Anmeldung und Speicher"
+    v: "auth_param basic program /usr/lib/squid/basic_ncsa_auth /etc/squid/passwd · auth_param basic realm Text · htpasswd (apache2-utils) · cache_mem 128 MB · cache_dir ufs /var/spool/squid 500 16 256 · maximum_object_size 20 MB · squid -k parse · squid -k reconfigure"
+karten:
+  - f: "Auf welchem Port lauscht Squid standardmäßig?"
+    a: ["3128"]
+  - f: "Welche Direktive gibt einer Liste von Adressen in Squid einen Namen?"
+    a: ["acl"]
+  - f: "Welcher ACL-Typ passt auf Zielnamen wie .example.net?"
+    a: ["dstdomain"]
+  - f: "Wie verknüpft Squid mehrere ACLs in derselben http_access-Zeile?"
+    a: ["Mit UND, alle müssen passen", "und"]
+  - f: "Welcher Befehl prüft squid.conf auf Fehler?"
+    a: ["squid -k parse"]
+  - f: "Welches Hilfsprogramm prüft Benutzer gegen eine htpasswd-Datei?"
+    a: ["basic_ncsa_auth"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Lueckentext from '../components/Lueckentext.astro';
+import Reihenfolge from '../components/Reihenfolge.astro';
+
+Die Laborrechner sollen nicht mehr direkt ins Internet, sondern über einen Proxy auf werkstatt. So lässt sich nachvollziehen, wer was abruft, Spieleseiten bleiben draußen, und Updates, die mehrere Rechner holen, kommen nur einmal über die Leitung. **Deine Mission: Installiere Squid, gib das Labornetz frei, sperr unerwünschte Ziele, verlang eine Anmeldung und gib dem Cache Speicher.** Lernziel 208.3.
+
+## Squid
+
+<Karte nr={1} titel="Ein Proxy mit Cache">
+**Squid** nimmt Anfragen von Clients entgegen, holt die Seite selbst und gibt sie weiter. Antworten, die sich zwischenspeichern lassen, hebt er im **Cache** auf, im Speicher (`cache_mem`) und auf Platte (`cache_dir`). Der Client muss den Proxy kennen: im Browser eingetragen, als Umgebungsvariable `http_proxy=http://werkstatt:3128` und `https_proxy=…` oder bei curl mit `-x`.
+
+HTTPS reicht Squid als **Tunnel** durch (Methode `CONNECT` auf Port 443). Er sieht dabei nur den Namen des Ziels, nicht den Inhalt, und speichert nichts.
+
+Die Konfiguration steht in `/etc/squid/squid.conf`, auf Debian über 9000 Zeilen, meist Kommentare. Eigene Regeln gehören auf Debian nach `/etc/squid/conf.d/*.conf`. Das `include` steht an der Stelle „INSERT YOUR OWN RULE(S) HERE“, also vor `http_access allow localhost` und `http_access deny all`. Zugriffe protokolliert Squid in `/var/log/squid/access.log`:
+
+```
+1795419700.000     87 192.168.1.40 TCP_MISS/200 509 GET http://www.example.org/ lena HIER_DIRECT/203.0.113.80 text/html
+```
+
+Zeit (Sekunden seit 1970), Dauer in ms, Client, Ergebnis/Status, Bytes, Methode, URL, Benutzer, Herkunft, Typ. `TCP_MISS` kam vom Ziel, `TCP_MEM_HIT` aus dem Speicher, `TCP_DENIED` wurde abgelehnt, `TCP_TUNNEL` ist ein HTTPS-Tunnel.
+</Karte>
+
+<Quiz id="k1" titel="Kurzcheck: Proxy" fragen={[
+  { frage: 'Warum taucht eine HTTPS-Seite im access.log nur als CONNECT www.example.org:443 auf, ohne Pfad?', richtig: 'Squid tunnelt die verschlüsselte Verbindung und sieht nur das Ziel', falsch: ['Squid kürzt URLs im Protokoll aus Datenschutzgründen', 'HTTPS-Seiten werden nicht über den Proxy geleitet'], erklaerung: 'Den Inhalt zu sehen hieße, TLS aufzubrechen (ssl_bump). Das steht nicht in den Lernzielen.' },
+  { frage: 'Was bedeutet TCP_MEM_HIT/200 im access.log?', richtig: 'Die Antwort kam aus dem Speicher von Squid, ohne Anfrage beim Ziel', falsch: ['Squid hatte nicht genug Speicher und hat abgelehnt', 'Die Seite wurde neu geholt und im Speicher abgelegt'], erklaerung: 'Neu geholte Seiten erscheinen als TCP_MISS.' },
+]} />
+
+## ACLs und http_access
+
+<Karte nr={2} titel="Erst benennen, dann erlauben">
+Squid trennt zwei Schritte. **acl** gibt einer Eigenschaft einen Namen:
+
+```
+acl labor     src 192.168.1.0/24
+acl gesperrt  dstdomain .example.net .spiele.example
+acl arbeit    time MTWHF 07:00-17:00
+acl dateien   urlpath_regex -i \.(exe|msi)$
+```
+
+Wichtige Typen: `src` (Client), `dst` (Zieladresse), `dstdomain` (Zielname, mit Punkt davor samt Unterdomains), `port`, `method`, `time`, `url_regex`, `urlpath_regex`, `proxy_auth`. Mehrere Zeilen mit demselben Namen ergänzen sich (ODER).
+
+**http_access** entscheidet mit diesen Namen:
+
+```
+http_access deny gesperrt
+http_access allow labor arbeit
+http_access deny all
+```
+
+- In einer Zeile müssen **alle** ACLs passen (UND). `!` kehrt eine um.
+- Die Zeilen gelten **von oben nach unten**, die erste passende entscheidet.
+- Passt keine, gilt das Gegenteil der letzten Zeile. Darum steht am Ende immer `http_access deny all`.
+
+`squid -k parse` prüft die Datei, `squid -k reconfigure` (oder `systemctl reload squid`) lädt sie neu. Eine abgelehnte Anfrage beantwortet Squid mit 403 und dem Kopf `X-Squid-Error: ERR_ACCESS_DENIED`.
+</Karte>
+
+<Reihenfolge id="reihe" titel="Reihenfolge: Regeln für das Labor" aufgabe="Die Spieleseiten sollen für alle gesperrt sein, das Labor soll sonst surfen dürfen, alle anderen nicht. Bring die Zeilen in die richtige Reihenfolge."
+  schritte={[
+    'acl labor src 192.168.1.0/24',
+    'acl gesperrt dstdomain .spiele.example',
+    'http_access deny gesperrt',
+    'http_access allow labor',
+    'http_access deny all',
+  ]} />
+
+## Anmeldung und Speicher
+
+<Karte nr={3} titel="Wer surft, und wie viel bleibt liegen?">
+Für eine Anmeldung fragt Squid ein **Hilfsprogramm**. `basic_ncsa_auth` prüft Benutzer gegen eine Datei im htpasswd-Format:
+
+```
+auth_param basic program /usr/lib/squid/basic_ncsa_auth /etc/squid/passwd
+auth_param basic realm Werkstatt-Proxy
+acl angemeldet proxy_auth REQUIRED
+http_access allow labor angemeldet
+```
+
+Die Datei legt `htpasswd -c /etc/squid/passwd lena` an (Paket apache2-utils). Fehlt die Anmeldung, antwortet Squid mit **407 Proxy Authentication Required**. curl schickt sie mit `-U lena:geheim` oder in der Variablen: `http_proxy=http://lena:geheim@werkstatt:3128`. Andere Helfer prüfen gegen PAM, LDAP oder Kerberos. Auf Red Hat liegen sie in `/usr/lib64/squid/`.
+
+Den Verbrauch begrenzen:
+
+- `cache_mem 128 MB` – Speicher für häufig geholte Objekte (nicht der ganze Speicherbedarf von Squid).
+- `cache_dir ufs /var/spool/squid 500 16 256` – 500 MB auf Platte in 16 Ordnern mit je 256 Unterordnern. Neue Ordner legt `squid -z` an, auf Debian erledigt das der Dienst beim Start.
+- `maximum_object_size 20 MB` – größere Dateien kommen nicht in den Cache.
+- `delay_pools` begrenzen die Bandbreite je Client oder Gruppe.
+</Karte>
+
+<Merke>acl benennt, http_access entscheidet: UND in der Zeile, erste passende Zeile gewinnt, am Ende deny all. Eigene Regeln auf Debian in conf.d vor allow localhost. proxy_auth plus auth_param mit basic_ncsa_auth. squid -k parse, dann reconfigure.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: Regeln" fragen={[
+  { frage: 'Es gilt: http_access allow labor, dann http_access deny gesperrt. Darf laser (aus labor) www.spiele.example abrufen?', richtig: 'Ja, die erste passende Zeile erlaubt es schon', falsch: ['Nein, deny hat immer Vorrang vor allow', 'Nein, Squid wertet die Zeilen von unten nach oben aus'], erklaerung: 'Die Sperre muss vor die Freigabe.' },
+  { frage: 'Wie verlangst du, dass ein Client sowohl aus labor kommt als auch angemeldet ist?', richtig: 'http_access allow labor angemeldet', falsch: ['http_access allow labor und darunter http_access allow angemeldet', 'acl labor src 192.168.1.0/24 angemeldet'], erklaerung: 'Zwei Zeilen wären ODER: Jeder aus labor dürfte auch ohne Anmeldung.' },
+]} />
+
+<Lueckentext id="luecke" titel="Lückentext: Proxy fürs Büro" aufgabe="Ergänze die Konfiguration. Das Büro 10.20.0.0/16 darf nur werktags von 8 bis 18 Uhr surfen."
+  code={`___ buero src 10.20.0.0/16
+acl buerozeit ___ MTWHF 08:00-18:00
+___ allow buero buerozeit
+http_access ___ all
+http_port ___`}
+  luecken={[
+    { loesungen: ['acl'] },
+    { loesungen: ['time'] },
+    { loesungen: ['http_access'] },
+    { loesungen: ['deny'] },
+    { loesungen: ['3128'] },
+  ]} />
+
+<Terminal id="proxy" titel="Terminal: Squid für das Labor" welt={{ web: { seiten: true } }} aufgaben={[
+  { text: 'Installiere Squid und sieh nach, auf welchem Port er lauscht.', zustand: 'squid:laeuft', befehl: '^(ss|netstat) ', frage: 'Welcher Port ist es?', antwort: ['3128'] },
+  { text: 'Hol http://www.example.org/ über den Proxy, einmal über 127.0.0.1 und einmal über die LAN-Adresse 192.168.1.23, und lass dir die Köpfe zeigen.', befehl: '^curl .*-x .*192\\.168\\.1\\.23|^curl .*--proxy .*192\\.168\\.1\\.23', frage: 'Welchen Fehler (X-Squid-Error) meldet Squid für die LAN-Adresse?', antwort: ['ERR_ACCESS_DENIED', 'ERR_ACCESS_DENIED 0'] },
+  { text: 'Gib das Labornetz 192.168.1.0/24 frei, mit einer ACL <code>labor</code> in einer eigenen Datei in conf.d.', zustand: 'squid:acl:labor~^src 192\\.168\\.1\\.0/24 && http(proxy=192.168.1.23:3128):http://www.example.org/=200', befehl: '^squid -k (parse|check)' },
+  { text: 'Sperr die Ziele unter example.net für alle.', zustand: 'http(proxy=192.168.1.23:3128):http://www.example.net/=403 && http(proxy=192.168.1.23:3128):http://www.example.org/=200 && http(proxy=127.0.0.1:3128):http://www.example.net/=403' },
+  { text: 'Ab jetzt soll das Labor nur noch mit Anmeldung über den Proxy. Leg lena mit dem Passwort geheim in <code>/etc/squid/passwd</code> an.', zustand: 'http(proxy=192.168.1.23:3128):http://www.example.org/=407 && http(proxy=192.168.1.23:3128,pu=lena/geheim):http://www.example.org/=200 && http(proxy=192.168.1.23:3128,pu=lena/geheim):http://www.example.net/=403' },
+  { text: 'Gib dem Cache 128 MB Speicher und 500 MB auf Platte in <code>/var/spool/squid</code> (16 und 256 Ordner) und nimm nichts über 20 MB auf.', zustand: 'squid:wert:cache_mem~^128 MB$ && squid:wert:cache_dir~^ufs /var/spool/squid 500 16 256$ && squid:wert:maximum_object_size~^20 MB$ && squid:laeuft' },
+  { text: 'Hol http://www.example.org/ zweimal angemeldet über den Proxy und sieh ins Protokoll.', befehl: '(cat|tail|grep .*|less) .*/var/log/squid/access\\.log', frage: 'Wie lautet das Ergebnis beim zweiten Mal (vor dem Schrägstrich)?', antwort: ['TCP_MEM_HIT'] },
+]} />
+
+<Labor id="labor" titel="Labor: Squid auf srv1"
+  aufgabe="Richte auf srv1 Squid mit einer Sperre ein und prüf das Protokoll. Füge die Ausgabe ein."
+  befehl={"sudo apt install -y squid\nprintf 'acl gesperrt dstdomain .example.net\\nhttp_access deny gesperrt\\n' | sudo tee /etc/squid/conf.d/labor.conf\nsudo squid -k parse 2>&1 | grep -iE 'error|fatal' ; sudo systemctl reload squid\ncurl -s -o /dev/null -w '%{http_code}\\n' -x http://127.0.0.1:3128 http://deb.debian.org/debian/\ncurl -s -o /dev/null -w '%{http_code}\\n' -x http://127.0.0.1:3128 http://www.example.net/\nsudo tail -2 /var/log/squid/access.log"}
+  muster={["^200$", "^403$", "TCP_DENIED/403"]}
+  erfolg="deb.debian.org kam durch, example.net wurde abgewiesen und steht als TCP_DENIED im Protokoll. Die Freigabe für localhost steht in der Debian-Konfiguration schon nach dem include." />
+
+<Hinweis titel="Prüfungstipp">
+208.3 nennt squid.conf, acl und http_access, die Methoden der Zugriffsbeschränkung, die Anmeldung von Clients und den Aufbau der ACLs. Lernziel 4.5 spricht von Squid 3.x, Debian 12 liefert 5.7 mit gleicher Syntax. Rechne mit Fragen zur Auswertungsreihenfolge, zu UND und ODER und zu Port 3128. Der Entwurf 5.0 streicht Squid ganz und behandelt Proxys nur noch im Grundsatz. Der Entwurf ist nicht final.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Die letzte http_access-Zeile lautet allow labor. Ein Client außerhalb von labor fragt. Was geschieht?', richtig: 'Er wird abgewiesen, weil ohne passende Zeile das Gegenteil der letzten gilt', falsch: ['Er wird zugelassen, weil nichts ihn verbietet', 'Squid startet mit dieser Konfiguration nicht'], erklaerung: 'Klarer ist trotzdem ein ausdrückliches http_access deny all.' },
+  { frage: 'Welche Antwort schickt Squid, wenn eine Regel eine Anmeldung verlangt und keine kommt?', richtig: '407 Proxy Authentication Required', falsch: ['401 Unauthorized', '403 Forbidden'], erklaerung: '401 verwenden Webserver, 407 Proxys.' },
+  { frage: 'Was legt cache_dir ufs /var/spool/squid 500 16 256 fest?', richtig: '500 MB Plattencache mit 16 Ordnern erster und 256 zweiter Ebene', falsch: ['500 Objekte von 16 bis 256 KB Größe', '500 MB Speicher für 16 bis 256 Clients'], erklaerung: 'Den Speicher im RAM regelt cache_mem.' },
+]} />

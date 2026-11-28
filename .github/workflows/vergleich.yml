@@ -22,11 +22,11 @@ jobs:
           - system: debian-12
             simulator: debian
             image: debian:bookworm
-            installieren: apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq openssh-server sudo python3 iproute2 wpasupplicant rsync bind9 bind9-utils >/dev/null
+            installieren: apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq openssh-server sudo python3 iproute2 wpasupplicant rsync bind9 bind9-utils apache2-utils nginx squid openssl curl >/dev/null
           - system: alma-9
             simulator: alma
             image: almalinux:9
-            installieren: dnf install -y -q openssh-server sudo python3 iproute wpa_supplicant rsync tar bind bind-utils >/dev/null && (dnf install -y -q bind-dnssec-utils >/dev/null || true)
+            installieren: dnf install -y -q openssh-server sudo python3 iproute wpa_supplicant rsync tar bind bind-utils httpd httpd-tools mod_ssl nginx squid openssl curl php >/dev/null && (dnf install -y -q bind-dnssec-utils >/dev/null || true)
     steps:
       - name: Code holen
         uses: actions/checkout@v7

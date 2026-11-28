@@ -1,0 +1,165 @@
+---
+id: l2-9-7
+checks:
+  - id: k1
+  - id: zuordnung
+  - id: k2
+  - id: luecke
+  - id: nginx
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "Dateien"
+    v: "apt install nginx · /etc/nginx/nginx.conf · sites-available, sites-enabled (Links mit ln -s) · conf.d/*.conf · /var/log/nginx/access.log, error.log · Benutzer www-data"
+  - t: "Befehle"
+    v: "nginx -t · nginx -T · nginx -s reload|stop|quit|reopen · systemctl reload nginx · nginx -v"
+  - t: "server"
+    v: "server { listen 80; server_name NAME; root /var/www/x; index index.html; location / { try_files $uri $uri/ =404; } } · default_server · return 301 https://$host$request_uri;"
+  - t: "Reverse Proxy"
+    v: "upstream lagerist { server 192.168.1.10:8080; server 192.168.1.10:8081; } · location / { proxy_pass http://lagerist; proxy_set_header Host $host; proxy_set_header X-Real-IP $remote_addr; proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; }"
+karten:
+  - f: "Mit welchem Befehl prüfst du die Konfiguration von Nginx?"
+    a: ["nginx -t"]
+  - f: "Mit welchem Befehl lädt Nginx seine Konfiguration neu?"
+    a: ["nginx -s reload", "systemctl reload nginx"]
+  - f: "Welche Direktive reicht Anfragen an einen anderen Server weiter?"
+    a: ["proxy_pass"]
+  - f: "Welcher Block fasst mehrere Backend-Server unter einem Namen zusammen?"
+    a: ["upstream"]
+  - f: "Welche Variable enthält die Adresse des Clients?"
+    a: ["$remote_addr", "remote_addr"]
+  - f: "Wie heißt in Nginx das Gegenstück zum <VirtualHost> von Apache?"
+    a: ["server", "server-Block"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Zuordnung from '../components/Zuordnung.astro';
+import Lueckentext from '../components/Lueckentext.astro';
+
+Das Lager hat eine eigene Anwendung bekommen: lagerist-web läuft auf srv1 gleich zweimal, auf Port 8080 und 8081. Niemand soll diese Ports direkt kennen, alles soll über werkstatt unter lager.lab.example.org laufen. Lena möchte dafür Nginx vor alle Dienste stellen, auch vor Apache. **Deine Mission: Installiere Nginx neben Apache, stell ihn auf Port 80 vor Apache und leite lager.lab.example.org auf beide Instanzen von lagerist-web weiter.** Lernziel 208.4.
+
+## Nginx
+
+<Karte nr={1} titel="Aufbau">
+**Nginx** arbeitet mit wenigen Prozessen und Ereignissen statt mit einem Prozess oder Thread pro Verbindung. Er ist schnell bei vielen gleichzeitigen Verbindungen und beliebt als **Reverse Proxy**: Er nimmt Anfragen von außen an und reicht sie an Server dahinter weiter. Ein Master-Prozess als root öffnet die Ports, Worker-Prozesse unter `www-data` arbeiten.
+
+Die Konfiguration besteht aus **Direktiven** mit `;` am Ende und **Blöcken** in `{ }`, die ineinander stecken: `events`, `http`, darin `server` (wie ein virtueller Host), darin `location` (für Pfade). Kommentare beginnen mit `#`.
+
+```
+server {
+    listen 80;
+    server_name www.lab.example.org;
+    root /var/www/www;
+    index index.html;
+    location / {
+        try_files $uri $uri/ =404;
+    }
+}
+```
+
+Debian ordnet wie bei Apache: `nginx.conf` holt `conf.d/*.conf` und `sites-enabled/*`. Einschalten heißt verlinken (`ln -s /etc/nginx/sites-available/lager /etc/nginx/sites-enabled/`), ein a2ensite gibt es nicht. `nginx -t` prüft, `nginx -s reload` (oder `systemctl reload nginx`) lädt neu. Bei einem Fehler behält Nginx die alte Konfiguration.
+
+Wählt Nginx einen `server`, zählen wie bei Apache erst Adresse und Port, dann `server_name`. Ohne Treffer antwortet der Block mit `default_server`, sonst der erste. Für Pfade gewinnt ein exakter Treffer (`location = /x`), dann ein passender regulärer Ausdruck (`location ~ \.php$`), sonst der längste Präfix.
+</Karte>
+
+<Quiz id="k1" titel="Kurzcheck: Nginx" fragen={[
+  { frage: 'Nach einer Änderung meldet nginx -t einen Fehler, du lädst trotzdem neu. Was passiert?', richtig: 'Nginx meldet den Fehler und arbeitet mit der alten Konfiguration weiter', falsch: ['Nginx stoppt alle Worker, bis der Fehler behoben ist', 'Nginx überspringt die fehlerhafte Datei und lädt den Rest'], erklaerung: 'Beim Start dagegen startet Nginx mit fehlerhafter Konfiguration gar nicht.' },
+  { frage: 'Wie schaltest du auf Debian eine Seite /etc/nginx/sites-available/lager ein?', richtig: 'Mit einem Link nach /etc/nginx/sites-enabled/ und nginx -s reload', falsch: ['Mit a2ensite lager', 'Mit nginx -e lager'], erklaerung: 'a2ensite gehört zu Apache.' },
+]} />
+
+## Vor anderen Servern
+
+<Karte nr={2} titel="proxy_pass und upstream">
+```
+upstream lagerist {
+    server 192.168.1.10:8080;
+    server 192.168.1.10:8081;
+}
+
+server {
+    listen 80;
+    server_name lager.lab.example.org;
+    location / {
+        proxy_pass http://lagerist;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+}
+```
+
+**proxy_pass** schickt die Anfrage weiter, an eine Adresse (`http://127.0.0.1:8080`) oder an einen **upstream**-Block. Dessen Server bekommen die Anfragen reihum (mit `least_conn` an den mit den wenigsten Verbindungen, mit `ip_hash` immer an denselben pro Client). Antwortet einer nicht, nimmt Nginx den nächsten. Antwortet keiner, liefert er **502 Bad Gateway** und schreibt `connect() failed (111: Connection refused) while connecting to upstream` ins error.log.
+
+Ohne Zusatz sieht das Backend als Host den Namen aus proxy_pass und als Client die Adresse von Nginx. **proxy_set_header** reicht darum den echten Namen (`$host`) und die echte Adresse des Clients (`X-Real-IP`, `X-Forwarded-For`) weiter. Apache als Backend wertet sie mit mod_remoteip aus.
+
+Ein Schrägstrich am Ende von proxy_pass ändert den Pfad: `location /lager/ { proxy_pass http://lagerist/; }` macht aus `/lager/api` beim Backend `/api`. Ohne Schrägstrich bleibt `/lager/api` stehen.
+</Karte>
+
+<Zuordnung id="zuordnung" titel="Zuordnung: Apache und Nginx" aufgabe="Ordne jedem Begriff aus Apache sein Gegenstück in Nginx zu." paare={[
+  { links: '<VirtualHost *:80>', rechts: 'server { listen 80; }' },
+  { links: 'ServerName', rechts: 'server_name' },
+  { links: 'DocumentRoot', rechts: 'root' },
+  { links: 'apache2ctl configtest', rechts: 'nginx -t' },
+  { links: 'Require ip 192.168.1.0/24', rechts: 'allow 192.168.1.0/24; deny all;' },
+  { links: 'Redirect permanent / https://…/', rechts: 'return 301 https://$host$request_uri;' },
+]} extra={['proxy_set_header']} />
+
+<Merke>server ≈ VirtualHost, location ≈ Location. Jede Direktive mit Semikolon. proxy_pass zu upstream mit mehreren server-Zeilen, Host und X-Real-IP per proxy_set_header. nginx -t vor nginx -s reload. Zwei Server auf Port 80 geht nicht.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: Reverse Proxy" fragen={[
+  { frage: 'Im Protokoll von lagerist-web stehen alle Anfragen mit der Adresse von werkstatt. Was fehlt in Nginx?', richtig: 'proxy_set_header X-Real-IP $remote_addr (oder X-Forwarded-For)', falsch: ['proxy_pass mit der Adresse des Clients statt des Backends', 'listen mit der Option proxy_protocol im upstream-Block'], erklaerung: 'Das Backend sieht immer Nginx als Gegenstelle, die echte Adresse kommt nur im Kopf mit.' },
+  { frage: 'Beide Instanzen von lagerist-web sind abgestürzt. Was bekommt der Browser?', richtig: '502 Bad Gateway', falsch: ['504 Gateway Timeout', '503 Service Unavailable'], erklaerung: '504 käme, wenn ein Backend die Verbindung annimmt, aber nicht rechtzeitig antwortet.' },
+]} />
+
+<Lueckentext id="luecke" titel="Lückentext: Die Wiki-Seite" aufgabe="Ergänze den Block. Nginx soll wiki.lab.example.org an 127.0.0.1:3000 weiterreichen und HTTP auf HTTPS umleiten."
+  code={`server {
+    listen 80;
+    server_name wiki.lab.example.org;
+    ___ 301 https://$host$request_uri;
+}
+server {
+    listen 443 ssl;
+    server_name wiki.lab.example.org;
+    ssl_certificate     /etc/ssl/certs/wiki.crt;
+    ___ /etc/ssl/private/wiki.key;
+    location / {
+        ___ http://127.0.0.1:3000;
+        proxy_set_header Host ___;
+    }
+}`}
+  luecken={[
+    { loesungen: ['return'] },
+    { loesungen: ['ssl_certificate_key'] },
+    { loesungen: ['proxy_pass'] },
+    { loesungen: ['$host'] },
+  ]} />
+
+<Terminal id="nginx" titel="Terminal: Nginx vor allem" welt={{ web: { apache: true, seiten: true, intern: true, app: true } }} aufgaben={[
+  { text: 'Installiere Nginx und sieh nach, warum er nicht läuft.', befehl: '^(systemctl status nginx|journalctl .*nginx)', auchFehler: true, frage: 'Was meldet Nginx in der letzten Zeile vor dem Abbruch?', antwort: ['still could not bind()', 'nginx: [emerg] still could not bind()', 'Address already in use'] },
+  { text: 'Lass Apache nur noch auf 127.0.0.1:8080 lauschen, auch mit seinen virtuellen Hosts, und starte dann Nginx.', zustand: 'nginx:laeuft && apache:laeuft && apache:listen:8080 && nicht:apache:listen:80' },
+  { text: 'Leite www.lab.example.org über Nginx an Apache weiter, mit dem richtigen Namen im Kopf Host. Eine eigene Datei <code>www</code> in sites-available.', zustand: 'http:http://www.lab.example.org/~Willkommen && http:http://www.lab.example.org/~^Server: nginx && nginx:site:www' },
+  { text: 'Leite lager.lab.example.org an beide Instanzen auf srv1 weiter (upstream <code>lagerist</code>). Die Anwendung soll Host und die echte Adresse des Clients sehen.', zustand: 'nginx:site:lager && http:http://lager.lab.example.org/~Host: lager\\.lab\\.example\\.org && http:http://lager.lab.example.org/~X-Real-IP: 192\\.168\\.1\\.23' },
+  { text: 'Ruf lager.lab.example.org zweimal hintereinander auf.', befehl: '^curl .*lager\\.lab\\.example\\.org', frage: 'Welche Instanz hat beim zweiten Mal geantwortet?', antwort: ['srv1:8081', '8081'] },
+  { text: 'Die Schnittstelle <code>/api/</code> soll nur aus dem Labornetz erreichbar sein, alles andere unter lager bleibt offen.', zustand: 'http(von=192.168.1.40):http://lager.lab.example.org/api/bestand~artikel && http(von=10.20.0.5):http://lager.lab.example.org/api/bestand=403 && http(von=10.20.0.5):http://lager.lab.example.org/=200' },
+]} />
+
+<Labor id="labor" titel="Labor: Nginx auf srv1"
+  aufgabe="Stell auf srv1 Nginx auf Port 8088 vor Apache. Füge die Ausgabe ein."
+  befehl={"sudo apt install -y nginx\nprintf 'server {\\n\\tlisten 8088;\\n\\tserver_name test.lab;\\n\\tlocation / {\\n\\t\\tproxy_pass http://127.0.0.1:80;\\n\\t\\tproxy_set_header Host $host;\\n\\t}\\n}\\n' | sudo tee /etc/nginx/sites-available/test\nsudo ln -s /etc/nginx/sites-available/test /etc/nginx/sites-enabled/\nsudo nginx -t && sudo systemctl reload nginx\ncurl -sI http://test.lab:8088/ | grep -iE '^HTTP|^server'\ncurl -s http://test.lab:8088/\nsudo tail -1 /var/log/nginx/access.log"}
+  muster={["test is successful", "HTTP/1\\.1 (200|401)", "Server: nginx", "test\\.lab|Unauthorized"]}
+  erfolg="Nginx nimmt auf 8088 an und reicht an Apache auf Port 80 weiter. Weil apt Nginx auf Port 80 starten will und Apache dort schon lauscht, kann die Installation einen Fehler beim Start melden. Das schadet hier nicht." />
+
+<Hinweis titel="Prüfungstipp">
+208.4 nennt nur /etc/nginx/ und nginx, verlangt aber Nginx als Reverse Proxy und einfachen Webserver. Rechne mit Fragen zu proxy_pass, upstream, server_name, nginx -t und nginx -s reload und zum Vergleich mit Apache.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'nginx -t meldet „invalid number of arguments in "proxy_pass" directive in …lager:11“, obwohl proxy_pass genau eine Adresse hat. Was ist der häufigste Grund?', richtig: 'Am Ende der Zeile fehlt das Semikolon, die nächste Zeile wird mitgelesen', falsch: ['Die Adresse braucht Anführungszeichen', 'proxy_pass darf nur in einem upstream-Block stehen'], erklaerung: 'Ohne Semikolon liest Nginx bis zum nächsten ; weiter und sieht dann zu viele Argumente.' },
+  { frage: 'Was bewirkt location /app/ { proxy_pass http://127.0.0.1:3000/; } bei einer Anfrage nach /app/login?', richtig: 'Das Backend bekommt /login', falsch: ['Das Backend bekommt /app/login', 'Nginx liefert 404, weil /login nicht in location steht'], erklaerung: 'Mit einem Pfad in proxy_pass ersetzt Nginx den passenden Teil der Location.' },
+  { frage: 'Warum startet Nginx nicht, solange Apache mit Listen 80 läuft?', richtig: 'Ein Port auf einer Adresse kann nur von einem Programm geöffnet werden', falsch: ['Nginx und Apache teilen sich dieselbe Konfigurationsdatei', 'Nginx verweigert den Start, wenn Apache installiert ist'], erklaerung: 'Im Journal steht dann „bind() to 0.0.0.0:80 failed (98: Address already in use)“.' },
+]} />

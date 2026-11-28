@@ -1,0 +1,150 @@
+---
+id: l2-9-3
+checks:
+  - id: k1
+  - id: reihe
+  - id: k2
+  - id: luecke
+  - id: leistung
+  - id: redhat
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "MPM"
+    v: "a2query -M · prefork: ein Prozess je Verbindung (StartServers, MinSpareServers, MaxSpareServers) · event/worker: Threads (ThreadsPerChild, MinSpareThreads, MaxSpareThreads) · beide: MaxRequestWorkers, ServerLimit, MaxConnectionsPerChild"
+  - t: "Last"
+    v: "mod_status: /server-status, ?auto · ExtendedStatus On · ps -C apache2 · ss -tn state established '( sport = :80 )' · Timeout, KeepAlive, MaxKeepAliveRequests, KeepAliveTimeout"
+  - t: "Skripte"
+    v: "Debian: apt install libapache2-mod-php8.2 (schaltet auf prefork) · libapache2-mod-perl2 · Red Hat: dnf install php → php-fpm über proxy_fcgi, /etc/httpd/conf.d/php.conf"
+  - t: "Red Hat"
+    v: "dnf install httpd · systemctl enable --now httpd · conf.d/*.conf · conf.modules.d/00-mpm.conf · httpd -M · Testseite: 403 mit welcome.conf"
+karten:
+  - f: "Welches MPM braucht mod_php?"
+    a: ["prefork", "mpm_prefork"]
+  - f: "Welche Direktive begrenzt, wie viele Anfragen Apache gleichzeitig bearbeitet?"
+    a: ["MaxRequestWorkers"]
+  - f: "Wie hieß MaxRequestWorkers in Apache 2.2?"
+    a: ["MaxClients"]
+  - f: "Welche Direktive startet einen Kindprozess nach einer bestimmten Zahl von Verbindungen neu?"
+    a: ["MaxConnectionsPerChild"]
+  - f: "Unter welcher Adresse zeigt mod_status den Zustand des Servers?"
+    a: ["/server-status"]
+  - f: "Wie führt Apache auf Red Hat 9 PHP-Seiten aus?"
+    a: ["Über php-fpm und mod_proxy_fcgi"]
+    aufdecken: true
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Lueckentext from '../components/Lueckentext.astro';
+import Reihenfolge from '../components/Reihenfolge.astro';
+
+Lena will ein kleines PHP-Formular für Ersatzteilbestellungen auf werkstatt laufen lassen. Max warnt: Beim letzten Tag der offenen Tür hätten 200 Besucher gleichzeitig den Server lahmgelegt. Und die Außenstelle betreibt Apache auf AlmaLinux. **Deine Mission: Schalte PHP ein, stimm die Grenzen des Servers ab, beobachte ihn mit mod_status und richte Apache auch auf Red Hat ein.** Lernziel 208.1.
+
+## Prozesse und Threads
+
+<Karte nr={1} titel="Multi-Processing-Module">
+Wie Apache Anfragen auf Prozesse verteilt, entscheidet genau ein **MPM**:
+
+| MPM | Arbeitsweise | typische Direktiven |
+|---|---|---|
+| **prefork** | ein Prozess je Verbindung, keine Threads | StartServers, MinSpareServers, MaxSpareServers |
+| **worker** | mehrere Prozesse mit je vielen Threads | StartServers, ThreadsPerChild, MinSpareThreads, MaxSpareThreads |
+| **event** | wie worker, ruhende Keep-Alive-Verbindungen belegen keinen Thread | wie worker, Standard auf Debian und Red Hat |
+
+Für alle gilt: **MaxRequestWorkers** (früher MaxClients) ist die Obergrenze gleichzeitig bearbeiteter Anfragen, weitere warten in der Warteschlange. **ServerLimit** ist die harte Grenze für Prozesse, bei prefork 256. Wer mehr MaxRequestWorkers will, muss auch ServerLimit erhöhen, sonst kürzt Apache und warnt mit `AH00180`. **MaxConnectionsPerChild** (früher MaxRequestsPerChild) beendet einen Kindprozess nach so vielen Verbindungen, 0 heißt nie. Das hilft gegen Speicherlecks.
+
+Auf Debian stehen die Werte in `mods-available/mpm_*.conf`, `a2query -M` zeigt das aktive MPM. Auf Red Hat wählt `conf.modules.d/00-mpm.conf` das MPM, eigene Werte kommen in eine Datei in `conf.d`.
+
+Eine grobe Rechnung: Ein prefork-Prozess mit PHP braucht 30 bis 60 MB. Bei 2 GB für Apache sind also höchstens rund 40 sinnvoll, sonst lagert der Rechner aus und wird erst recht langsam. (Grobe Faustregel, nicht geprüft. Miss den eigenen Speicherbedarf mit ps.)
+</Karte>
+
+<Quiz id="k1" titel="Kurzcheck: MPM" fragen={[
+  { frage: 'Unter prefork steht MaxRequestWorkers 300. Beim Start warnt Apache und arbeitet mit 256. Was fehlt?', richtig: 'ServerLimit 300 vor MaxRequestWorkers', falsch: ['MaxSpareServers 300', 'ThreadsPerChild 300'], erklaerung: 'ServerLimit ist die harte Grenze, für prefork standardmäßig 256.' },
+  { frage: 'Welches MPM hält ruhende Keep-Alive-Verbindungen, ohne dafür einen Thread zu blockieren?', richtig: 'event', falsch: ['prefork', 'worker'], erklaerung: 'worker belegt für jede offene Verbindung einen Thread.' },
+]} />
+
+## Skriptsprachen
+
+<Karte nr={2} titel="PHP und Perl">
+**mod_php** führt PHP im Apache-Prozess aus. Es ist nicht threadsicher, darum verlangt es prefork. Auf Debian schaltet `apt install libapache2-mod-php8.2` das MPM selbst um: event aus, prefork an, dann php8.2. Danach liefert Apache `.php` ausgeführt statt als Quelltext. Ohne Modul gibt er die Datei mit ihrem Quelltext heraus, samt Passwörtern darin.
+
+Auf **Red Hat 9** gibt es kein mod_php. `dnf install php` bringt **php-fpm** mit, einen eigenen Dienst, und `/etc/httpd/conf.d/php.conf`, das `.php` per `SetHandler "proxy:unix:/run/php-fpm/www.sock|fcgi://localhost"` an php-fpm weiterreicht (mod_proxy_fcgi). Läuft php-fpm nicht, antwortet Apache mit 503. php-fpm wird mit httpd zusammen gestartet (Wants in einer Drop-in-Datei, nicht geprüft) und lässt sich mit `systemctl enable --now php-fpm` auch selbst einschalten. php-fpm ginge auch auf Debian (Paket php8.2-fpm, `a2enconf php8.2-fpm`), dann darf event bleiben.
+
+Perl läuft mit **mod_perl** (Debian: libapache2-mod-perl2) im Server, etwa mit `PerlResponseHandler`. In der Praxis ist es selten geworden, in den Lernzielen steht es noch.
+</Karte>
+
+<Reihenfolge id="reihe" titel="Reihenfolge: PHP auf Debian" aufgabe="Bring die Schritte in eine sinnvolle Reihenfolge." schritte={[
+  'sudo apt install libapache2-mod-php8.2',
+  'a2query -M zeigt prefork',
+  'Testdatei /var/www/html/info.php anlegen',
+  'curl http://localhost/info.php',
+  'Testdatei wieder löschen',
+]} />
+
+## Den Server beobachten
+
+<Karte nr={3} titel="mod_status">
+**mod_status** zeigt unter `/server-status`, was Apache gerade tut: Laufzeit, Anfragen pro Sekunde, beschäftigte und freie Worker und eine Anzeigetafel (`_` wartet, `W` sendet, `K` Keep-Alive, `.` frei). `?auto` liefert dasselbe maschinenlesbar für Überwachungsprogramme. Debian schaltet das Modul ein, erlaubt aber nur `Require local`. Wer aus dem Labornetz schauen will, ergänzt in `mods-available/status.conf` eine Zeile `Require ip 192.168.1.0/24`.
+
+Daneben: `ps -C apache2` zählt die Prozesse, die Protokolle zeigen, was gefragt wird. `Timeout`, `KeepAlive`, `MaxKeepAliveRequests` und `KeepAliveTimeout` in apache2.conf bestimmen, wie lange Verbindungen offen bleiben.
+</Karte>
+
+<Merke>Ein MPM: prefork für mod_php, sonst event. MaxRequestWorkers begrenzt, ServerLimit deckelt, MaxConnectionsPerChild erneuert. /server-status?auto zum Beobachten. Red Hat: PHP über php-fpm.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: Skripte und Status" fragen={[
+  { frage: 'Eine Datei config.php mit Datenbankpasswort wird als Text an den Browser geliefert. Was ist am wahrscheinlichsten los?', richtig: 'PHP ist im Apache nicht eingeschaltet, er behandelt .php wie eine gewöhnliche Datei', falsch: ['Die Datei gehört nicht www-data', 'AllowOverride None verhindert die Ausführung'], erklaerung: 'Falsche Rechte gäben 403, AllowOverride regelt nur .htaccess.' },
+  { frage: 'Auf AlmaLinux liefert info.php „503 Service Unavailable“. Im error_log steht „FCGI: attempt to connect to Unix domain socket /run/php-fpm/www.sock failed“. Was tust du?', richtig: 'php-fpm starten', falsch: ['mod_php mit dnf nachinstallieren', 'Auf das MPM prefork umstellen'], erklaerung: 'Red Hat 9 liefert kein mod_php, PHP läuft dort in php-fpm.' },
+]} />
+
+<Lueckentext id="luecke" titel="Lückentext: Grenzen für prefork" aufgabe="Ergänze mods-available/mpm_prefork.conf für höchstens 400 gleichzeitige Anfragen und eine Erneuerung nach 5000 Verbindungen."
+  code={`<IfModule mpm_prefork_module>
+    StartServers            10
+    MinSpareServers         10
+    MaxSpareServers         20
+    ___             400
+    MaxRequestWorkers       400
+    ___  5000
+</IfModule>`}
+  luecken={[
+    { loesungen: ['ServerLimit'] },
+    { loesungen: ['MaxConnectionsPerChild', 'MaxRequestsPerChild'] },
+  ]} />
+
+<Terminal id="leistung" titel="Terminal: PHP und Grenzen auf werkstatt" welt={{ web: { apache: true, seiten: true, intern: true } }} aufgaben={[
+  { text: 'Finde heraus, mit welchem MPM Apache läuft.', befehl: '^(a2query -M|apache2ctl -V|apache2ctl -M|apachectl -V)', frage: 'Welches MPM ist es?', antwort: ['event', 'mpm_event'] },
+  { text: 'Lies den Zustand des Servers maschinenlesbar aus <code>/server-status</code>.', befehl: '^curl .*server-status\\?auto', frage: 'Wie viele Prozesse (Processes) laufen?', antwort: ['2'] },
+  { text: 'Leg <code>/var/www/html/info.php</code> mit <code>&lt;?php echo "PHP " . phpversion(); ?&gt;</code> an und schalte PHP ein. Die Seite soll die Version zeigen, nicht den Quelltext.', zustand: 'apache:mod:php && http:http://localhost/info.php~PHP 8\\.2' },
+  { text: 'Sieh nach, was die Installation am MPM geändert hat.', befehl: '^(a2query -M|apache2ctl -V|apache2ctl -M)', frage: 'Welches MPM läuft jetzt?', antwort: ['prefork', 'mpm_prefork'] },
+  { text: 'Stell prefork so ein: 8 Prozesse beim Start, mindestens 8 und höchstens 16 freie, bis zu 300 gleichzeitige Anfragen, Erneuerung nach 1000 Verbindungen. Apache soll ohne Warnung starten.', zustand: 'apache:mpm=prefork && apache:wert:StartServers=8 && apache:wert:MinSpareServers=8 && apache:wert:MaxSpareServers=16 && apache:wert:MaxRequestWorkers=300 && apache:wert:MaxConnectionsPerChild=1000 && apache:laeuft', befehl: '^(apache2ctl|apachectl) (configtest|-t)' },
+  { text: 'Erlaube <code>/server-status</code> zusätzlich für das Labornetz.', zustand: 'http(von=192.168.1.40):http://192.168.1.23/server-status?auto~ServerMPM: prefork && http(von=10.20.0.5):http://192.168.1.23/server-status=403' },
+]} />
+
+<Terminal id="redhat" titel="Terminal: Apache auf AlmaLinux" welt={{ distro: 'alma', web: { seiten: true } }} aufgaben={[
+  { text: 'Installiere Apache und sorge dafür, dass er auch nach einem Neustart läuft.', zustand: 'apache:laeuft && apache:enabled' },
+  { text: 'Frag den Server nach der Startseite und lass dir nur den Kopf zeigen.', befehl: '^curl .*-I.*localhost|^curl .*localhost.*-I|^curl .*--head', frage: 'Welchen Statuscode liefert die Testseite?', antwort: ['403'] },
+  { text: 'Such die Protokolle von Apache.', befehl: '^(sudo )?ls .*/var/log/httpd', frage: 'Wie heißt die Datei mit den Zugriffen?', antwort: ['access_log', '/var/log/httpd/access_log'] },
+  { text: 'Richte <code>intern.lab.example.org</code> mit DocumentRoot <code>/var/www/intern</code> als eigene Datei in conf.d ein.', zustand: 'http:http://intern.lab.example.org/~Interne && datei:/etc/httpd/conf.d/intern.conf~ServerName' },
+  { text: 'Frag jetzt wieder <code>http://localhost/</code>.', befehl: '^curl .*localhost', frage: 'Was steht jetzt im Titel der Seite?', antwort: ['Intern'] },
+  { text: 'Lass PHP-Seiten unter intern laufen. Teste mit <code>/var/www/intern/zeit.php</code> und <code>&lt;?php echo date("Y"); ?&gt;</code>.', zustand: 'http:http://intern.lab.example.org/zeit.php~2026' },
+]} />
+
+<Labor id="labor" titel="Labor: PHP und Status auf srv1"
+  aufgabe="Schalte auf srv1 PHP ein und beobachte den Server. Füge die Ausgabe ein."
+  befehl={"sudo apt install -y libapache2-mod-php8.2\na2query -M\necho '<?php echo \"PHP \" . phpversion(); ?>' | sudo tee /var/www/html/info.php\ncurl -s http://localhost/info.php; echo\ncurl -s 'http://localhost/server-status?auto' | grep -E 'ServerMPM|Processes|IdleWorkers'\nps -C apache2 --no-headers | wc -l\nsudo rm /var/www/html/info.php"}
+  muster={["^prefork$", "PHP 8\\.2", "ServerMPM: prefork", "IdleWorkers: \\d+"]}
+  erfolg="Mit mod_php läuft prefork, und ps zählt einen Prozess mehr, als server-status Worker zeigt: den Elternprozess als root." />
+
+<Hinweis titel="Prüfungstipp">
+208.1 verlangt die Konfiguration von mod_perl und PHP, die Grenzen für Anfragen, Server und Clients sowie das Beobachten von Last und Leistung. Gefragt wird nach MaxRequestWorkers (und dem alten Namen MaxClients), StartServers, MinSpareServers und MaxSpareServers, nach dem MPM für mod_php und nach mod_status.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Was bewirkt MaxConnectionsPerChild 1000?', richtig: 'Ein Kindprozess endet nach 1000 Verbindungen und wird durch einen frischen ersetzt', falsch: ['Jeder Client darf höchstens 1000 Verbindungen öffnen', 'Apache nimmt nach 1000 Verbindungen keine neuen mehr an'], erklaerung: 'So geben Prozesse mit Speicherlecks ihren Speicher regelmäßig zurück.' },
+  { frage: 'Auf AlmaLinux legst du conf.d/intern.conf mit <VirtualHost *:80> an. Danach zeigt http://localhost/ die interne Seite statt der Testseite. Warum?', richtig: 'Der erste virtuelle Host für *:80 beantwortet alle Namen, für die kein anderer passt', falsch: ['welcome.conf wird durch jede Datei in conf.d abgeschaltet', 'localhost ist in intern.conf als ServerAlias eingetragen'], erklaerung: 'Ab dem ersten <VirtualHost *:80> spielt die Hauptkonfiguration für Port 80 keine Rolle mehr.' },
+  { frage: 'Wozu dient /server-status?auto?', richtig: 'Für Überwachungsprogramme, die die Werte als einfache Zeilen auslesen', falsch: ['Für einen automatischen Neustart bei Überlast', 'Für die Anzeige im Browser mit Diagrammen'], erklaerung: 'Ohne ?auto liefert mod_status eine HTML-Seite.' },
+]} />

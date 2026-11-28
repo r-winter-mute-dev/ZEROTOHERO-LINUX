@@ -1,0 +1,156 @@
+---
+id: l2-9-1
+checks:
+  - id: k1
+  - id: zuordnung
+  - id: k2
+  - id: luecke
+  - id: vhosts
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "Debian"
+    v: "apt install apache2 · /etc/apache2/apache2.conf · ports.conf · sites-available, sites-enabled · mods-*, conf-* · a2ensite/a2dissite · a2enmod/a2dismod · a2enconf · apache2ctl configtest · -S · Logs /var/log/apache2 · Benutzer www-data"
+  - t: "Red Hat"
+    v: "dnf install httpd · /etc/httpd/conf/httpd.conf · conf.d/*.conf · conf.modules.d · apachectl · httpd -t · /var/log/httpd/access_log, error_log · Benutzer apache"
+  - t: "Virtueller Host"
+    v: "<VirtualHost *:80> ServerName www.lab.example.org · ServerAlias lab.example.org · DocumentRoot /var/www/www · ErrorLog · CustomLog … combined </VirtualHost> · nach IP: <VirtualHost 192.168.1.23:80>"
+  - t: "Prüfen"
+    v: "apache2ctl configtest · systemctl reload apache2 · curl -I http://NAME/ · curl -H 'Host: NAME' http://IP/"
+karten:
+  - f: "Wie heißt die Hauptdatei von Apache auf Red Hat?"
+    a: ["/etc/httpd/conf/httpd.conf", "httpd.conf"]
+  - f: "Mit welchem Befehl schaltest du auf Debian eine Seite aus sites-available ein?"
+    a: ["a2ensite"]
+  - f: "Welche Direktive nennt den Namen, für den ein virtueller Host zuständig ist?"
+    a: ["ServerName"]
+  - f: "Welcher Befehl prüft die Konfiguration von Apache, ohne ihn neu zu starten?"
+    a: ["apache2ctl configtest", "apachectl configtest", "apache2ctl -t", "apachectl -t", "httpd -t"]
+  - f: "Welcher virtuelle Host antwortet, wenn kein ServerName passt?"
+    a: ["Der erste für diese Adresse und diesen Port"]
+    aufdecken: true
+  - f: "Welcher Befehl listet alle virtuellen Hosts mit Datei und Zeile?"
+    a: ["apache2ctl -S", "apachectl -S", "httpd -S"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Zuordnung from '../components/Zuordnung.astro';
+import Lueckentext from '../components/Lueckentext.astro';
+
+Die Zone lab.example.org steht, jetzt sollen Namen darin auch Seiten liefern: www.lab.example.org für alle, intern.lab.example.org für die Werkstatt. Beides soll auf werkstatt laufen, auf einem einzigen Webserver. **Deine Mission: Installiere Apache, finde dich in seiner Konfiguration zurecht und richte zwei virtuelle Hosts ein.** Lernziel 208.1.
+
+<Hinweis titel="Das Labor in Akt 9">
+Die Labore laufen auf **srv1** (Debian 12) mit Internet über **gw**: 2 VMs mit 1 GB und 2 GB, zusammen 3 GB. Die Namen für die Labore trägst du dort in `/etc/hosts` ein, denn der DNS-Server aus Akt 8 muss nicht laufen. Im Simulator stehen www, intern und lager schon in `/etc/hosts` von werkstatt.
+</Hinweis>
+
+## Apache 2.4
+
+<Karte nr={1} titel="Ein Programm, zwei Ordnungen">
+Apache HTTP Server 2.4 heißt auf Debian **apache2**, auf Red Hat **httpd**. Programm und Direktiven sind gleich, die Dateien sind verschieden geordnet:
+
+| | Debian | Red Hat |
+|---|---|---|
+| Paket | `apache2` | `httpd` |
+| Hauptdatei | `/etc/apache2/apache2.conf` | `/etc/httpd/conf/httpd.conf` |
+| Ports | `ports.conf` (`Listen 80`) | in `httpd.conf` |
+| Eigene Teile | `sites-available/`, `conf-available/`, `mods-available/`, eingeschaltet per Link in `*-enabled/` | `conf.d/*.conf`, Module in `conf.modules.d/` |
+| Steuerung | `apache2ctl`, `a2ensite`, `a2enmod`, `a2enconf` | `apachectl`, `httpd` |
+| Protokolle | `/var/log/apache2/access.log`, `error.log` | `/var/log/httpd/access_log`, `error_log` |
+| Benutzer | `www-data` | `apache` |
+| Dienst | `apache2`, startet sofort | `httpd`, startet erst nach `systemctl enable --now` |
+
+Die Konfiguration besteht aus **Direktiven** (eine pro Zeile, Groß- und Kleinschreibung egal) und **Containern** in spitzen Klammern: `<VirtualHost>`, `<Directory>`, `<Location>`, `<Files>`, `<IfModule>`. Kommentare beginnen mit `#`. `Include` und `IncludeOptional` holen weitere Dateien, Debian holt so die Module, die Ports und alle Seiten.
+
+Apache startet als root, um Port 80 zu öffnen, und lässt die Anfragen von Kindprozessen unter `www-data` oder `apache` bearbeiten.
+</Karte>
+
+<Quiz id="k1" titel="Kurzcheck: Wo was liegt" fragen={[
+  { frage: 'Du hast auf Debian /etc/apache2/sites-available/shop.conf angelegt, aber Apache liefert die Seite nicht. Was fehlt am wahrscheinlichsten?', richtig: 'a2ensite shop und ein reload, damit der Link in sites-enabled entsteht', falsch: ['Ein Eintrag Include shop.conf in httpd.conf', 'Ein Neustart des Rechners, weil Apache Seiten nur beim Booten liest'], erklaerung: 'apache2.conf liest nur sites-enabled/*.conf. a2ensite legt dort den Link an.' },
+  { frage: 'Unter welchem Benutzer laufen auf Red Hat die Prozesse, die Anfragen beantworten?', richtig: 'apache', falsch: ['www-data', 'httpd'], erklaerung: 'www-data ist der Debian-Benutzer, httpd heißt nur das Programm.' },
+]} />
+
+<Zuordnung id="zuordnung" titel="Zuordnung: Debian und Red Hat" aufgabe="Ordne jedem Gegenstand auf Debian sein Gegenstück auf Red Hat zu." paare={[
+  { links: '/etc/apache2/apache2.conf', rechts: '/etc/httpd/conf/httpd.conf' },
+  { links: '/var/log/apache2/error.log', rechts: '/var/log/httpd/error_log' },
+  { links: 'apache2ctl', rechts: 'apachectl' },
+  { links: 'www-data', rechts: 'apache' },
+  { links: 'sites-enabled/*.conf', rechts: 'conf.d/*.conf' },
+]} extra={['/etc/httpd/sites-available']} />
+
+## Virtuelle Hosts
+
+<Karte nr={2} titel="Mehrere Seiten auf einem Server">
+Ein **virtueller Host** ist eine eigene Seite mit eigenem Inhalt und eigenen Protokollen auf demselben Server. Apache entscheidet in zwei Schritten, wer antwortet:
+
+1. **Nach Adresse und Port**: Alle `<VirtualHost>`, deren Adresse zur Verbindung passt. `*:80` passt auf jede Adresse, `192.168.1.23:80` nur auf diese (**IP-basiert**, dafür braucht jede Seite eine eigene Adresse).
+2. **Nach Name** (**namensbasiert**): Unter diesen Kandidaten der, dessen `ServerName` oder `ServerAlias` zum Kopf `Host:` der Anfrage passt. Passt keiner, antwortet der **erste**, der Standard-Host.
+
+```
+<VirtualHost *:80>
+    ServerName www.lab.example.org
+    ServerAlias lab.example.org
+    DocumentRoot /var/www/www
+    ErrorLog ${APACHE_LOG_DIR}/www-error.log
+    CustomLog ${APACHE_LOG_DIR}/www-access.log combined
+</VirtualHost>
+```
+
+Sobald es einen `<VirtualHost *:80>` gibt, beantwortet die Hauptkonfiguration keine Anfragen auf Port 80 mehr, denn der erste virtuelle Host übernimmt. Auf Debian ist das `000-default.conf`, die Ziffern sorgen für die Reihenfolge. `apache2ctl -S` zeigt, welcher Host wofür zuständig ist.
+
+Ohne eigenes `CustomLog` landen Zugriffe auf Debian in `other_vhosts_access.log`, mit dem Namen des Hosts am Zeilenanfang. Das Format `combined` steht in apache2.conf als `LogFormat`.
+</Karte>
+
+<Merke>Debian: sites-available schreiben, a2ensite, apache2ctl configtest, systemctl reload apache2. Red Hat: conf.d/NAME.conf, apachectl configtest, systemctl reload httpd. Erst Adresse und Port, dann der Name, sonst der erste Host.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: Wer antwortet?" fragen={[
+  { frage: 'Es gibt 000-default.conf und www.conf, beide mit <VirtualHost *:80>. Ein Browser fragt http://192.168.1.23/. Wer antwortet?', richtig: '000-default.conf, weil kein ServerName passt und dieser Host zuerst geladen wurde', falsch: ['www.conf, weil es den einzigen ServerName hat', 'Die Hauptkonfiguration aus apache2.conf'], erklaerung: 'Der Kopf Host lautet hier 192.168.1.23. Für unbekannte Namen gilt der erste Host der Adresse.' },
+  { frage: 'Was brauchst du für IP-basierte virtuelle Hosts?', richtig: 'Für jede Seite eine eigene Adresse auf dem Server', falsch: ['Für jede Seite einen eigenen Port über 1024', 'Eine eigene Zone im DNS für jede Seite'], erklaerung: 'Namensbasierte Hosts teilen sich eine Adresse und unterscheiden sich am Kopf Host.' },
+]} />
+
+<Lueckentext id="luecke" titel="Lückentext: Ein Host für den Shop" aufgabe="Ergänze die Datei und die Befehle für shop.lab.example.org auf Debian."
+  code={`<___ *:80>
+    ___ shop.lab.example.org
+    ___ /var/www/shop
+    CustomLog \${APACHE_LOG_DIR}/shop-access.log combined
+</VirtualHost>
+
+$ sudo ___ shop
+$ sudo apache2ctl ___
+$ sudo systemctl reload apache2`}
+  luecken={[
+    { loesungen: ['VirtualHost'] },
+    { loesungen: ['ServerName'] },
+    { loesungen: ['DocumentRoot'] },
+    { loesungen: ['a2ensite'] },
+    { loesungen: ['configtest', '-t'] },
+  ]} />
+
+<Terminal id="vhosts" titel="Terminal: Zwei Seiten auf werkstatt" welt={{ web: { seiten: true } }} aufgaben={[
+  { text: 'Installiere Apache.', zustand: 'apache:laeuft' },
+  { text: 'Sieh nach, welche Seite eingeschaltet ist und aus welchem Ordner sie liefert.', befehl: '(cat|grep .*|less) .*sites-enabled/000-default\\.conf', frage: 'Welches Verzeichnis ist dort DocumentRoot?', antwort: ['/var/www/html', '/var/www/html/'] },
+  { text: 'Richte <code>www.lab.example.org</code> mit dem Zweitnamen <code>lab.example.org</code> ein. Die Seiten liegen in <code>/var/www/www</code>, die Protokolle sollen <code>www-access.log</code> und <code>www-error.log</code> heißen. Prüf die Konfiguration, bevor du neu lädst, und ruf die Seite mit curl auf.', zustand: 'apache:site:www && http:http://www.lab.example.org/~Willkommen && http:http://lab.example.org/~Willkommen && datei:/var/log/apache2/www-access.log~GET', befehl: '^apache2ctl (configtest|-t)' },
+  { text: 'Richte <code>intern.lab.example.org</code> mit den Seiten aus <code>/var/www/intern</code> ein, diesmal ohne eigene Protokolle.', zustand: 'apache:site:intern && http:http://intern.lab.example.org/~Interne' },
+  { text: 'Lass dir alle virtuellen Hosts anzeigen.', befehl: '^(apache2ctl|apachectl) (-S|-t -D DUMP_VHOSTS)', frage: 'Welche Datei enthält den Standard-Host für *:80?', antwort: ['/etc/apache2/sites-enabled/000-default.conf', '000-default.conf'] },
+  { text: 'Ruf intern.lab.example.org auf und such die Anfrage in den Protokollen.', befehl: '(cat|tail|grep .*|less) .*/var/log/apache2/other_vhosts_access\\.log', frage: 'In welcher Datei steht sie?', antwort: ['other_vhosts_access.log', '/var/log/apache2/other_vhosts_access.log'] },
+]} />
+
+<Labor id="labor" titel="Labor: Apache auf srv1"
+  aufgabe="Installiere Apache auf srv1 und richte einen namensbasierten Host test.lab ein. Füge die Ausgabe ein."
+  befehl={"sudo apt install -y apache2\necho '127.0.0.1 test.lab' | sudo tee -a /etc/hosts\nsudo mkdir -p /var/www/test && echo 'Hallo von test.lab' | sudo tee /var/www/test/index.html\nprintf '<VirtualHost *:80>\\n\\tServerName test.lab\\n\\tDocumentRoot /var/www/test\\n</VirtualHost>\\n' | sudo tee /etc/apache2/sites-available/test.conf\nsudo a2ensite test && sudo apache2ctl configtest && sudo systemctl reload apache2\ncurl -s http://test.lab/\ncurl -s http://localhost/ | grep -o '<title>.*</title>'\nsudo apache2ctl -S 2>/dev/null | grep namevhost"}
+  muster={["Syntax OK", "Hallo von test\\.lab", "Apache2 Debian Default Page", "namevhost test\\.lab"]}
+  erfolg="Derselbe Server liefert je nach Name eine andere Seite. Für localhost passt kein ServerName, also antwortet 000-default.conf." />
+
+<Hinweis titel="Prüfungstipp">
+Lernziel 208.1 nennt die Dateien und Werkzeuge beider Familien (httpd.conf, apachectl, apache2ctl, httpd, apache2), die Protokolle access und error log und virtuelle Hosts mit und ohne eigene Adresse. Rechne mit Fragen, welcher Host bei einem unbekannten Namen antwortet und welche Direktive in einen &lt;VirtualHost&gt; gehört. Der Entwurf 5.0 teilt Topic 208 neu auf (eigene Lernziele für HTTP und TLS, Apache und Nginx). Der Entwurf ist nicht final.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'apache2ctl configtest meldet nur „AH00558: Could not reliably determine the server\'s fully qualified domain name“ und dann Syntax OK. Was bedeutet das?', richtig: 'Die Konfiguration ist in Ordnung, nur ein globaler ServerName fehlt', falsch: ['Apache startet nicht, bis ServerName gesetzt ist', 'Ein virtueller Host hat keinen ServerName und wird ignoriert'], erklaerung: 'Ein ServerName in apache2.conf (oder conf-available) bringt die Meldung zum Schweigen.' },
+  { frage: 'Warum meldet apache2 -t auf Debian „DefaultRuntimeDir must be a valid directory“, apache2ctl -t aber nicht?', richtig: 'apache2ctl liest vorher /etc/apache2/envvars mit APACHE_RUN_DIR und den anderen Variablen', falsch: ['apache2 -t prüft strenger als apache2ctl', 'apache2 braucht Root-Rechte, apache2ctl nicht'], erklaerung: 'Auf Debian ruft man Apache darum über apache2ctl oder systemctl auf.' },
+  { frage: 'Welche Direktive gehört nicht in einen <VirtualHost>?', richtig: 'Listen', falsch: ['ServerAlias', 'CustomLog'], erklaerung: 'Listen gilt für den ganzen Server und steht auf Debian in ports.conf.' },
+]} />

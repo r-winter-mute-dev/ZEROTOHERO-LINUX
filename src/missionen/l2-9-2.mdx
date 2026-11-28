@@ -1,0 +1,190 @@
+---
+id: l2-9-2
+checks:
+  - id: k1
+  - id: zuordnung
+  - id: k2
+  - id: luecke
+  - id: zugriff
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "Require"
+    v: "Require all granted|denied · Require ip 192.168.1.0/24 · Require local · Require valid-user · Require user lena · Require group team · <RequireAll> … Require not ip … </RequireAll>"
+  - t: "Anmeldung"
+    v: "AuthType Basic · AuthName \"Text\" · AuthUserFile /etc/apache2/htpasswd · AuthGroupFile /etc/apache2/htgroup (a2enmod authz_groupfile) · htpasswd -c DATEI USER · htpasswd -b DATEI USER PW · -D löschen · -v prüfen"
+  - t: ".htaccess"
+    v: "AllowOverride None|All|AuthConfig|Limit|FileInfo|Indexes|Options · Fehler in .htaccess = 500 · Debian: <FilesMatch \"^\\.ht\"> Require all denied"
+  - t: "Umleiten"
+    v: "Redirect [permanent|temp|seeother|gone|CODE] /alt URL · RedirectMatch REGEX URL · Alt (access_compat): Order deny,allow · Allow from · Deny from"
+karten:
+  - f: "Welche Direktive erlaubt nur Clients aus 192.168.1.0/24?"
+    a: ["Require ip 192.168.1.0/24"]
+  - f: "Mit welchem Programm legst du Benutzer für die Basic-Anmeldung an?"
+    a: ["htpasswd"]
+  - f: "Welche Option von htpasswd legt eine neue Datei an?"
+    a: ["-c"]
+  - f: "Welche AllowOverride-Klasse brauchen Auth-Direktiven in einer .htaccess?"
+    a: ["AuthConfig"]
+  - f: "Welche HTTP-Statuszahl schickt Apache, wenn eine Anmeldung fehlt oder falsch ist?"
+    a: ["401"]
+  - f: "Welche Zeile leitet /alt dauerhaft nach /neu um?"
+    a: ["Redirect permanent /alt /neu", "Redirect 301 /alt /neu", "Redirect permanent /alt http://…/neu"]
+    aufdecken: true
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Zuordnung from '../components/Zuordnung.astro';
+import Lueckentext from '../components/Lueckentext.astro';
+
+intern.lab.example.org ist von überall erreichbar, auch aus dem Netz der Firma. Das Maschinenbuch unter /doku soll nur das Wartungsteam sehen, und Max möchte die Doku selbst pflegen, ohne an die Apache-Konfiguration zu müssen. **Deine Mission: Beschränk intern auf das Labornetz, schütz /doku mit Benutzern und Gruppen per .htaccess und lege eine Umleitung an.** Lernziel 208.1.
+
+## Wer darf?
+
+<Karte nr={1} titel="Require">
+Seit Apache 2.4 regelt **mod_authz_core** den Zugriff mit `Require`, meist in einem `<Directory>`-Block:
+
+```
+<Directory /var/www/intern>
+    Require ip 192.168.1.0/24
+</Directory>
+```
+
+| Zeile | Wer darf |
+|---|---|
+| `Require all granted` / `denied` | alle / niemand |
+| `Require ip 192.168.1.0/24 10.20` | Adressen und Netze (mod_authz_host) |
+| `Require host lab.example.org` | Rechner, deren Name per DNS passt |
+| `Require local` | der Server selbst |
+| `Require valid-user` | jeder angemeldete Benutzer (mod_authz_user) |
+| `Require user lena max` | nur diese Benutzer |
+| `Require group team` | Mitglieder der Gruppe (mod_authz_groupfile) |
+
+Mehrere `Require`-Zeilen bedeuten „eine genügt“ (wie `<RequireAny>`). `<RequireAll>` verlangt alle, darin schließt `Require not ip …` aus. Abgelehnt wird mit **403**, im error.log steht `AH01630: client denied by server configuration`.
+
+Aus Apache 2.2 stammen `Order`, `Allow` und `Deny`. Sie funktionieren nur mit **mod_access_compat** weiter und sollten nicht mit `Require` gemischt werden:
+
+```
+Order deny,allow        # erst Deny, dann Allow; was in keiner Liste steht: erlaubt
+Deny from all
+Allow from 192.168.1.0/24
+```
+</Karte>
+
+<Quiz id="k1" titel="Kurzcheck: Require" fragen={[
+  { frage: 'Ein <Directory> enthält Require ip 192.168.1.0/24 und Require ip 10.20.0.0/16. Wer darf?', richtig: 'Clients aus einem der beiden Netze', falsch: ['Nur Clients, die in beiden Netzen zugleich sind, also niemand', 'Nur das zuletzt genannte Netz, die erste Zeile wird überschrieben'], erklaerung: 'Mehrere Require-Zeilen in einem Block gelten wie <RequireAny>.' },
+  { frage: 'Welches Modul braucht Order deny,allow in Apache 2.4?', richtig: 'mod_access_compat', falsch: ['mod_authz_host', 'mod_authn_core'], erklaerung: 'Ohne mod_access_compat meldet Apache „Invalid command Order“.' },
+]} />
+
+## Wer bist du?
+
+<Karte nr={2} titel="Basic-Anmeldung und htpasswd">
+```
+<Directory /var/www/intern/doku>
+    AuthType Basic
+    AuthName "Maschinenbuch"
+    AuthUserFile /etc/apache2/htpasswd
+    Require valid-user
+</Directory>
+```
+
+**AuthType Basic** schickt Benutzer und Passwort nur Base64-kodiert, also im Klartext mit. Darum gehört Basic-Anmeldung hinter HTTPS (Mission 9.4). **AuthName** ist der Text im Anmeldefenster des Browsers. **AuthUserFile** nennt die Datei mit den Benutzern. Sie liegt außerhalb von DocumentRoot und ist für Apache lesbar.
+
+Die Datei pflegt **htpasswd** (Paket apache2-utils bzw. httpd-tools):
+
+```
+sudo htpasswd -c /etc/apache2/htpasswd lena    # -c: Datei neu anlegen, fragt nach dem Passwort
+sudo htpasswd /etc/apache2/htpasswd max        # weiteren Benutzer hinzufügen (ohne -c!)
+sudo htpasswd -b /etc/apache2/htpasswd max PW  # Passwort auf der Befehlszeile, für Skripte
+sudo htpasswd -D /etc/apache2/htpasswd max     # löschen
+```
+
+`-c` auf eine vorhandene Datei löscht alle bisherigen Benutzer. Standard ist MD5 (`$apr1$`), `-B` nimmt bcrypt.
+
+Gruppen stehen in einer einfachen Textdatei, eine Zeile je Gruppe: `team: max lena`. Sie wird mit **AuthGroupFile** eingebunden und mit `Require group team` abgefragt. Auf Debian ist das zuständige Modul **authz_groupfile** nicht eingeschaltet. Ohne `a2enmod authz_groupfile` gibt es einen Fehler 500.
+</Karte>
+
+<Zuordnung id="zuordnung" titel="Zuordnung: Wer liefert was?" aufgabe="Ordne jeder Direktive das Modul zu, das sie bereitstellt." paare={[
+  { links: 'Require ip', rechts: 'mod_authz_host' },
+  { links: 'AuthUserFile', rechts: 'mod_authn_file' },
+  { links: 'AuthGroupFile', rechts: 'mod_authz_groupfile' },
+  { links: 'AuthType Basic', rechts: 'mod_auth_basic' },
+  { links: 'Order deny,allow', rechts: 'mod_access_compat' },
+  { links: 'Redirect', rechts: 'mod_alias' },
+]} extra={['mod_rewrite']} />
+
+## Ohne Neustart: .htaccess
+
+<Karte nr={3} titel=".htaccess und AllowOverride">
+Eine Datei **.htaccess** in einem Verzeichnis enthält Direktiven, die für dieses Verzeichnis gelten. Apache liest sie bei jeder Anfrage, Änderungen wirken also sofort und ohne root. Ob und was darin stehen darf, bestimmt **AllowOverride** im `<Directory>` des Servers:
+
+| AllowOverride | erlaubt in .htaccess |
+|---|---|
+| `None` | nichts, die Datei wird gar nicht gelesen (Standard in Debian und Red Hat) |
+| `AuthConfig` | AuthType, AuthName, AuthUserFile, AuthGroupFile, Require |
+| `Limit` | Order, Allow, Deny |
+| `FileInfo` | Redirect, ErrorDocument, RewriteRule, AddType |
+| `Indexes` | DirectoryIndex, IndexOptions |
+| `Options` | Options |
+| `All` | alles |
+
+Steht in der .htaccess etwas Unerlaubtes oder ein Tippfehler, antwortet Apache für das ganze Verzeichnis mit **500**, im error.log steht `[core:alert]` mit Datei und Grund. Abrufen lässt sich die .htaccess selbst nicht: Debian sperrt alle Dateien, die mit `.ht` beginnen.
+
+Umleitungen setzt **mod_alias**: `Redirect permanent /plan http://intern.lab.example.org/schichtplan.txt` antwortet mit 301 und dem neuen Ort im Kopf `Location`. `temp` (302, Standard), `seeother` (303) und `gone` (410) gibt es auch, `RedirectMatch` nimmt einen regulären Ausdruck.
+</Karte>
+
+<Merke>Require ip für Netze, Require valid-user/user/group nach AuthType Basic. htpasswd -c nur beim ersten Benutzer. .htaccess wirkt nur mit passendem AllowOverride, Fehler darin = 500. 401 heißt anmelden, 403 heißt nie.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: .htaccess" fragen={[
+  { frage: 'Max legt in /var/www/intern/doku eine .htaccess mit AuthType Basic an. Nichts passiert, die Seite ist weiter offen. Was ist los?', richtig: 'Für das Verzeichnis gilt AllowOverride None, Apache liest die Datei nicht', falsch: ['Apache muss nach jeder Änderung an .htaccess neu starten', 'Die Datei muss htaccess ohne Punkt heißen'], erklaerung: 'Mit AllowOverride AuthConfig im <Directory> wirkt die Datei sofort.' },
+  { frage: 'Nach einer Änderung an der .htaccess liefert das Verzeichnis nur noch „500 Internal Server Error“. Wo findest du den Grund?', richtig: 'Im error.log, als [core:alert] mit Datei und Direktive', falsch: ['Im access.log in der Spalte für den Benutzer', 'Mit apache2ctl configtest, das alle .htaccess prüft'], erklaerung: 'configtest liest keine .htaccess-Dateien, die prüft Apache erst bei einer Anfrage.' },
+]} />
+
+<Lueckentext id="luecke" titel="Lückentext: Doku nur fürs Team" aufgabe="Ergänze die .htaccess und die Befehle. Nur die Gruppe wartung darf hinein."
+  code={`AuthType ___
+AuthName "Maschinenbuch"
+AuthUserFile /etc/apache2/htpasswd
+___ /etc/apache2/htgroup
+Require ___ wartung
+
+$ sudo htpasswd ___ /etc/apache2/htpasswd lena
+$ echo "wartung: lena max" | sudo tee /etc/apache2/htgroup
+$ sudo a2enmod ___`}
+  luecken={[
+    { loesungen: ['Basic'] },
+    { loesungen: ['AuthGroupFile'] },
+    { loesungen: ['group'] },
+    { loesungen: ['-c'] },
+    { loesungen: ['authz_groupfile'] },
+  ]} />
+
+<Terminal id="zugriff" titel="Terminal: intern absichern" welt={{ web: { apache: true, seiten: true, intern: true } }} aufgaben={[
+  { text: 'intern.lab.example.org soll nur noch das Labornetz 192.168.1.0/24 sehen. Die Prüfung schickt Anfragen von laser (192.168.1.40) und vom Logserver der Firma (10.20.0.5).', zustand: 'http(von=192.168.1.40):http://intern.lab.example.org/=200 && http(von=10.20.0.5):http://intern.lab.example.org/=403' },
+  { text: 'Leite <code>/plan</code> dauerhaft auf <code>http://intern.lab.example.org/schichtplan.txt</code> um.', zustand: 'http:http://intern.lab.example.org/plan=301 && http:http://intern.lab.example.org/plan~^Location: http://intern\\.lab\\.example\\.org/schichtplan\\.txt$' },
+  { text: 'Leg die Datei <code>/etc/apache2/htpasswd</code> mit lena (Passwort geheim) und max (Passwort passwort) an.', zustand: 'htpasswd:/etc/apache2/htpasswd:lena=geheim && htpasswd:/etc/apache2/htpasswd:max=passwort' },
+  { text: 'Erlaube für <code>/var/www/intern/doku</code> Anmeldedirektiven in einer .htaccess und schreib dort eine hinein, die jeden angemeldeten Benutzer aus der htpasswd zulässt.', zustand: 'http(von=192.168.1.40):http://intern.lab.example.org/doku/wartung.txt=401 && http(von=192.168.1.40,u=lena/geheim):http://intern.lab.example.org/doku/wartung.txt=200 && datei:/var/www/intern/doku/.htaccess~AuthType' },
+  { text: 'Melde dich einmal mit falschem Passwort an und sieh im Fehlerprotokoll nach.', befehl: '(cat|tail|grep .*|less) .*/var/log/apache2/error\\.log', frage: 'Mit welcher Kennung (AHxxxxx) meldet Apache das falsche Passwort?', antwort: ['AH01617'] },
+  { text: 'Jetzt soll nur noch die Gruppe <code>team</code> mit max hinein. Die Gruppen gehören nach <code>/etc/apache2/htgroup</code>. Wenn etwas schiefgeht, verrät das Fehlerprotokoll den Grund.', zustand: 'http(von=192.168.1.40,u=max/passwort):http://intern.lab.example.org/doku/wartung.txt=200 && http(von=192.168.1.40,u=lena/geheim):http://intern.lab.example.org/doku/wartung.txt=401 && apache:mod:authz_groupfile' },
+  { text: 'Versuch, die .htaccess über den Webserver abzurufen.', befehl: '^curl .*doku/\\.htaccess', frage: 'Welchen Statuscode bekommst du?', antwort: ['403'] },
+]} />
+
+<Labor id="labor" titel="Labor: Anmeldung auf srv1"
+  aufgabe="Schütz auf srv1 die Seite test.lab mit einer Anmeldung über .htaccess. Füge die Ausgabe ein."
+  befehl={"sudo htpasswd -c -b /etc/apache2/htpasswd lena geheim\nprintf '<Directory /var/www/test>\\n\\tAllowOverride AuthConfig\\n</Directory>\\n' | sudo tee /etc/apache2/conf-available/test-override.conf\nsudo a2enconf test-override && sudo systemctl reload apache2\nprintf 'AuthType Basic\\nAuthName \"Test\"\\nAuthUserFile /etc/apache2/htpasswd\\nRequire valid-user\\n' | sudo tee /var/www/test/.htaccess\ncurl -s -o /dev/null -w '%{http_code}\\n' http://test.lab/\ncurl -s -o /dev/null -w '%{http_code}\\n' -u lena:falsch http://test.lab/\ncurl -s -u lena:geheim http://test.lab/\nsudo tail -1 /var/log/apache2/error.log"}
+  muster={["^401$", "Hallo von test\\.lab", "AH01617"]}
+  erfolg="Ohne und mit falschem Passwort kommt 401, mit dem richtigen die Seite. Das falsche Passwort steht mit AH01617 im error.log." />
+
+<Hinweis titel="Prüfungstipp">
+208.1 nennt ausdrücklich .htaccess, htpasswd, AuthUserFile, AuthGroupFile, mod_auth_basic, mod_authz_host und mod_access_compat sowie Umleitungen. Rechne mit Fragen nach der richtigen AllowOverride-Klasse, nach der Option -c und nach dem Unterschied zwischen 401 und 403.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Du rufst htpasswd -c /etc/apache2/htpasswd max auf, obwohl die Datei schon lena enthält. Was passiert?', richtig: 'Die Datei wird neu angelegt, lena ist danach weg', falsch: ['htpasswd bricht ab, weil die Datei schon existiert', 'max wird hinzugefügt, -c wird bei vorhandener Datei ignoriert'], erklaerung: '-c nur beim allerersten Benutzer, danach ohne -c.' },
+  { frage: 'Welche Antwort schickt Apache, wenn ein angemeldeter Benutzer nicht in der verlangten Gruppe ist?', richtig: '401, im error.log steht „authorization failure“', falsch: ['403 Forbidden ohne Eintrag im error.log', '500, weil die Gruppe nicht passt'], erklaerung: 'Der Browser fragt erneut nach Benutzer und Passwort, ein anderer Benutzer könnte passen.' },
+  { frage: 'Warum sollte die Basic-Anmeldung nur über HTTPS laufen?', richtig: 'Benutzer und Passwort reisen nur Base64-kodiert, also lesbar, bei jeder Anfrage mit', falsch: ['Weil Browser Basic-Anmeldung über HTTP verweigern', 'Weil htpasswd-Dateien sonst nicht verschlüsselt werden'], erklaerung: 'Base64 ist eine Kodierung, keine Verschlüsselung.' },
+]} />

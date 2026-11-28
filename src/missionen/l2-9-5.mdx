@@ -1,0 +1,162 @@
+---
+id: l2-9-5
+checks:
+  - id: k1
+  - id: zuordnung
+  - id: k2
+  - id: luecke
+  - id: haerten
+  - id: labor
+    hardware: true
+  - id: k3
+spick:
+  - t: "Kette"
+    v: "SSLCertificateFile: Serverzertifikat, dahinter die Zwischenzertifikate (cat www.crt zwischen.crt > kette.crt) · SSLCertificateChainFile veraltet seit 2.4.8 · openssl s_client -connect HOST:443 -servername NAME -showcerts"
+  - t: "SNI"
+    v: "mehrere <VirtualHost *:443> mit je ServerName und eigenem Zertifikat · Client schickt den Namen im TLS-Handshake · ohne SNI: erster Host · -noservername zum Testen"
+  - t: "Protokolle"
+    v: "SSLProtocol -all +TLSv1.2 +TLSv1.3 · SSLCipherSuite HIGH:!aNULL:!MD5 · SSLHonorCipherOrder on · openssl s_client -tls1_2 · curl --tls-max 1.2"
+  - t: "Wenig verraten"
+    v: "ServerTokens Prod · ServerSignature Off · TraceEnable Off (Debian: conf-available/security.conf) · Redirect permanent / https://NAME/"
+karten:
+  - f: "Wie heißt die Erweiterung von TLS, mit der ein Client den gewünschten Namen schon beim Handshake nennt?"
+    a: ["SNI", "Server Name Indication"]
+  - f: "Welche Direktive schaltet in Apache alle Protokolle außer TLS 1.2 und 1.3 ab?"
+    a: ["SSLProtocol -all +TLSv1.2 +TLSv1.3", "SSLProtocol all -SSLv3 -TLSv1 -TLSv1.1"]
+  - f: "Welche Direktive verkürzt den Kopf Server auf „Apache“?"
+    a: ["ServerTokens Prod", "ServerTokens ProductOnly"]
+  - f: "Welche Direktive schaltet die Methode TRACE ab?"
+    a: ["TraceEnable Off", "TraceEnable"]
+  - f: "Wohin gehört das Zwischenzertifikat der CA in Apache 2.4.8 und neuer?"
+    a: ["In SSLCertificateFile, hinter das Serverzertifikat"]
+    aufdecken: true
+  - f: "Mit welchem Befehl siehst du, welche Zertifikate ein Server ausliefert?"
+    a: ["openssl s_client -showcerts", "openssl s_client -connect host:443 -showcerts", "openssl s_client"]
+---
+import Karte from '../components/Karte.astro';
+import Merke from '../components/Merke.astro';
+import Quiz from '../components/Quiz.astro';
+import Hinweis from '../components/Hinweis.astro';
+import Terminal from '../components/Terminal.astro';
+import Labor from '../components/Labor.astro';
+import Zuordnung from '../components/Zuordnung.astro';
+import Lueckentext from '../components/Lueckentext.astro';
+
+www läuft mit HTTPS und eurer eigenen CA. Für die Kunden reicht das nicht, ihre Browser kennen die Werkstatt-CA nicht. Max hat bei der (erfundenen) CA Open Trust Lab ein Zertifikat gekauft, die Dateien liegen in ~/zert. intern soll weiter das eigene Zertifikat nutzen, auf derselben Adresse. Und der Prüfer der Firma will, dass der Server nichts Überflüssiges verrät. **Deine Mission: Bau das gekaufte Zertifikat samt Kette ein, gib intern per SNI ein eigenes Zertifikat, schalte alte Protokolle ab und härte die Antworten.** Lernziel 208.2.
+
+## Ketten
+
+<Karte nr={1} titel="Zwischenzertifikate">
+Öffentliche CAs unterschreiben Serverzertifikate nicht mit ihrer **Wurzel**, sondern mit einem **Zwischenzertifikat** (intermediate). Die Wurzel kennt jeder Client, das Zwischenzertifikat nicht. Der Server muss es darum mitschicken:
+
+```
+Open Trust Root X1      ← im Vertrauensspeicher des Clients
+  └─ OTL R3             ← schickt der Server mit
+       └─ www.lab.example.org
+```
+
+Seit Apache 2.4.8 steht die Kette in **SSLCertificateFile**: zuerst das Serverzertifikat, dahinter die Zwischenzertifikate (`cat www.crt otl-r3.crt > www-kette.crt`). Das alte **SSLCertificateChainFile** geht noch, gilt aber als veraltet. Fehlt das Zwischenzertifikat, melden curl und manche Browser „unable to get local issuer certificate“, andere Browser holen es heimlich nach. Darum fällt der Fehler oft erst bei einem Kunden auf.
+
+Was der Server wirklich schickt, zeigt `openssl s_client -connect www.lab.example.org:443 -servername www.lab.example.org -showcerts`. Unter „Certificate chain“ steht jedes Zertifikat mit Inhaber (`s:`) und Aussteller (`i:`).
+</Karte>
+
+<Quiz id="k1" titel="Kurzcheck: Ketten" fragen={[
+  { frage: 'Firefox zeigt www ohne Fehler, curl meldet „unable to get local issuer certificate“. Woran liegt es am wahrscheinlichsten?', richtig: 'Der Server schickt das Zwischenzertifikat nicht mit', falsch: ['curl kennt grundsätzlich keine öffentlichen CAs', 'Das Zertifikat ist für Firefox, nicht für curl ausgestellt'], erklaerung: 'Manche Browser holen fehlende Zwischenzertifikate selbst nach, curl nicht.' },
+  { frage: 'In welcher Reihenfolge gehören die Zertifikate in die Datei für SSLCertificateFile?', richtig: 'Serverzertifikat zuerst, dann die Zwischenzertifikate', falsch: ['Wurzel zuerst, dann Zwischenzertifikat, dann Server', 'Die Reihenfolge ist egal'], erklaerung: 'Die Wurzel muss gar nicht hinein, sie hat der Client schon.' },
+]} />
+
+## Mehrere Namen auf Port 443
+
+<Karte nr={2} titel="SNI">
+Bei HTTP entscheidet der Kopf `Host`, welcher virtuelle Host antwortet. Bei HTTPS muss der Server sein Zertifikat aber schon vorzeigen, bevor der Kopf kommt. Früher hieß das: eine Adresse pro HTTPS-Seite. Mit **SNI** (Server Name Indication) schickt der Client den Namen schon im TLS-Handshake mit, und Apache wählt danach den `<VirtualHost *:443>` und sein Zertifikat aus.
+
+```
+<VirtualHost *:443>
+    ServerName intern.lab.example.org
+    SSLEngine on
+    SSLCertificateFile    /etc/ssl/certs/intern.lab.example.org.crt
+    SSLCertificateKeyFile /etc/ssl/private/intern.lab.example.org.key
+    …
+</VirtualHost>
+```
+
+Alle heutigen Clients beherrschen SNI. Wer keinen Namen schickt (sehr alte Clients, Abrufe per IP-Adresse), bekommt den **ersten** Host für *:443 und damit dessen Zertifikat. Eine Alternative für wenige Namen ist ein Zertifikat mit mehreren SAN-Einträgen oder ein Platzhalter `*.lab.example.org`.
+</Karte>
+
+<Zuordnung id="zuordnung" titel="Zuordnung: Direktiven" aufgabe="Ordne jeder Wirkung die Direktive zu." paare={[
+  { links: 'Erlaubte TLS-Versionen', rechts: 'SSLProtocol' },
+  { links: 'Erlaubte Verschlüsselungsverfahren', rechts: 'SSLCipherSuite' },
+  { links: 'Server bestimmt die Reihenfolge der Verfahren', rechts: 'SSLHonorCipherOrder' },
+  { links: 'Version in Fehlerseiten ausblenden', rechts: 'ServerSignature' },
+  { links: 'Kopf Server kürzen', rechts: 'ServerTokens' },
+  { links: 'Methode zum Zurückspiegeln einer Anfrage', rechts: 'TraceEnable' },
+]} extra={['SSLCACertificatePath']} />
+
+## Härten
+
+<Karte nr={3} titel="Alte Protokolle und geschwätzige Antworten">
+SSLv2 und SSLv3 sind gebrochen, TLS 1.0 und 1.1 gelten als unsicher. `SSLProtocol -all +TLSv1.2 +TLSv1.3` (oder `all -SSLv3 -TLSv1 -TLSv1.1`) lässt nur die beiden aktuellen zu. Debian 12 und Red Hat 9 sperren alles unter TLS 1.2 schon in OpenSSL selbst, die Zeile macht die Absicht aber sichtbar und übersteht Updates. `SSLCipherSuite HIGH:!aNULL:!MD5` streicht schwache Verfahren, `SSLHonorCipherOrder on` lässt den Server die Reihenfolge bestimmen. Auf Red Hat steuern die systemweiten crypto-policies (`SSLCipherSuite PROFILE=SYSTEM`), umschalten mit `update-crypto-policies --set DEFAULT|FUTURE`.
+
+Weniger verraten, in Debians `conf-available/security.conf`:
+
+- `ServerTokens Prod` – der Kopf lautet nur `Server: Apache` statt `Apache/2.4.65 (Debian) OpenSSL/3.0.17`.
+- `ServerSignature Off` – keine Versionszeile unter Fehlerseiten und Verzeichnislisten.
+- `TraceEnable Off` – die Methode TRACE spiegelt Anfragen samt Cookies zurück und wird mit 405 abgelehnt.
+
+Zum Schluss wird HTTP nur noch zum Umleiten benutzt: `Redirect permanent / https://www.lab.example.org/` im `<VirtualHost *:80>`.
+</Karte>
+
+<Merke>Kette: Server plus Zwischenzertifikat in SSLCertificateFile. SNI: je Name ein &lt;VirtualHost *:443&gt;, ohne Namen gilt der erste. SSLProtocol -all +TLSv1.2 +TLSv1.3. ServerTokens Prod, ServerSignature Off, TraceEnable Off. HTTP leitet nach HTTPS um.</Merke>
+
+<Quiz id="k2" titel="Kurzcheck: SNI und Härten" fragen={[
+  { frage: 'Ein alter Client ohne SNI ruft https://intern.lab.example.org/ auf. www und intern teilen sich *:443, www ist zuerst eingetragen. Welches Zertifikat sieht er?', richtig: 'Das von www, weil ohne Namen der erste Host für *:443 gilt', falsch: ['Das von intern, weil die Adresse im DNS zu intern gehört', 'Keines, Apache bricht ohne SNI den Handshake ab'], erklaerung: 'Mit SSLStrictSNIVHostCheck on würde Apache solche Clients tatsächlich abweisen.' },
+  { frage: 'Was bewirkt ServerTokens Prod?', richtig: 'Der Kopf Server enthält nur noch „Apache“', falsch: ['Apache läuft im Produktionsmodus mit mehr Prozessen', 'Fehlerseiten verschwinden ganz'], erklaerung: 'Für die Fehlerseiten ist ServerSignature zuständig.' },
+]} />
+
+<Lueckentext id="luecke" titel="Lückentext: Ein gehärteter Host" aufgabe="Ergänze die Konfiguration."
+  code={`<VirtualHost *:80>
+    ServerName shop.lab.example.org
+    ___ permanent / https://shop.lab.example.org/
+</VirtualHost>
+<VirtualHost *:443>
+    ServerName shop.lab.example.org
+    SSLEngine on
+    SSLCertificateFile /etc/ssl/certs/shop-kette.crt
+    SSLCertificateKeyFile /etc/ssl/private/shop.key
+    SSLProtocol -all ___ +TLSv1.3
+</VirtualHost>
+ServerTokens ___
+ServerSignature ___
+TraceEnable Off`}
+  luecken={[
+    { loesungen: ['Redirect'] },
+    { loesungen: ['+TLSv1.2'] },
+    { loesungen: ['Prod', 'ProductOnly'] },
+    { loesungen: ['Off'] },
+  ]} />
+
+<Terminal id="haerten" titel="Terminal: Kette, SNI und Härten" welt={{ web: { apache: true, seiten: true, intern: true, https: true, zert: true } }} aufgaben={[
+  { text: 'Sieh dir die gekauften Dateien in <code>~/zert</code> an.', befehl: '^openssl x509 .*zert/otl-r3\\.crt', frage: 'Wer hat das Zwischenzertifikat otl-r3.crt ausgestellt (CN)?', antwort: ['Open Trust Root X1'] },
+  { text: 'Bau das gekaufte Zertifikat für www ein, so dass curl die Seite ohne jede Zusatzoption und ohne die Werkstatt-CA annimmt.', zustand: 'http:https://www.lab.example.org/~Willkommen && tls:www.lab.example.org:443~CN = OTL R3' },
+  { text: 'Prüf mit openssl s_client, was der Server für www ausliefert.', befehl: '^openssl s_client .*-connect', frage: 'Wie viele Zertifikate stehen unter Certificate chain?', antwort: ['2'] },
+  { text: 'Gib intern.lab.example.org einen eigenen HTTPS-Host mit einem Zertifikat von der Werkstatt-CA in <code>/etc/ssl/werkstatt</code>. Der Schlüssel heißt <code>/etc/ssl/private/intern.lab.example.org.key</code>.', zustand: 'http(ca=/etc/ssl/werkstatt/ca.crt):https://intern.lab.example.org/~Interne && tls:intern.lab.example.org:443~subject=.*CN = intern\\.lab\\.example\\.org && http:https://www.lab.example.org/~Willkommen' },
+  { text: 'intern soll nur noch TLS 1.3 sprechen, www weiter 1.2 und 1.3.', zustand: 'tlsproto:intern.lab.example.org:443=TLSv1.3 && tlsproto:www.lab.example.org:443=TLSv1.2,TLSv1.3' },
+  { text: 'Der Server soll sich nur noch als „Apache“ melden, keine Version unter Fehlerseiten zeigen und TRACE ablehnen.', zustand: 'http:https://www.lab.example.org/~^Server: Apache$ && http:http://intern.lab.example.org/gibtsnicht~^HTTP/1.1 404 && nicht:http:http://intern.lab.example.org/gibtsnicht~<address> && apache:wert:TraceEnable=off' },
+  { text: 'Wer www über HTTP aufruft, soll dauerhaft zur selben Seite unter HTTPS geleitet werden.', zustand: 'http:http://www.lab.example.org/kontakt.html=301 && http:http://www.lab.example.org/kontakt.html~^Location: https://www\\.lab\\.example\\.org/kontakt\\.html$' },
+]} />
+
+<Labor id="labor" titel="Labor: HTTPS auf srv1 prüfen"
+  aufgabe="Prüf auf srv1 die Kette, die Protokolle und den Kopf Server. Füge die Ausgabe ein."
+  befehl={"echo | openssl s_client -connect test.lab:443 -servername test.lab 2>/dev/null | grep -E '^ [0-9] s:|Protocol|Verify return'\necho 'SSLProtocol -all +TLSv1.3' | sudo tee /etc/apache2/conf-available/tls.conf\nsudo sed -i 's/^ServerTokens OS/ServerTokens Prod/; s/^ServerSignature On/ServerSignature Off/' /etc/apache2/conf-available/security.conf\nsudo a2enconf tls && sudo systemctl reload apache2\ncurl -s --cacert /etc/ssl/labor/ca.crt --tls-max 1.2 https://test.lab/ ; echo \"Rückgabe: $?\"\ncurl -sI --cacert /etc/ssl/labor/ca.crt -u lena:geheim https://test.lab/ | grep -i '^server'"}
+  muster={["0 s:CN = test\\.lab", "Protocol\\s+: TLSv1\\.3", "Rückgabe: 35", "^Server: Apache\\s*$"]}
+  erfolg="TLS 1.2 wird jetzt abgewiesen (curl Code 35), und der Server verrät keine Version mehr. Mach tls.conf mit a2disconf tls wieder rückgängig, wenn ältere Clients ins Labor sollen." />
+
+<Hinweis titel="Prüfungstipp">
+208.2 verlangt Zwischenzertifikate, SNI und die Probleme von HTTPS mit virtuellen Hosts sowie das Abschalten unsicherer Protokolle und Verfahren. In der Liste stehen SSLProtocol, SSLCipherSuite, ServerTokens, ServerSignature und TraceEnable. Rechne mit der Frage, welcher Host ohne SNI antwortet, und mit Zeilen für SSLProtocol, in denen ein Protokoll fehlt.
+</Hinweis>
+
+<Quiz id="k3" titel="Abschluss" fragen={[
+  { frage: 'Warum brauchte HTTPS vor SNI eine eigene IP-Adresse pro Seite?', richtig: 'Der Server muss sein Zertifikat zeigen, bevor er den Kopf Host lesen kann', falsch: ['Weil Port 443 nur eine Verbindung gleichzeitig annimmt', 'Weil Zertifikate früher die IP-Adresse statt des Namens enthielten'], erklaerung: 'Ohne SNI kennt der Server beim Handshake nur die Adresse, an die der Client sich verbindet.' },
+  { frage: 'Welche Zeile ließe in Apache auch TLS 1.0 zu, wenn OpenSSL es erlaubt?', richtig: 'SSLProtocol all -SSLv3', falsch: ['SSLProtocol -all +TLSv1.2 +TLSv1.3', 'SSLProtocol all -SSLv3 -TLSv1 -TLSv1.1'], erklaerung: 'all umfasst alle TLS-Versionen, abgezogen wird hier nur SSLv3.' },
+  { frage: 'Was liefert openssl s_client -connect www.lab.example.org:443 -showcerts?', richtig: 'Alle Zertifikate, die der Server im Handshake schickt, als PEM', falsch: ['Die Zertifikate aus dem Vertrauensspeicher des Clients', 'Nur das Wurzelzertifikat der Kette'], erklaerung: 'Ohne -showcerts zeigt s_client nur das Serverzertifikat als PEM, die Kette aber als Liste.' },
+]} />

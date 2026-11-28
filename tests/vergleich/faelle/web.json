@@ -1,0 +1,306 @@
+{
+ "name": "openssl, htpasswd, nginx -t und squid -k parse: Rückgabecodes",
+ "version": "(dpkg-query -W -f='${Package}=${Version} ' apache2-utils nginx squid openssl curl 2>/dev/null || rpm -q --qf '%{NAME}=%{VERSION}-%{RELEASE} ' httpd httpd-tools mod_ssl nginx squid openssl curl php)",
+ "welt": {
+  "web": {
+   "apache": true,
+   "squid": true,
+   "nginx": true
+  }
+ },
+ "vorbereitung": [],
+ "faelle": [
+  {
+   "name": "openssl genrsa: 2048 Bit",
+   "dateien": {},
+   "befehl": "openssl genrsa -out /tmp/lth-k.pem 2048",
+   "aufraeumen": [
+    "rm -f /tmp/lth-ca.key /tmp/lth-ca.crt /tmp/lth-ca.srl /tmp/lth-w.key /tmp/lth-w.csr /tmp/lth-w.crt /tmp/lth-k.pem /tmp/lth-h"
+   ]
+  },
+  {
+   "name": "openssl genrsa: zu kurz",
+   "dateien": {},
+   "befehl": "openssl genrsa -out /tmp/lth-k.pem 256",
+   "aufraeumen": [
+    "rm -f /tmp/lth-ca.key /tmp/lth-ca.crt /tmp/lth-ca.srl /tmp/lth-w.key /tmp/lth-w.csr /tmp/lth-w.crt /tmp/lth-k.pem /tmp/lth-h"
+   ]
+  },
+  {
+   "name": "openssl req: Schlüssel fehlt",
+   "dateien": {},
+   "befehl": "openssl req -new -key /tmp/lth-gibtsnicht.key -out /tmp/lth-w.csr -subj /CN=x",
+   "aufraeumen": [
+    "rm -f /tmp/lth-ca.key /tmp/lth-ca.crt /tmp/lth-ca.srl /tmp/lth-w.key /tmp/lth-w.csr /tmp/lth-w.crt /tmp/lth-k.pem /tmp/lth-h"
+   ]
+  },
+  {
+   "name": "openssl req -x509: eigene CA",
+   "dateien": {},
+   "befehl": "openssl req -x509 -newkey rsa:2048 -noenc -keyout /tmp/lth-ca.key -out /tmp/lth-ca.crt -days 30 -subj /CN=LTH-CA",
+   "aufraeumen": [
+    "rm -f /tmp/lth-ca.key /tmp/lth-ca.crt /tmp/lth-ca.srl /tmp/lth-w.key /tmp/lth-w.csr /tmp/lth-w.crt /tmp/lth-k.pem /tmp/lth-h"
+   ]
+  },
+  {
+   "name": "openssl req: subj ohne Schrägstrich",
+   "dateien": {},
+   "befehl": "openssl req -x509 -newkey rsa:2048 -noenc -keyout /tmp/lth-ca.key -out /tmp/lth-ca.crt -subj CN=LTH-CA",
+   "aufraeumen": [
+    "rm -f /tmp/lth-ca.key /tmp/lth-ca.crt /tmp/lth-ca.srl /tmp/lth-w.key /tmp/lth-w.csr /tmp/lth-w.crt /tmp/lth-k.pem /tmp/lth-h"
+   ]
+  },
+  {
+   "name": "openssl x509: Betreff lesen",
+   "dateien": {},
+   "befehl": "openssl x509 -in /tmp/lth-ca.crt -noout -subject -issuer -dates",
+   "vorher": [
+    "openssl req -x509 -newkey rsa:2048 -noenc -keyout /tmp/lth-ca.key -out /tmp/lth-ca.crt -days 30 -subj /CN=LTH-CA"
+   ],
+   "aufraeumen": [
+    "rm -f /tmp/lth-ca.key /tmp/lth-ca.crt /tmp/lth-ca.srl /tmp/lth-w.key /tmp/lth-w.csr /tmp/lth-w.crt /tmp/lth-k.pem /tmp/lth-h"
+   ]
+  },
+  {
+   "name": "openssl x509: Datei fehlt",
+   "dateien": {},
+   "befehl": "openssl x509 -in /tmp/lth-gibtsnicht.crt -noout -subject"
+  },
+  {
+   "name": "openssl x509 -req: mit CA signieren",
+   "dateien": {},
+   "befehl": "openssl x509 -req -in /tmp/lth-w.csr -CA /tmp/lth-ca.crt -CAkey /tmp/lth-ca.key -CAcreateserial -days 10 -out /tmp/lth-w.crt",
+   "vorher": [
+    "openssl req -x509 -newkey rsa:2048 -noenc -keyout /tmp/lth-ca.key -out /tmp/lth-ca.crt -days 30 -subj /CN=LTH-CA",
+    "openssl req -new -newkey rsa:2048 -noenc -keyout /tmp/lth-w.key -out /tmp/lth-w.csr -subj /CN=www.lth.example"
+   ],
+   "aufraeumen": [
+    "rm -f /tmp/lth-ca.key /tmp/lth-ca.crt /tmp/lth-ca.srl /tmp/lth-w.key /tmp/lth-w.csr /tmp/lth-w.crt /tmp/lth-k.pem /tmp/lth-h"
+   ]
+  },
+  {
+   "name": "openssl verify: mit CA",
+   "dateien": {},
+   "befehl": "openssl verify -CAfile /tmp/lth-ca.crt /tmp/lth-w.crt",
+   "vorher": [
+    "openssl req -x509 -newkey rsa:2048 -noenc -keyout /tmp/lth-ca.key -out /tmp/lth-ca.crt -days 30 -subj /CN=LTH-CA",
+    "openssl req -new -newkey rsa:2048 -noenc -keyout /tmp/lth-w.key -out /tmp/lth-w.csr -subj /CN=www.lth.example",
+    "openssl x509 -req -in /tmp/lth-w.csr -CA /tmp/lth-ca.crt -CAkey /tmp/lth-ca.key -CAcreateserial -days 10 -out /tmp/lth-w.crt"
+   ],
+   "aufraeumen": [
+    "rm -f /tmp/lth-ca.key /tmp/lth-ca.crt /tmp/lth-ca.srl /tmp/lth-w.key /tmp/lth-w.csr /tmp/lth-w.crt /tmp/lth-k.pem /tmp/lth-h"
+   ]
+  },
+  {
+   "name": "openssl verify: ohne CA",
+   "dateien": {},
+   "befehl": "openssl verify /tmp/lth-w.crt",
+   "vorher": [
+    "openssl req -x509 -newkey rsa:2048 -noenc -keyout /tmp/lth-ca.key -out /tmp/lth-ca.crt -days 30 -subj /CN=LTH-CA",
+    "openssl req -new -newkey rsa:2048 -noenc -keyout /tmp/lth-w.key -out /tmp/lth-w.csr -subj /CN=www.lth.example",
+    "openssl x509 -req -in /tmp/lth-w.csr -CA /tmp/lth-ca.crt -CAkey /tmp/lth-ca.key -CAcreateserial -days 10 -out /tmp/lth-w.crt"
+   ],
+   "aufraeumen": [
+    "rm -f /tmp/lth-ca.key /tmp/lth-ca.crt /tmp/lth-ca.srl /tmp/lth-w.key /tmp/lth-w.csr /tmp/lth-w.crt /tmp/lth-k.pem /tmp/lth-h"
+   ]
+  },
+  {
+   "name": "openssl verify: selbst signiert, nicht vertraut",
+   "dateien": {},
+   "befehl": "openssl verify /tmp/lth-ca.crt",
+   "vorher": [
+    "openssl req -x509 -newkey rsa:2048 -noenc -keyout /tmp/lth-ca.key -out /tmp/lth-ca.crt -days 30 -subj /CN=LTH-CA"
+   ],
+   "aufraeumen": [
+    "rm -f /tmp/lth-ca.key /tmp/lth-ca.crt /tmp/lth-ca.srl /tmp/lth-w.key /tmp/lth-w.csr /tmp/lth-w.crt /tmp/lth-k.pem /tmp/lth-h"
+   ]
+  },
+  {
+   "name": "openssl x509 -checkend: noch gültig",
+   "dateien": {},
+   "befehl": "openssl x509 -in /tmp/lth-ca.crt -noout -checkend 0",
+   "vorher": [
+    "openssl req -x509 -newkey rsa:2048 -noenc -keyout /tmp/lth-ca.key -out /tmp/lth-ca.crt -days 30 -subj /CN=LTH-CA"
+   ],
+   "aufraeumen": [
+    "rm -f /tmp/lth-ca.key /tmp/lth-ca.crt /tmp/lth-ca.srl /tmp/lth-w.key /tmp/lth-w.csr /tmp/lth-w.crt /tmp/lth-k.pem /tmp/lth-h"
+   ]
+  },
+  {
+   "name": "openssl x509 -checkend: läuft ab",
+   "dateien": {},
+   "befehl": "openssl x509 -in /tmp/lth-ca.crt -noout -checkend 99999999",
+   "vorher": [
+    "openssl req -x509 -newkey rsa:2048 -noenc -keyout /tmp/lth-ca.key -out /tmp/lth-ca.crt -days 30 -subj /CN=LTH-CA"
+   ],
+   "aufraeumen": [
+    "rm -f /tmp/lth-ca.key /tmp/lth-ca.crt /tmp/lth-ca.srl /tmp/lth-w.key /tmp/lth-w.csr /tmp/lth-w.crt /tmp/lth-k.pem /tmp/lth-h"
+   ]
+  },
+  {
+   "name": "openssl rsa -check",
+   "dateien": {},
+   "befehl": "openssl rsa -in /tmp/lth-ca.key -check -noout",
+   "vorher": [
+    "openssl req -x509 -newkey rsa:2048 -noenc -keyout /tmp/lth-ca.key -out /tmp/lth-ca.crt -days 30 -subj /CN=LTH-CA"
+   ],
+   "aufraeumen": [
+    "rm -f /tmp/lth-ca.key /tmp/lth-ca.crt /tmp/lth-ca.srl /tmp/lth-w.key /tmp/lth-w.csr /tmp/lth-w.crt /tmp/lth-k.pem /tmp/lth-h"
+   ]
+  },
+  {
+   "name": "htpasswd: neue Datei",
+   "dateien": {},
+   "befehl": "htpasswd -c -b /tmp/lth-h lena geheim",
+   "aufraeumen": [
+    "rm -f /tmp/lth-ca.key /tmp/lth-ca.crt /tmp/lth-ca.srl /tmp/lth-w.key /tmp/lth-w.csr /tmp/lth-w.crt /tmp/lth-k.pem /tmp/lth-h"
+   ]
+  },
+  {
+   "name": "htpasswd: Datei fehlt ohne -c",
+   "dateien": {},
+   "befehl": "htpasswd -b /tmp/lth-h lena geheim",
+   "aufraeumen": [
+    "rm -f /tmp/lth-ca.key /tmp/lth-ca.crt /tmp/lth-ca.srl /tmp/lth-w.key /tmp/lth-w.csr /tmp/lth-w.crt /tmp/lth-k.pem /tmp/lth-h"
+   ]
+  },
+  {
+   "name": "htpasswd -v: richtig",
+   "dateien": {},
+   "befehl": "htpasswd -v -b /tmp/lth-h lena geheim",
+   "vorher": [
+    "htpasswd -c -b /tmp/lth-h lena geheim"
+   ],
+   "aufraeumen": [
+    "rm -f /tmp/lth-ca.key /tmp/lth-ca.crt /tmp/lth-ca.srl /tmp/lth-w.key /tmp/lth-w.csr /tmp/lth-w.crt /tmp/lth-k.pem /tmp/lth-h"
+   ]
+  },
+  {
+   "name": "htpasswd -v: falsch",
+   "dateien": {},
+   "befehl": "htpasswd -v -b /tmp/lth-h lena falsch",
+   "vorher": [
+    "htpasswd -c -b /tmp/lth-h lena geheim"
+   ],
+   "aufraeumen": [
+    "rm -f /tmp/lth-ca.key /tmp/lth-ca.crt /tmp/lth-ca.srl /tmp/lth-w.key /tmp/lth-w.csr /tmp/lth-w.crt /tmp/lth-k.pem /tmp/lth-h"
+   ]
+  },
+  {
+   "name": "htpasswd -v: unbekannt",
+   "dateien": {},
+   "befehl": "htpasswd -v -b /tmp/lth-h otto geheim",
+   "vorher": [
+    "htpasswd -c -b /tmp/lth-h lena geheim"
+   ],
+   "aufraeumen": [
+    "rm -f /tmp/lth-ca.key /tmp/lth-ca.crt /tmp/lth-ca.srl /tmp/lth-w.key /tmp/lth-w.csr /tmp/lth-w.crt /tmp/lth-k.pem /tmp/lth-h"
+   ]
+  },
+  {
+   "name": "htpasswd -nb",
+   "dateien": {},
+   "befehl": "htpasswd -nb lena geheim"
+  },
+  {
+   "name": "nginx -t: gültig",
+   "dateien": {
+    "/tmp/lth-nginx.conf": {
+     "inhalt": "pid /tmp/lth-nginx.pid;\nerror_log /tmp/lth-nginx.log;\nevents {\n\tworker_connections 64;\n}\nhttp {\n\taccess_log /tmp/lth-nginx-a.log;\n\tserver {\n\t\tlisten 8089;\n\t\tserver_name lth.example;\n\t\tlocation / {\n\t\t\troot /tmp;\n\t\t\tindex index.html;\n\t\t}\n\t\tlocation /app/ {\n\t\t\tproxy_pass http://127.0.0.1:9999/;\n\t\t\tproxy_set_header Host $host;\n\t\t}\n\t}\n}\n",
+     "modus": "644"
+    }
+   },
+   "befehl": "nginx -t -c /tmp/lth-nginx.conf"
+  },
+  {
+   "name": "nginx -t: unbekannte Direktive",
+   "dateien": {
+    "/tmp/lth-nginx.conf": {
+     "inhalt": "pid /tmp/lth-nginx.pid;\nerror_log /tmp/lth-nginx.log;\nevents {\n\tworker_connections 64;\n}\nhttp {\n\taccess_log /tmp/lth-nginx-a.log;\n\tserver {\n\t\tlisten 8089;\n\t\tserver_name lth.example;\n\t\tlocation / {\n\t\t\troot /tmp;\n\t\t\tindex index.html;\n\t\t\tindx index.htm;\n\t\t}\n\t\tlocation /app/ {\n\t\t\tproxy_pass http://127.0.0.1:9999/;\n\t\t\tproxy_set_header Host $host;\n\t\t}\n\t}\n}\n",
+     "modus": "644"
+    }
+   },
+   "befehl": "nginx -t -c /tmp/lth-nginx.conf"
+  },
+  {
+   "name": "nginx -t: Semikolon fehlt",
+   "dateien": {
+    "/tmp/lth-nginx.conf": {
+     "inhalt": "pid /tmp/lth-nginx.pid;\nerror_log /tmp/lth-nginx.log;\nevents {\n\tworker_connections 64;\n}\nhttp {\n\taccess_log /tmp/lth-nginx-a.log;\n\tserver {\n\t\tlisten 8089;\n\t\tserver_name lth.example;\n\t\tlocation / {\n\t\t\troot /tmp;\n\t\t\tindex index.html;\n\t\t}\n\t\tlocation /app/ {\n\t\t\tproxy_pass http://127.0.0.1:9999/\n\t\t\tproxy_set_header Host $host;\n\t\t}\n\t}\n}\n",
+     "modus": "644"
+    }
+   },
+   "befehl": "nginx -t -c /tmp/lth-nginx.conf"
+  },
+  {
+   "name": "nginx -t: am falschen Ort",
+   "dateien": {
+    "/tmp/lth-nginx.conf": {
+     "inhalt": "pid /tmp/lth-nginx.pid;\nerror_log /tmp/lth-nginx.log;\nevents {\n\tworker_connections 64;\n}\nhttp {\n\taccess_log /tmp/lth-nginx-a.log;\n\tserver {\n\t\tlisten 8089;\n\t\tproxy_pass http://127.0.0.1:9999/;\n\t\tserver_name lth.example;\n\t\tlocation / {\n\t\t\troot /tmp;\n\t\t\tindex index.html;\n\t\t}\n\t\tlocation /app/ {\n\t\t\tproxy_pass http://127.0.0.1:9999/;\n\t\t\tproxy_set_header Host $host;\n\t\t}\n\t}\n}\n",
+     "modus": "644"
+    }
+   },
+   "befehl": "nginx -t -c /tmp/lth-nginx.conf"
+  },
+  {
+   "name": "nginx -t: Klammer fehlt",
+   "dateien": {
+    "/tmp/lth-nginx.conf": {
+     "inhalt": "pid /tmp/lth-nginx.pid;\nerror_log /tmp/lth-nginx.log;\nevents {\n\tworker_connections 64;\n}\nhttp {\n\taccess_log /tmp/lth-nginx-a.log;\n\tserver {\n\t\tlisten 8089;\n\t\tserver_name lth.example;\n\t\tlocation / {\n\t\t\troot /tmp;\n\t\t\tindex index.html;\n\t\t}\n\t\tlocation /app/ {\n\t\t\tproxy_pass http://127.0.0.1:9999/;\n\t\t\tproxy_set_header Host $host;\n\t\t}\n\t}\n",
+     "modus": "644"
+    }
+   },
+   "befehl": "nginx -t -c /tmp/lth-nginx.conf"
+  },
+  {
+   "name": "nginx -t: zwei default_server",
+   "dateien": {
+    "/tmp/lth-nginx.conf": {
+     "inhalt": "pid /tmp/lth-nginx.pid;\nerror_log /tmp/lth-nginx.log;\nevents {\n\tworker_connections 64;\n}\nhttp {\n\taccess_log /tmp/lth-nginx-a.log;\n\tserver {\n\t\tlisten 8089 default_server;\n\t\tserver_name lth.example;\n\t\tlocation / {\n\t\t\troot /tmp;\n\t\t\tindex index.html;\n\t\t}\n\t\tlocation /app/ {\n\t\t\tproxy_pass http://127.0.0.1:9999/;\n\t\t\tproxy_set_header Host $host;\n\t\t}\n\t}\n\tserver {\n\t\tlisten 8089 default_server;\n\t\tserver_name b.example;\n\t}\n}\n",
+     "modus": "644"
+    }
+   },
+   "befehl": "nginx -t -c /tmp/lth-nginx.conf"
+  },
+  {
+   "name": "squid -k parse: gültig",
+   "dateien": {
+    "/tmp/lth-squid.conf": {
+     "inhalt": "acl labor src 192.168.1.0/24\nacl gesperrt dstdomain .example.net\nacl SSL_ports port 443\nhttp_access deny gesperrt\nhttp_access allow labor\nhttp_access deny all\nhttp_port 3199\n",
+     "modus": "644"
+    }
+   },
+   "befehl": "squid -k parse -f /tmp/lth-squid.conf"
+  },
+  {
+   "name": "squid -k parse: ACL-Typ falsch",
+   "dateien": {
+    "/tmp/lth-squid.conf": {
+     "inhalt": "acl labor srcc 192.168.1.0/24\nacl gesperrt dstdomain .example.net\nacl SSL_ports port 443\nhttp_access deny gesperrt\nhttp_access allow labor\nhttp_access deny all\nhttp_port 3199\n",
+     "modus": "644"
+    }
+   },
+   "befehl": "squid -k parse -f /tmp/lth-squid.conf"
+  },
+  {
+   "name": "squid -k parse: ACL fehlt",
+   "dateien": {
+    "/tmp/lth-squid.conf": {
+     "inhalt": "acl labor src 192.168.1.0/24\nacl gesperrt dstdomain .example.net\nacl SSL_ports port 443\nhttp_access deny gesperrt\nhttp_access allow lab\nhttp_access deny all\nhttp_port 3199\n",
+     "modus": "644"
+    }
+   },
+   "befehl": "squid -k parse -f /tmp/lth-squid.conf"
+  },
+  {
+   "name": "squid -k parse: unbekannte Direktive",
+   "dateien": {
+    "/tmp/lth-squid.conf": {
+     "inhalt": "acl labor src 192.168.1.0/24\nacl gesperrt dstdomain .example.net\nacl SSL_ports port 443\nhttp_access deny gesperrt\nhttp_access allow labor\nhttp_access deny all\nhttp_port 3199\ntippfehler on\n",
+     "modus": "644"
+    }
+   },
+   "befehl": "squid -k parse -f /tmp/lth-squid.conf"
+  }
+ ]
+}

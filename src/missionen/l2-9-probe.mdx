@@ -1,0 +1,21 @@
+---
+id: l2-9-probe
+abzeichen: "Topic 208 bestanden"
+checks:
+  - id: probe
+---
+import Probe from '../components/Probe.astro';
+import Karte from '../components/Karte.astro';
+import Hinweis from '../components/Hinweis.astro';
+
+Topic 208 bringt in der Prüfung 202 ungefähr **11 von 60 Fragen**: vier zu Apache (208.1), drei zu HTTPS (208.2) und je zwei zu Squid (208.3) und Nginx (208.4). **Deine Mission: Bestehe die Probe mit mindestens 80 %.**
+
+<Karte nr={1} titel="Was diese Probe mischt">
+Neben Topic 208 kommen Fragen aus LPIC-1 und aus Akt 8, auf denen der Stoff aufbaut: Ports und Protokolle (109.1), Verschlüsselung mit OpenSSH und GnuPG (110.3) und DNS auf dem Server (207.2), denn ohne passende Namen findet kein Client den richtigen virtuellen Host.
+</Karte>
+
+<Hinweis titel="Zum Tempo">
+20 Fragen in 30 Minuten. Gemischt nach den Gewichten der Lernziele: etwa drei Viertel aus Topic 208, der Rest aus der Wiederholung. Falsch beantwortete Fragen landen morgen in deiner Wiederholung.
+</Hinweis>
+
+<Probe id="probe" titel="Probeprüfung: Topic 208 mit Wiederholung" ziele={['208.1', '208.2', '208.3', '208.4', '109.1', '110.3', '207.2']} anzahl={20} />
