@@ -5,7 +5,7 @@
 import type { Welt } from './shell';
 import { meta, sha256 } from './shell-dateien';
 import { aufloesen, eigeneIps, ns, weg, HOSTS, netzExtraSockets, type Sock } from './shell-netz';
-import { pem, zertifikate, schluesselIn, pruefen, namePasst, vertrauteWurzeln, nameText, gmt, tlsServerQuelle, oeffentlicheCa, ausstellen, neuerSchluessel, hashTeil, OPENSSL_VERSION, type Zert } from './shell-tls';
+import { pem, zertifikate, schluesselIn, pruefen, namePasst, vertrauteWurzeln, nameText, gmt, tlsServerQuelle, oeffentlicheCa, ausstellen, neuerSchluessel, hashTeil, opensslVersion, type Zert } from './shell-tls';
 
 type Ergebnis = { out: string; err?: string; code: number };
 type B = (w: Welt, a: string[], stdin: string, root: boolean) => Ergebnis;
@@ -34,12 +34,13 @@ let K: { pfad: (w: Welt, p: string) => string; installieren: (w: Welt, namen: st
 export function webKern(k: typeof K) { K = k; }
 
 const rh = (w: Welt) => w.distro !== 'debian';
-export const APACHE_VERSION = { debian: '2.4.65', rh: '2.4.62' };
+export const APACHE_VERSION = { debian: '2.4.71', rh: '2.4.62' };
 const APV = (w: Welt) => (rh(w) ? APACHE_VERSION.rh : APACHE_VERSION.debian);
 const AOS = (w: Welt) => (rh(w) ? 'AlmaLinux' : 'Debian');
 export const NGINX_VERSION = '1.22.1';
 export const SQUID_VERSION = '5.7';
 const CURL_VERSION = '7.88.1';
+const curlV = (w: Welt) => (w.distro === 'debian' ? CURL_VERSION : '7.76.1');
 const ORT = (w: Welt) => rh(w)
   ? { root: '/etc/httpd', conf: '/etc/httpd/conf/httpd.conf', bin: 'httpd', ctl: 'apachectl', user: 'apache', log: '/var/log/httpd', acc: 'access_log', err: 'error_log', dienst: 'httpd', mods: '/usr/lib64/httpd/modules' }
   : { root: '/etc/apache2', conf: '/etc/apache2/apache2.conf', bin: 'apache2', ctl: 'apache2ctl', user: 'www-data', log: '/var/log/apache2', acc: 'access.log', err: 'error.log', dienst: 'apache2', mods: '/usr/lib/apache2/modules' };
@@ -327,7 +328,7 @@ function serverHeader(w: Welt, m: AModell): string {
   if (t === 'minor') return `Apache/${v.split('.').slice(0, 2).join('.')}`;
   if (t.startsWith('min')) return `Apache/${v}`;
   if (t === 'os') return `Apache/${v} (${AOS(w)})`;
-  return `Apache/${v} (${AOS(w)})${m.module.includes('ssl') ? ` OpenSSL/${OPENSSL_VERSION.split(' ')[1]}` : ''}${m.module.includes('php') ? '' : ''}`;
+  return `Apache/${v} (${AOS(w)})${m.module.includes('ssl') ? ` OpenSSL/${opensslVersion(w).split(' ')[1]}` : ''}${m.module.includes('php') ? '' : ''}`;
 }
 
 // =====================================================================================================
@@ -499,7 +500,7 @@ function apacheAnfrage(w: Welt, a: Anfrage): Antwort {
   if (!a.tls && vh && /^on$/i.test(wert({ ...m, global: [] }, 'sslengine', vh)?.[0] ?? '')) return fertig({ status: 400, kopf: [...kopfStd(), ['Content-Type', 'text/html; charset=iso-8859-1']], body: `<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">\n<html><head>\n<title>400 Bad Request</title>\n</head><body>\n<h1>Bad Request</h1>\n<p>Your browser sent a request that this server could not understand.<br />\nReason: You're speaking plain HTTP to an SSL-enabled server port.<br />\n Instead use the HTTPS scheme to access this URL, please.<br />\n</p>\n${sig ? '<hr>\n' + sig + '\n' : ''}</body></html>\n` });
   if (a.tls && a.sni) { const sniVh = vhostWaehlen(w, m, { ...a, host: a.sni }); if (sniVh !== vh && vh && sniVh) { apacheErrorLog(w, m, vh, 'ssl:error', a.client, `AH02032: Hostname ${a.sni} provided via SNI and hostname ${a.host} provided via HTTP have no compatible SSL setup`); return fehlerseite(421); } }
   // TRACE
-  if (a.methode === 'TRACE') { const te = (wert(m, 'traceenable', vh)?.[0] ?? 'on').toLowerCase(); if (te === 'off') return fehlerseite(405, [['Allow', '']]); return fertig({ status: 200, kopf: [...kopfStd(), ['Content-Type', 'message/http']], body: `TRACE ${a.pfad} HTTP/1.1\r\nHost: ${a.host}\r\nUser-Agent: curl/${CURL_VERSION}\r\nAccept: */*\r\n` }); }
+  if (a.methode === 'TRACE') { const te = (wert(m, 'traceenable', vh)?.[0] ?? 'on').toLowerCase(); if (te === 'off') return fehlerseite(405, [['Allow', '']]); return fertig({ status: 200, kopf: [...kopfStd(), ['Content-Type', 'message/http']], body: `TRACE ${a.pfad} HTTP/1.1\r\nHost: ${a.host}\r\nUser-Agent: curl/${curlV(w)}\r\nAccept: */*\r\n` }); }
   const url = decodeURIComponent(a.pfad.split('?')[0]); const query = a.pfad.includes('?') ? a.pfad.slice(a.pfad.indexOf('?') + 1) : '';
   // Umleitungen (mod_alias)
   const umleitung = (ds: Dir[]): Antwort | null => {
@@ -962,7 +963,7 @@ function tlsVon(w: Welt, ip: string, port: number, sni: string | null) {
 // =====================================================================================================
 function curl(w: Welt, a: string[], root: boolean): Ergebnis {
   if (!webAktiv(w)) return fehler('bash: curl: Befehl nicht gefunden', 127);
-  if (a.includes('--version') || a.includes('-V')) return ok(`curl ${CURL_VERSION} (x86_64-pc-linux-gnu) libcurl/${CURL_VERSION} OpenSSL/3.0.17 zlib/1.2.13 brotli/1.0.9 zstd/1.5.4 libidn2/2.3.3 libpsl/0.21.2 (+libidn2/2.3.3) libssh2/1.10.0 nghttp2/1.52.0 librtmp/2.3 OpenLDAP/2.5.13\nRelease-Date: 2023-02-20, security patched: ${CURL_VERSION}-10+deb12u14\nProtocols: dict file ftp ftps gopher gophers http https imap imaps ldap ldaps mqtt pop3 pop3s rtmp rtsp scp sftp smb smbs smtp smtps telnet tftp\nFeatures: alt-svc AsynchDNS brotli GSS-API HSTS HTTP2 HTTPS-proxy IDN IPv6 Kerberos Largefile libz NTLM NTLM_WB PSL SPNEGO SSL threadsafe TLS-SRP UnixSockets zstd`);
+  if (a.includes('--version') || a.includes('-V')) return ok(`curl ${CURL_VERSION} (x86_64-pc-linux-gnu) libcurl/${CURL_VERSION} OpenSSL/3.0.22 zlib/1.2.13 brotli/1.0.9 zstd/1.5.4 libidn2/2.3.3 libpsl/0.21.2 (+libidn2/2.3.3) libssh2/1.10.0 nghttp2/1.52.0 librtmp/2.3 OpenLDAP/2.5.13\nRelease-Date: 2023-02-20, security patched: ${CURL_VERSION}-10+deb12u15\nProtocols: dict file ftp ftps gopher gophers http https imap imaps ldap ldaps mqtt pop3 pop3s rtmp rtsp scp sftp smb smbs smtp smtps telnet tftp\nFeatures: alt-svc AsynchDNS brotli GSS-API HSTS HTTP2 HTTPS-proxy IDN IPv6 Kerberos Largefile libz NTLM NTLM_WB PSL SPNEGO SSL threadsafe TLS-SRP UnixSockets zstd`);
   const o = { s: false, S: false, i: false, I: false, v: false, k: false, L: false, f: false, o: '', w: '', X: '', H: [] as string[], u: '', U: '', x: '', cacert: '', resolve: [] as string[], tlsMin: '', tlsMax: '', d: '', url: '', A: '', noproxy: '' };
   const kurz: Record<string, keyof typeof o> = { o: 'o', w: 'w', X: 'X', H: 'H', u: 'u', U: 'U', x: 'x', d: 'd', A: 'A' };
   const lang: Record<string, keyof typeof o> = { '--output': 'o', '--write-out': 'w', '--request': 'X', '--header': 'H', '--user': 'u', '--proxy-user': 'U', '--proxy': 'x', '--cacert': 'cacert', '--resolve': 'resolve', '--tls-max': 'tlsMax', '--data': 'd', '--user-agent': 'A', '--noproxy': 'noproxy' };
@@ -1001,7 +1002,7 @@ function curl(w: Welt, a: string[], root: boolean): Ergebnis {
     const [, schema, ui, host0, port0, rest] = mm; const host = host0.replace(/^\[|\]$/g, '');
     const port = Number(port0 ?? (schema === 'https' ? 443 : 80)); const pfad = rest || '/';
     const auth = o.u ? { user: o.u.split(':')[0], pw: o.u.slice(o.u.indexOf(':') + 1) } : ui ? { user: decodeURIComponent(ui.split(':')[0]), pw: decodeURIComponent(ui.split(':')[1] ?? '') } : undefined;
-    const kopf: Record<string, string> = { host: port0 ? `${host}:${port}` : host, 'user-agent': o.A || `curl/${CURL_VERSION}`, accept: '*/*' };
+    const kopf: Record<string, string> = { host: port0 ? `${host}:${port}` : host, 'user-agent': o.A || `curl/${curlV(w)}`, accept: '*/*' };
     for (const h of o.H) { const i = h.indexOf(':'); if (i > 0) kopf[h.slice(0, i).trim().toLowerCase()] = h.slice(i + 1).trim(); }
     const methode = o.X || (o.I ? 'HEAD' : o.d ? 'POST' : 'GET');
     // Proxy aus -x oder der Umgebung
@@ -1057,13 +1058,13 @@ function curl(w: Welt, a: string[], root: boolean): Ergebnis {
 function tlsPruefen(w: Welt, ip: string, port: number, host: string, o?: { k: boolean; cacert: string; tlsMin: string; tlsMax: string }, verbose?: string[]): { ok: true } | Ergebnis {
   const t = tlsVon(w, ip, port, /^[\d.]+$/.test(host) ? null : host);
   if (!t) return fehler(`curl: (7) Failed to connect to ${host} port ${port} after 0 ms: Couldn't connect to server`, 7);
-  if ('fehler' in t) return fehler(`curl: (35) OpenSSL/3.0.17: error:0A00010B:SSL routines::wrong version number`, 35);
+  if ('fehler' in t) return fehler(`curl: (35) OpenSSL/3.0.22: error:0A00010B:SSL routines::wrong version number`, 35);
   const stufen = ['TLSv1', 'TLSv1.1', 'TLSv1.2', 'TLSv1.3'];
   const min = stufen.indexOf(o?.tlsMin || 'TLSv1.2'); const max = o?.tlsMax ? stufen.indexOf(o.tlsMax.replace(/^1/, 'TLSv1').replace('TLSv1.0', 'TLSv1')) : 3;
   const erlaubt = stufen.filter((_, i) => i >= Math.max(min, 2) && i <= max);
-  if (!erlaubt.length) return fehler(`curl: (35) OpenSSL/3.0.17: error:0A0000BF:SSL routines::no protocols available`, 35);
+  if (!erlaubt.length) return fehler(`curl: (35) OpenSSL/3.0.22: error:0A0000BF:SSL routines::no protocols available`, 35);
   const proto = [...erlaubt].reverse().find((p) => t.protokolle.includes(p));
-  if (!proto) return fehler(`curl: (35) OpenSSL/3.0.17: error:0A00042E:SSL routines::tlsv1 alert protocol version`, 35);
+  if (!proto) return fehler(`curl: (35) OpenSSL/3.0.22: error:0A00042E:SSL routines::tlsv1 alert protocol version`, 35);
   const leaf = t.kette[0];
   if (verbose) verbose.push('* ALPN: offers h2,http/1.1', `* SSL connection using ${proto} / ${proto === 'TLSv1.3' ? 'TLS_AES_256_GCM_SHA384' : 'ECDHE-RSA-AES256-GCM-SHA384'}`, '* Server certificate:', `*  subject: ${nameText(leaf.subj).replace(/ = /g, '=').replace(/, /g, '; ')}`, `*  start date: ${gmt(leaf.nb)}`, `*  expire date: ${gmt(leaf.na)}`, `*  issuer: ${nameText(leaf.iss).replace(/ = /g, '=').replace(/, /g, '; ')}`);
   if (o?.k) { verbose?.push('*  SSL certificate verify result: (übersprungen mit -k)'); return { ok: true }; }
@@ -1949,7 +1950,7 @@ function nginxBefehl(w: Welt, a: string[], root: boolean): Ergebnis {
   const s = st(w);
   if (!s.nginx.installiert) return fehler('bash: nginx: Befehl nicht gefunden', 127);
   if (a.includes('-v')) return { out: '', err: `nginx version: nginx/${NGINX_VERSION}`, code: 0 };
-  if (a.includes('-V')) return { out: '', err: `nginx version: nginx/${NGINX_VERSION}\nbuilt with OpenSSL 3.0.17 1 Jul 2025\nTLS SNI support enabled\nconfigure arguments: --with-cc-opt='-g -O2' --prefix=/usr/share/nginx --conf-path=/etc/nginx/nginx.conf --http-log-path=/var/log/nginx/access.log --error-log-path=stderr --lock-path=/var/lock/nginx.lock --pid-path=/run/nginx.pid --with-http_ssl_module --with-http_v2_module --with-http_realip_module --with-http_stub_status_module`, code: 0 };
+  if (a.includes('-V')) return { out: '', err: `nginx version: nginx/${NGINX_VERSION}\nbuilt with OpenSSL 3.0.22 25 Aug 2026\nTLS SNI support enabled\nconfigure arguments: --with-cc-opt='-g -O2' --prefix=/usr/share/nginx --conf-path=/etc/nginx/nginx.conf --http-log-path=/var/log/nginx/access.log --error-log-path=stderr --lock-path=/var/lock/nginx.lock --pid-path=/run/nginx.pid --with-http_ssl_module --with-http_v2_module --with-http_realip_module --with-http_stub_status_module`, code: 0 };
   const ci = a.indexOf('-c'); const conf = ci >= 0 ? K.pfad(w, a[ci + 1]) : '/etc/nginx/nginx.conf';
   if (a.includes('-t') || a.includes('-T')) {
     if (!root && !a.includes('-c')) return fehler(`nginx: [alert] could not open error log file: open() "/var/log/nginx/error.log" failed (13: Permission denied)\n${nginxMeldung(w, 'warn', 'the "user" directive makes sense only if the master process runs with super-user privileges, ignored in /etc/nginx/nginx.conf:1')}\nnginx: the configuration file /etc/nginx/nginx.conf syntax is ok\n${nginxMeldung(w, 'emerg', 'open() "/run/nginx.pid" failed (13: Permission denied)')}\nnginx: configuration file /etc/nginx/nginx.conf test failed`);
@@ -1977,7 +1978,7 @@ function nginxBefehl(w: Welt, a: string[], root: boolean): Ergebnis {
 function squidBefehl(w: Welt, a: string[], root: boolean): Ergebnis {
   const s = st(w);
   if (!s.squid.installiert) return fehler('bash: squid: Befehl nicht gefunden', 127);
-  if (a.includes('-v')) return ok(`Squid Cache: Version ${SQUID_VERSION}\nService Name: squid\nDebian linux\n\nThis binary uses OpenSSL 3.0.17 1 Jul 2025. For legal restrictions on distribution see https://www.openssl.org/source/license.html\n\nconfigure options:  '--build=x86_64-linux-gnu' '--prefix=/usr' '--sysconfdir=/etc/squid' '--with-default-user=proxy' '--enable-auth-basic=DB,fake,getpwnam,LDAP,NCSA,PAM,POP3,RADIUS,SASL,SMB'`);
+  if (a.includes('-v')) return ok(`Squid Cache: Version ${SQUID_VERSION}\nService Name: squid\nDebian linux\n\nThis binary uses OpenSSL 3.0.22 25 Aug 2026. For legal restrictions on distribution see https://www.openssl.org/source/license.html\n\nconfigure options:  '--build=x86_64-linux-gnu' '--prefix=/usr' '--sysconfdir=/etc/squid' '--with-default-user=proxy' '--enable-auth-basic=DB,fake,getpwnam,LDAP,NCSA,PAM,POP3,RADIUS,SASL,SMB'`);
   const fi = a.indexOf('-f'); const conf = fi >= 0 ? K.pfad(w, a[fi + 1]) : '/etc/squid/squid.conf';
   const ki = a.indexOf('-k'); const k = ki >= 0 ? a[ki + 1] : null;
   if (k === 'parse' || k === 'check') {
@@ -2227,7 +2228,7 @@ function vonAus(w: Welt, ip: string, args: string[]): Ergebnis {
   const url = args[args.length - 1]; const mm = url.match(/^(https?):\/\/([^/:]+)(?::(\d+))?(.*)$/); if (!mm) return fehler('url');
   const ziel = aufloesen(w, mm[2]).ip ?? mm[2]; const port = Number(mm[3] ?? (mm[1] === 'https' ? 443 : 80));
   const ui = args.indexOf('-u'); const auth = ui >= 0 ? { user: args[ui + 1].split(':')[0], pw: args[ui + 1].split(':')[1] } : undefined;
-  const r = verbinden(w, { methode: 'GET', host: mm[2], pfad: mm[4] || '/', port, tls: mm[1] === 'https', sni: mm[2], client: ip, ziel, kopf: { host: mm[2], 'user-agent': `curl/${CURL_VERSION}`, accept: '*/*' }, auth });
+  const r = verbinden(w, { methode: 'GET', host: mm[2], pfad: mm[4] || '/', port, tls: mm[1] === 'https', sni: mm[2], client: ip, ziel, kopf: { host: mm[2], 'user-agent': `curl/${curlV(w)}`, accept: '*/*' }, auth });
   if ('fehler' in r) return fehler('x', 7);
   return ok(`HTTP/1.1 ${r.status} ${TEXTE[r.status]}\n${r.kopf.map(([k, v]) => `${k}: ${v}`).join('\n')}\n\n${r.body}`);
 }

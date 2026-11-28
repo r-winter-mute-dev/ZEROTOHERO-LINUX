@@ -67,7 +67,7 @@ In `src/scripts/shell.ts`, genau wie bei `shell-speicher.ts` und `shell-netzwerk
 - In der Web-Welt laufen Prüfungen `http(…)` auf einer Kopie und schreiben nichts in die Protokolle. Aufgaben, die ein Protokoll lesen lassen, müssen den Aufruf mit curl selbst verlangen.
 - Ab dem ersten `<VirtualHost *:80>` beantwortet Apache auch `localhost` mit dem ersten Host, wie echt. Auf Red Hat zeigt `http://localhost/` nach einer eigenen Datei in conf.d also diese Seite statt der Testseite.
 - Der Simulator verschlüsselt Schlüssel nicht wirklich. Ohne `-noenc` fragt openssl nach einer Passphrase und startet den Befehl mit `-passout`/`-passin pass:…` neu, Apache startet mit einem verschlüsselten Schlüssel nicht (AH02564).
-- Versionen für Apache, Nginx, Squid, OpenSSL und curl stehen als Konstanten in `shell-web.ts` und `shell-tls.ts` und als Pakete in `shell-pakete.ts`. Der Kopf der Vergleichsgruppe web zeigt die Versionen der Action.
+- Versionen für Apache, Nginx, Squid, OpenSSL und curl stehen als Konstanten in `shell-web.ts` und `shell-tls.ts` und als Pakete in `shell-pakete.ts` (Stand November 2026: Debian Apache 2.4.71, OpenSSL 3.0.22, Nginx 1.22.1, Squid 5.7, curl 7.88.1; Alma httpd 2.4.62, OpenSSL 3.5.9, Nginx 1.20.1, Squid 5.5, curl 7.76.1). Der Kopf der Vergleichsgruppe web zeigt die Versionen der Action. Auf Alma ist curl-minimal installiert, das Paket curl nicht nachinstallieren.
 
 ## Testbefehle
 

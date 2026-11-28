@@ -136,7 +136,8 @@ function verschluesseln(k: Schluessel, noetig: boolean): Schluessel | Ergebnis {
 const istErg = (x: unknown): x is Ergebnis => typeof x === 'object' && x !== null && 'code' in x;
 
 // ---------- openssl ----------
-export const OPENSSL_VERSION = 'OpenSSL 3.0.17 1 Jul 2025 (Library: OpenSSL 3.0.17 1 Jul 2025)';
+export const OPENSSL_VERSION = 'OpenSSL 3.0.22 25 Aug 2026 (Library: OpenSSL 3.0.22 25 Aug 2026)';
+export const opensslVersion = (w: Welt) => (w.distro === 'debian' ? OPENSSL_VERSION : 'OpenSSL 3.5.9 29 Sep 2026 (Library: OpenSSL 3.5.9 29 Sep 2026)');
 export type TlsServer = (w: Welt, host: string, port: number, sni: string | null) => { kette: Zert[]; protokolle: string[]; bits: number } | { fehler: string } | null;
 let serverQuelle: TlsServer = () => null;
 export function tlsServerQuelle(f: TlsServer) { serverQuelle = f; }
@@ -157,7 +158,7 @@ export function opensslBefehl(): B {
     const [cmd, ...r] = a;
     switch (cmd) {
       case undefined: return fehler('help:\n\nStandard commands\nasn1parse ca ciphers cms crl crl2pkcs7 dgst dhparam dsaparam ec ecparam enc engine errstr gendsa genpkey genrsa help info kdf list mac nseq ocsp passwd pkcs12 pkcs7 pkcs8 pkey pkeyparam pkeyutl prime rand rehash req rsa rsautl s_client s_server s_time sess_id smime speed spkac srp storeutl ts verify version x509');
-      case 'version': return ok(r.includes('-a') ? `${OPENSSL_VERSION}\nbuilt on: Tue Jul  1 12:00:00 2025 UTC\nplatform: debian-amd64\nOPENSSLDIR: "${w.distro === 'debian' ? '/usr/lib/ssl' : '/etc/pki/tls'}"` : OPENSSL_VERSION);
+      case 'version': return ok(r.includes('-a') ? `${opensslVersion(w)}\nbuilt on: (siehe Paket)\nplatform: debian-amd64\nOPENSSLDIR: "${w.distro === 'debian' ? '/usr/lib/ssl' : '/etc/pki/tls'}"` : opensslVersion(w));
       case 'genrsa': case 'genpkey': {
         let bits = 2048;
         if (cmd === 'genrsa') { const z = r.filter((x, i) => /^\d+$/.test(x) && r[i - 1] !== '-out'); if (z.length) bits = Number(z[z.length - 1]); }
