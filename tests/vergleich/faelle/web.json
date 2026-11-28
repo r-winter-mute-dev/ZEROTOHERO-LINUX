@@ -1,6 +1,6 @@
 {
  "name": "openssl, htpasswd, nginx -t und squid -k parse: Rückgabecodes",
- "version": "(dpkg-query -W -f='${Package}=${Version} ' apache2-utils nginx squid openssl curl 2>/dev/null || rpm -q --qf '%{NAME}=%{VERSION}-%{RELEASE} ' httpd httpd-tools mod_ssl nginx squid openssl curl php)",
+ "version": "echo $(openssl version) $(apache2 -v 2>/dev/null | head -1) $(httpd -v 2>/dev/null | head -1) $(nginx -v 2>&1) $(dpkg-query -W -f='${Package}=${Version} ' apache2-utils nginx squid openssl curl 2>/dev/null || rpm -q --qf '%{NAME}=%{VERSION}-%{RELEASE} ' httpd httpd-tools mod_ssl nginx squid openssl curl-minimal php)",
  "welt": {
   "web": {
    "apache": true,
